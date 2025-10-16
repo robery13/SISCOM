@@ -11,5 +11,7 @@ namespace SISCOM_API.Data
         }
 
         public DbSet<Medication> Medications { get; set; }
+        public DbSet<MedicationLog> MedicationLogs { get; set; }
+
     }
 }

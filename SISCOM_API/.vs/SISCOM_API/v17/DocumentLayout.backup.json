@@ -3,8 +3,8 @@
   "WorkspaceRootPath": "C:\\Users\\Eli\\Desktop\\SISCOM\\SISCOM_API\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{025131B8-59A2-4E51-8D30-4B4116C00DD5}|SISCOM_API\\SISCOM_API.csproj|c:\\users\\eli\\desktop\\siscom\\siscom_api\\siscom_api\\controllers\\medicationcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{025131B8-59A2-4E51-8D30-4B4116C00DD5}|SISCOM_API\\SISCOM_API.csproj|solutionrelative:siscom_api\\controllers\\medicationcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{025131B8-59A2-4E51-8D30-4B4116C00DD5}|SISCOM_API\\SISCOM_API.csproj|c:\\users\\eli\\desktop\\siscom\\siscom_api\\siscom_api\\controllers\\medicationlogcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{025131B8-59A2-4E51-8D30-4B4116C00DD5}|SISCOM_API\\SISCOM_API.csproj|solutionrelative:siscom_api\\controllers\\medicationlogcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -19,14 +19,14 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "MedicationController.cs",
-              "DocumentMoniker": "C:\\Users\\Eli\\Desktop\\SISCOM\\SISCOM_API\\SISCOM_API\\Controllers\\MedicationController.cs",
-              "RelativeDocumentMoniker": "SISCOM_API\\Controllers\\MedicationController.cs",
-              "ToolTip": "C:\\Users\\Eli\\Desktop\\SISCOM\\SISCOM_API\\SISCOM_API\\Controllers\\MedicationController.cs",
-              "RelativeToolTip": "SISCOM_API\\Controllers\\MedicationController.cs",
-              "ViewState": "AgIAABUAAAAAAAAAAAAgwCQAAAAAAAAAAAAAAA==",
+              "Title": "MedicationLogController.cs",
+              "DocumentMoniker": "C:\\Users\\Eli\\Desktop\\SISCOM\\SISCOM_API\\SISCOM_API\\Controllers\\MedicationLogController.cs",
+              "RelativeDocumentMoniker": "SISCOM_API\\Controllers\\MedicationLogController.cs",
+              "ToolTip": "C:\\Users\\Eli\\Desktop\\SISCOM\\SISCOM_API\\SISCOM_API\\Controllers\\MedicationLogController.cs",
+              "RelativeToolTip": "SISCOM_API\\Controllers\\MedicationLogController.cs",
+              "ViewState": "AgIAABkAAAAAAAAAAAAgwCEAAAAlAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-10-15T22:23:35.176Z",
+              "WhenOpened": "2025-10-15T23:27:47.892Z",
               "EditorCaption": ""
             }
           ]

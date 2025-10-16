@@ -46,6 +46,47 @@
         }
       }
     },
+    "/api/MedicationLog": {
+      "post": {
+        "tags": [
+          "MedicationLog"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedicationLog"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedicationLog"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedicationLog"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "MedicationLog"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/WeatherForecast": {
       "get": {
         "tags": [
@@ -110,6 +151,30 @@
           "scheduleTime": {
             "type": "string",
             "format": "date-span"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MedicationLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "medicationId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "medication": {
+            "$ref": "#/components/schemas/Medication"
+          },
+          "takenAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "wasTaken": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

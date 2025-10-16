@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SISCOM_API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7626ae18c0f9371c74f07a6bac46f03591e58603")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+81780f00d11eafdbd2887da295dd8dd8b8a630ba")]
 [assembly: System.Reflection.AssemblyProductAttribute("SISCOM_API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SISCOM_API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
