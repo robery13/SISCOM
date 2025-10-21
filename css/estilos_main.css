@@ -14,7 +14,7 @@ body {
 
 /* ======== ENCABEZADO ======== */
 header {
-  background-color: #083b66; /* azul institucional */
+  background-color: #083b66;
   color: white;
   padding: 20px 0;
   box-shadow: 0 2px 5px rgba(0,0,0,0.15);
@@ -27,11 +27,10 @@ header {
   gap: 20px;
   max-width: 1000px;
   margin: auto;
-  padding: 0 20px;
 }
 
 .logo {
-  width: 120px;
+  width: 100px;
   height: auto;
   border-radius: 8px;
   background-color: white;
@@ -39,70 +38,150 @@ header {
 }
 
 .titulo h1 {
-  font-size: 2.4em;
+  font-size: 2.2em;
   font-weight: bold;
   margin-bottom: 5px;
 }
 
 .titulo p {
-  font-size: 1.1em;
+  font-size: 1em;
   color: #d0e4f7;
 }
 
-/* ======== CONTENIDO PRINCIPAL ======== */
-main {
-  max-width: 1000px;
-  margin: 40px auto;
-  padding: 0 20px;
+/* ======== PRESENTACIÓN ======== */
+.presentacion {
   text-align: center;
+  margin: 40px auto;
+  max-width: 900px;
 }
 
 .presentacion h2 {
-  font-size: 1.8em;
   color: #083b66;
+  font-size: 1.9em;
   margin-bottom: 15px;
 }
 
 .presentacion p {
   font-size: 1.1em;
   color: #333;
-  margin-bottom: 40px;
 }
 
-/* ======== BOTONES ======== */
-.acciones h3 {
-  font-size: 1.3em;
-  color: #083b66;
-  margin-bottom: 25px;
-}
-
-.botones {
+/* ======== ROLES ======== */
+.roles {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 60px;
+  flex-wrap: wrap;
+  margin: 50px 0;
+}
+
+.rol {
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  width: 180px;
+}
+
+.rol:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  background-color: #f9fbff;
+}
+
+.rol img {
+  width: 140px;
+  height: 140px;
+  object-fit: cover; /* recorta y centra la imagen */
+  border-radius: 50%;
+  border: 5px solid #e3efff; /* borde más limpio y profesional */
+  background: white;
+  transition: border-color 0.3s ease;
+}
+
+.rol:hover img {
+  border-color: #0b5ed7; /* azul institucional al pasar el mouse */
+}
+
+.rol h4 {
+  margin-top: 12px;
+  color: #083b66;
+  font-weight: 600;
+  font-size: 1.05em;
+}
+
+
+/* ======== FORMULARIOS ======== */
+.formularios {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 40px;
+  margin: 40px auto;
+  max-width: 900px;
+}
+
+.form-card {
+  background: white;
+  border-radius: 12px;
+  padding: 30px 40px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  width: 320px;
+}
+
+.form-card h3 {
+  color: #083b66;
+  margin-bottom: 20px;
+}
+
+form input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
 }
 
 .btn {
-  text-decoration: none;
-  background: #1064b0;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
   color: white;
-  padding: 14px 28px;
-  border-radius: 6px;
-  font-size: 1.05em;
-  transition: 0.3s ease;
-  width: 260px;
-  text-align: center;
-  font-weight: 500;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background 0.3s ease;
 }
 
-.btn:hover {
+.btn-azul {
+  background: #0d6efd;
+}
+
+.btn-azul:hover {
+  background: #0b5ed7;
+}
+
+.btn-morado {
+  background: #7b4dff;
+}
+
+.btn-morado:hover {
+  background: #6a38ff;
+}
+
+.btn-secundario {
+  background: #1064b0;
+  margin: 10px;
+}
+
+.btn-secundario:hover {
   background: #0a4d87;
 }
 
-.deshabilitado {
-  background: #999;
-  cursor: not-allowed;
+/* ======== EXTRAS ======== */
+.extras {
+  text-align: center;
+  margin: 40px 0;
 }
 
 /* ======== PIE DE PÁGINA ======== */
@@ -112,7 +191,6 @@ footer {
   text-align: center;
   padding: 15px;
   font-size: 0.9em;
-  margin-top: 60px;
 }
 
 /* ======== RESPONSIVE ======== */
@@ -122,15 +200,16 @@ footer {
     text-align: center;
   }
 
-  .logo {
-    width: 100px;
+  .roles {
+    gap: 20px;
   }
 
-  .botones {
-    width: 100%;
+  .formularios {
+    flex-direction: column;
+    align-items: center;
   }
 
-  .btn {
+  .form-card {
     width: 90%;
   }
 }
