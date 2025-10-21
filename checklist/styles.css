@@ -1,0 +1,45 @@
+/* Fondo */
+body {
+  background: linear-gradient(to bottom, #e8f0ff, #f8fbff);
+  min-height: 100vh;
+}
+
+/* Tarjeta principal */
+.card {
+  border-radius: 16px;
+  min-height: 90vh; 
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 2rem 2rem 3rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Título */
+h3 {
+  text-align: center;
+  color: #1a2a5a;
+}
+
+/* Elementos de medicamento */
+.med-item {
+  transition: background 0.18s, transform 0.08s;
+}
+
+.med-item.taken {
+  background: #e9f7ec;
+}
+
+/* Texto y etiquetas */
+.small-muted {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.time-badge {
+  font-size: 0.75rem;
+}
+
+.actor-badge {
+  font-size: 0.72rem;
+}
