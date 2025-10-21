@@ -1,12 +1,13 @@
-// script.js
-// Archivo principal de funcionalidades del sistema SISCOM
+// Mostrar año dinámico
+document.getElementById("year").textContent = new Date().getFullYear();
 
-document.addEventListener('DOMContentLoaded', () => {
-  console.log("SISCOM Web cargado correctamente.");
-
-  // Ejemplo de mensaje de bienvenida temporal
-  const bienvenida = document.querySelector('.presentacion h2');
-  if (bienvenida) {
-    bienvenida.textContent += " ";
-  }
+// Botones extra
+document.getElementById("btnContacto").addEventListener("click", () => {
+  alert("Puedes contactarnos en: soporte@siscom.com");
 });
+
+document.getElementById("btnInfo").addEventListener("click", () => {
+  alert("SISCOM es un sistema diseñado para mejorar el control de medicación de pacientes adultos y geriátricos.");
+});
+
+// (Aquí podrás agregar la lógica de login/registro cuando implementes el backend)
