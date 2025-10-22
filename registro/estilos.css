@@ -1,0 +1,78 @@
+/* ======= ESTILOS GENERALES ======= */
+body {
+  background-color: #f8f9fc;
+  font-family: 'Poppins', sans-serif;
+}
+
+.sidebar {
+  width: 220px;
+  background-color: #fff;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+  padding: 20px;
+}
+
+.sidebar h4 {
+  font-weight: 700;
+  color: #111;
+  text-align: center;
+}
+
+.nav-btn {
+  background-color: transparent;
+  color: #111;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 10px;
+  transition: all 0.3s;
+}
+
+.nav-btn:hover,
+.nav-btn.active {
+  background-color: #61d2b4;
+  color: white;
+}
+
+.main-content {
+  margin-left: 240px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.form-card {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  width: 480px;
+  min-height: 560px;
+  margin: 0 auto;
+  padding: 35px;
+}
+
+.form-card h5 {
+  font-weight: 600;
+  margin-bottom: 25px;
+}
+
+.btn-save {
+  background-color: #7b47ff;
+  color: #fff;
+  font-weight: 500;
+}
+
+.btn-save:hover {
+  background-color: #6a3fd1;
+}
+
+.btn-contact {
+  background-color: #ff6243;
+  color: #fff;
+  font-weight: 500;
+}
+
+.btn-contact:hover {
+  background-color: #e3563c;
+}
