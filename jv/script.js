@@ -3,6 +3,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const guardarBtn = document.getElementById("guardarBtn");
 
+  //RECOGE LOS DATOS DEL FORMULARIO Y LOS ENVIA AL SERVIDOR
   guardarBtn.addEventListener("click", async () => {
     const nombre = document.getElementById("nombre").value.trim();
     const dosis = document.getElementById("dosis").value.trim();
@@ -14,9 +15,12 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("Por favor, complete todos los campos.");
       return;
     }
-
+    
+//estructura de los datos a enviar
     const medicamento = { nombre, dosis, frecuencia, hora };
 
+
+    //envia los datos al puntero guardarMedicamento en server.js
     try {
      const respuesta = await fetch("http://localhost:3000/guardarMedicamento", {
 
@@ -26,6 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         body: JSON.stringify(medicamento)
       });
+
 
       if (respuesta.ok) {
         const data = await respuesta.json();

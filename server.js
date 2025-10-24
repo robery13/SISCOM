@@ -6,11 +6,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Configura tu conexión MySQL
-const db = mysql.createConnection({
- 
-});
+// Configura tu conexión MySQL (datos de conexion a  la base de datos)
+//agregar los datos antes de ejecutar y quitarlos antes de commit
 
+//mensaje de error o exito de conexion
 db.connect(err => {
   if (err) {
     console.error('Error al conectar a MySQL:', err);
@@ -19,14 +18,16 @@ db.connect(err => {
   }
 });
 
-// Ruta para guardar medicamento
+// Puntero de guardado de medicamentos que ejecute el codigo
 app.post('/guardarMedicamento', (req, res) => {
+  //datos de los formularios
   const { nombre, dosis, frecuencia, hora } = req.body;
 
   if (!nombre || !dosis || !frecuencia || !hora) {
     return res.status(400).json({ mensaje: 'Campos incompletos' });
   }
 
+  //codigo sql para insertar los datos en la base de datos
   const sql = 'INSERT INTO medicamentos (nombre, dosis, frecuencia, hora) VALUES (?, ?, ?, ?)';
   db.query(sql, [nombre, dosis, frecuencia, hora], (err, result) => {
     if (err) {
