@@ -90,17 +90,17 @@ header {
 }
 
 .rol img {
-  width: 140px;
-  height: 140px;
-  object-fit: cover; /* recorta y centra la imagen */
+  width: 130px;
+  height: 130px;
+  object-fit: cover;
   border-radius: 50%;
-  border: 5px solid #e3efff; /* borde más limpio y profesional */
-  background: white;
-  transition: border-color 0.3s ease;
+  border: 3px solid #e3efff;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .rol:hover img {
-  border-color: #0b5ed7; /* azul institucional al pasar el mouse */
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
 }
 
 .rol h4 {
@@ -109,7 +109,6 @@ header {
   font-weight: 600;
   font-size: 1.05em;
 }
-
 
 /* ======== FORMULARIOS ======== */
 .formularios {
@@ -180,8 +179,33 @@ form input {
 
 /* ======== EXTRAS ======== */
 .extras {
+  margin: 50px 0;
   text-align: center;
-  margin: 40px 0;
+}
+
+.extras-container {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.btn-extra {
+  background: #0d6efd;
+  color: white;
+  border: none;
+  border-radius: 30px;
+  padding: 12px 28px;
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+.btn-extra:hover {
+  background: #0b5ed7;
+  transform: translateY(-2px);
 }
 
 /* ======== PIE DE PÁGINA ======== */
@@ -213,3 +237,28 @@ footer {
     width: 90%;
   }
 }
+
+/* ===== CAMPOS DE CONTRASEÑA ===== */
+.password-container {
+  position: relative;
+}
+
+.password-container input {
+  width: 100%;
+  padding-right: 35px;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.toggle-password:hover {
+  transform: scale(1.1);
+  opacity: 0.8;
+}
+
+/* ===== FIN ===== */
