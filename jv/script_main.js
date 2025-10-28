@@ -125,3 +125,51 @@ function toggleEyeVisibility(input) {
   const eyeIcon = input.parentElement.querySelector(".toggle-password");
   eyeIcon.style.display = input.value ? "block" : "none";
 }
+
+
+const formRegistro = document.getElementById("formRegistro");
+  if (formRegistro) {
+    formRegistro.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const nombres = document.getElementById("nombres").value.trim();
+      const apellidos = document.getElementById("apellidos").value.trim();
+      const identidad = document.getElementById("identidad").value.trim();
+      const telefono = document.getElementById("telefono").value.trim();
+      const email = document.getElementById("emailRegistro").value.trim();
+      const password = document.getElementById("passwordRegistro").value.trim();
+      const confirmarPassword = document.getElementById("confirmarPassword").value.trim();
+
+      if (password !== confirmarPassword) {
+        alert("Las contraseñas no coinciden ⚠️");
+        return;
+      }
+
+      try {
+        const respuesta = await fetch("http://localhost:3000/registrar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nombres,
+            apellidos,
+            identidad,
+            telefono,
+            email,
+            password,
+          }),
+        });
+
+        if (respuesta.ok) {
+          const data = await respuesta.json();
+          alert("Registro exitoso 🎉");
+          console.log("Nuevo usuario:", data);
+          formRegistro.reset();
+        } else {
+          alert("Error al registrar el usuario ❌");
+        }
+      } catch (error) {
+        console.error("Error al registrar:", error);
+        alert("Error de conexión con el servidor");
+      }
+    });
+  }

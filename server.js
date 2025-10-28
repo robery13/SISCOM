@@ -9,7 +9,7 @@ app.use(express.json());
 // Configura tu conexión MySQL (datos de conexion a  la base de datos)
 //agregar los datos antes de ejecutar y quitarlos antes de commit
 
-
+p
 //mensaje de error o exito de conexion
 db.connect(err => {
   if (err) {
@@ -39,9 +39,7 @@ app.post('/guardarMedicamento', (req, res) => {
   });
 });
 
-app.listen(3000, () => {
-  console.log('Servidor corriendo en http://localhost:3000');
-});
+
 
 
 
@@ -80,4 +78,23 @@ console.log("Datos recibidos:", req.body);
     // Si llega aquí, el login es correcto
     res.json({ mensaje: 'Inicio de sesión exitoso', usuario });
   });
+});
+
+
+// Registro
+app.post("/registrar", (req, res) => {
+  const { nombres, apellidos, identidad, telefono, email, password } = req.body;
+  const sql = "INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password) VALUES (?, ?, ?, ?, ?, ?)";
+  db.query(sql, [nombres, apellidos, identidad, telefono, email, password], (err, result) => {
+    if (err) return res.status(500).json({ error: "Error al registrar usuario" });
+    res.status(200).json({ mensaje: "Usuario registrado con éxito" });
+  });
+});
+
+
+
+
+//esto siempre al final sino todo hace KABOOOM *le da un infarto*
+app.listen(3000, () => {
+  console.log('Servidor corriendo en http://localhost:3000');
 });
