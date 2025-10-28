@@ -1,134 +1,134 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SISCOM | Sistema de Control de Medicación</title>
-  <link rel="stylesheet" href="..//css/estilos_main.css">
-</head>
+  <!DOCTYPE html>
+  <html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SISCOM | Sistema de Control de Medicación</title>
+    <link rel="stylesheet" href="..//css/estilos_main.css">
+  </head>
 
-<body>
-  <!-- ===== ENCABEZADO ===== -->
-  <header>
-    <div class="topbar">
-      <img src="..//imagenes/logo.jpeg" alt="Logo SISCOM" class="logo">
-      <div class="titulo">
-        <h1>SISCOM</h1>
-        <p>Sistema Integral de Control de Medicación</p>
+  <body>
+    <!-- ===== ENCABEZADO ===== -->
+    <header>
+      <div class="topbar">
+        <img src="..//imagenes/logo.jpeg" alt="Logo SISCOM" class="logo">
+        <div class="titulo">
+          <h1>SISCOM</h1>
+          <p>Sistema Integral de Control de Medicación</p>
+        </div>
       </div>
+    </header>
+
+    <!-- ===== CONTENIDO PRINCIPAL ===== -->
+    <main>
+      <section class="presentacion">
+        <h2>Sistema de Gestión de Medicamentos</h2>
+        <p>
+          SISCOM ayuda a los pacientes adultos y geriátricos en el control de su medicación diaria mediante alarmas programadas y registro de dosis.
+          Permite a pacientes, cuidadores y farmacias mantener un seguimiento efectivo del tratamiento médico.
+        </p>
+      </section>
+
+      <!-- ===== ROLES ===== -->
+      <section class="roles">
+        <div class="rol">
+          <img src="..//imagenes/paciente.jpg" alt="Paciente">
+          <h4>Paciente</h4>
+        </div>
+        <div class="rol">
+          <img src="..//imagenes/cuidador.webp" alt="Cuidador">
+          <h4>Cuidador</h4>
+        </div>
+        <div class="rol">
+          <img src="..//imagenes/farmacia.jpg" alt="Farmacia">
+          <h4>Farmacia</h4>
+        </div>
+        <div class="rol">
+          <img src="..//imagenes/administrador.jpg" alt="Administrador">
+          <h4>Administrador</h4>
+        </div>
+      </section>
+
+  <section class="formularios">
+    <!-- ==== FORMULARIO DE REGISTRO ==== -->
+    <div class="form-card">
+      <h3>Crear cuenta</h3>
+      <form id="formRegistro">
+        <input type="text" id="nombres" placeholder="Nombres" required>
+        <input type="text" id="apellidos" placeholder="Apellidos" required>
+        <input type="text" id="identidad" placeholder="Número de identidad" required pattern="[0-9]{13}" title="Debe contener 13 dígitos">
+        <input type="tel" id="telefono" placeholder="Número de teléfono" required pattern="[0-9]{8}" title="Debe contener 8 dígitos">
+        <input type="email" id="emailRegistro" placeholder="Correo electrónico" required>
+
+        <!-- Contraseña -->
+        <div class="password-container">
+          <input type="password" id="passwordRegistro" placeholder="Contraseña" required oninput="toggleEyeVisibility(this)">
+          <span class="toggle-password" onclick="togglePassword('passwordRegistro', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </span>
+        </div>
+
+        <!-- Confirmar contraseña -->
+        <div class="password-container">
+          <input type="password" id="confirmarPassword" placeholder="Confirmar contraseña" required oninput="toggleEyeVisibility(this)">
+          <span class="toggle-password" onclick="togglePassword('confirmarPassword', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </span>
+        </div>
+
+        <!-- Selección de rol cambiado para admi -->
+        
+
+        <button type="submit" class="btn btn-azul">Registrarse</button>
+      </form>
     </div>
-  </header>
 
-  <!-- ===== CONTENIDO PRINCIPAL ===== -->
-  <main>
-    <section class="presentacion">
-      <h2>Sistema de Gestión de Medicamentos</h2>
-      <p>
-        SISCOM ayuda a los pacientes adultos y geriátricos en el control de su medicación diaria mediante alarmas programadas y registro de dosis.
-        Permite a pacientes, cuidadores y farmacias mantener un seguimiento efectivo del tratamiento médico.
-      </p>
-    </section>
+    <!-- ==== FORMULARIO DE INICIO DE SESIÓN ==== -->
+    <div class="form-card">
+      <h3>Iniciar sesión</h3>
+      <form id="formLogin">
+        <input type="email" id="emailLogin" placeholder="Correo electrónico" required>
+        
+        <div class="password-container">
+          <input type="password" id="passwordLogin" placeholder="Contraseña" required oninput="toggleEyeVisibility(this)">
+          <span class="toggle-password" onclick="togglePassword('passwordLogin', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </span>
+        </div>
 
-    <!-- ===== ROLES ===== -->
-    <section class="roles">
-      <div class="rol">
-        <img src="..//imagenes/paciente.jpg" alt="Paciente">
-        <h4>Paciente</h4>
-      </div>
-      <div class="rol">
-        <img src="..//imagenes/cuidador.webp" alt="Cuidador">
-        <h4>Cuidador</h4>
-      </div>
-      <div class="rol">
-        <img src="..//imagenes/farmacia.jpg" alt="Farmacia">
-        <h4>Farmacia</h4>
-      </div>
-      <div class="rol">
-        <img src="..//imagenes/administrador.jpg" alt="Administrador">
-        <h4>Administrador</h4>
-      </div>
-    </section>
-
-<section class="formularios">
-  <!-- ==== FORMULARIO DE REGISTRO ==== -->
-  <div class="form-card">
-    <h3>Crear cuenta</h3>
-    <form id="formRegistro">
-      <input type="text" id="nombres" placeholder="Nombres" required>
-      <input type="text" id="apellidos" placeholder="Apellidos" required>
-      <input type="text" id="identidad" placeholder="Número de identidad" required pattern="[0-9]{13}" title="Debe contener 13 dígitos">
-      <input type="tel" id="telefono" placeholder="Número de teléfono" required pattern="[0-9]{8}" title="Debe contener 8 dígitos">
-      <input type="email" id="emailRegistro" placeholder="Correo electrónico" required>
-
-      <!-- Contraseña -->
-      <div class="password-container">
-        <input type="password" id="passwordRegistro" placeholder="Contraseña" required oninput="toggleEyeVisibility(this)">
-        <span class="toggle-password" onclick="togglePassword('passwordRegistro', this)">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </span>
-      </div>
-
-      <!-- Confirmar contraseña -->
-      <div class="password-container">
-        <input type="password" id="confirmarPassword" placeholder="Confirmar contraseña" required oninput="toggleEyeVisibility(this)">
-        <span class="toggle-password" onclick="togglePassword('confirmarPassword', this)">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </span>
-      </div>
-
-      <!-- Selección de rol cambiado para admi -->
-      
-
-      <button type="submit" class="btn btn-azul">Registrarse</button>
-    </form>
-  </div>
-
-  <!-- ==== FORMULARIO DE INICIO DE SESIÓN ==== -->
-  <div class="form-card">
-    <h3>Iniciar sesión</h3>
-    <form id="formLogin">
-      <input type="email" id="emailLogin" placeholder="Correo electrónico" required>
-      
-      <div class="password-container">
-        <input type="password" id="passwordLogin" placeholder="Contraseña" required oninput="toggleEyeVisibility(this)">
-        <span class="toggle-password" onclick="togglePassword('passwordLogin', this)">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </span>
-      </div>
-
-      <button type="submit" class="btn btn-morado">Entrar</button>
-      <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
-    </form>
-  </div>
-</section>
+        <button type="submit" class="btn btn-morado">Entrar</button>
+        <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
+      </form>
+    </div>
+  </section>
 
 
 
-    <!-- ===== SECCIÓN EXTRA ===== -->
-    <section class="extras">
-  <div class="extras-container">
-    <button class="btn-extra"> Contáctanos</button>  <!-- Eviten usar iconos en texto, es mejor intentar colocar una imagen del icono -->
-    <button class="btn-extra"> Más información</button>
-  </div>
-</section>
+      <!-- ===== SECCIÓN EXTRA ===== -->
+      <section class="extras">
+    <div class="extras-container">
+      <button class="btn-extra"> Contáctanos</button>  <!-- Eviten usar iconos en texto, es mejor intentar colocar una imagen del icono -->
+      <button class="btn-extra"> Más información</button>
+    </div>
+  </section>
 
 
-  <!-- ===== PIE DE PÁGINA ===== -->
-  <footer>
-    <p>© <span id="year"></span> SISCOM | Sistema Integral de Control de Medicación</p>
-    <p>Proyecto Universitario de Análisis y Diseño de Sistemas</p>
-  </footer>
+    <!-- ===== PIE DE PÁGINA ===== -->
+    <footer>
+      <p>© <span id="year"></span> SISCOM | Sistema Integral de Control de Medicación</p>
+      <p>Proyecto Universitario de Análisis y Diseño de Sistemas</p>
+    </footer>
 
-  <!-- JS externo -->
-  <script src="../jv/script_main.js"></script>
-</body>
-</html>
+    <!-- JS externo -->
+    <script src="../jv/script_main.js"></script>
+  </body>
+  </html>
