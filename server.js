@@ -9,7 +9,7 @@ app.use(express.json());
 // Configura tu conexión MySQL (datos de conexion a  la base de datos)
 //agregar los datos antes de ejecutar y quitarlos antes de commit
 
-p
+
 //mensaje de error o exito de conexion
 db.connect(err => {
   if (err) {
@@ -94,7 +94,36 @@ app.post("/registrar", (req, res) => {
 
 
 
+// Registro de usuario con rol
+app.post("/registraradm", (req, res) => {
+  const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
+
+  // Validación básica
+  if (!nombres || !apellidos || !identidad || !telefono || !email || !password || !rol) {
+    return res.status(400).json({ error: "Todos los campos son obligatorios." });
+  }
+
+  // SQL para insertar el usuario
+  const sql = `
+    INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password, rol)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+
+db.query(sql, [nombres, apellidos, identidad, telefono, email, password, rol], (err, result) => {
+  if (err) {
+    console.error("Error SQL completo:", err); // <-- imprime todo
+    return res.status(500).json({ error: "Error al registrar usuario en la base de datos.", detalle: err.message });
+  }
+  res.status(200).json({ mensaje: "Usuario registrado con éxito." });
+});
+
+});
+
+
+
+
 //esto siempre al final sino todo hace KABOOOM *le da un infarto*
 app.listen(3000, () => {
   console.log('Servidor corriendo en http://localhost:3000');
 });
+
