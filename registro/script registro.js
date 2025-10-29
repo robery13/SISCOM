@@ -23,7 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-
   // Mostrar panel por 
   hideAllSections();
   const panel = document.getElementById("panel");
@@ -206,3 +205,13 @@ function escapeHtml(str){
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
 }
+  // BOTÓN CERRAR SESIÓN
+  // ===============================
+  if (cerrarSesionBtn) {
+    cerrarSesionBtn.addEventListener("click", () => {
+      if (confirm("¿Seguro que deseas cerrar sesión?")) {
+        alert("Has cerrado sesión correctamente.");
+        window.location.href = "index.html"; // redirige a la página de inicio o login
+      }
+    });
+  }
