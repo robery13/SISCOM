@@ -115,14 +115,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (respuesta.ok) {
           const data = await respuesta.json();
-          alert("Inicio de sesión exitoso ✅");
+          alert("Inicio de sesión exitoso ");
         
 
           formLogin.reset(); // Limpia el formulario
 
 
            // Redirigir al menú
-window.location.href = "menu_prototipo.html";
+window.location.href = "..//registro/Registro.html";
 
 
 
@@ -192,11 +192,11 @@ const formRegistro = document.getElementById("formRegistro");
 
         if (respuesta.ok) {
           const data = await respuesta.json();
-          alert("Registro exitoso 🎉");
+          alert("Registro exitoso ");
           console.log("Nuevo usuario:", data);
           formRegistro.reset();
         } else {
-          alert("Error al registrar el usuario ❌");
+          alert("Error al registrar el usuario ");
         }
       } catch (error) {
         console.error("Error al registrar:", error);
