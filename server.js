@@ -7,9 +7,8 @@ app.use(cors());
 app.use(express.json());
 
 // Configura tu conexión MySQL (datos de conexion a  la base de datos)
-//agregar los datos antes de ejecutar y quitarlos antes de commit
 
-//mensaje de error o exito de conexion
+
 db.connect(err => {
   if (err) {
     console.error('Error al conectar a MySQL:', err);
