@@ -14,6 +14,37 @@ if (contacto && info) {
   });
 }
 
+
+// ===== FUNCIONES PARA CONTRASEÑAS =====
+
+// Mostrar / ocultar contraseña
+function togglePassword(id, element) {
+  const input = document.getElementById(id);
+  const svg = element.querySelector("svg");
+
+  if (input.type === "password") {
+    input.type = "text";
+    svg.innerHTML = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.29 20.29 0 0 1 4.54-5.94M1 1l22 22"/><path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 2.12-.88"/>';
+  } else {
+    input.type = "password";
+    svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>';
+  }
+}
+
+// Mostrar icono del ojo solo si el campo tiene texto
+function toggleEyeVisibility(input) {
+  const icon = input.parentElement.querySelector('.toggle-password');
+  icon.style.display = input.value.trim() ? "block" : "none";
+}
+
+// Al cargar la página, ocultar todos los iconos
+window.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".toggle-password").forEach(icon => {
+    icon.style.display = "none";
+  });
+});
+
+
 // ===== FUNCIONES PARA CONTRASEÑAS =====
 
 // Mostrar / ocultar contraseña
@@ -84,14 +115,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (respuesta.ok) {
           const data = await respuesta.json();
-          alert("Inicio de sesión exitoso ✅");
+          alert("Inicio de sesión exitoso ");
         
 
           formLogin.reset(); // Limpia el formulario
 
 
            // Redirigir al menú
-window.location.href = "menu_prototipo.html";
+window.location.href = "..//registro/Registro.html";
 
 
 
@@ -161,11 +192,11 @@ const formRegistro = document.getElementById("formRegistro");
 
         if (respuesta.ok) {
           const data = await respuesta.json();
-          alert("Registro exitoso 🎉");
+          alert("Registro exitoso ");
           console.log("Nuevo usuario:", data);
           formRegistro.reset();
         } else {
-          alert("Error al registrar el usuario ❌");
+          alert("Error al registrar el usuario ");
         }
       } catch (error) {
         console.error("Error al registrar:", error);
@@ -173,3 +204,4 @@ const formRegistro = document.getElementById("formRegistro");
       }
     });
   }
+
