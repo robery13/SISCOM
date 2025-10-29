@@ -81,7 +81,7 @@ body{
 .d-none{display:none}
 .section{display:block}
 
-/* RESPONSIVE */
+
 @media (max-width:920px){
   .sidebar{display:none}
   .main{padding:18px}
