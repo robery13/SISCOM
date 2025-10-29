@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-  // Mostrar panel por defecto
+  // Mostrar panel por 
   hideAllSections();
   const panel = document.getElementById("panel");
   if (panel) panel.classList.remove("d-none");
