@@ -6,6 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// aqui va la concexion de la DB
 
     
 //mensaje de error o exito de conexion
@@ -123,4 +124,44 @@ db.query(sql, [nombres, apellidos, identidad, telefono, email, password, rol], (
 //esto siempre al final sino todo hace KABOOOM *le da un infarto*
 app.listen(3000, () => {
   console.log('Servidor corriendo en http://localhost:3000');
+});
+
+// itream parte 
+
+//script formularios
+
+//  RUTA 2: GUARDAR EN Registro_medicamentos
+app.post('/Registro_medicamentos', (req, res) => {
+  const { nombre, dosis, frecuencia_horas, hora } = req.body;
+
+  if (!nombre || !dosis || !frecuencia_horas || !hora) {
+    return res.status(400).json({ mensaje: ' Campos incompletos' });
+  }
+
+  const sql = 'INSERT INTO Registro_medicamentos (nombre, dosis, frecuencia_horas, hora) VALUES (?, ?, ?, ?)';
+  db.query(sql, [nombre, dosis, frecuencia_horas, hora], (err, result) => {
+    if (err) {
+      console.error(' Error al guardar en Registro_medicamentos:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
+    }
+    res.json({ mensaje: ' Medicamento registrado correctamente en Registro_medicamentos' });
+  });
+});
+
+//  RUTA 3: GUARDAR EN inventario
+app.post('/inventario', (req, res) => {
+  const { nombre, cantidad, consumo_por_dosis } = req.body;
+
+  if (!nombre || !cantidad || !consumo_por_dosis) {
+    return res.status(400).json({ mensaje: ' Campos incompletos' });
+  }
+
+  const sql = 'INSERT INTO inventario (nombre, cantidad, consumo_por_dosis) VALUES (?, ?, ?)';
+  db.query(sql, [nombre, cantidad, consumo_por_dosis], (err, result) => {
+    if (err) {
+      console.error(' Error al guardar en inventario:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
+    }
+    res.json({ mensaje: ' Medicamento agregado al inventario correctamente' });
+  });
 });
