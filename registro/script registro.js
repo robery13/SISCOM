@@ -10,12 +10,25 @@ document.addEventListener("DOMContentLoaded", () => {
     navBtns.forEach(b => b.classList.remove("active"));
   }
 
-  // Show panel by default
+document.addEventListener("DOMContentLoaded", () => {
+  const cerrarSesionBtn = document.getElementById("cerrarSesionBtn");
+  if (cerrarSesionBtn) {
+    cerrarSesionBtn.addEventListener("click", () => {
+      if (confirm("¿Seguro que deseas cerrar sesión?")) {
+        // Aquí puedes agregar la lógica real de cierre de sesión si tienes login
+        alert("Has cerrado sesión correctamente.");
+        window.location.href = "index.html"; // redirige a la página de inicio o login
+      }
+    });
+  }
+});
+
+
+  // Mostrar panel por defecto
   hideAllSections();
   const panel = document.getElementById("panel");
   if (panel) panel.classList.remove("d-none");
 
-  // Attach events
   navBtns.forEach(btn => {
     btn.addEventListener("click", () => {
       const sectionId = btn.dataset.section;
@@ -29,234 +42,162 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ===============================
-// MEDICAMENTOS (RECORDATORIOS) - persistidos en localStorage
+// REGISTRO DE MEDICAMENTOS (tabla Registro_medicamentos)
 // ===============================
 (function(){
   const guardarBtn = document.getElementById("guardarBtn");
   const tablaMedicamentos = document.querySelector("#tablaMedicamentos tbody");
-  let medicamentos = JSON.parse(localStorage.getItem("siscom_medicamentos") || "[]");
-
-  // render inicial
-  renderMedicamentos();
 
   if (guardarBtn) {
-    // request notification permission early
-    if ("Notification" in window && Notification.permission !== "granted") {
-      Notification.requestPermission().catch(()=>{});
-    }
-
-    guardarBtn.addEventListener("click", () => {
+    guardarBtn.addEventListener("click", async () => {
       const nombre = document.getElementById("nombre").value.trim();
       const dosis = document.getElementById("dosis").value.trim();
       const frecuencia = parseInt(document.getElementById("frecuencia").value, 10);
       const hora = document.getElementById("hora").value;
 
       if (!nombre || !dosis || !frecuencia || !hora) {
-        alert("Por favor, complete todos los campos antes de guardar.");
+        alert(" Por favor complete todos los campos.");
         return;
       }
 
-      const item = { nombre, dosis, frecuencia, hora };
-      medicamentos.push(item);
-      localStorage.setItem("siscom_medicamentos", JSON.stringify(medicamentos));
-      renderMedicamentos();
-      // schedule first notification (while page open)
-      scheduleMedicationNotification(item);
-      // clear form
-      document.getElementById("nombre").value = "";
-      document.getElementById("dosis").value = "";
-      document.getElementById("frecuencia").value = "";
-      document.getElementById("hora").value = "";
-      alert(`Medicamento "${nombre}" guardado y recordatorio programado.`);
+      const datos = { nombre, dosis, frecuencia_horas: frecuencia, hora };
+
+      try {
+        const resp = await fetch("http://localhost:3000/Registro_medicamentos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(datos)
+        });
+
+        const resultado = await resp.json();
+        alert(resultado.mensaje || "✅ Medicamento registrado correctamente.");
+
+        document.getElementById("nombre").value = "";
+        document.getElementById("dosis").value = "";
+        document.getElementById("frecuencia").value = "";
+        document.getElementById("hora").value = "";
+
+        cargarRegistroMedicamentos();
+
+      } catch (error) {
+        console.error("Error al guardar medicamento:", error);
+        alert(" No se pudo conectar con el servidor.");
+      }
     });
   }
 
-  function renderMedicamentos(){
+  // Cargar medicamentos registrados desde el backend
+  async function cargarRegistroMedicamentos() {
+    try {
+      const respuesta = await fetch("http://localhost:3000/Registro_medicamentos");
+      const data = await respuesta.json();
+      renderMedicamentos(data);
+    } catch (err) {
+      console.error("Error al cargar registro:", err);
+    }
+  }
+
+  // Render tabla
+  function renderMedicamentos(lista) {
     if (!tablaMedicamentos) return;
     tablaMedicamentos.innerHTML = "";
-    medicamentos.forEach((m, idx) => {
+    lista.forEach((m) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHtml(m.nombre)}</td>
         <td>${escapeHtml(m.dosis)}</td>
-        <td>${m.frecuencia}</td>
+        <td>${m.frecuencia_horas}</td>
         <td>${m.hora}</td>
-        <td>
-          <button class="btn btn-sm btn-outline-danger" data-idx="${idx}" data-action="eliminar">Eliminar</button>
-        </td>
+        <td>${new Date(m.fecha_registro).toLocaleString()}</td>
       `;
       tablaMedicamentos.appendChild(tr);
     });
   }
 
-  // delegate delete
-  if (tablaMedicamentos) {
-    tablaMedicamentos.addEventListener("click", (e) => {
-      const btn = e.target.closest("button");
-      if (!btn) return;
-      const idx = parseInt(btn.dataset.idx, 10);
-      const action = btn.dataset.action;
-      if (action === "eliminar") {
-        if (!confirm("Eliminar este medicamento?")) return;
-        medicamentos.splice(idx,1);
-        localStorage.setItem("siscom_medicamentos", JSON.stringify(medicamentos));
-        renderMedicamentos();
-      }
-    });
-  }
-
-  // Scheduling notifications (simple — works while page is open)
-  function scheduleMedicationNotification(item) {
-    if (!("Notification" in window)) return;
-    const now = new Date();
-    const [h,m] = item.hora.split(":").map(Number);
-    let first = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
-    if (first <= now) first.setDate(first.getDate() + 1);
-    const delay = first - now;
-    const intervalMs = item.frecuencia * 3600 * 1000;
-
-    setTimeout(() => {
-      showNotification(item.nombre, item.dosis);
-      setInterval(() => {
-        showNotification(item.nombre, item.dosis);
-      }, intervalMs);
-    }, delay);
-  }
-
-  // schedule existing meds on load
-  medicamentos.forEach(m => scheduleMedicationNotification(m));
-
-  function showNotification(nombre, dosis) {
-    const title = "Recordatorio de Medicamento";
-    const body = `Es hora de tomar ${nombre} (${dosis})`;
-    if (Notification.permission === "granted") {
-      try {
-        new Notification(title, { body, icon: "https://cdn-icons-png.flaticon.com/512/2966/2966483.png" });
-      } catch (err) {
-        alert(`${title}\n${body}`);
-      }
-    } else {
-      alert(body);
-    }
-  }
+  // Cargar al inicio
+  cargarRegistroMedicamentos();
 
 })();
 
 // ===============================
-// INVENTARIO (persistido en localStorage)
+// INVENTARIO (tabla inventario)
 // ===============================
 (function(){
   const registrarBtn = document.getElementById("registrarBtn");
   const tablaInv = document.querySelector("#tablaInventario tbody");
-  let inventario = JSON.parse(localStorage.getItem("siscom_inventario") || "[]");
-
-  renderInventario();
 
   if (registrarBtn) {
-    registrarBtn.addEventListener("click", () => {
+    registrarBtn.addEventListener("click", async () => {
       const nombre = document.getElementById("nombreInv").value.trim();
-      const cantidad = parseInt(document.getElementById("cantidadInv").value,10);
-      const consumo = parseInt(document.getElementById("consumoInv").value,10);
+      const cantidad = parseInt(document.getElementById("cantidadInv").value, 10);
+      const consumo_por_dosis = parseInt(document.getElementById("consumoInv").value, 10);
 
-      if (!nombre || isNaN(cantidad) || isNaN(consumo)) {
-        alert("Por favor, completa todos los campos correctamente.");
+      if (!nombre || isNaN(cantidad) || isNaN(consumo_por_dosis)) {
+        alert(" Por favor complete todos los campos correctamente.");
         return;
       }
 
-      inventario.push({ nombre, cantidad, consumo, alerta: Math.max(1, consumo * 5) });
-      localStorage.setItem("siscom_inventario", JSON.stringify(inventario));
-      renderInventario();
-      clearInvForm();
+      const datos = { nombre, cantidad, consumo_por_dosis };
 
-      if (cantidad <= (consumo * 5)) {
-        lowInventoryAlert(nombre);
+      try {
+        const resp = await fetch("http://localhost:3000/inventario", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(datos)
+        });
+
+        const resultado = await resp.json();
+        alert(resultado.mensaje || " Medicamento agregado al inventario.");
+        cargarInventario();
+        clearInvForm();
+
+      } catch (error) {
+        console.error("Error al guardar en inventario:", error);
+        alert(" No se pudo conectar con el servidor.");
       }
     });
   }
 
-  // delegate table actions (consumir)
-  if (tablaInv) {
-    tablaInv.addEventListener("click", (e) => {
-      const btn = e.target.closest("button");
-      if (!btn) return;
-      const action = btn.dataset.action;
-      const idx = parseInt(btn.dataset.idx,10);
-      if (action === "consumir") consumir(idx);
-      else if (action === "eliminar") eliminar(idx);
-      else if (action === "editar") editar(idx);
-    });
-  }
-
-  function renderInventario(){
-    if (!tablaInv) return;
-    tablaInv.innerHTML = "";
-    inventario.forEach((m, idx) => {
-      const low = m.cantidad <= (m.alerta || (m.consumo * 5));
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(m.nombre)}</td>
-        <td class="${low ? "alerta-baja" : ""}">${m.cantidad}</td>
-        <td>${m.consumo}</td>
-        <td>
-          <button class="btn btn-sm btn-outline-primary me-2" data-action="consumir" data-idx="${idx}"><i class="bi bi-cup-hot"></i> Consumir</button>
-          <button class="btn btn-sm btn-outline-secondary me-2" data-action="editar" data-idx="${idx}">Editar</button>
-          <button class="btn btn-sm btn-outline-danger" data-action="eliminar" data-idx="${idx}">Eliminar</button>
-        </td>
-      `;
-      tablaInv.appendChild(tr);
-
-      if (low) lowInventoryAlert(m.nombre);
-    });
-  }
-
-  function consumir(i){
-    const m = inventario[i];
-    if (!m) return;
-    if (m.cantidad <= 0) { alert(`No quedan unidades de ${m.nombre}`); return; }
-    m.cantidad -= m.consumo;
-    if (m.cantidad < 0) m.cantidad = 0;
-    localStorage.setItem("siscom_inventario", JSON.stringify(inventario));
-    renderInventario();
-    if (m.cantidad <= (m.alerta || (m.consumo * 5))) lowInventoryAlert(m.nombre);
-  }
-
-  function editar(i){
-    const m = inventario[i];
-    if (!m) return;
-    document.getElementById("nombreInv").value = m.nombre;
-    document.getElementById("cantidadInv").value = m.cantidad;
-    document.getElementById("consumoInv").value = m.consumo;
-    inventario.splice(i,1);
-    localStorage.setItem("siscom_inventario", JSON.stringify(inventario));
-    renderInventario();
-  }
-
-  function eliminar(i){
-    if (!confirm("Eliminar este medicamento del inventario?")) return;
-    inventario.splice(i,1);
-    localStorage.setItem("siscom_inventario", JSON.stringify(inventario));
-    renderInventario();
-  }
-
-  function lowInventoryAlert(nombre){
-    alert(`Inventario bajo: ${nombre}. Por favor reponga.`);
-    console.log(`[SIMULADO] Correo: inventario bajo de ${nombre}`);
-    if ("Notification" in window && Notification.permission === "granted") {
-      try {
-        new Notification("Inventario bajo", { body: `Quedan pocas unidades de ${nombre}`, icon: "https://cdn-icons-png.flaticon.com/512/2966/2966483.png" });
-      } catch(e){}
+  // Obtener datos del inventario
+  async function cargarInventario() {
+    try {
+      const respuesta = await fetch("http://localhost:3000/inventario");
+      const data = await respuesta.json();
+      renderInventario(data);
+    } catch (err) {
+      console.error("Error al cargar inventario:", err);
     }
   }
 
-  function clearInvForm(){
+  // Renderizar tabla
+  function renderInventario(lista) {
+    if (!tablaInv) return;
+    tablaInv.innerHTML = "";
+    lista.forEach((m) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(m.nombre)}</td>
+        <td>${m.cantidad}</td>
+        <td>${m.consumo_por_dosis}</td>
+        <td>${new Date(m.fecha_registro).toLocaleString()}</td>
+      `;
+      tablaInv.appendChild(tr);
+    });
+  }
+
+  function clearInvForm() {
     document.getElementById("nombreInv").value = "";
     document.getElementById("cantidadInv").value = "";
     document.getElementById("consumoInv").value = "";
   }
 
+  cargarInventario();
+
 })();
- 
-// small helper
+
+// ===============================
+// UTILIDAD
+// ===============================
 function escapeHtml(str){
   return String(str || "")
     .replace(/&/g,"&amp;")
