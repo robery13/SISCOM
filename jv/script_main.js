@@ -1,6 +1,30 @@
 // Mostrar año dinámico
 document.getElementById("year").textContent = new Date().getFullYear();
 
+
+
+// -------------------- SHOW TOAST --------------------
+// === Función para mostrar notificaciones internas (toasts) ===
+function showToast(message, type = "info") {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  toast.classList.add("toast", type);
+  toast.textContent = message;
+
+  container.appendChild(toast);
+
+  // Mostrar con animación
+  setTimeout(() => toast.classList.add("show"), 100);
+
+  // Desaparecer después de 3 segundos
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
 // Lógica de botones extra
 // (Si tienes los botones comentados, puedes volver a activarlos después)
 const contacto = document.getElementById("btnContacto");
@@ -95,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Validar campos vacíos
       if (!correo || !contra) {
-        alert("Por favor, complete todos los campos.");
+         showToast("Por favor, complete todos los campos.", "warning");
         return;
       }
 
@@ -115,8 +139,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (respuesta.ok) {
           const data = await respuesta.json();
-          alert("Inicio de sesión exitoso ");
-        
+      
+         showToast("Inicio de sesion exitoso!.", "success");
 
           formLogin.reset(); // Limpia el formulario
 
@@ -128,11 +152,12 @@ window.location.href = "..//registro/Registro.html";
 
 
         } else {
-          alert("Correo o contraseña incorrectos ❌");
+           showToast("Correo o contraseña incorrectos.", "error");
         }
       } catch (error) {
         console.error("Error al conectar con el servidor:", error);
-        alert("No se pudo conectar con el servidor.");
+        
+        showToast("No se pudo conectar con el servidor.", "warning");
       }
     });
   }
@@ -172,7 +197,7 @@ const formRegistro = document.getElementById("formRegistro");
       const confirmarPassword = document.getElementById("confirmarPassword").value.trim();
 
       if (password !== confirmarPassword) {
-        alert("Las contraseñas no coinciden ⚠️");
+        showToast("Las contraseñas no coinciden", "warning");
         return;
       }
 
@@ -192,15 +217,17 @@ const formRegistro = document.getElementById("formRegistro");
 
         if (respuesta.ok) {
           const data = await respuesta.json();
-          alert("Registro exitoso ");
+           showToast("Registro exitoso", "success");
           console.log("Nuevo usuario:", data);
           formRegistro.reset();
         } else {
-          alert("Error al registrar el usuario ");
+        
+           showToast("Error al registrar al usuario", "error");
         }
       } catch (error) {
         console.error("Error al registrar:", error);
-        alert("Error de conexión con el servidor");
+        showToast("Error de conexión con el servidor", "error");
+   
       }
     });
   }
