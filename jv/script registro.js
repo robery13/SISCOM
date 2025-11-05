@@ -8,7 +8,8 @@ document.getElementById('guardarBtn').addEventListener('click', function () {
   const hora = document.getElementById('hora').value;
 
   if (!nombre || !dosis || !frecuencia || !hora) {
-    alert("Por favor, complete todos los campos antes de guardar.");
+   showToast("Por favor, complete todos los campos antes de guardar.", "error");
+
     return;
   }
 
@@ -25,7 +26,8 @@ document.getElementById('guardarBtn').addEventListener('click', function () {
 
   const tiempoRestante = horaMedicamento - ahora;
 
-  alert(`Medicamento "${nombre}" registrado. Se le recordará cada ${frecuencia} horas.`);
+  showToast(`Medicamento "${nombre}" registrado. Se le recordará cada ${frecuencia} horas.`, "success");
+
 
   // Programar el primer recordatorio
   setTimeout(() => {
@@ -45,6 +47,8 @@ function mostrarNotificacion(nombre, dosis) {
       icon: "https://cdn-icons-png.flaticon.com/512/2966/2966483.png"
     });
   } else {
+
+     showToast(`Es hora de tomar "${nombre}" registrado. Se le recordará cada ${dosis} horas.`);
     alert(`Es hora de tomar ${nombre} (${dosis}).`);
   }
 }
@@ -52,4 +56,20 @@ function mostrarNotificacion(nombre, dosis) {
 // Pedir permiso para notificaciones del navegador
 if (Notification.permission !== "granted") {
   Notification.requestPermission();
+}
+
+
+
+function showToast(message, type = "success") {
+  const container = document.getElementById("toastContainer");
+  const toast = document.createElement("div");
+  toast.classList.add("toast", type);
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  // Desaparecer automáticamente después de 3 segundos
+  setTimeout(() => {
+    toast.style.animation = "hideToast 0.4s forwards";
+    setTimeout(() => toast.remove(), 400);
+  }, 3000);
 }
