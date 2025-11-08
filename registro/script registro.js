@@ -10,20 +10,20 @@ document.addEventListener("DOMContentLoaded", () => {
     navBtns.forEach(b => b.classList.remove("active"));
   }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const cerrarSesionBtn = document.getElementById("cerrarSesionBtn");
-  if (cerrarSesionBtn) {
-    cerrarSesionBtn.addEventListener("click", () => {
-      if (confirm("¿Seguro que deseas cerrar sesión?")) {
-        // Aquí puedes agregar la lógica real de cierre de sesión si tienes login
-        alert("Has cerrado sesión correctamente.");
-        window.location.href = "index.html"; // redirige a la página de inicio o login
-      }
-    });
-  }
-});
+  document.addEventListener("DOMContentLoaded", () => {
+    const cerrarSesionBtn = document.getElementById("cerrarSesionBtn");
+    if (cerrarSesionBtn) {
+      cerrarSesionBtn.addEventListener("click", () => {
+        if (confirm("¿Seguro que deseas cerrar sesión?")) {
+          // Aquí puedes agregar la lógica real de cierre de sesión si tienes login
+          alert("Has cerrado sesión correctamente.");
+          window.location.href = "index.html"; // redirige a la página de inicio o login
+        }
+      });
+    }
+  });
 
-  // Mostrar panel por 
+  // Mostrar panel por defecto
   hideAllSections();
   const panel = document.getElementById("panel");
   if (panel) panel.classList.remove("d-none");
@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const hora = document.getElementById("hora").value;
 
       if (!nombre || !dosis || !frecuencia || !hora) {
-        alert(" Por favor complete todos los campos.");
+        alert("Por favor complete todos los campos.");
         return;
       }
 
@@ -80,12 +80,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       } catch (error) {
         console.error("Error al guardar medicamento:", error);
-        alert(" No se pudo conectar con el servidor.");
+        alert("No se pudo conectar con el servidor.");
       }
     });
   }
 
-  // Cargar medicamentos registrados desde el backend
   async function cargarRegistroMedicamentos() {
     try {
       const respuesta = await fetch("http://localhost:3000/Registro_medicamentos");
@@ -96,7 +95,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Render tabla
   function renderMedicamentos(lista) {
     if (!tablaMedicamentos) return;
     tablaMedicamentos.innerHTML = "";
@@ -113,7 +111,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Cargar al inicio
   cargarRegistroMedicamentos();
 
 })();
@@ -132,7 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const consumo_por_dosis = parseInt(document.getElementById("consumoInv").value, 10);
 
       if (!nombre || isNaN(cantidad) || isNaN(consumo_por_dosis)) {
-        alert(" Por favor complete todos los campos correctamente.");
+        alert("Por favor complete todos los campos correctamente.");
         return;
       }
 
@@ -146,18 +143,17 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         const resultado = await resp.json();
-        alert(resultado.mensaje || " Medicamento agregado al inventario.");
+        alert(resultado.mensaje || "Medicamento agregado al inventario.");
         cargarInventario();
         clearInvForm();
 
       } catch (error) {
         console.error("Error al guardar en inventario:", error);
-        alert(" No se pudo conectar con el servidor.");
+        alert("No se pudo conectar con el servidor.");
       }
     });
   }
 
-  // Obtener datos del inventario
   async function cargarInventario() {
     try {
       const respuesta = await fetch("http://localhost:3000/inventario");
@@ -168,7 +164,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Renderizar tabla
   function renderInventario(lista) {
     if (!tablaInv) return;
     tablaInv.innerHTML = "";
@@ -205,13 +200,94 @@ function escapeHtml(str){
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
 }
-  // BOTÓN CERRAR SESIÓN
-  // ===============================
-  if (cerrarSesionBtn) {
-    cerrarSesionBtn.addEventListener("click", () => {
-      if (confirm("¿Seguro que deseas cerrar sesión?")) {
-        alert("Has cerrado sesión correctamente.");
-        window.location.href = "index.html"; // redirige a la página de inicio o login
-      }
-    });
+
+// ===============================
+// BOTÓN CERRAR SESIÓN
+// ===============================
+if (cerrarSesionBtn) {
+  cerrarSesionBtn.addEventListener("click", () => {
+    if (confirm("¿Seguro que deseas cerrar sesión?")) {
+      alert("Has cerrado sesión correctamente.");
+      window.location.href = "index.html";
+    }
+  });
+}
+
+// ===============================
+// FICHA MÉDICA
+// ===============================
+(function(){
+  const alergiasInput = document.getElementById("alergiasInput");
+  const condicionesInput = document.getElementById("condicionesInput");
+  const listaAlergias = document.getElementById("listaAlergias");
+  const listaCondiciones = document.getElementById("listaCondiciones");
+  const alertaCritica = document.getElementById("alertaCritica");
+  const btnAgregarAlergia = document.getElementById("btnAgregarAlergia");
+  const btnAgregarCondicion = document.getElementById("btnAgregarCondicion");
+  const btnGuardar = document.getElementById("btnGuardar");
+  const btnLimpiar = document.getElementById("btnLimpiar");
+
+  if (!btnAgregarAlergia || !btnGuardar) return;
+
+  const alergias = [];
+  const condiciones = [];
+
+  btnAgregarAlergia.addEventListener("click", () => {
+    const valor = alergiasInput.value.trim();
+    if (valor) {
+      alergias.push(valor);
+      renderList(listaAlergias, alergias);
+      alergiasInput.value = "";
+    }
+    checkCritico();
+  });
+
+  btnAgregarCondicion.addEventListener("click", () => {
+    const valor = condicionesInput.value.trim();
+    const nivel = document.getElementById("nivelCondicion").value;
+    if (valor) {
+      condiciones.push({ nombre: valor, nivel });
+      renderCondiciones();
+      condicionesInput.value = "";
+    }
+    checkCritico();
+  });
+
+  function renderList(ul, items) {
+    ul.innerHTML = items.map(i => `<li>${escapeHtml(i)}</li>`).join("");
   }
+
+  function renderCondiciones() {
+    listaCondiciones.innerHTML = condiciones
+      .map(c => `<li>${escapeHtml(c.nombre)} — <strong>${escapeHtml(c.nivel)}</strong></li>`)
+      .join("");
+  }
+
+  function checkCritico() {
+    const tieneCritico = condiciones.some(c => c.nivel === "Crítica");
+    alertaCritica.classList.toggle("oculto", !tieneCritico);
+  }
+
+  btnGuardar.addEventListener("click", () => {
+    const nombre = document.getElementById("nombre").value.trim();
+    const fechaNac = document.getElementById("fechaNac").value;
+    if (!nombre || !fechaNac) {
+      alert("Completa nombre y fecha de nacimiento.");
+      return;
+    }
+
+    const ficha = { nombre, fechaNac, alergias, condiciones };
+    localStorage.setItem("fichaMedica", JSON.stringify(ficha));
+    alert("Ficha médica guardada correctamente.");
+  });
+
+  btnLimpiar.addEventListener("click", () => {
+    if (confirm("¿Deseas limpiar la ficha?")) {
+      alergias.length = 0;
+      condiciones.length = 0;
+      renderList(listaAlergias, []);
+      renderCondiciones();
+      alertaCritica.classList.add("oculto");
+    }
+  });
+})();
