@@ -7,7 +7,6 @@ app.use(cors());
 app.use(express.json());
 
 // aqui va la concexion de la DB
-
     
 //mensaje de error o exito de conexion
 db.connect(err => {
