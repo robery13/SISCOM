@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SISCOM | Sistema de Control de Medicación</title>
-  <link rel="stylesheet" href="..//css/estilos_main.css">
+  <link rel="stylesheet" href="../css/estilos_main.css">
 </head>
 
 <body>
   <!-- ===== ENCABEZADO ===== -->
   <header>
     <div class="topbar">
-      <img src="..//imagenes/logo.jpeg" alt="Logo SISCOM" class="logo">
+      <img src="../imagenes/logo.jpeg" alt="Logo SISCOM" class="logo">
       <div class="titulo">
         <h1>SISCOM</h1>
         <p>Sistema Integral de Control de Medicación</p>
@@ -32,95 +32,92 @@
     <!-- ===== ROLES ===== -->
     <section class="roles">
       <div class="rol">
-        <img src="..//imagenes/paciente.jpg" alt="Paciente">
+        <img src="../imagenes/paciente.jpg" alt="Paciente">
         <h4>Paciente</h4>
       </div>
       <div class="rol">
-        <img src="..//imagenes/cuidador.webp" alt="Cuidador">
+        <img src="../imagenes/cuidador.webp" alt="Cuidador">
         <h4>Cuidador</h4>
       </div>
       <div class="rol">
-        <img src="..//imagenes/farmacia.jpg" alt="Farmacia">
+        <img src="../imagenes/farmacia.jpg" alt="Farmacia">
         <h4>Farmacia</h4>
       </div>
       <div class="rol">
-        <img src="..//imagenes/administrador.jpg" alt="Administrador">
+        <img src="../imagenes/administrador.jpg" alt="Administrador">
         <h4>Administrador</h4>
       </div>
     </section>
 
-<section class="formularios">
-  <!-- ==== FORMULARIO DE REGISTRO ==== -->
-  <div class="form-card">
-    <h3>Crear cuenta</h3>
-    <form id="formRegistro">
-      <input type="text" id="nombres" placeholder="Nombres" required>
-      <input type="text" id="apellidos" placeholder="Apellidos" required>
-      <input type="text" id="identidad" placeholder="Número de identidad" required pattern="[0-9]{13}" title="Debe contener 13 dígitos">
-      <input type="tel" id="telefono" placeholder="Número de teléfono" required pattern="[0-9]{8}" title="Debe contener 8 dígitos">
-      <input type="email" id="emailRegistro" placeholder="Correo electrónico" required>
+    <!-- ===== FORMULARIOS ===== -->
+    <section class="formularios">
 
-      <!-- Contraseña -->
-      <div class="password-container">
-        <input type="password" id="passwordRegistro" placeholder="Contraseña" required oninput="toggleEyeVisibility(this)">
-        <span class="toggle-password" onclick="togglePassword('passwordRegistro', this)">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </span>
+      <!-- ==== FORMULARIO DE INICIO DE SESIÓN ==== -->
+      <div class="form-card">
+        <h3>Iniciar sesión</h3>
+        <form id="formLogin">
+          <input type="email" id="emailLogin" placeholder="Correo electrónico" required>
+          
+          <div class="password-container">
+            <input type="password" id="passwordLogin" placeholder="Contraseña" required oninput="toggleEyeVisibility(this)">
+            <span class="toggle-password" onclick="togglePassword('passwordLogin', this)">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </span>
+          </div>
+
+          <button type="submit" class="btn btn-morado">Entrar</button>
+          <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
+        </form>
       </div>
 
-      <!-- Confirmar contraseña -->
-      <div class="password-container">
-        <input type="password" id="confirmarPassword" placeholder="Confirmar contraseña" required oninput="toggleEyeVisibility(this)">
-        <span class="toggle-password" onclick="togglePassword('confirmarPassword', this)">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </span>
-      </div>
+      <!-- ==== FORMULARIO DE RECUPERAR CONTRASEÑA ==== -->
+<div class="form-card" id="formRecuperar" style="display:none;">
+  <h3>Recuperar contraseña</h3>
 
-      <!-- Selección de rol cambiado para admi -->
-      
-
-      <button type="submit" class="btn btn-azul">Registrarse</button>
-    </form>
-  </div>
-
-  <!-- ==== FORMULARIO DE INICIO DE SESIÓN ==== -->
-  <div class="form-card">
-    <h3>Iniciar sesión</h3>
-    <form id="formLogin">
-      <input type="email" id="emailLogin" placeholder="Correo electrónico" required>
-      
-      <div class="password-container">
-        <input type="password" id="passwordLogin" placeholder="Contraseña" required oninput="toggleEyeVisibility(this)">
-        <span class="toggle-password" onclick="togglePassword('passwordLogin', this)">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </span>
-      </div>
-
-      <button type="submit" class="btn btn-morado">Entrar</button>
-      <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
-    </form>
-  </div>
-</section>
+  <!-- Paso 1: Ingresar correo -->
+  <form id="formCorreo" onsubmit="return false;">
+  <input type="email" id="correoRecuperacion" placeholder="Ingresa tu correo electrónico" required>
+  <button type="button" id="btnEnviarCodigo" class="btn btn-azul">Enviar código</button>
+</form>
 
 
+  <!-- Paso 2: Verificar token -->
+  <form id="formToken" style="display:none;">
+    <input type="text" id="tokenIngresado" placeholder="Ingresa el código recibido" required>
+    <button type="submit" class="btn btn-morado">Verificar código</button>
+  </form>
+
+  <!-- Paso 3: Nueva contraseña -->
+  <form id="formNuevaPassword" style="display:none;">
+    <div class="password-container">
+      <input type="password" id="nuevaPassword" placeholder="Nueva contraseña" required>
+      <span class="toggle-password" onclick="togglePassword('nuevaPassword', this)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </span>
+    </div>
+    <button type="submit" class="btn btn-azul">Actualizar contraseña</button>
+  </form>
+
+  <a href="#" id="volverLogin" style="display:block;margin-top:10px;text-align:center;">Volver al inicio de sesión</a>
+</div>
+
+
+    </section>
 
     <!-- ===== SECCIÓN EXTRA ===== -->
     <section class="extras">
-  <div class="extras-container">
-    <button class="btn-extra">Contáctanos</button>
-    <button class="btn-extra">Más información</button>
-  </div>
-</section>
-
+      <div class="extras-container">
+        <button class="btn-extra">Contáctanos</button>
+        <button class="btn-extra">Más información</button>
+      </div>
+    </section>
+  </main>
 
   <!-- ===== PIE DE PÁGINA ===== -->
   <footer>
@@ -130,7 +127,6 @@
 
   <!-- JS externo -->
   <script src="../jv/script_main.js"></script>
-
   <div id="toast-container"></div>
 </body>
 </html>

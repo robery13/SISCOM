@@ -1,172 +1,30 @@
-// Mostrar año dinámico
+// ================== AÑO DINÁMICO ==================
 document.getElementById("year").textContent = new Date().getFullYear();
 
-
-
-// -------------------- SHOW TOAST --------------------
-// === Función para mostrar notificaciones internas (toasts) ===
+// ================== TOAST ==================
 function showToast(message, type = "info") {
   const container = document.getElementById("toast-container");
   if (!container) return;
 
   const toast = document.createElement("div");
-  toast.classList.add("toast", type);
+  toast.className = `toast ${type}`;
   toast.textContent = message;
-
   container.appendChild(toast);
 
-  // Mostrar con animación
   setTimeout(() => toast.classList.add("show"), 100);
-
-  // Desaparecer después de 3 segundos
   setTimeout(() => {
     toast.classList.remove("show");
     setTimeout(() => toast.remove(), 300);
   }, 3000);
 }
 
-// Lógica de botones extra
-// (Si tienes los botones comentados, puedes volver a activarlos después)
-const contacto = document.getElementById("btnContacto");
-const info = document.getElementById("btnInfo");
-if (contacto && info) {
-  contacto.addEventListener("click", () => {
-    alert("Puedes contactarnos en: soporte@siscom.com");
-  });
-  info.addEventListener("click", () => {
-    alert("SISCOM ayuda en el control de medicación de pacientes adultos y geriátricos.");
-  });
-}
-
-
-// ===== FUNCIONES PARA CONTRASEÑAS =====
+// ================== CONTRASEÑAS ==================
 
 // Mostrar / ocultar contraseña
-function togglePassword(id, element) {
-  const input = document.getElementById(id);
-  const svg = element.querySelector("svg");
-
-  if (input.type === "password") {
-    input.type = "text";
-    svg.innerHTML = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.29 20.29 0 0 1 4.54-5.94M1 1l22 22"/><path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 2.12-.88"/>';
-  } else {
-    input.type = "password";
-    svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>';
-  }
-}
-
-// Mostrar icono del ojo solo si el campo tiene texto
-function toggleEyeVisibility(input) {
-  const icon = input.parentElement.querySelector('.toggle-password');
-  icon.style.display = input.value.trim() ? "block" : "none";
-}
-
-// Al cargar la página, ocultar todos los iconos
-window.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll(".toggle-password").forEach(icon => {
-    icon.style.display = "none";
-  });
-});
-
-
-// ===== FUNCIONES PARA CONTRASEÑAS =====
-
-// Mostrar / ocultar contraseña
-function togglePassword(id, element) {
-  const input = document.getElementById(id);
-  const svg = element.querySelector("svg");
-
-  if (input.type === "password") {
-    input.type = "text";
-    svg.innerHTML = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.29 20.29 0 0 1 4.54-5.94M1 1l22 22"/><path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 2.12-.88"/>';
-  } else {
-    input.type = "password";
-    svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>';
-  }
-}
-
-// Mostrar icono del ojo solo si el campo tiene texto
-function toggleEyeVisibility(input) {
-  const icon = input.parentElement.querySelector('.toggle-password');
-  icon.style.display = input.value.trim() ? "block" : "none";
-}
-
-// Al cargar la página, ocultar todos los iconos
-window.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll(".toggle-password").forEach(icon => {
-    icon.style.display = "none";
-  });
-});
-
-
-
-
-//parte del script para server.js
-// script.js
-
-// Espera a que todo el contenido del DOM esté cargado
-document.addEventListener("DOMContentLoaded", () => {
-  const formLogin = document.getElementById("formLogin");
-
-  // Verifica que el formulario exista antes de agregar eventos
-  if (formLogin) {
-    formLogin.addEventListener("submit", async (e) => {
-      e.preventDefault(); // evita recargar la página
-
-      // Capturar los datos del formulario
-      const correo = document.getElementById("emailLogin").value.trim();
-      const contra = document.getElementById("passwordLogin").value.trim();
-
-      // Validar campos vacíos
-      if (!correo || !contra) {
-         showToast("Por favor, complete todos los campos.", "warning");
-        return;
-      }
-
-      // Crear el objeto con los datos
-      const datos_login = {
-        email: correo,
-        password: contra
-      };
-
-      try {
-        // Enviar los datos al backend
-        const respuesta = await fetch("http://localhost:3000/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(datos_login)
-        });
-
-        if (respuesta.ok) {
-          const data = await respuesta.json();
-      
-         showToast("Inicio de sesion exitoso!.", "success");
-
-          formLogin.reset(); // Limpia el formulario
-
-
-           // Redirigir al menú
-window.location.href = "..//registro/Registro.html";
-
-
-
-
-        } else {
-           showToast("Correo o contraseña incorrectos.", "error");
-        }
-      } catch (error) {
-        console.error("Error al conectar con el servidor:", error);
-        
-        showToast("No se pudo conectar con el servidor.", "warning");
-      }
-    });
-  }
-});
-
-
-// ==== FUNCIÓN PARA MOSTRAR/OCULTAR CONTRASEÑA ====
 function togglePassword(inputId, iconElement) {
   const input = document.getElementById(inputId);
+  if (!input) return;
+
   if (input.type === "password") {
     input.type = "text";
     iconElement.classList.add("active");
@@ -176,59 +34,242 @@ function togglePassword(inputId, iconElement) {
   }
 }
 
-// ==== FUNCIÓN PARA MOSTRAR EL ÍCONO DEL OJO AL ESCRIBIR ====
+// Mostrar icono del ojo solo si hay texto
 function toggleEyeVisibility(input) {
-  const eyeIcon = input.parentElement.querySelector(".toggle-password");
-  eyeIcon.style.display = input.value ? "block" : "none";
+  const icon = input.parentElement.querySelector(".toggle-password");
+  if (icon) icon.style.display = input.value.trim() ? "block" : "none";
 }
 
+// Al cargar la página, ocultar todos los iconos de contraseña
+window.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".toggle-password").forEach(icon => icon.style.display = "none");
+});
 
-const formRegistro = document.getElementById("formRegistro");
-  if (formRegistro) {
-    formRegistro.addEventListener("submit", async (e) => {
+// ================== LOGIN ==================
+document.addEventListener("DOMContentLoaded", () => {
+  const formLogin = document.getElementById("formLogin");
+  if (formLogin) {
+    formLogin.addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const nombres = document.getElementById("nombres").value.trim();
-      const apellidos = document.getElementById("apellidos").value.trim();
-      const identidad = document.getElementById("identidad").value.trim();
-      const telefono = document.getElementById("telefono").value.trim();
-      const email = document.getElementById("emailRegistro").value.trim();
-      const password = document.getElementById("passwordRegistro").value.trim();
-      const confirmarPassword = document.getElementById("confirmarPassword").value.trim();
+      const correo = document.getElementById("emailLogin").value.trim();
+      const contra = document.getElementById("passwordLogin").value.trim();
 
-      if (password !== confirmarPassword) {
-        showToast("Las contraseñas no coinciden", "warning");
+      if (!correo || !contra) {
+        showToast("Por favor, complete todos los campos.", "warning");
         return;
       }
 
       try {
-        const respuesta = await fetch("http://localhost:3000/registrar", {
+        const respuesta = await fetch("http://localhost:3000/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            nombres,
-            apellidos,
-            identidad,
-            telefono,
-            email,
-            password,
-          }),
+          body: JSON.stringify({ email: correo, password: contra })
         });
 
-        if (respuesta.ok) {
-          const data = await respuesta.json();
-           showToast("Registro exitoso", "success");
-          console.log("Nuevo usuario:", data);
-          formRegistro.reset();
+        const data = await respuesta.json();
+
+        if (respuesta.ok && data.ok) {
+          showToast("Inicio de sesión exitoso!", "success");
+          formLogin.reset();
+          window.location.href = "../registro/Registro.html";
         } else {
-        
-           showToast("Error al registrar al usuario", "error");
+          showToast(data.message || "Correo o contraseña incorrectos.", "error");
         }
       } catch (error) {
-        console.error("Error al registrar:", error);
-        showToast("Error de conexión con el servidor", "error");
-   
+        console.error("Error al conectar con el servidor:", error);
+        showToast("No se pudo conectar con el servidor.", "warning");
       }
     });
   }
+});
 
+// ================== RECUPERAR CONTRASEÑA ==================
+const API_URL = "http://localhost:3000";
+
+const linkForgot = document.querySelector(".forgot-link");
+const formLoginCard = document.querySelector("#formLogin").closest(".form-card");
+
+const formRecuperar = document.getElementById("formRecuperar");
+const volverLogin = document.getElementById("volverLogin");
+
+let correoActual = "";
+
+// Función para mostrar solo un formulario dentro de la recuperación
+function showForm(form) {
+  [document.getElementById("formCorreo"), 
+   document.getElementById("formToken"), 
+   document.getElementById("formNuevaPassword")].forEach(f => f.style.display = "none");
+  form.style.display = "block";
+}
+
+// Mostrar formulario de recuperación
+if (linkForgot) {
+  linkForgot.addEventListener("click", (e) => {
+    e.preventDefault();
+    formLoginCard.style.display = "none";
+    formRecuperar.style.display = "block";
+    showForm(document.getElementById("formCorreo"));
+  });
+}
+
+// Volver al login
+if (volverLogin) {
+  volverLogin.addEventListener("click", (e) => {
+    e.preventDefault();
+    formRecuperar.style.display = "none";
+    formLoginCard.style.display = "block";
+  });
+}
+
+// Paso 1: enviar correo
+const formCorreo = document.getElementById("formCorreo");
+const botonEnviar = document.getElementById("btnEnviarCodigo");
+
+if (formCorreo && botonEnviar) {
+  botonEnviar.addEventListener("click", async (e) => {
+    e.preventDefault();
+
+    const correoInput = document.getElementById("correoRecuperacion");
+    correoActual = correoInput.value.trim();
+
+    if (!correoActual) {
+      showToast("Ingrese un correo válido", "warning");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/enviar-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo: correoActual })
+      });
+
+      const data = await res.json();
+      console.log("Respuesta de /enviar-token:", data); // 👈 depuración
+
+      if (data.ok) {
+        showToast("Código enviado correctamente al correo.", "success");
+        console.log("Mostrando formulario del token...");
+        showForm(document.getElementById("formToken"));
+      } else {
+        showToast(data.message || "Error al enviar el correo.", "error");
+      }
+
+    } catch (err) {
+      console.error("Error de conexión:", err);
+      showToast("Error de conexión con el servidor.", "error");
+    }
+  });
+}
+
+
+
+// Paso 2: verificar token
+const formToken = document.getElementById("formToken");
+if (formToken) {
+  formToken.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const tokenIngresado = document.getElementById("tokenIngresado").value.trim();
+
+    if (!tokenIngresado) {
+      showToast("Ingrese el código enviado al correo", "warning");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/verificar-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo: correoActual, tokenIngresado })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        showToast("Código verificado correctamente ✅", "success");
+        showForm(document.getElementById("formNuevaPassword"));
+      } else {
+        showToast(data.message || "Token incorrecto o expirado.", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Error al verificar el token.", "error");
+    }
+  });
+}
+
+// Paso 3: actualizar contraseña
+const formNuevaPassword = document.getElementById("formNuevaPassword");
+if (formNuevaPassword) {
+  formNuevaPassword.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nuevaPass = document.getElementById("nuevaPassword").value.trim();
+
+    if (!nuevaPass) {
+      showToast("Ingrese una nueva contraseña", "warning");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/actualizar-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo: correoActual, nuevaPassword: nuevaPass })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        showToast("Contraseña actualizada con éxito", "success");
+        formNuevaPassword.reset();
+        formRecuperar.style.display = "none";
+        formLoginCard.style.display = "block";
+      } else {
+        showToast(data.message || "Error al actualizar la contraseña.", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Error de conexión al actualizar la contraseña.", "error");
+    }
+  });
+}
+
+// ================== REGISTRO ==================
+const formRegistro = document.getElementById("formRegistro");
+if (formRegistro) {
+  formRegistro.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const nombres = document.getElementById("nombres").value.trim();
+    const apellidos = document.getElementById("apellidos").value.trim();
+    const identidad = document.getElementById("identidad").value.trim();
+    const telefono = document.getElementById("telefono").value.trim();
+    const email = document.getElementById("emailRegistro").value.trim();
+    const password = document.getElementById("passwordRegistro").value.trim();
+    const confirmarPassword = document.getElementById("confirmarPassword").value.trim();
+
+    if (password !== confirmarPassword) {
+      showToast("Las contraseñas no coinciden", "warning");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:3000/registrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombres, apellidos, identidad, telefono, email, password })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        showToast("Registro exitoso", "success");
+        formRegistro.reset();
+      } else {
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Error de conexión con el servidor", "error");
+    }
+  });
+}
