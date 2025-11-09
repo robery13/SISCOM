@@ -173,3 +173,78 @@ app.post('/inventario', (req, res) => {
     res.json({ mensaje: ' Medicamento agregado al inventario correctamente' });
   });
 });
+
+
+const nodemailer = require("nodemailer");
+const crypto = require("crypto");
+
+let tokens = {}; // en memoria; si prefieres, puedes usar una tabla "tokens"
+
+// 1️⃣ Enviar token
+app.post("/enviar-token", (req, res) => {
+  const { correo } = req.body;
+  if (!correo) return res.json({ ok: false, message: "Correo requerido" });
+
+  const sql = "SELECT * FROM usuarios WHERE email = ?";
+  db.query(sql, [correo], async (err, results) => {
+    if (err) return res.json({ ok: false, message: "Error DB" });
+    if (results.length === 0)
+      return res.json({ ok: false, message: "No existe una cuenta con ese correo" });
+
+    const token = crypto.randomBytes(4).toString("hex");
+    tokens[correo] = { token, expires: Date.now() + 15 * 60 * 1000 }; // 15 min
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+    });
+
+   const link = `http://localhost:5500/html/recuperar2.html?email=${correo}`;
+
+
+
+
+    await transporter.sendMail({
+      from: `"SISCOM" <${process.env.MAIL_USER}>`,
+      to: correo,
+      subject: "Recuperación de contraseña",
+      html: `
+        <p>Tu código de verificación es:</p>
+        <h3>${token}</h3>
+        <p>O haz clic aquí para continuar:</p>
+        <a href="${link}">${link}</a>
+        <p>El código expira en 15 minutos.</p>
+      `,
+    });
+    
+    res.json({ ok: true, message: "Correo de verificación enviado" });
+  });
+});
+
+// 2️⃣ Verificar token
+app.post("/verificar-token", (req, res) => {
+  const { correo, tokenIngresado } = req.body;
+  const record = tokens[correo];
+
+  if (!record) return res.json({ ok: false, message: "Token no encontrado" });
+  if (Date.now() > record.expires)
+    return res.json({ ok: false, message: "Token expirado" });
+  if (record.token !== tokenIngresado)
+    return res.json({ ok: false, message: "Token incorrecto" });
+
+  res.json({ ok: true, message: "Token verificado" });
+});
+
+// 3️⃣ Actualizar contraseña
+app.post("/actualizar-password", (req, res) => {
+  const { correo, nuevaPassword } = req.body;
+  if (!correo || !nuevaPassword)
+    return res.json({ ok: false, message: "Datos incompletos" });
+
+  const sql = "UPDATE usuarios SET password = ? WHERE email = ?";
+  db.query(sql, [nuevaPassword, correo], (err, result) => {
+    if (err) return res.json({ ok: false, message: "Error al actualizar" });
+    delete tokens[correo]; // limpiar token
+    res.json({ ok: true, message: "Contraseña actualizada correctamente" });
+  });
+});
