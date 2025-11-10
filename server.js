@@ -39,7 +39,7 @@ app.post('/guardarMedicamento', (req, res) => {
   const sql = 'INSERT INTO medicamentos (nombre, dosis, frecuencia, hora) VALUES (?, ?, ?, ?)';
   db.query(sql, [nombre, dosis, frecuencia, hora], (err, result) => {
     if (err) {
-      console.error(err);
+      //console.error(err);
       return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
     }
     res.json({ mensaje: 'Medicamento guardado correctamente' });
@@ -55,48 +55,84 @@ app.post('/guardarMedicamento', (req, res) => {
 
 // Verificar correo y contraseña al iniciar sesión
 app.post('/login', (req, res) => {
+  const { email, password } = req.body; // ✅ cambia 'correo' por 'email'
   
-const { email, password } = req.body;
-console.log("Datos recibidos:", req.body);
 
-
-
-  // Consulta SQL para buscar el usuario por correo
+  // Consulta SQL para buscar el usuario por email
   const sql = 'SELECT * FROM usuarios WHERE email = ?';
 
   db.query(sql, [email], (err, results) => {
     if (err) {
-      console.error('Error al consultar la base de datos:', err);
+      //console.error('Error al consultar la base de datos:', err);
       return res.status(500).json({ mensaje: 'Error interno del servidor' });
     }
 
-    // Si no se encontró ningún usuario con ese correo
+    // Si no se encontró ningún usuario con ese email
     if (results.length === 0) {
       return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos' });
     }
 
     const usuario = results[0];
 
-    // Comparar la contraseña ingresada con la almacenada
+    // Comparar contraseñas (por ahora sin hash)
     if (password !== usuario.password) {
       return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos' });
     }
 
-    // Si llega aquí, el login es correcto
-    res.json({ mensaje: 'Inicio de sesión exitoso', usuario });
+    // Si todo está correcto
+    res.status(200).json({
+      ok: true,
+      mensaje: 'Inicio de sesión exitoso',
+      usuario
+    });
   });
 });
+
 
 
 // Registro
 app.post("/registrar", (req, res) => {
   const { nombres, apellidos, identidad, telefono, email, password } = req.body;
-  const sql = "INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password) VALUES (?, ?, ?, ?, ?, ?)";
-  db.query(sql, [nombres, apellidos, identidad, telefono, email, password], (err, result) => {
-    if (err) return res.status(500).json({ error: "Error al registrar usuario" });
-    res.status(200).json({ mensaje: "Usuario registrado con éxito" });
+
+  // Verificar si el correo o identidad ya existen
+  const verificarSql = "SELECT * FROM usuarios WHERE email = ? OR identidad = ?";
+  db.query(verificarSql, [email, identidad], (err, resultados) => {
+    if (err) {
+      //console.error("Error al verificar duplicados:", err);
+      return res.json({ ok: false, mensaje: "Error al verificar datos" });
+    }
+
+    if (resultados.length > 0) {
+      // Verificar cuál campo está duplicado
+      const correoExiste = resultados.some((r) => r.email === email);
+      const identidadExiste = resultados.some((r) => r.identidad === identidad);
+
+      if (correoExiste && identidadExiste) {
+        return res.json({ ok: false, mensaje: "El correo y la identidad ya están registrados" });
+      } else if (correoExiste) {
+        return res.json({ ok: false, mensaje: "El correo ya está registrado" });
+      } else if (identidadExiste) {
+        return res.json({ ok: false, mensaje: "La identidad ya está registrada" });
+      }
+    }
+
+    // Si no hay duplicados, insertar el nuevo usuario
+    const sql = `
+      INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    db.query(sql, [nombres, apellidos, identidad, telefono, email, password], (err, result) => {
+      if (err) {
+        //console.error("Error al registrar usuario:", err); 
+        return res.json({ ok: false, mensaje: "Error al registrar usuario" });
+      }
+
+      res.json({ ok: true, mensaje: "Usuario registrado con éxito" });
+    });
   });
 });
+
 
 
 
@@ -118,7 +154,7 @@ app.post("/registraradm", (req, res) => {
 
 db.query(sql, [nombres, apellidos, identidad, telefono, email, password, rol], (err, result) => {
   if (err) {
-    console.error("Error SQL completo:", err); // <-- imprime todo
+    //console.error("Error SQL completo:", err); // <-- imprime todo
     return res.status(500).json({ error: "Error al registrar usuario en la base de datos.", detalle: err.message });
   }
   res.status(200).json({ mensaje: "Usuario registrado con éxito." });
@@ -131,7 +167,7 @@ db.query(sql, [nombres, apellidos, identidad, telefono, email, password, rol], (
 
 //esto siempre al final sino todo hace KABOOOM *le da un infarto*
 app.listen(3000, () => {
-  console.log('Servidor corriendo en http://localhost:3000');
+  //console.log('Servidor corriendo en http://localhost:3000');
 });
 
 // itream parte 
@@ -149,7 +185,7 @@ app.post('/Registro_medicamentos', (req, res) => {
   const sql = 'INSERT INTO Registro_medicamentos (nombre, dosis, frecuencia_horas, hora) VALUES (?, ?, ?, ?)';
   db.query(sql, [nombre, dosis, frecuencia_horas, hora], (err, result) => {
     if (err) {
-      console.error(' Error al guardar en Registro_medicamentos:', err);
+      //console.error(' Error al guardar en Registro_medicamentos:', err);
       return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
     }
     res.json({ mensaje: ' Medicamento registrado correctamente en Registro_medicamentos' });
@@ -167,7 +203,7 @@ app.post('/inventario', (req, res) => {
   const sql = 'INSERT INTO inventario (nombre, cantidad, consumo_por_dosis) VALUES (?, ?, ?)';
   db.query(sql, [nombre, cantidad, consumo_por_dosis], (err, result) => {
     if (err) {
-      console.error(' Error al guardar en inventario:', err);
+      //console.error(' Error al guardar en inventario:', err);
       return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
     }
     res.json({ mensaje: ' Medicamento agregado al inventario correctamente' });
@@ -187,7 +223,7 @@ app.post("/enviar-token", (req, res) => {
 
   const sql = "SELECT * FROM usuarios WHERE email = ?";
   db.query(sql, [correo], async (err, results) => {
-    if (err) return res.json({ ok: false, message: "Error DB" });
+    if (err) return res.json({ ok: false, message: "Error DB"});
     if (results.length === 0)
       return res.json({ ok: false, message: "No existe una cuenta con ese correo" });
 
@@ -199,7 +235,7 @@ app.post("/enviar-token", (req, res) => {
       auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
     });
 
-   const link = `http://localhost:5500/html/recuperar2.html?email=${correo}`;
+   
 
 
 
@@ -212,11 +248,11 @@ app.post("/enviar-token", (req, res) => {
         <p>Tu código de verificación es:</p>
         <h3>${token}</h3>
         <p>O haz clic aquí para continuar:</p>
-        <a href="${link}">${link}</a>
+    
         <p>El código expira en 15 minutos.</p>
       `,
     });
-    
+
     res.json({ ok: true, message: "Correo de verificación enviado" });
   });
 });

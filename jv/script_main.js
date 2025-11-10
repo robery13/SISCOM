@@ -48,6 +48,8 @@ window.addEventListener("DOMContentLoaded", () => {
 // ================== LOGIN ==================
 document.addEventListener("DOMContentLoaded", () => {
   const formLogin = document.getElementById("formLogin");
+  const btnLogin = document.querySelector("#formLogin button[type='submit']");
+
   if (formLogin) {
     formLogin.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -60,6 +62,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+// 🚫 Deshabilitar el botón para evitar spam
+if (btnLogin) {
+  btnLogin.disabled = true;
+  btnLogin.style.opacity = "0.6";
+  btnLogin.style.cursor = "not-allowed";
+}
+
       try {
         const respuesta = await fetch("http://localhost:3000/login", {
           method: "POST",
@@ -71,14 +80,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (respuesta.ok && data.ok) {
           showToast("Inicio de sesión exitoso!", "success");
+          // 🔓 Reactivar el botón después del toast
+setTimeout(() => {
+  if (btnLogin) {
+    btnLogin.disabled = false;
+    btnLogin.style.opacity = "1";
+    btnLogin.style.cursor = "pointer";
+  }
+}, 2100); // dura lo mismo que el toast (3s)
+
           formLogin.reset();
           window.location.href = "../registro/Registro.html";
         } else {
           showToast(data.message || "Correo o contraseña incorrectos.", "error");
+          // 🔓 Reactivar el botón después del toast
+setTimeout(() => {
+  if (btnLogin) {
+    btnLogin.disabled = false;
+    btnLogin.style.opacity = "1";
+    btnLogin.style.cursor = "pointer";
+  }
+}, 2100); // dura lo mismo que el toast (3s)
+
         }
       } catch (error) {
         console.error("Error al conectar con el servidor:", error);
         showToast("No se pudo conectar con el servidor.", "warning");
+        // 🔓 Reactivar el botón después del toast
+setTimeout(() => {
+  if (btnLogin) {
+    btnLogin.disabled = false;
+    btnLogin.style.opacity = "1";
+    btnLogin.style.cursor = "pointer";
+  }
+}, 2100); // dura lo mismo que el toast (3s)
+
       }
     });
   }
@@ -265,7 +301,7 @@ if (formRegistro) {
       if (res.ok && data.ok) {
         showToast("Registro exitoso", "success");
         formRegistro.reset();
-      } else {
+      } else {  
       }
     } catch (err) {
       console.error(err);
