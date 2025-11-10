@@ -169,22 +169,54 @@ function generarId() {
   return 'cita_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
 }
 
-function agregarCitaDesdeFormulario(e) {
+async function agregarCitaDesdeFormulario(e) {
   e.preventDefault();
+
   const fecha = fechaInput.value;
   const hora = horaInput.value;
   const motivo = motivoInput.value.trim();
   const anticipacion = anticipacionInput.value;
-  if (!fecha || !hora || !motivo) return alert('Completa fecha, hora y motivo.');
+
+  if (!fecha || !hora || !motivo) {
+    alert('Completa fecha, hora y motivo.');
+    return;
+  }
+
   const dt = combinarFechaHora(fecha, hora);
-  if (!dt || isNaN(dt.getTime())) return alert('Fecha u hora inválida.');
-  const nueva = { id: generarId(), datetime: dt.toISOString(), motivo, anticipacion: Number(anticipacion) };
-  citas.push(nueva);
-  guardarCitas();
-  renderizarLista();
-  solicitarPermisoNotificacionSiNecesario().then(() => scheduleNotificationForCita(nueva));
-  form.reset();
-  anticipacionInput.value = '60';
+  if (!dt || isNaN(dt.getTime())) {
+    alert('Fecha u hora inválida.');
+    return;
+  }
+
+  // Simulamos el paciente (puedes usar un ID real del paciente logueado)
+  const id_paciente = 1; 
+  const fecha_hora = dt.toISOString().slice(0, 19).replace('T', ' ');
+
+  try {
+    const res = await fetch('http://localhost:3000/guardarCita', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_paciente,
+        fecha_hora,
+        motivo,
+        anticipacion_min: anticipacion
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.mensaje);
+      form.reset();
+      anticipacionInput.value = '60';
+    } else {
+      alert('Error: ' + data.mensaje);
+    }
+
+  } catch (error) {
+    console.error('❌ Error al enviar la cita:', error);
+    alert('Error al conectar con el servidor.');
+  }
 }
 
 function eliminarCita(id) {
