@@ -69,43 +69,14 @@
           </div>
 
           <button type="submit" class="btn btn-morado">Entrar</button>
-          <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
-        </form>
-      </div>
+          <a href="../html/rec_contra.html">¿Olvidaste tu contraseña?</a>
 
-      <!-- ==== FORMULARIO DE RECUPERAR CONTRASEÑA ==== -->
-<div class="form-card" id="formRecuperar" style="display:none;">
-  <h3>Recuperar contraseña</h3>
-
-  <!-- Paso 1: Ingresar correo -->
-  <form id="formCorreo" onsubmit="return false;">
-  <input type="email" id="correoRecuperacion" placeholder="Ingresa tu correo electrónico" required>
-  <button type="button" id="btnEnviarCodigo" class="btn btn-azul">Enviar código</button>
-</form>
+          <p class="registro-texto">
+  ¿No tienes cuenta?
+  <a href="../html/registro_usuario.html" class="registro-link">Regístrate aquí</a>
+</p>
 
 
-  <!-- Paso 2: Verificar token -->
-  <form id="formToken" style="display:none;">
-    <input type="text" id="tokenIngresado" placeholder="Ingresa el código recibido" required>
-    <button type="submit" class="btn btn-morado">Verificar código</button>
-  </form>
-
-  <!-- Paso 3: Nueva contraseña -->
-  <form id="formNuevaPassword" style="display:none;">
-    <div class="password-container">
-      <input type="password" id="nuevaPassword" placeholder="Nueva contraseña" required>
-      <span class="toggle-password" onclick="togglePassword('nuevaPassword', this)">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-      </span>
-    </div>
-    <button type="submit" class="btn btn-azul">Actualizar contraseña</button>
-  </form>
-
-  <a href="#" id="volverLogin" style="display:block;margin-top:10px;text-align:center;">Volver al inicio de sesión</a>
-</div>
 
 
     </section>

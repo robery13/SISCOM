@@ -304,3 +304,22 @@ footer {
   background-color: #ffc107;
   color: #333;
 }
+
+
+
+.registro-texto {
+  text-align: center;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #333;
+}
+
+.registro-link {
+  color: #6c2cff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.registro-link:hover {
+  text-decoration: underline;
+}

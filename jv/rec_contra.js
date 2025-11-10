@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("rec_contra.js cargado correctamente y DOM listo");
+  //console.log("rec_contra.js cargado correctamente y DOM listo");
 
   const formCorreo = document.getElementById("formCorreo");
   const formToken = document.getElementById("formToken");
@@ -21,13 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Recuperar último mensaje persistido
-  const last = localStorage.getItem("ultimoMensajeRecContra");
-  if (last) {
-    const { msg, color } = JSON.parse(last);
-    mensaje.textContent = msg;
-    mensaje.style.color = color;
-    console.log("Último mensaje recuperado de localStorage:", msg);
-  }
+ 
 
   // ------------------------
   // PASO 1: Enviar correo
@@ -39,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const correo = document.getElementById("correo").value.trim();
       if (!correo) return showMessage("Ingresa un correo válido");
 
-      console.log("Intentando enviar token a:", correo);
+      //console.log("Intentando enviar token a:", correo);
 
       try {
         const res = await fetch("http://localhost:3000/enviar-token", {
@@ -48,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({ correo }),
         });
         const data = await res.json();
-        console.log("Respuesta servidor enviar-token:", data);
+       // console.log("Respuesta servidor enviar-token:", data);
 
         if (data.ok) {
           correoGlobal = correo;
@@ -59,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
           showMessage(data.message);
         }
       } catch (err) {
-        console.error("Error fetch enviar-token:", err);
+       // console.error("Error fetch enviar-token:", err);
         showMessage("Error al enviar el código");
       }
     });
@@ -77,7 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const token = document.getElementById("token").value.trim();
       if (!token) return showMessage("Ingresa el código");
 
-      console.log("Intentando verificar token:", token);
+      //console.log("Intentando verificar token:", token);
 
       try {
         const res = await fetch("http://localhost:3000/verificar-token", {
@@ -86,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({ correo: correoGlobal, tokenIngresado: token }),
         });
         const data = await res.json();
-        console.log("Respuesta servidor verificar-token:", data);
+       // console.log("Respuesta servidor verificar-token:", data);
 
         if (data.ok) {
           formToken.style.display = "none";
@@ -96,12 +90,12 @@ document.addEventListener("DOMContentLoaded", () => {
           showMessage(data.message);
         }
       } catch (err) {
-        console.error("Error fetch verificar-token:", err);
+       // console.error("Error fetch verificar-token:", err);
         showMessage("Error al verificar el código");
       }
     });
   } else {
-    console.error("formToken no encontrado");
+   // console.error("formToken no encontrado");
   }
 
   // ------------------------
@@ -114,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const nuevaPassword = document.getElementById("nuevaPassword").value.trim();
       if (!nuevaPassword) return showMessage("La contraseña no puede estar vacía");
 
-      console.log("Intentando actualizar contraseña para:", correoGlobal);
+     // console.log("Intentando actualizar contraseña para:", correoGlobal);
 
       try {
         const res = await fetch("http://localhost:3000/actualizar-password", {
@@ -123,23 +117,26 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({ correo: correoGlobal, nuevaPassword }),
         });
         const data = await res.json();
-        console.log("Respuesta servidor enviar-token:", data);
+        //console.log("Respuesta servidor enviar-token:", data);
      
 
         if (data.ok) {
           showMessage("Contraseña actualizada. Redirigiendo al login...", "green");
-          setTimeout(() => {
-            window.location.href = "login.html";
+       
+            setTimeout(() => {
+    window.location.href = "Proyecto_SISCOM.html";
+
+
           }, 2000);
         } else {
           showMessage(data.message);
         }
       } catch (err) {
-        console.error("Error fetch actualizar-password:", err);
+       // console.error("Error fetch actualizar-password:", err);
         showMessage("Error al actualizar la contraseña");
       }
     });
   } else {
-    console.error("formNuevaPass no encontrado");
+   // console.error("formNuevaPass no encontrado");
   }
 });
