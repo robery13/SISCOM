@@ -1,4 +1,4 @@
-// ================== AÑO DINÁMICO ==================
+ // ================== AÑO DINÁMICO ==================
 document.getElementById("year").textContent = new Date().getFullYear();
 
 // ================== TOAST ==================
