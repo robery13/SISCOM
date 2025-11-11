@@ -1,3 +1,26 @@
+// -------------------- SHOW TOAST --------------------
+// === Función para mostrar notificaciones internas (toasts) ===
+function showToast(message, type = "info") {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  toast.classList.add("toast", type);
+  toast.textContent = message;
+
+  container.appendChild(toast);
+
+  // Mostrar con animación
+  setTimeout(() => toast.classList.add("show"), 100);
+
+  // Desaparecer después de 3 segundos
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+
 // Espera a que el DOM cargue
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -18,13 +41,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Validación simple de contraseñas
     if (password !== confirmarPassword) {
-      alert("Las contraseñas no coinciden.");
+     
+       showToast("Las contraseñas no coinciden.", "error");
       return;
     }
 
     // Validación de campos vacíos (extra)
     if (!nombres || !apellidos || !identidad || !telefono || !email || !password || !rol) {
-      alert("Por favor, complete todos los campos.");
+     
+       showToast("Por favor, complete todos los campos.", "warning");
       return;
     }
 
@@ -53,15 +78,18 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = await respuesta.json();
 
       if (respuesta.ok) {
-        alert(result.mensaje || "Usuario registrado con éxito.");
+               showToast("Usuario registrado con éxito.", "success");
+       
         formRegistro.reset(); // Limpiar formulario
       } else {
-        alert(result.error || "Error al registrar el usuario.");
+       
+         showToast("Error al registrar el usuario.", "error");
       }
 
     } catch (error) {
       console.error("Error al enviar datos:", error);
-      alert("No se pudo conectar con el servidor.");
+   
+       showToast("No se pudo conectar con el servidor.", "error");
     }
   });
 

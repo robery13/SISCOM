@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SISCOM | Registro de Usuarios con Privilegios</title>
+  <link rel="stylesheet" href="../css/estilo_registroadm.css">
+</head>
+
+<body>
+  <!-- ===== ENCABEZADO ===== -->
+  <header>
+    <div class="topbar">
+      <img src="../imagenes/logo.jpeg" alt="Logo SISCOM" class="logo">
+      <div class="titulo">
+        <h1>SISCOM</h1>
+        <p>Sistema Integral de Control de Medicación</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== CONTENIDO PRINCIPAL ===== -->
+  <main>
+    <section class="presentacion">
+      <h2>Registro de Usuario</h2>
+      <p>Rellene los datos solicitados</p>
+    </section>
+
+    <!-- ===== FORMULARIO REGISTRO ===== -->
+    <section class="formularios">
+      <div class="form-card">
+        <h3>Crear cuenta</h3>
+        <form id="formRegistroPrivilegio">
+          <input type="text" id="nombres" placeholder="Nombres" required>
+          <input type="text" id="apellidos" placeholder="Apellidos" required>
+          <input type="text" id="identidad" placeholder="Número de identidad" required pattern="[0-9]{13}" title="Debe contener 13 dígitos">
+          <input type="tel" id="telefono" placeholder="Número de teléfono" required pattern="[0-9]{8}" title="Debe contener 8 dígitos">
+         
+<input type="email" id="emailRegistro" placeholder="Correo electrónico" required>
+
+        <!-- Contraseña -->
+        <div class="password-container">
+          <input type="password" id="passwordRegistro" placeholder="Contraseña" required oninput="toggleEyeVisibility(this)">
+          <span class="toggle-password" onclick="togglePassword('passwordRegistro', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </span>
+        </div>
+
+         <!-- Confirmar contraseña -->
+        <div class="password-container">
+          <input type="password" id="confirmarPassword" placeholder="Confirmar contraseña" required oninput="toggleEyeVisibility(this)">
+          <span class="toggle-password" onclick="togglePassword('confirmarPassword', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </span>
+        </div>
+         
+
+          <!-- Botón de registro -->
+          <button type="submit" class="btn btn-azul">Registrarse</button>
+        </form>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== PIE DE PÁGINA ===== -->
+  <footer>
+    <p>© <span id="year"></span> SISCOM | Sistema Integral de Control de Medicación</p>
+  </footer>
+
+  <!-- JS externo -->
+  <script src="../jv/registro_usuario.js"></script>
+
+   <div id="toast-container"></div>
+</body>
+</html>

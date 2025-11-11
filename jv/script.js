@@ -1,9 +1,33 @@
 // script.js
 
+// -------------------- SHOW TOAST --------------------
+// === Función para mostrar notificaciones internas (toasts) ===
+function showToast(message, type = "info") {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  toast.classList.add("toast", type);
+  toast.textContent = message;
+
+  container.appendChild(toast);
+
+  // Mostrar con animación
+  setTimeout(() => toast.classList.add("show"), 100);
+
+  // Desaparecer después de 3 segundos
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+
+
 document.addEventListener("DOMContentLoaded", () => {
   const guardarBtn = document.getElementById("guardarBtn");
 
-  //RECOGE LOS DATOS DEL FORMULARIO Y LOS ENVIA AL SERVIDOR
+  // RECOGE LOS DATOS DEL FORMULARIO Y LOS ENVÍA AL SERVIDOR
   guardarBtn.addEventListener("click", async () => {
     const nombre = document.getElementById("nombre").value.trim();
     const dosis = document.getElementById("dosis").value.trim();
@@ -12,18 +36,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Validación básica
     if (!nombre || !dosis || !frecuencia || !hora) {
-      alert("Por favor, complete todos los campos.");
-      return;
+      showToast("Por favor, complete todos los campos.", "warning");
+      return; 
     }
-    
-//estructura de los datos a enviar
+
+    // Estructura de los datos a enviar
     const medicamento = { nombre, dosis, frecuencia, hora };
 
-
-    //envia los datos al puntero guardarMedicamento en server.js
+    // Envía los datos al puntero guardarMedicamento en server.js
     try {
-     const respuesta = await fetch("http://localhost:3000/guardarMedicamento", {
-
+      const respuesta = await fetch("http://localhost:3000/guardarMedicamento", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -31,10 +53,9 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify(medicamento)
       });
 
-
       if (respuesta.ok) {
         const data = await respuesta.json();
-        alert("Medicamento guardado correctamente");
+        showToast("Medicamento guardado correctamente", "success");
         console.log("Servidor:", data);
 
         // Limpia el formulario
@@ -42,13 +63,12 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("dosis").value = "";
         document.getElementById("frecuencia").selectedIndex = 0;
         document.getElementById("hora").value = "";
-
       } else {
-        alert("Error al guardar el medicamento.");
+        showToast("Error al guardar el medicamento.", "error");
       }
     } catch (error) {
       console.error("Error al conectar con el servidor:", error);
-      alert("No se pudo conectar con el servidor.");
+      showToast("No se pudo conectar con el servidor.", "error");
     }
   });
 });
