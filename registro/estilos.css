@@ -88,3 +88,40 @@ body{
   .card{margin:10px}
 }
 
+/* Estilos para el módulo de citas */
+    .cita-pasada {
+      opacity: 0.6;
+      background-color: #f8f9fa;
+    }
+    .cita-info {
+      flex-grow: 1;
+    }
+    .cita-fecha {
+      font-weight: 600;
+      color: #0d6efd;
+      margin-bottom: 4px;
+    }
+    .cita-motivo {
+      color: #212529;
+      margin-bottom: 4px;
+    }
+    .cita-meta {
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+    .cita-acciones {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .sin-citas {
+      padding: 2rem;
+      text-align: center;
+      color: #6c757d;
+    }
+    .list-group-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+    }
