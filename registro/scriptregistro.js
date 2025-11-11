@@ -13,7 +13,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Mostrar panel por defecto
   hideAllSections();
   const panel = document.getElementById("panel");
-  if (panel) panel.classList.remove("d-none");
+  if (panel) {
+    panel.classList.remove("d-none");
+    navBtns[0]?.classList.add("active");
+  }
 
   navBtns.forEach(btn => {
     btn.addEventListener("click", () => {
@@ -43,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ===============================
-// REGISTRO DE MEDICAMENTOS (tabla Registro_medicamentos)
+// REGISTRO DE MEDICAMENTOS
 // ===============================
 (function(){
   const guardarBtn = document.getElementById("guardarBtn");
@@ -71,7 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         const resultado = await resp.json();
-        alert(resultado.mensaje || "✅ Medicamento registrado correctamente.");
+        alert(resultado.mensaje || "Medicamento registrado correctamente.");
 
         document.getElementById("nombre").value = "";
         document.getElementById("dosis").value = "";
@@ -107,7 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${escapeHtml(m.dosis)}</td>
         <td>${m.frecuencia_horas}</td>
         <td>${m.hora}</td>
-        <td>${new Date(m.fecha_registro).toLocaleString()}</td>
       `;
       tablaMedicamentos.appendChild(tr);
     });
@@ -118,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 
 // ===============================
-// INVENTARIO (tabla inventario)
+// INVENTARIO
 // ===============================
 (function(){
   const registrarBtn = document.getElementById("registrarBtn");
@@ -232,12 +234,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function renderList(ul, items) {
-    ul.innerHTML = items.map(i => `<li>${escapeHtml(i)}</li>`).join("");
+    ul.innerHTML = items.map(i => `<li class="list-group-item">${escapeHtml(i)}</li>`).join("");
   }
 
   function renderCondiciones() {
     listaCondiciones.innerHTML = condiciones
-      .map(c => `<li>${escapeHtml(c.nombre)} — <strong>${escapeHtml(c.nivel)}</strong></li>`)
+      .map(c => `<li class="list-group-item">${escapeHtml(c.nombre)} — <strong>${escapeHtml(c.nivel)}</strong></li>`)
       .join("");
   }
 
@@ -267,7 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const resultado = await resp.json();
 
       if (resp.ok) {
-        alert(resultado.mensaje || "✅ Ficha médica guardada correctamente.");
+        alert(resultado.mensaje || "Ficha médica guardada correctamente.");
         alergias.length = 0;
         condiciones.length = 0;
         renderList(listaAlergias, []);
@@ -276,12 +278,12 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("nombreFicha").value = "";
         document.getElementById("fechaNac").value = "";
       } else {
-        alert("⚠️ Error: " + (resultado.mensaje || "No se pudo guardar la ficha."));
+        alert("Error: " + (resultado.mensaje || "No se pudo guardar la ficha."));
       }
 
     } catch (error) {
       console.error("Error al enviar ficha médica:", error);
-      alert("❌ Error de conexión con el servidor.");
+      alert("Error de conexión con el servidor.");
     }
   });
 
@@ -297,7 +299,7 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 
 // ===============================
-// MÓDULO DE CITAS MÉDICAS
+// MÓDULO DE CITAS MÉDICAS (SIN NOTIFICACIONES)
 // ===============================
 (function(){
   const formCita = document.getElementById('formCita');
@@ -310,31 +312,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const limpiarCitaBtn = document.getElementById('limpiarCitaBtn');
   const borrarTodasCitasBtn = document.getElementById('borrarTodasCitasBtn');
 
-  if (!formCita) return; // Si el módulo no está cargado, salir
+  if (!formCita) return;
 
   let citas = [];
-  let timeoutsProgramados = {};
 
-  // Inicialización
   cargarCitasDesdeServidor();
-  solicitarPermisoNotificacionSiNecesario();
 
-  // Solicitar permisos de notificación
-  async function solicitarPermisoNotificacionSiNecesario() {
-    if (!('Notification' in window)) {
-      console.warn('Este navegador no soporta notificaciones.');
-      return;
-    }
-    if (Notification.permission === 'default') {
-      try {
-        await Notification.requestPermission();
-      } catch (e) {
-        console.warn('Permiso de notificaciones denegado.', e);
-      }
-    }
-  }
-
-  // Cargar citas desde el servidor
   async function cargarCitasDesdeServidor() {
     try {
       const resp = await fetch("http://localhost:3000/obtenerCitas");
@@ -347,31 +330,26 @@ document.addEventListener("DOMContentLoaded", () => {
           anticipacion: c.anticipacion_min || 60
         }));
         renderizarLista();
-        programarTodasNotificaciones();
       }
     } catch (error) {
       console.error("Error al cargar citas:", error);
     }
   }
 
-  // Combinar fecha y hora en un objeto Date
   function combinarFechaHora(fechaStr, horaStr) {
     if (!fechaStr || !horaStr) return null;
     return new Date(`${fechaStr}T${horaStr}:00`);
   }
 
-  // Formatear fecha y hora
   function formatearFechaHora(date) {
     if (!(date instanceof Date)) return '';
     return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
   }
 
-  // Verificar si una fecha es pasada
   function esPasada(date) {
     return date.getTime() <= Date.now();
   }
 
-  // Renderizar lista de citas
   function renderizarLista() {
     citas.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
     listaCitasEl.innerHTML = '';
@@ -388,7 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
     citas.forEach(cita => {
       const citaDate = new Date(cita.datetime);
       const li = document.createElement('div');
-      li.className = 'list-group-item';
+      li.className = 'list-group-item d-flex justify-content-between align-items-center';
       if (esPasada(citaDate)) li.classList.add('cita-pasada');
 
       const info = document.createElement('div');
@@ -429,7 +407,6 @@ document.addEventListener("DOMContentLoaded", () => {
       listaCitasEl.appendChild(li);
     });
 
-    // Actualizar resumen
     const proximas = citas.filter(c => new Date(c.datetime) > new Date());
     if (proximas.length === 0) {
       resumenEl.textContent = 'No hay citas futuras.';
@@ -438,50 +415,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Programar notificaciones
-  function programarTodasNotificaciones() {
-    for (const id in timeoutsProgramados) {
-      clearTimeout(timeoutsProgramados[id]);
-    }
-    timeoutsProgramados = {};
-    citas.forEach(cita => {
-      scheduleNotificationForCita(cita);
-    });
-  }
-
-  function scheduleNotificationForCita(cita) {
-    if (!('Notification' in window)) return;
-    if (Notification.permission !== 'granted') return;
-
-    const citaDate = new Date(cita.datetime);
-    const anticipacionMin = Number(cita.anticipacion || 60);
-    const notificacionDate = new Date(citaDate.getTime() - anticipacionMin * 60000);
-    const delay = notificacionDate.getTime() - Date.now();
-
-    if (delay <= 0) return;
-    const MAX_DELAY = 2147483647;
-    if (delay > MAX_DELAY) return;
-
-    const timeoutId = setTimeout(() => {
-      mostrarNotificacion(cita);
-      delete timeoutsProgramados[cita.id];
-    }, delay);
-
-    timeoutsProgramados[cita.id] = timeoutId;
-  }
-
-  function mostrarNotificacion(cita) {
-    try {
-      const citaDate = new Date(cita.datetime);
-      const titulo = '🩺 Recordatorio de cita';
-      const body = `${formatearFechaHora(citaDate)} — ${cita.motivo}`;
-      new Notification(titulo, { body, tag: `cita-${cita.id}`, renotify: true });
-    } catch (e) {
-      console.error('Error mostrando notificación', e);
-    }
-  }
-
-  // Agregar nueva cita
   async function agregarCitaDesdeFormulario(e) {
     e.preventDefault();
 
@@ -501,7 +434,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // ID del paciente (puedes ajustar según tu lógica de sesión)
     const id_paciente = 1;
     const fecha_hora = dt.toISOString().slice(0, 19).replace('T', ' ');
 
@@ -519,7 +451,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const data = await res.json();
       if (res.ok) {
-        alert(data.mensaje || '✅ Cita guardada correctamente');
+        alert(data.mensaje || 'Cita guardada correctamente');
         formCita.reset();
         anticipacionInput.value = '60';
         cargarCitasDesdeServidor();
@@ -528,12 +460,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
     } catch (error) {
-      console.error('❌ Error al enviar la cita:', error);
+      console.error('Error al enviar la cita:', error);
       alert('Error al conectar con el servidor.');
     }
   }
 
-  // Eliminar cita
   async function eliminarCita(id) {
     try {
       const res = await fetch(`http://localhost:3000/eliminarCita/${id}`, {
@@ -553,7 +484,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Borrar todas las citas
   async function borrarTodasCitas() {
     if (!confirm('¿Seguro que deseas borrar todas las citas?')) return;
     
@@ -575,306 +505,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Event listeners
   formCita.addEventListener('submit', agregarCitaDesdeFormulario);
   limpiarCitaBtn.addEventListener('click', () => formCita.reset());
   borrarTodasCitasBtn.addEventListener('click', borrarTodasCitas);
-
-  // Re-programar notificaciones cuando la página vuelve a ser visible
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') programarTodasNotificaciones();
-  });
-
-})();
-
-// ===============================
-// MÓDULO DE CITAS MÉDICAS
-// ===============================
-(function(){
-  const formCita = document.getElementById('formCita');
-  const fechaInput = document.getElementById('fechaCita');
-  const horaInput = document.getElementById('horaCita');
-  const motivoInput = document.getElementById('motivoCita');
-  const anticipacionInput = document.getElementById('anticipacion');
-  const listaCitasEl = document.getElementById('listaCitas');
-  const resumenEl = document.getElementById('resumenCitas');
-  const limpiarCitaBtn = document.getElementById('limpiarCitaBtn');
-  const borrarTodasCitasBtn = document.getElementById('borrarTodasCitasBtn');
-
-  if (!formCita) return; // Si el módulo no está cargado, salir
-
-  let citas = [];
-  let timeoutsProgramados = {};
-
-  // Inicialización
-  cargarCitasDesdeServidor();
-  solicitarPermisoNotificacionSiNecesario();
-
-  // Solicitar permisos de notificación
-  async function solicitarPermisoNotificacionSiNecesario() {
-    if (!('Notification' in window)) {
-      console.warn('Este navegador no soporta notificaciones.');
-      return;
-    }
-    if (Notification.permission === 'default') {
-      try {
-        await Notification.requestPermission();
-      } catch (e) {
-        console.warn('Permiso de notificaciones denegado.', e);
-      }
-    }
-  }
-
-  // Cargar citas desde el servidor
-  async function cargarCitasDesdeServidor() {
-    try {
-      const resp = await fetch("http://localhost:3000/obtenerCitas");
-      if (resp.ok) {
-        const data = await resp.json();
-        citas = data.map(c => ({
-          id: c.id,
-          datetime: c.fecha_hora,
-          motivo: c.motivo,
-          anticipacion: c.anticipacion_min || 60
-        }));
-        renderizarLista();
-        programarTodasNotificaciones();
-      }
-    } catch (error) {
-      console.error("Error al cargar citas:", error);
-    }
-  }
-
-  // Combinar fecha y hora en un objeto Date
-  function combinarFechaHora(fechaStr, horaStr) {
-    if (!fechaStr || !horaStr) return null;
-    return new Date(`${fechaStr}T${horaStr}:00`);
-  }
-
-  // Formatear fecha y hora
-  function formatearFechaHora(date) {
-    if (!(date instanceof Date)) return '';
-    return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-  }
-
-  // Verificar si una fecha es pasada
-  function esPasada(date) {
-    return date.getTime() <= Date.now();
-  }
-
-  // Renderizar lista de citas
-  function renderizarLista() {
-    citas.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
-    listaCitasEl.innerHTML = '';
-
-    if (citas.length === 0) {
-      const noHay = document.createElement('div');
-      noHay.className = 'sin-citas';
-      noHay.textContent = 'No hay citas registradas.';
-      listaCitasEl.appendChild(noHay);
-      resumenEl.textContent = 'No hay citas registradas.';
-      return;
-    }
-
-    citas.forEach(cita => {
-      const citaDate = new Date(cita.datetime);
-      const li = document.createElement('div');
-      li.className = 'list-group-item';
-      if (esPasada(citaDate)) li.classList.add('cita-pasada');
-
-      const info = document.createElement('div');
-      info.className = 'cita-info';
-      
-      const fechaSpan = document.createElement('div');
-      fechaSpan.className = 'cita-fecha';
-      fechaSpan.textContent = formatearFechaHora(citaDate);
-      
-      const motivoSpan = document.createElement('div');
-      motivoSpan.className = 'cita-motivo';
-      motivoSpan.textContent = cita.motivo;
-      
-      const meta = document.createElement('div');
-      meta.className = 'cita-meta';
-      meta.textContent = `Notificar ${cita.anticipacion} min antes`;
-
-      info.append(fechaSpan, motivoSpan, meta);
-
-      const acciones = document.createElement('div');
-      acciones.className = 'cita-acciones';
-      
-      const verBtn = document.createElement('button');
-      verBtn.className = 'btn btn-sm btn-outline-primary';
-      verBtn.innerHTML = '<i class="bi bi-eye"></i>';
-      verBtn.onclick = () =>
-        alert(`Cita:\nFecha: ${formatearFechaHora(citaDate)}\nMotivo: ${cita.motivo}\nNotificar: ${cita.anticipacion} minutos antes`);
-      
-      const delBtn = document.createElement('button');
-      delBtn.className = 'btn btn-sm btn-outline-danger';
-      delBtn.innerHTML = '<i class="bi bi-trash"></i>';
-      delBtn.onclick = () => {
-        if (confirm('¿Eliminar esta cita?')) eliminarCita(cita.id);
-      };
-      
-      acciones.append(verBtn, delBtn);
-      li.append(info, acciones);
-      listaCitasEl.appendChild(li);
-    });
-
-    // Actualizar resumen
-    const proximas = citas.filter(c => new Date(c.datetime) > new Date());
-    if (proximas.length === 0) {
-      resumenEl.textContent = 'No hay citas futuras.';
-    } else {
-      resumenEl.textContent = `Próxima cita: ${formatearFechaHora(new Date(proximas[0].datetime))} — ${proximas[0].motivo}`;
-    }
-  }
-
-  // Programar notificaciones
-  function programarTodasNotificaciones() {
-    for (const id in timeoutsProgramados) {
-      clearTimeout(timeoutsProgramados[id]);
-    }
-    timeoutsProgramados = {};
-    citas.forEach(cita => {
-      scheduleNotificationForCita(cita);
-    });
-  }
-
-  function scheduleNotificationForCita(cita) {
-    if (!('Notification' in window)) return;
-    if (Notification.permission !== 'granted') return;
-
-    const citaDate = new Date(cita.datetime);
-    const anticipacionMin = Number(cita.anticipacion || 60);
-    const notificacionDate = new Date(citaDate.getTime() - anticipacionMin * 60000);
-    const delay = notificacionDate.getTime() - Date.now();
-
-    if (delay <= 0) return;
-    const MAX_DELAY = 2147483647;
-    if (delay > MAX_DELAY) return;
-
-    const timeoutId = setTimeout(() => {
-      mostrarNotificacion(cita);
-      delete timeoutsProgramados[cita.id];
-    }, delay);
-
-    timeoutsProgramados[cita.id] = timeoutId;
-  }
-
-  function mostrarNotificacion(cita) {
-    try {
-      const citaDate = new Date(cita.datetime);
-      const titulo = '🩺 Recordatorio de cita';
-      const body = `${formatearFechaHora(citaDate)} — ${cita.motivo}`;
-      new Notification(titulo, { body, tag: `cita-${cita.id}`, renotify: true });
-    } catch (e) {
-      console.error('Error mostrando notificación', e);
-    }
-  }
-
-  // Agregar nueva cita
-  async function agregarCitaDesdeFormulario(e) {
-    e.preventDefault();
-
-    const fecha = fechaInput.value;
-    const hora = horaInput.value;
-    const motivo = motivoInput.value.trim();
-    const anticipacion = anticipacionInput.value;
-
-    if (!fecha || !hora || !motivo) {
-      alert('Completa fecha, hora y motivo.');
-      return;
-    }
-
-    const dt = combinarFechaHora(fecha, hora);
-    if (!dt || isNaN(dt.getTime())) {
-      alert('Fecha u hora inválida.');
-      return;
-    }
-
-    // ID del paciente (puedes ajustar según tu lógica de sesión)
-    const id_paciente = 1;
-    const fecha_hora = dt.toISOString().slice(0, 19).replace('T', ' ');
-
-    try {
-      const res = await fetch('http://localhost:3000/guardarCita', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id_paciente,
-          fecha_hora,
-          motivo,
-          anticipacion_min: anticipacion
-        })
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        alert(data.mensaje || '✅ Cita guardada correctamente');
-        formCita.reset();
-        anticipacionInput.value = '60';
-        cargarCitasDesdeServidor();
-      } else {
-        alert('Error: ' + data.mensaje);
-      }
-
-    } catch (error) {
-      console.error('❌ Error al enviar la cita:', error);
-      alert('Error al conectar con el servidor.');
-    }
-  }
-
-  // Eliminar cita
-  async function eliminarCita(id) {
-    try {
-      const res = await fetch(`http://localhost:3000/eliminarCita/${id}`, {
-        method: 'DELETE'
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        alert(data.mensaje || 'Cita eliminada');
-        cargarCitasDesdeServidor();
-      } else {
-        alert('Error: ' + data.mensaje);
-      }
-    } catch (error) {
-      console.error('Error al eliminar cita:', error);
-      alert('Error al conectar con el servidor.');
-    }
-  }
-
-  // Borrar todas las citas
-  async function borrarTodasCitas() {
-    if (!confirm('¿Seguro que deseas borrar todas las citas?')) return;
-    
-    try {
-      const res = await fetch('http://localhost:3000/eliminarTodasCitas', {
-        method: 'DELETE'
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        alert(data.mensaje || 'Todas las citas eliminadas');
-        cargarCitasDesdeServidor();
-      } else {
-        alert('Error: ' + data.mensaje);
-      }
-    } catch (error) {
-      console.error('Error al eliminar citas:', error);
-      alert('Error al conectar con el servidor.');
-    }
-  }
-
-  // Event listeners
-  formCita.addEventListener('submit', agregarCitaDesdeFormulario);
-  limpiarCitaBtn.addEventListener('click', () => formCita.reset());
-  borrarTodasCitasBtn.addEventListener('click', borrarTodasCitas);
-
-  // Re-programar notificaciones cuando la página vuelve a ser visible
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') programarTodasNotificaciones();
-  });
 
 })();
 
@@ -892,9 +525,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const auditList = document.getElementById("auditList");
   const exportCsvBtn = document.getElementById("exportCsvBtn");
 
-  if (!patientInput) return; // Si el módulo no está cargado, salir
+  if (!patientInput) return;
 
-  // Medicamentos de ejemplo
   const sampleMeds = [
     { id: 1, name: "Paracetamol 500 mg", dose: "1 tableta", schedule: "08:00" },
     { id: 2, name: "Vitamina D 1000 UI", dose: "1 cápsula", schedule: "12:00" },
@@ -906,12 +538,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentPatientKey = null;
   let currentDateStr = null;
 
-  // Inicializar fecha actual
   if (dateInput) {
     dateInput.valueAsDate = new Date();
   }
 
-  // === Funciones de utilidad ===
   const formatTime = iso => (iso ? new Date(iso).toLocaleTimeString() : "—");
 
   const setStatus = (text, type = 'info') => {
@@ -921,7 +551,6 @@ document.addEventListener("DOMContentLoaded", () => {
     statusMsg.classList.toggle('d-none', !text);
   };
 
-  // === Renderizar medicamentos ===
   const renderMeds = () => {
     if (!medListEl) return;
     medListEl.innerHTML = "";
@@ -982,7 +611,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  // === Guardar check en servidor ===
   const guardarCheckEnServidor = async (medId) => {
     if (!currentPatientKey || !currentDateStr) return;
     
@@ -1005,14 +633,13 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       const data = await resp.json();
-      setStatus(data.mensaje || 'Guardado ✓', 'success');
+      setStatus(data.mensaje || 'Guardado correctamente', 'success');
     } catch (error) {
       console.error('Error al guardar check:', error);
       setStatus('Error al guardar', 'danger');
     }
   };
 
-  // === Eliminar check en servidor ===
   const eliminarCheckEnServidor = async (medId) => {
     if (!currentPatientKey || !currentDateStr) return;
 
@@ -1028,7 +655,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // === Renderizar auditoría ===
   const renderAudit = () => {
     if (!auditList) return;
     auditList.innerHTML = "";
@@ -1055,7 +681,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  // === Cargar datos desde el servidor ===
   const cargarDatosDesdeServidor = async () => {
     const p = (patientInput.value || "").trim();
     const d = dateInput.value;
@@ -1079,7 +704,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data && data.meds) {
         meds = data.meds;
         checks = data.checks || {};
-        setStatus("Datos cargados correctamente ✓", 'success');
+        setStatus("Datos cargados correctamente", 'success');
       } else {
         meds = [];
         checks = {};
@@ -1094,7 +719,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // === Event listeners ===
   if (loadBtn) {
     loadBtn.addEventListener("click", cargarDatosDesdeServidor);
   }
@@ -1108,7 +732,6 @@ document.addEventListener("DOMContentLoaded", () => {
       meds = JSON.parse(JSON.stringify(sampleMeds));
       checks = {};
       
-      // Guardar medicamentos de ejemplo en el servidor
       try {
         await fetch('http://localhost:3000/guardarMedicamentosChecklist', {
           method: 'POST',
@@ -1120,7 +743,7 @@ document.addEventListener("DOMContentLoaded", () => {
           })
         });
         
-        setStatus("Medicamentos de ejemplo cargados ✓", 'success');
+        setStatus("Medicamentos de ejemplo cargados", 'success');
         renderMeds();
       } catch (error) {
         console.error('Error:', error);
@@ -1142,7 +765,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         
         checks = {};
-        setStatus("Día limpiado ✓", 'success');
+        setStatus("Día limpiado correctamente", 'success');
         renderMeds();
         renderAudit();
       } catch (error) {
@@ -1184,6 +807,271 @@ document.addEventListener("DOMContentLoaded", () => {
       URL.revokeObjectURL(a.href);
     });
   }
+})();
+
+// ===============================
+// MÓDULO DE PEDIDOS A FARMACIA
+// ===============================
+(function(){
+  const openBtn = document.getElementById('open-create-order');
+  const modalEl = document.getElementById('createOrderModal');
+  const detailModalEl = document.getElementById('detailModal');
+  
+  if (!openBtn || !modalEl) return;
+
+  const modal = new bootstrap.Modal(modalEl);
+  const detailModal = new bootstrap.Modal(detailModalEl);
+  
+  const historyList = document.getElementById('historyList');
+  const clearAllBtn = document.getElementById('clearAll');
+  const itemsTableBody = document.querySelector('#itemsTable tbody');
+  const addEmptyRowBtn = document.getElementById('addEmptyRow');
+  const farmaciaSelect = document.getElementById('farmaciaSelect');
+  const notasInput = document.getElementById('notas');
+  const previewBtn = document.getElementById('previewBtn');
+  const sendBtn = document.getElementById('sendBtn');
+  const previewContent = document.getElementById('previewContent');
+  const formMessage = document.getElementById('formMessage');
+  const detailBody = document.getElementById('detailBody');
+
+  openBtn.onclick = () => modal.show();
+  addEmptyRowBtn.onclick = () => addRow();
+
+  function addRow(){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="form-control form-control-sm txt-name" placeholder="Medicamento"></td>
+      <td><input class="form-control form-control-sm txt-dose" placeholder="Dosis (ej: 500mg)"></td>
+      <td><input type="number" class="form-control form-control-sm num" min="0" value="1"></td>
+      <td><button type="button" class="btn btn-sm btn-outline-danger">✕</button></td>`;
+    tr.querySelector('button').onclick = ()=>tr.remove();
+    itemsTableBody.appendChild(tr);
+  }
+
+  previewBtn.onclick = async ()=>{
+    const o = await buildOrder();
+    if(!o)return;
+    previewContent.textContent = JSON.stringify(o,null,2);
+  };
+
+  sendBtn.onclick = async ()=>{
+    const o = await buildOrder();
+    if(!o)return;
+    
+    console.log('Enviando pedido:', o);
+    
+    try {
+      const resp = await fetch('http://localhost:3000/guardarPedido', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(o)
+      });
+
+      console.log('Respuesta del servidor:', resp.status);
+
+      if (!resp.ok) {
+        const data = await resp.json();
+        console.error('Error del servidor:', data);
+        showMsg('Error: ' + (data.mensaje || 'Error desconocido'), 'text-danger');
+        return;
+      }
+
+      const data = await resp.json();
+      console.log('Respuesta exitosa:', data);
+      showMsg('Pedido guardado correctamente','text-success');
+      
+      setTimeout(()=>{
+        modal.hide(); 
+        resetForm();
+        cargarHistorial();
+      },1000);
+      
+    } catch (error) {
+      console.error('Error completo:', error);
+      showMsg('Error al conectar: ' + error.message, 'text-danger');
+    }
+  };
+
+  async function buildOrder(){
+    const farmacia = farmaciaSelect.value.trim();
+    if(!farmacia) {
+      showMsg('Seleccione una farmacia','text-danger');
+      return null;
+    }
+    
+    const allItems = [...itemsTableBody.querySelectorAll('tr')].map(r => {
+      const nombre = r.querySelector('.txt-name').value.trim();
+      const dosisRaw = r.querySelector('.txt-dose').value.trim();
+      const cantidad = parseInt(r.querySelector('.num').value, 10);
+      
+      return {
+        nombre: nombre,
+        dosis: dosisRaw || 'No especificada',
+        cantidad: cantidad
+      };
+    });
+    
+    const items = allItems.filter(i => i.nombre && i.cantidad > 0);
+    
+    if(!items.length) {
+      showMsg('Debe agregar al menos un medicamento','text-danger');
+      return null;
+    }
+    
+    const itemsIncompletos = items.filter(i => !i.dosis);
+    if(itemsIncompletos.length > 0) {
+      showMsg('Todos los medicamentos deben tener dosis especificada','text-danger');
+      return null;
+    }
+    
+    clearMsg();
+    
+    const now = new Date();
+    const fecha_mysql = now.toISOString().slice(0, 19).replace('T', ' ');
+    
+    return {
+      id: 'P-'+Date.now().toString(36),
+      farmacia,
+      items,
+      notas: notasInput.value.trim(),
+      estado: 'Pendiente',
+      fecha_creacion: fecha_mysql,
+      id_usuario: 1
+    };
+  }
+
+  function showMsg(msg,cls){
+    formMessage.className='fw-semibold '+cls;
+    formMessage.textContent=msg;
+  }
+  
+  function clearMsg(){
+    formMessage.textContent='';
+  }
+  
+  function resetForm(){
+    itemsTableBody.innerHTML='';
+    farmaciaSelect.value='';
+    notasInput.value='';
+    previewContent.textContent='Aún no hay previsualización.';
+    clearMsg();
+  }
+
+  async function cargarHistorial(){
+    try {
+      const resp = await fetch('http://localhost:3000/obtenerPedidos');
+      const data = await resp.json();
+      renderHistory(data);
+    } catch (error) {
+      console.error('Error al cargar historial:', error);
+    }
+  }
+
+  function renderHistory(list){
+    historyList.innerHTML='';
+    
+    if(!list || !list.length){
+      historyList.innerHTML='<div class="text-muted small">No hay pedidos guardados.</div>';
+      return;
+    }
+    
+    list.forEach(o=>{
+      const div=document.createElement('div');
+      div.className='border rounded p-2 bg-white d-flex justify-content-between align-items-center mb-2';
+      div.innerHTML=`
+        <div>
+          <strong>${escapeHtml(o.id)}</strong><br>
+          <small>${new Date(o.fecha_creacion).toLocaleString()} — ${escapeHtml(o.farmacia)}</small><br>
+          <small>${o.total_items} ítem(s) — ${escapeHtml(o.estado)}</small>
+        </div>
+        <div>
+          <button class="btn btn-sm btn-outline-secondary me-2 btn-ver">Ver</button>
+          <button class="btn btn-sm btn-outline-danger btn-del">Eliminar</button>
+        </div>`;
+      
+      const viewBtn = div.querySelector('.btn-ver');
+      const delBtn = div.querySelector('.btn-del');
+      
+      viewBtn.onclick = () => showDetail(o.id);
+      delBtn.onclick = () => {
+        if(confirm('¿Eliminar este pedido?')){
+          eliminarPedido(o.id);
+        }
+      };
+      
+      historyList.appendChild(div);
+    });
+  }
+
+  async function showDetail(pedidoId){
+    try {
+      const resp = await fetch(`http://localhost:3000/obtenerPedido/${pedidoId}`);
+      const data = await resp.json();
+      
+      if (data.pedido && data.items) {
+        const o = data.pedido;
+        const items = data.items;
+        
+        detailBody.innerHTML=`
+          <p><strong>ID:</strong> ${escapeHtml(o.id)}</p>
+          <p><strong>Farmacia:</strong> ${escapeHtml(o.farmacia)}</p>
+          <p><strong>Fecha:</strong> ${new Date(o.fecha_creacion).toLocaleString()}</p>
+          <p><strong>Estado:</strong> <span class="badge bg-info">${escapeHtml(o.estado)}</span></p>
+          <h6>Medicamentos</h6>
+          <ul>${items.map(i=>`<li>${escapeHtml(i.nombre_medicamento)} — ${escapeHtml(i.dosis)} — x${i.cantidad}</li>`).join('')}</ul>
+          <p><strong>Notas:</strong> ${escapeHtml(o.notas)||'(sin notas)'}</p>`;
+        
+        detailModal.show();
+      }
+    } catch (error) {
+      console.error('Error al cargar detalle:', error);
+      alert('Error al cargar el detalle del pedido');
+    }
+  }
+
+  async function eliminarPedido(pedidoId){
+    try {
+      const resp = await fetch(`http://localhost:3000/eliminarPedido/${pedidoId}`, {
+        method: 'DELETE'
+      });
+      
+      const data = await resp.json();
+      
+      if (resp.ok) {
+        alert(data.mensaje || 'Pedido eliminado');
+        cargarHistorial();
+      } else {
+        alert('Error: ' + data.mensaje);
+      }
+    } catch (error) {
+      console.error('Error al eliminar pedido:', error);
+      alert('Error al conectar con el servidor');
+    }
+  }
+
+  clearAllBtn.onclick = async () => {
+    if(!confirm('¿Borrar todo el historial?')) return;
+    
+    try {
+      const resp = await fetch('http://localhost:3000/eliminarTodosPedidos', {
+        method: 'DELETE'
+      });
+      
+      const data = await resp.json();
+      
+      if (resp.ok) {
+        alert(data.mensaje || 'Historial limpiado');
+        cargarHistorial();
+      } else {
+        alert('Error: ' + data.mensaje);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al conectar con el servidor');
+    }
+  };
+
+  cargarHistorial();
 })();
 
 // ===============================
