@@ -13,6 +13,45 @@
   <!-- Estilos propios -->
   <link rel="stylesheet" href="estilos.css" />
   <link rel="stylesheet" href="Estiloficha1.css" />
+  <style>
+    /* Estilos para el módulo de citas */
+    .cita-pasada {
+      opacity: 0.6;
+      background-color: #f8f9fa;
+    }
+    .cita-info {
+      flex-grow: 1;
+    }
+    .cita-fecha {
+      font-weight: 600;
+      color: #0d6efd;
+      margin-bottom: 4px;
+    }
+    .cita-motivo {
+      color: #212529;
+      margin-bottom: 4px;
+    }
+    .cita-meta {
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+    .cita-acciones {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .sin-citas {
+      padding: 2rem;
+      text-align: center;
+      color: #6c757d;
+    }
+    .list-group-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+    }
+  </style>
 </head>
 <body>
   <div class="app">
@@ -24,7 +63,7 @@
       <nav class="nav-menu">
         <button class="nav-btn" data-section="panel"><i class="bi bi-grid-fill"></i> <span>Panel de Control</span></button>
         <button class="nav-btn" data-section="medicamentos"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
-        <button class="nav-btn" data-section="recetas"><i class="bi bi-journal-text"></i> <span>Recetas</span></button>
+        <button class="nav-btn" data-section="recetas"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
         <button class="nav-btn" data-section="Ficha"><i class="bi bi-graph-up"></i> <span>Ficha</span></button>
         <button class="nav-btn" data-section="inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
       </nav>
@@ -106,6 +145,84 @@
         </div>
       </section>
 
+      <!-- CITAS MÉDICAS (antes "recetas") -->
+      <section id="recetas" class="section d-none">
+        <div class="section-header">
+          <h2><i class="bi bi-calendar-check me-2"></i> Registro de Citas Médicas</h2>
+          <p class="muted">Programa tus citas y recibe notificaciones antes de cada una.</p>
+        </div>
+
+        <div class="card form-card mb-4">
+          <h5 class="card-title"><i class="bi bi-plus-circle me-2"></i> Nueva Cita</h5>
+          
+          <form id="formCita" class="row g-3">
+            <div class="col-md-4">
+              <label for="fechaCita" class="form-label">Fecha</label>
+              <input type="date" id="fechaCita" class="form-control" required>
+            </div>
+
+            <div class="col-md-4">
+              <label for="horaCita" class="form-label">Hora</label>
+              <input type="time" id="horaCita" class="form-control" required>
+            </div>
+
+            <div class="col-md-4">
+              <label for="anticipacion" class="form-label">Notificar antes</label>
+              <select id="anticipacion" class="form-select">
+                <option value="1440">1 día (1440 min)</option>
+                <option value="60" selected>1 hora</option>
+                <option value="30">30 minutos</option>
+                <option value="15">15 minutos</option>
+                <option value="5">5 minutos</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label for="motivoCita" class="form-label">Motivo de la cita</label>
+              <input type="text" id="motivoCita" class="form-control" placeholder="Ej: Consulta con cardiólogo" required>
+            </div>
+
+            <div class="col-12 d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save me-2"></i> Guardar Cita
+              </button>
+              <button type="button" id="limpiarCitaBtn" class="btn btn-outline-secondary">
+                <i class="bi bi-x-circle me-2"></i> Limpiar
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="row">
+          <div class="col-lg-8 mb-4">
+            <div class="card">
+              <div class="card-header">
+                <i class="bi bi-calendar3 me-2"></i> Próximas Citas
+              </div>
+              <div class="card-body p-0">
+                <div id="listaCitas" class="list-group list-group-flush">
+                  <!-- Las citas se renderizan aquí -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-4 mb-4">
+            <div class="card">
+              <div class="card-header">
+                <i class="bi bi-info-circle me-2"></i> Resumen
+              </div>
+              <div class="card-body">
+                <p id="resumenCitas" class="mb-3">No hay citas registradas.</p>
+                <button id="borrarTodasCitasBtn" class="btn btn-danger btn-sm">
+                  <i class="bi bi-trash me-2"></i> Borrar todas las citas
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- INVENTARIO -->
       <section id="inventario" class="section d-none">
         <div class="section-header">
@@ -154,13 +271,7 @@
         </div>
       </section>
 
-      <!-- RECETAS form -->
-      <section id="recetas" class="section d-none">
-        <h2>Recetas</h2>
-        <p class="muted">Módulo de recetas (vacío por ahora).</p>
-      </section>
-
-      <!-- uFICHA MÉDICA -->
+      <!-- FICHA MÉDICA -->
       <section id="Ficha" class="section d-none">
         <div class="ficha-container">
           <h2>Ficha Médica del Paciente</h2>
