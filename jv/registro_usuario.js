@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast(result.mensaje, "error");
       }
     } catch (error) {
-      console.error("Error en la conexión o fetch:", error);
+      //console.error("Error en la conexión o fetch:", error);
       showToast("Error al conectar con el servidor.", "error");
     }
   });
