@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
 
-      console.log("Datos a enviar:", datos);
+     // console.log("Datos a enviar:", datos);
 
       // Enviar datos al backend
       const respuesta = await fetch("http://localhost:3000/registraradm", {
@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
     } catch (error) {
-      console.error("Error al enviar datos:", error);
+     // console.error("Error al enviar datos:", error);
    
        showToast("No se pudo conectar con el servidor.", "error");
     }

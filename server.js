@@ -195,6 +195,16 @@ app.post('/Registro_medicamentos', (req, res) => {
   });
 });
 
+// Obtener todos los medicamentos registrados
+app.get('/Registro_medicamentos', (req, res) => {
+  const sql = 'SELECT * FROM Registro_medicamentos';
+  db.query(sql, (err, results) => {
+    if (err) return res.status(500).json({ mensaje: 'Error al cargar registro' });
+    res.json(results);
+  });
+});
+
+
 //  RUTA 3: GUARDAR EN inventario
 app.post('/inventario', (req, res) => {
   const { nombre, cantidad, consumo_por_dosis } = req.body;
@@ -213,6 +223,14 @@ app.post('/inventario', (req, res) => {
   });
 });
 
+// Obtener todo el inventario
+app.get('/inventario', (req, res) => {
+  const sql = 'SELECT * FROM inventario';
+  db.query(sql, (err, results) => {
+    if (err) return res.status(500).json({ mensaje: 'Error al cargar inventario' });
+    res.json(results);
+  });
+});
 
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
@@ -304,7 +322,7 @@ app.post('/guardarFichaMedica', (req, res) => {
   const sqlPaciente = 'INSERT INTO paciente (nombre_completo, fecha_nacimiento) VALUES (?, ?)';
   db.query(sqlPaciente, [nombre, fechaNac], (err, result) => {
     if (err) {
-      console.error('Error al guardar paciente:', err);
+     // console.error('Error al guardar paciente:', err);
       return res.status(500).json({ mensaje: 'Error al guardar paciente' });
     }
 
@@ -345,7 +363,7 @@ app.post('/guardarCita', (req, res) => {
 
   db.query(sql, [id_paciente, fecha_hora, motivo, anticipacion_min], (err, result) => {
     if (err) {
-      console.error('Error al guardar cita:', err);
+     // console.error('Error al guardar cita:', err);
       return res.status(500).json({ mensaje: 'Error al guardar la cita en la base de datos.' });
     }
     res.status(200).json({ mensaje: 'Cita registrada correctamente.' });
@@ -357,7 +375,7 @@ app.get('/obtenerCitas', (req, res) => {
   
   db.query(sql, (err, results) => {
     if (err) {
-      console.error('Error al obtener citas:', err);
+      //console.error('Error al obtener citas:', err);
       return res.status(500).json({ mensaje: 'Error al obtener las citas.' });
     }
     res.status(200).json(results);
@@ -382,7 +400,7 @@ app.delete('/eliminarTodasCitas', (req, res) => {
   
   db.query(sql, (err, result) => {
     if (err) {
-      console.error('Error al eliminar todas las citas:', err);
+     // console.error('Error al eliminar todas las citas:', err);
       return res.status(500).json({ mensaje: 'Error al eliminar las citas.' });
     }
     res.status(200).json({ mensaje: 'Todas las citas eliminadas correctamente.' });
@@ -404,7 +422,7 @@ app.post('/guardarMedicamentosChecklist', (req, res) => {
   
   db.query(sqlDelete, [paciente_id, fecha], (err) => {
     if (err) {
-      console.error('Error al limpiar medicamentos:', err);
+     // console.error('Error al limpiar medicamentos:', err);
       return res.status(500).json({ mensaje: 'Error al procesar' });
     }
 
@@ -414,7 +432,7 @@ app.post('/guardarMedicamentosChecklist', (req, res) => {
       
       db.query(sqlInsert, [values], (err) => {
         if (err) {
-          console.error('Error al guardar medicamentos:', err);
+       //   console.error('Error al guardar medicamentos:', err);
           return res.status(500).json({ mensaje: 'Error al guardar medicamentos' });
         }
         res.json({ mensaje: 'Medicamentos guardados correctamente' });
@@ -432,7 +450,7 @@ app.get('/obtenerChecklist/:paciente_id/:fecha', (req, res) => {
   
   db.query(sqlMeds, [paciente_id, fecha], (err, meds) => {
     if (err) {
-      console.error('Error al obtener medicamentos:', err);
+      //console.error('Error al obtener medicamentos:', err);
       return res.status(500).json({ mensaje: 'Error al obtener datos' });
     }
 
@@ -440,7 +458,7 @@ app.get('/obtenerChecklist/:paciente_id/:fecha', (req, res) => {
     
     db.query(sqlChecks, [paciente_id, fecha], (err, checks) => {
       if (err) {
-        console.error('Error al obtener confirmaciones:', err);
+       // console.error('Error al obtener confirmaciones:', err);
         return res.status(500).json({ mensaje: 'Error al obtener confirmaciones' });
       }
 
@@ -487,7 +505,7 @@ app.post('/guardarChecklist', (req, res) => {
 
   db.query(sql, [paciente_id, fecha, medicamento_id, medicamento_nombre, tomado, hora_toma, actor], (err) => {
     if (err) {
-      console.error('Error al guardar confirmación:', err);
+     // console.error('Error al guardar confirmación:', err);
       return res.status(500).json({ mensaje: 'Error al guardar' });
     }
     res.json({ mensaje: 'Confirmación guardada' });
@@ -501,7 +519,7 @@ app.delete('/eliminarChecklist/:paciente_id/:fecha/:medicamento_id', (req, res) 
   
   db.query(sql, [paciente_id, fecha, medicamento_id], (err) => {
     if (err) {
-      console.error('Error al eliminar:', err);
+    //  console.error('Error al eliminar:', err);
       return res.status(500).json({ mensaje: 'Error al eliminar' });
     }
     res.json({ mensaje: 'Confirmación eliminada' });
@@ -515,7 +533,7 @@ app.delete('/limpiarDiaChecklist/:paciente_id/:fecha', (req, res) => {
   
   db.query(sql, [paciente_id, fecha], (err) => {
     if (err) {
-      console.error('Error al limpiar día:', err);
+      //console.error('Error al limpiar día:', err);
       return res.status(500).json({ mensaje: 'Error al limpiar' });
     }
     res.json({ mensaje: 'Día limpiado correctamente' });
@@ -529,10 +547,10 @@ app.delete('/limpiarDiaChecklist/:paciente_id/:fecha', (req, res) => {
 app.post('/guardarPedido', (req, res) => {
   const { id, farmacia, items, notas, estado, fecha_creacion, id_usuario } = req.body;
 
-  console.log('Datos recibidos:', JSON.stringify(req.body, null, 2));
+  //console.log('Datos recibidos:', JSON.stringify(req.body, null, 2));
 
   if (!id || !farmacia || !items || items.length === 0) {
-    console.error('Datos incompletos');
+   // console.error('Datos incompletos');
     return res.status(400).json({ mensaje: 'Datos incompletos: falta id, farmacia o items' });
   }
 
@@ -543,7 +561,7 @@ app.post('/guardarPedido', (req, res) => {
   );
 
   if (!itemsValidos) {
-    console.error('Items con datos incompletos');
+    //console.error('Items con datos incompletos');
     return res.status(400).json({ mensaje: 'Todos los items deben tener nombre, dosis y cantidad' });
   }
 
@@ -551,28 +569,28 @@ app.post('/guardarPedido', (req, res) => {
   
   db.query(sqlPedido, [id, farmacia, notas || null, estado || 'Pendiente', fecha_creacion, id_usuario || null], (err, result) => {
     if (err) {
-      console.error('Error al guardar pedido:', err);
+      //console.error('Error al guardar pedido:', err);
       return res.status(500).json({ 
         mensaje: 'Error al guardar el pedido', 
         error: err.message 
       });
     }
 
-    console.log('Pedido guardado, insertando items...');
+  //  console.log('Pedido guardado, insertando items...');
 
     const sqlItems = 'INSERT INTO pedidos_items (pedido_id, nombre_medicamento, dosis, cantidad) VALUES ?';
     const values = items.map(item => [id, item.nombre, item.dosis, item.cantidad]);
     
     db.query(sqlItems, [values], (err) => {
       if (err) {
-        console.error('Error al guardar items:', err);
+        //console.error('Error al guardar items:', err);
         db.query('DELETE FROM pedidos_farmacia WHERE id = ?', [id], () => {});
         return res.status(500).json({ 
           mensaje: 'Error al guardar items del pedido', 
           error: err.message 
         });
       }
-      console.log('Items guardados correctamente');
+     // console.log('Items guardados correctamente');
       res.json({ mensaje: 'Pedido guardado correctamente' });
     });
   });
@@ -594,7 +612,7 @@ app.get('/obtenerPedidos', (req, res) => {
   
   db.query(sql, (err, results) => {
     if (err) {
-      console.error('Error al obtener pedidos:', err);
+    //  console.error('Error al obtener pedidos:', err);
       return res.status(500).json({ mensaje: 'Error al obtener pedidos' });
     }
     res.json(results);
@@ -608,7 +626,7 @@ app.get('/obtenerPedido/:id', (req, res) => {
   
   db.query(sqlPedido, [id], (err, pedido) => {
     if (err) {
-      console.error('Error al obtener pedido:', err);
+     // console.error('Error al obtener pedido:', err);
       return res.status(500).json({ mensaje: 'Error al obtener el pedido' });
     }
 
@@ -620,7 +638,7 @@ app.get('/obtenerPedido/:id', (req, res) => {
     
     db.query(sqlItems, [id], (err, items) => {
       if (err) {
-        console.error('Error al obtener items:', err);
+        //console.error('Error al obtener items:', err);
         return res.status(500).json({ mensaje: 'Error al obtener items' });
       }
 
@@ -639,7 +657,7 @@ app.delete('/eliminarPedido/:id', (req, res) => {
   
   db.query(sql, [id], (err, result) => {
     if (err) {
-      console.error('Error al eliminar pedido:', err);
+    //  console.error('Error al eliminar pedido:', err);
       return res.status(500).json({ mensaje: 'Error al eliminar el pedido' });
     }
     res.json({ mensaje: 'Pedido eliminado correctamente' });
@@ -651,7 +669,7 @@ app.delete('/eliminarTodosPedidos', (req, res) => {
   
   db.query(sql, (err, result) => {
     if (err) {
-      console.error('Error al eliminar todos los pedidos:', err);
+     // console.error('Error al eliminar todos los pedidos:', err);
       return res.status(500).json({ mensaje: 'Error al eliminar los pedidos' });
     }
     res.json({ mensaje: 'Todos los pedidos eliminados correctamente' });
