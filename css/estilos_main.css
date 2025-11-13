@@ -20,29 +20,42 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     }
 
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      max-width: 1000px;
-      margin: auto;
-    }
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 1200px;
+  margin: auto;
+  padding: 0 30px;
+}
 
-    .logo {
-      width: 100px;
-      height: 100px;
-      border-radius: 8px;
-      background-color: white;
-      padding: 5px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2em;
-      font-weight: bold;
-      color: #083b66;
-    }
+/* Grupo logo + título juntos a la izquierda */
+.topbar .logo,
+.topbar .titulo {
+  flex-shrink: 0;
+}
 
+.topbar .logo {
+  margin-right: 20px; /* Espacio entre logo y título */
+}
+
+/* El título NO crece para llenar espacio */
+.topbar .titulo {
+  margin-right: auto; /* Empuja los botones a la derecha */
+}
+
+   .logo {
+  width: 80px; /* ← Un poco más pequeño */
+  height: 80px;
+  border-radius: 8px;
+  background-color: white;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0; /* ← Evita que se comprima */
+}
     .titulo h1 {
       font-size: 2.2em;
       font-weight: bold;
@@ -53,6 +66,53 @@
       font-size: 1em;
       color: #d0e4f7;
     }
+
+    /* Grupo de marca (logo + título) */
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+    /* ======== BOTONES DEL HEADER ======== */
+.header-buttons {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.btn-header {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.95em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid white;
+  white-space: nowrap; /* Evita que el texto se parta */
+}
+
+.btn-header-login {
+  background-color: transparent;
+  color: white;
+}
+
+.btn-header-login:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.btn-header-registro {
+  background-color: white;
+  color: #083b66;
+  border-color: white;
+}
+
+.btn-header-registro:hover {
+  background-color: #f0f8ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+}
 
     /* ======== PRESENTACIÓN ======== */
     .presentacion {
@@ -118,49 +178,7 @@
       font-size: 1.05em;
     }
 
-    /* ======== BOTONES DE ACCIÓN PRINCIPALES ======== */
-    .acciones-principales {
-      text-align: center;
-      margin: 60px auto;
-      max-width: 600px;
-    }
-
-    .btn-accion {
-      display: inline-block;
-      width: 260px;
-      padding: 18px 30px;
-      margin: 15px;
-      border: none;
-      border-radius: 12px;
-      font-size: 1.2em;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }
-
-    .btn-login {
-      background: linear-gradient(135deg, #7b4dff 0%, #6a38ff 100%);
-      color: white;
-    }
-
-    .btn-login:hover {
-      background: linear-gradient(135deg, #6a38ff 0%, #5927ff 100%);
-      transform: translateY(-3px);
-      box-shadow: 0 6px 20px rgba(123, 77, 255, 0.4);
-    }
-
-    .btn-registro {
-      background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
-      color: white;
-    }
-
-    .btn-registro:hover {
-      background: linear-gradient(135deg, #0b5ed7 0%, #094db0 100%);
-      transform: translateY(-3px);
-      box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
-    }
-
+ 
     /* ======== MODAL ======== */
     .modal {
       display: none;
@@ -355,20 +373,33 @@
 
     /* ======== RESPONSIVE ======== */
     @media (max-width: 768px) {
-      .topbar {
-        flex-direction: column;
-        text-align: center;
-      }
+       .topbar {
+    flex-direction: column;
+    text-align: center;
+    padding: 0 15px; /* ← nuevos cambios */
+  }
+
+   .header-buttons {
+    width: 100%;
+    justify-content: center;
+    margin-top: 15px;
+  }
+
+   .btn-header {
+    padding: 8px 18px;
+    font-size: 0.9em;
+  }
 
       .roles {
         gap: 30px;
       }
 
-      .btn-accion {
-        width: 90%;
-        display: block;
-        margin: 15px auto;
-      }
+      /* ←  ESTO es una prueba / by robert */
+  /* .btn-accion {
+    width: 90%;
+    display: block;
+    margin: 15px auto;
+  } */
 
       .modal-content {
         width: 95%;
