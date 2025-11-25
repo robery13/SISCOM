@@ -6,16 +6,18 @@ function showToast(message, type = "info") {
   const container = document.getElementById("toast-container");
   if (!container) return;
 
-  const toast = document.createElement("div");
-  toast.className = `toast ${type}`;
-  toast.textContent = message;
-  container.appendChild(toast);
+  setTimeout(() => { // ⏳ Retraso de 2 segundos antes de mostrar el toast
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
 
-  setTimeout(() => toast.classList.add("show"), 100);
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
+    setTimeout(() => toast.classList.add("show"), 100);
+    setTimeout(() => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }, 2000);
 }
 
 // ================== CONTRASEÑAS ==================
@@ -62,12 +64,12 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-// 🚫 Deshabilitar el botón para evitar spam
-if (btnLogin) {
-  btnLogin.disabled = true;
-  btnLogin.style.opacity = "0.6";
-  btnLogin.style.cursor = "not-allowed";
-}
+      // 🚫 Deshabilitar el botón para evitar spam
+      if (btnLogin) {
+        btnLogin.disabled = true;
+        btnLogin.style.opacity = "0.6";
+        btnLogin.style.cursor = "not-allowed";
+      }
 
       try {
         const respuesta = await fetch("http://localhost:3000/login", {
@@ -80,41 +82,36 @@ if (btnLogin) {
 
         if (respuesta.ok && data.ok) {
           showToast("Inicio de sesión exitoso!", "success");
-          // 🔓 Reactivar el botón después del toast
-setTimeout(() => {
-  if (btnLogin) {
-    btnLogin.disabled = false;
-    btnLogin.style.opacity = "1";
-    btnLogin.style.cursor = "pointer";
-  }
-}, 2100); // dura lo mismo que el toast (3s)
+          setTimeout(() => {
+            if (btnLogin) {
+              btnLogin.disabled = false;
+              btnLogin.style.opacity = "1";
+              btnLogin.style.cursor = "pointer";
+            }
+          }, 2100);
 
           formLogin.reset();
           window.location.href = "../registro/Registro.html";
         } else {
           showToast(data.message || "Correo o contraseña incorrectos.", "error");
-          // 🔓 Reactivar el botón después del toast
-setTimeout(() => {
-  if (btnLogin) {
-    btnLogin.disabled = false;
-    btnLogin.style.opacity = "1";
-    btnLogin.style.cursor = "pointer";
-  }
-}, 2100); // dura lo mismo que el toast (3s)
-
+          setTimeout(() => {
+            if (btnLogin) {
+              btnLogin.disabled = false;
+              btnLogin.style.opacity = "1";
+              btnLogin.style.cursor = "pointer";
+            }
+          }, 2100);
         }
       } catch (error) {
-        console.error("Error al conectar con el servidor:", error);
+        // console.error("Error al conectar con el servidor:", error);
         showToast("No se pudo conectar con el servidor.", "warning");
-        // 🔓 Reactivar el botón después del toast
-setTimeout(() => {
-  if (btnLogin) {
-    btnLogin.disabled = false;
-    btnLogin.style.opacity = "1";
-    btnLogin.style.cursor = "pointer";
-  }
-}, 2100); // dura lo mismo que el toast (3s)
-
+        setTimeout(() => {
+          if (btnLogin) {
+            btnLogin.disabled = false;
+            btnLogin.style.opacity = "1";
+            btnLogin.style.cursor = "pointer";
+          }
+        }, 2100);
       }
     });
   }
@@ -182,24 +179,22 @@ if (formCorreo && botonEnviar) {
       });
 
       const data = await res.json();
-      console.log("Respuesta de /enviar-token:", data); // 👈 depuración
+      // console.log("Respuesta de /enviar-token:", data); // 👈 depuración
 
       if (data.ok) {
         showToast("Código enviado correctamente al correo.", "success");
-        console.log("Mostrando formulario del token...");
+        // console.log("Mostrando formulario del token...");
         showForm(document.getElementById("formToken"));
       } else {
         showToast(data.message || "Error al enviar el correo.", "error");
       }
 
     } catch (err) {
-      console.error("Error de conexión:", err);
+      // console.error("Error de conexión:", err);
       showToast("Error de conexión con el servidor.", "error");
     }
   });
 }
-
-
 
 // Paso 2: verificar token
 const formToken = document.getElementById("formToken");
@@ -223,13 +218,13 @@ if (formToken) {
       const data = await res.json();
 
       if (data.ok) {
-        showToast("Código verificado correctamente ✅", "success");
+        showToast("Código verificado correctamente ", "success");
         showForm(document.getElementById("formNuevaPassword"));
       } else {
         showToast(data.message || "Token incorrecto o expirado.", "error");
       }
     } catch (err) {
-      console.error(err);
+      // console.error(err);
       showToast("Error al verificar el token.", "error");
     }
   });
@@ -265,7 +260,7 @@ if (formNuevaPassword) {
         showToast(data.message || "Error al actualizar la contraseña.", "error");
       }
     } catch (err) {
-      console.error(err);
+      // console.error(err);
       showToast("Error de conexión al actualizar la contraseña.", "error");
     }
   });
@@ -302,9 +297,10 @@ if (formRegistro) {
         showToast("Registro exitoso", "success");
         formRegistro.reset();
       } else {  
+        showToast(data.message || "Error en el registro", "error");
       }
     } catch (err) {
-      console.error(err);
+      // console.error(err);
       showToast("Error de conexión con el servidor", "error");
     }
   });

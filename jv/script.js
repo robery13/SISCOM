@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (respuesta.ok) {
         const data = await respuesta.json();
         showToast("Medicamento guardado correctamente", "success");
-        console.log("Servidor:", data);
+       // console.log("Servidor:", data);
 
         // Limpia el formulario
         document.getElementById("nombre").value = "";
@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast("Error al guardar el medicamento.", "error");
       }
     } catch (error) {
-      console.error("Error al conectar con el servidor:", error);
+     // console.error("Error al conectar con el servidor:", error);
       showToast("No se pudo conectar con el servidor.", "error");
     }
   });

@@ -17,6 +17,9 @@ const db = mysql.createConnection({
   port: process.env.DB_PORT
 });
 
+
+
+
 //mensaje de error o exito de conexion
 db.connect(err => {
   if (err) {
@@ -192,6 +195,16 @@ app.post('/Registro_medicamentos', (req, res) => {
   });
 });
 
+// Obtener todos los medicamentos registrados
+app.get('/Registro_medicamentos', (req, res) => {
+  const sql = 'SELECT * FROM Registro_medicamentos';
+  db.query(sql, (err, results) => {
+    if (err) return res.status(500).json({ mensaje: 'Error al cargar registro' });
+    res.json(results);
+  });
+});
+
+
 //  RUTA 3: GUARDAR EN inventario
 app.post('/inventario', (req, res) => {
   const { nombre, cantidad, consumo_por_dosis } = req.body;
@@ -210,6 +223,14 @@ app.post('/inventario', (req, res) => {
   });
 });
 
+// Obtener todo el inventario
+app.get('/inventario', (req, res) => {
+  const sql = 'SELECT * FROM inventario';
+  db.query(sql, (err, results) => {
+    if (err) return res.status(500).json({ mensaje: 'Error al cargar inventario' });
+    res.json(results);
+  });
+});
 
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
@@ -283,4 +304,389 @@ app.post("/actualizar-password", (req, res) => {
     delete tokens[correo]; // limpiar token
     res.json({ ok: true, message: "Contraseña actualizada correctamente" });
   });
+});
+
+
+
+// ============================================
+// RUTAS DE FICHA MÉDICA
+// ============================================
+
+app.post('/guardarFichaMedica', (req, res) => {
+  const { nombre, fechaNac, alergias, condiciones } = req.body;
+
+  if (!nombre || !fechaNac) {
+    return res.status(400).json({ mensaje: 'Campos incompletos' });
+  }
+
+  const sqlPaciente = 'INSERT INTO paciente (nombre_completo, fecha_nacimiento) VALUES (?, ?)';
+  db.query(sqlPaciente, [nombre, fechaNac], (err, result) => {
+    if (err) {
+     // console.error('Error al guardar paciente:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar paciente' });
+    }
+
+    const idPaciente = result.insertId;
+
+    if (alergias && alergias.length > 0) {
+      const sqlAlergia = 'INSERT INTO alergia (id_paciente, nombre_alergia) VALUES ?';
+      const valuesAlergias = alergias.map(a => [idPaciente, a]);
+      db.query(sqlAlergia, [valuesAlergias], err => {
+        if (err) console.error('Error al guardar alergias:', err);
+      });
+    }
+
+    if (condiciones && condiciones.length > 0) {
+      const sqlCondicion = 'INSERT INTO condicion_medica (id_paciente, nombre_condicion, nivel) VALUES ?';
+      const valuesCondiciones = condiciones.map(c => [idPaciente, c.nombre, c.nivel]);
+      db.query(sqlCondicion, [valuesCondiciones], err => {
+        if (err) console.error('Error al guardar condiciones:', err);
+      });
+    }
+
+    res.json({ mensaje: 'Ficha médica guardada correctamente en la base de datos' });
+  });
+});
+
+// ============================================
+// RUTAS DE CITAS MÉDICAS
+// ============================================
+
+app.post('/guardarCita', (req, res) => {
+  const { id_paciente, fecha_hora, motivo, anticipacion_min } = req.body;
+
+  if (!id_paciente || !fecha_hora || !motivo) {
+    return res.status(400).json({ mensaje: 'Campos incompletos.' });
+  }
+
+  const sql = `INSERT INTO citas (id_paciente, fecha_hora, motivo, anticipacion_min) VALUES (?, ?, ?, ?)`;
+
+  db.query(sql, [id_paciente, fecha_hora, motivo, anticipacion_min], (err, result) => {
+    if (err) {
+     // console.error('Error al guardar cita:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar la cita en la base de datos.' });
+    }
+    res.status(200).json({ mensaje: 'Cita registrada correctamente.' });
+  });
+});
+
+app.get('/obtenerCitas', (req, res) => {
+  const sql = 'SELECT * FROM citas ORDER BY fecha_hora ASC';
+  
+  db.query(sql, (err, results) => {
+    if (err) {
+      //console.error('Error al obtener citas:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener las citas.' });
+    }
+    res.status(200).json(results);
+  });
+});
+
+app.delete('/eliminarCita/:id', (req, res) => {
+  const { id } = req.params;
+  const sql = 'DELETE FROM citas WHERE id = ?';
+  
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar cita:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar la cita.' });
+    }
+    res.status(200).json({ mensaje: 'Cita eliminada correctamente.' });
+  });
+});
+
+app.delete('/eliminarTodasCitas', (req, res) => {
+  const sql = 'DELETE FROM citas';
+  
+  db.query(sql, (err, result) => {
+    if (err) {
+     // console.error('Error al eliminar todas las citas:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar las citas.' });
+    }
+    res.status(200).json({ mensaje: 'Todas las citas eliminadas correctamente.' });
+  });
+});
+
+// ============================================
+// RUTAS DE CHECKLIST
+// ============================================
+
+app.post('/guardarMedicamentosChecklist', (req, res) => {
+  const { paciente_id, fecha, medicamentos } = req.body;
+
+  if (!paciente_id || !fecha || !medicamentos) {
+    return res.status(400).json({ mensaje: 'Datos incompletos' });
+  }
+
+  const sqlDelete = 'DELETE FROM checklist_medicamentos WHERE paciente_id = ? AND fecha = ?';
+  
+  db.query(sqlDelete, [paciente_id, fecha], (err) => {
+    if (err) {
+     // console.error('Error al limpiar medicamentos:', err);
+      return res.status(500).json({ mensaje: 'Error al procesar' });
+    }
+
+    if (medicamentos.length > 0) {
+      const sqlInsert = 'INSERT INTO checklist_medicamentos (paciente_id, fecha, medicamento_id, medicamento_nombre, dosis, horario) VALUES ?';
+      const values = medicamentos.map(m => [paciente_id, fecha, m.id, m.name, m.dose || '', m.schedule || '']);
+      
+      db.query(sqlInsert, [values], (err) => {
+        if (err) {
+       //   console.error('Error al guardar medicamentos:', err);
+          return res.status(500).json({ mensaje: 'Error al guardar medicamentos' });
+        }
+        res.json({ mensaje: 'Medicamentos guardados correctamente' });
+      });
+    } else {
+      res.json({ mensaje: 'Medicamentos actualizados' });
+    }
+  });
+});
+
+app.get('/obtenerChecklist/:paciente_id/:fecha', (req, res) => {
+  const { paciente_id, fecha } = req.params;
+
+  const sqlMeds = 'SELECT * FROM checklist_medicamentos WHERE paciente_id = ? AND fecha = ?';
+  
+  db.query(sqlMeds, [paciente_id, fecha], (err, meds) => {
+    if (err) {
+      //console.error('Error al obtener medicamentos:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener datos' });
+    }
+
+    const sqlChecks = 'SELECT * FROM checklist_confirmaciones WHERE paciente_id = ? AND fecha = ?';
+    
+    db.query(sqlChecks, [paciente_id, fecha], (err, checks) => {
+      if (err) {
+       // console.error('Error al obtener confirmaciones:', err);
+        return res.status(500).json({ mensaje: 'Error al obtener confirmaciones' });
+      }
+
+      const medsArray = meds.map(m => ({
+        id: m.medicamento_id,
+        name: m.medicamento_nombre,
+        dose: m.dosis,
+        schedule: m.horario
+      }));
+
+      const checksObj = {};
+      checks.forEach(c => {
+        checksObj[c.medicamento_id] = {
+          taken: c.tomado,
+          takenAt: c.hora_toma,
+          actor: c.actor
+        };
+      });
+
+      res.json({
+        meds: medsArray,
+        checks: checksObj
+      });
+    });
+  });
+});
+
+app.post('/guardarChecklist', (req, res) => {
+  const { paciente_id, fecha, medicamento_id, medicamento_nombre, tomado, hora_toma, actor } = req.body;
+
+  if (!paciente_id || !fecha || !medicamento_id) {
+    return res.status(400).json({ mensaje: 'Datos incompletos' });
+  }
+
+  const sql = `
+    INSERT INTO checklist_confirmaciones 
+    (paciente_id, fecha, medicamento_id, medicamento_nombre, tomado, hora_toma, actor)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE 
+    tomado = VALUES(tomado), 
+    hora_toma = VALUES(hora_toma), 
+    actor = VALUES(actor)
+  `;
+
+  db.query(sql, [paciente_id, fecha, medicamento_id, medicamento_nombre, tomado, hora_toma, actor], (err) => {
+    if (err) {
+     // console.error('Error al guardar confirmación:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar' });
+    }
+    res.json({ mensaje: 'Confirmación guardada' });
+  });
+});
+
+app.delete('/eliminarChecklist/:paciente_id/:fecha/:medicamento_id', (req, res) => {
+  const { paciente_id, fecha, medicamento_id } = req.params;
+
+  const sql = 'DELETE FROM checklist_confirmaciones WHERE paciente_id = ? AND fecha = ? AND medicamento_id = ?';
+  
+  db.query(sql, [paciente_id, fecha, medicamento_id], (err) => {
+    if (err) {
+    //  console.error('Error al eliminar:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar' });
+    }
+    res.json({ mensaje: 'Confirmación eliminada' });
+  });
+});
+
+app.delete('/limpiarDiaChecklist/:paciente_id/:fecha', (req, res) => {
+  const { paciente_id, fecha } = req.params;
+
+  const sql = 'DELETE FROM checklist_confirmaciones WHERE paciente_id = ? AND fecha = ?';
+  
+  db.query(sql, [paciente_id, fecha], (err) => {
+    if (err) {
+      //console.error('Error al limpiar día:', err);
+      return res.status(500).json({ mensaje: 'Error al limpiar' });
+    }
+    res.json({ mensaje: 'Día limpiado correctamente' });
+  });
+});
+
+// ============================================
+// RUTAS DE PEDIDOS A FARMACIA
+// ============================================
+
+app.post('/guardarPedido', (req, res) => {
+  const { id, farmacia, items, notas, estado, fecha_creacion, id_usuario } = req.body;
+
+  //console.log('Datos recibidos:', JSON.stringify(req.body, null, 2));
+
+  if (!id || !farmacia || !items || items.length === 0) {
+   // console.error('Datos incompletos');
+    return res.status(400).json({ mensaje: 'Datos incompletos: falta id, farmacia o items' });
+  }
+
+  const itemsValidos = items.every(item => 
+    item.nombre && 
+    item.dosis && 
+    item.cantidad > 0
+  );
+
+  if (!itemsValidos) {
+    //console.error('Items con datos incompletos');
+    return res.status(400).json({ mensaje: 'Todos los items deben tener nombre, dosis y cantidad' });
+  }
+
+  const sqlPedido = 'INSERT INTO pedidos_farmacia (id, farmacia, notas, estado, fecha_creacion, id_usuario) VALUES (?, ?, ?, ?, ?, ?)';
+  
+  db.query(sqlPedido, [id, farmacia, notas || null, estado || 'Pendiente', fecha_creacion, id_usuario || null], (err, result) => {
+    if (err) {
+      //console.error('Error al guardar pedido:', err);
+      return res.status(500).json({ 
+        mensaje: 'Error al guardar el pedido', 
+        error: err.message 
+      });
+    }
+
+  //  console.log('Pedido guardado, insertando items...');
+
+    const sqlItems = 'INSERT INTO pedidos_items (pedido_id, nombre_medicamento, dosis, cantidad) VALUES ?';
+    const values = items.map(item => [id, item.nombre, item.dosis, item.cantidad]);
+    
+    db.query(sqlItems, [values], (err) => {
+      if (err) {
+        //console.error('Error al guardar items:', err);
+        db.query('DELETE FROM pedidos_farmacia WHERE id = ?', [id], () => {});
+        return res.status(500).json({ 
+          mensaje: 'Error al guardar items del pedido', 
+          error: err.message 
+        });
+      }
+     // console.log('Items guardados correctamente');
+      res.json({ mensaje: 'Pedido guardado correctamente' });
+    });
+  });
+});
+
+app.get('/obtenerPedidos', (req, res) => {
+  const sql = `
+    SELECT 
+      p.id, 
+      p.farmacia, 
+      p.estado, 
+      p.fecha_creacion,
+      COUNT(pi.id) as total_items
+    FROM pedidos_farmacia p
+    LEFT JOIN pedidos_items pi ON p.id = pi.pedido_id
+    GROUP BY p.id
+    ORDER BY p.fecha_creacion DESC
+  `;
+  
+  db.query(sql, (err, results) => {
+    if (err) {
+    //  console.error('Error al obtener pedidos:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener pedidos' });
+    }
+    res.json(results);
+  });
+});
+
+app.get('/obtenerPedido/:id', (req, res) => {
+  const { id } = req.params;
+
+  const sqlPedido = 'SELECT * FROM pedidos_farmacia WHERE id = ?';
+  
+  db.query(sqlPedido, [id], (err, pedido) => {
+    if (err) {
+     // console.error('Error al obtener pedido:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener el pedido' });
+    }
+
+    if (pedido.length === 0) {
+      return res.status(404).json({ mensaje: 'Pedido no encontrado' });
+    }
+
+    const sqlItems = 'SELECT * FROM pedidos_items WHERE pedido_id = ?';
+    
+    db.query(sqlItems, [id], (err, items) => {
+      if (err) {
+        //console.error('Error al obtener items:', err);
+        return res.status(500).json({ mensaje: 'Error al obtener items' });
+      }
+
+      res.json({
+        pedido: pedido[0],
+        items: items
+      });
+    });
+  });
+});
+
+app.delete('/eliminarPedido/:id', (req, res) => {
+  const { id } = req.params;
+
+  const sql = 'DELETE FROM pedidos_farmacia WHERE id = ?';
+  
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+    //  console.error('Error al eliminar pedido:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar el pedido' });
+    }
+    res.json({ mensaje: 'Pedido eliminado correctamente' });
+  });
+});
+
+app.delete('/eliminarTodosPedidos', (req, res) => {
+  const sql = 'DELETE FROM pedidos_farmacia';
+  
+  db.query(sql, (err, result) => {
+    if (err) {
+     // console.error('Error al eliminar todos los pedidos:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar los pedidos' });
+    }
+    res.json({ mensaje: 'Todos los pedidos eliminados correctamente' });
+  });
+});
+
+// ============================================
+// RUTA DE PRUEBA
+// ============================================
+app.get('/test', (req, res) => {
+  res.json({ mensaje: 'Servidor funcionando correctamente' });
+});
+
+// ============================================
+// INICIAR SERVIDOR
+// ============================================
+app.listen(3000, () => {
+  console.log('Servidor corriendo en http://localhost:3000');
+  console.log('CORS habilitado para todas las solicitudes');
 });
