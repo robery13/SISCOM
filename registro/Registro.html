@@ -52,47 +52,16 @@
       <section id="medicamentos" class="section d-none">
         <div class="section-header">
           <h2>Administración de Medicamentos</h2>
-          <p class="muted">Registra un medicamento y programa recordatorios (notificaciones del navegador).</p>
-        </div>
-
-        <div class="card form-card">
-          <h5 class="card-title"><i class="bi bi-pencil-square me-2"></i> Registrar Medicamento</h5>
-
-          <div class="form-row">
-            <label for="nombre">Nombre del medicamento</label>
-            <input id="nombre" type="text" class="form-control" placeholder="Ej. Paracetamol">
-          </div>
-
-          <div class="form-row">
-            <label for="dosis">Dosis</label>
-            <input id="dosis" type="text" class="form-control" placeholder="Ej. 500 mg">
-          </div>
-
-          <div class="form-row">
-            <label for="frecuencia">Frecuencia (horas)</label>
-            <select id="frecuencia" class="form-select">
-              <option value="" selected disabled>Seleccione frecuencia</option>
-              <option value="2">Cada 2 horas</option>
-              <option value="4">Cada 4 horas</option>
-              <option value="6">Cada 6 horas</option>
-              <option value="8">Cada 8 horas</option>
-              <option value="12">Cada 12 horas</option>
-              <option value="24">Cada 24 horas</option>
-            </select>
-          </div>
-
-          <div class="form-row">
-            <label for="hora">Horario</label>
-            <input id="hora" type="time" class="form-control">
-          </div>
-
-          <div class="form-actions">
-            <button id="guardarBtn" class="btn btn-primary btn-block">Guardar Medicamento</button>
-          </div>
+          <p class="muted">Registra medicamentos y programa recordatorios (notificaciones del navegador).</p>
         </div>
 
         <div class="card table-card">
-          <h5 class="card-title"><i class="bi bi-list-check me-2"></i> Medicamentos Programados</h5>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0"><i class="bi bi-list-check me-2"></i> Medicamentos Programados</h5>
+            <button id="abrirModalMedicamento" class="btn btn-primary">
+              <i class="bi bi-plus-circle me-2"></i> Nuevo Medicamento
+            </button>
+          </div>
           <div class="table-responsive">
             <table class="table" id="tablaMedicamentos">
               <thead>
@@ -185,7 +154,7 @@
         </div>
       </section>
 
-      <!-- CHECKLIST -->
+   <!-- CHECKLIST -->
       <section id="checklist" class="section d-none">
         <div class="section-header">
           <h2><i class="bi bi-check2-square me-2"></i> Checklist de Medicamentos</h2>
@@ -255,55 +224,78 @@
           </div>
         </div>
       </section>
+  <!-- INVENTARIO -->
+<section id="inventario" class="section d-none">
+  <div class="section-header">
+    <h2>Control de Inventario de Medicamentos</h2>
+    <p class="muted">Registra stock, consume dosis y recibe alertas de bajo inventario.</p>
+  </div>
 
-      <!-- INVENTARIO -->
-      <section id="inventario" class="section d-none">
-        <div class="section-header">
-          <h2>Control de Inventario de Medicamentos</h2>
-          <p class="muted">Registra stock, consume dosis y recibe alertas de bajo inventario.</p>
+  <!-- TARJETA -->
+  <div class="card table-card p-3">
+
+    <!-- TÍTULO Y BOTÓN EN LA MISMA FILA -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="card-title mb-0">
+        <i class="bi bi-clipboard-data me-2"></i> Inventario Actual
+      </h5>
+
+      <button id="abrirModalInventario" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-2"></i> Registrar Medicamento
+      </button>
+    </div>
+
+    <!-- TABLA -->
+    <div class="table-responsive">
+      <table class="table" id="tablaInventario">
+        <thead>
+          <tr>
+            <th>Medicamento</th>
+            <th>Cantidad</th>
+            <th>Consumo</th>
+            <th>Fecha Registro</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<!-- Modal Registrar Inventario -->
+<div class="modal fade" id="modalInventario" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i> Registrar Inventario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <label for="nombreInv">Nombre</label>
+          <input id="nombreInv" type="text" class="form-control" placeholder="Ej. Ibuprofeno">
         </div>
 
-        <div class="card form-card">
-          <h5 class="card-title"><i class="bi bi-box-seam me-2"></i> Registrar en Inventario</h5>
-
-          <div class="form-row">
-            <label for="nombreInv">Nombre</label>
-            <input id="nombreInv" type="text" class="form-control" placeholder="Ej. Ibuprofeno">
-          </div>
-
-          <div class="form-row">
-            <label for="cantidadInv">Cantidad inicial (unidades)</label>
-            <input id="cantidadInv" type="number" class="form-control" min="0" placeholder="Ej. 30">
-          </div>
-
-          <div class="form-row">
-            <label for="consumoInv">Consumo por dosis (unidades)</label>
-            <input id="consumoInv" type="number" class="form-control" min="1" placeholder="Ej. 1">
-          </div>
-
-          <div class="form-actions">
-            <button id="registrarBtn" class="btn btn-primary btn-block">Registrar Medicamento</button>
-          </div>
+        <div class="form-row">
+          <label for="cantidadInv">Cantidad (unidades)</label>
+          <input id="cantidadInv" type="number" class="form-control" min="0" placeholder="Ej. 30">
         </div>
 
-        <div class="card table-card">
-          <h5 class="card-title"><i class="bi bi-clipboard-data me-2"></i> Inventario Actual</h5>
-          <div class="table-responsive">
-            <table class="table" id="tablaInventario">
-              <thead>
-                <tr>
-                  <th>Medicamento</th>
-                  <th>Cantidad</th>
-                  <th>Consumo</th>
-                  <th>Fecha Registro</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
+        <div class="form-row">
+          <label for="consumoInv">Consumo por dosis</label>
+          <input id="consumoInv" type="number" class="form-control" min="1" placeholder="Ej. 1">
         </div>
-      </section>
+      </div>
 
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button id="registrarBtn" class="btn btn-primary">
+          Guardar Medicamento
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
       <!-- FICHA MÉDICA -->
       <section id="Ficha" class="section d-none">
         <div class="card">
@@ -391,6 +383,51 @@
     </main>
   </div>
 
+  <!-- Modal Registrar Medicamento -->
+  <div class="modal fade" id="modalMedicamento" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i> Registrar Medicamento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <label for="nombre">Nombre del medicamento</label>
+            <input id="nombre" type="text" class="form-control" placeholder="Ej. Paracetamol">
+          </div>
+
+          <div class="form-row">
+            <label for="dosis">Dosis</label>
+            <input id="dosis" type="text" class="form-control" placeholder="Ej. 500 mg">
+          </div>
+
+          <div class="form-row">
+            <label for="frecuencia">Frecuencia (horas)</label>
+            <select id="frecuencia" class="form-select">
+              <option value="" selected disabled>Seleccione frecuencia</option>
+              <option value="2">Cada 2 horas</option>
+              <option value="4">Cada 4 horas</option>
+              <option value="6">Cada 6 horas</option>
+              <option value="8">Cada 8 horas</option>
+              <option value="12">Cada 12 horas</option>
+              <option value="24">Cada 24 horas</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="hora">Horario</label>
+            <input id="hora" type="time" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button id="guardarBtn" class="btn btn-primary">Guardar Medicamento</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal Crear Pedido -->
   <div class="modal fade" id="createOrderModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -468,6 +505,34 @@
   <!-- Scripts propios -->
   <script src="scriptregistro.js"></script>
   
+  <!-- Script para abrir modal de medicamentos -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const abrirModalBtn = document.getElementById('abrirModalMedicamento');
+      const modalMedicamento = new bootstrap.Modal(document.getElementById('modalMedicamento'));
+      
+      if (abrirModalBtn) {
+        abrirModalBtn.addEventListener('click', () => {
+          modalMedicamento.show();
+        });
+      }
+    });
+  </script>
+
+  <script>
+document.addEventListener('DOMContentLoaded', () => {
+  const abrirModalInv = document.getElementById('abrirModalInventario');
+  const modalInventario = new bootstrap.Modal(document.getElementById('modalInventario'));
+
+  if (abrirModalInv) {
+    abrirModalInv.addEventListener('click', () => {
+      modalInventario.show();
+    });
+  }
+});
+</script>
+
+  
   <!-- Script para navegación -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -481,10 +546,10 @@
           // Ocultar todas las secciones
           sections.forEach(sec => sec.classList.add('d-none'));
           
-          // Remover clase active de todos los botones
+          // Remover clase active de todos los botonesvt
           navBtns.forEach(b => b.classList.remove('active'));
           
-          // Mostrar sección seleccionada y activar botón
+          // Mostrar sección seleccionada y activar botónes
           const targetSection = document.getElementById(sectionId);
           if (targetSection) {
             targetSection.classList.remove('d-none');
@@ -493,3 +558,6 @@
         });
       });
     });
+  </script>
+</body>
+</html>
