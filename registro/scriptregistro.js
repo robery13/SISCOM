@@ -10,11 +10,11 @@ document.addEventListener("DOMContentLoaded", () => {
     navBtns.forEach(b => b.classList.remove("active"));
   }
 
-  // Mostrar panel por defecto
+  // Mostrar panel por defecto medicamentos
   hideAllSections();
-  const panel = document.getElementById("panel");
-  if (panel) {
-    panel.classList.remove("d-none");
+  const medicamentos = document.getElementById("medicamentos");
+  if (medicamentos) {
+    medicamentos.classList.remove("d-none");
     navBtns[0]?.classList.add("active");
   }
 
