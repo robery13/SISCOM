@@ -512,7 +512,7 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 
 // ===============================
-// MÓDULO DE CHECKLIST
+// MÓDULO DE CHECKLIST CORREGIDO
 // ===============================
 (function(){
   const patientInput = document.getElementById("patientInput");
@@ -541,6 +541,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (dateInput) {
     dateInput.valueAsDate = new Date();
   }
+
+  const escapeHtml = (text) => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
 
   const formatTime = iso => (iso ? new Date(iso).toLocaleTimeString() : "—");
 
@@ -636,7 +642,7 @@ document.addEventListener("DOMContentLoaded", () => {
       setStatus(data.mensaje || 'Guardado correctamente', 'success');
     } catch (error) {
       console.error('Error al guardar check:', error);
-      setStatus('Error al guardar', 'danger');
+      setStatus('Error al guardar en el servidor', 'danger');
     }
   };
 
@@ -715,7 +721,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderAudit();
     } catch (error) {
       console.error('Error al cargar datos:', error);
-      setStatus('Error al cargar datos', 'danger');
+      setStatus('Error al conectar con el servidor', 'danger');
     }
   };
 
@@ -725,15 +731,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (addSampleBtn) {
     addSampleBtn.addEventListener("click", async () => {
-      if (!dateInput.value || !patientInput.value) {
-        return alert("Selecciona paciente y fecha.");
-      }
+      const p = (patientInput.value || "").trim();
+      const d = dateInput.value;
       
-      meds = JSON.parse(JSON.stringify(sampleMeds));
+      if (!p) {
+        alert("Completa paciente ID / Nombre");
+        return;
+      }
+      if (!d) {
+        alert("Selecciona una fecha");
+        return;
+      }
+
+      // Confirmar si ya hay medicamentos cargados
+      if (meds.length > 0) {
+        if (!confirm("Ya hay medicamentos cargados. ¿Deseas reemplazarlos con los ejemplos?")) {
+          return;
+        }
+      }
+
+      currentPatientKey = p;
+      currentDateStr = d;
+      
+      // Limpiar todo primero
+      meds = [];
       checks = {};
       
+      // Cargar medicamentos de ejemplo
+      meds = JSON.parse(JSON.stringify(sampleMeds));
+      
       try {
-        await fetch('http://localhost:3000/guardarMedicamentosChecklist', {
+        // Primero limpiar el día en el servidor
+        await fetch(`http://localhost:3000/limpiarDiaChecklist/${currentPatientKey}/${currentDateStr}`, {
+          method: 'DELETE'
+        });
+        
+        // Luego guardar los nuevos medicamentos
+        const resp = await fetch('http://localhost:3000/guardarMedicamentosChecklist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -743,11 +777,16 @@ document.addEventListener("DOMContentLoaded", () => {
           })
         });
         
-        setStatus("Medicamentos de ejemplo cargados", 'success');
+        const data = await resp.json();
+        setStatus(data.mensaje || "Medicamentos de ejemplo cargados", 'success');
         renderMeds();
+        renderAudit();
       } catch (error) {
         console.error('Error:', error);
-        setStatus('Error al cargar ejemplos', 'danger');
+        // Si falla el servidor, al menos mostrar los datos localmente
+        setStatus('Medicamentos cargados localmente (sin conexión al servidor)', 'warning');
+        renderMeds();
+        renderAudit();
       }
     });
   }
@@ -809,8 +848,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 })();
 
+
 // ===============================
-// MÓDULO DE PEDIDOS A FARMACIA
+// MÓDULO DE PEDIDOS A FARMACIAss
 // ===============================
 (function(){
   const openBtn = document.getElementById('open-create-order');
