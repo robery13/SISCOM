@@ -37,10 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const cerrarSesionBtn = document.getElementById("cerrarSesionBtn");
   if (cerrarSesionBtn) {
     cerrarSesionBtn.addEventListener("click", () => {
-      if (confirm("¿Seguro que deseas cerrar sesión?")) {
-        alert("Has cerrado sesión correctamente.");
-        window.location.href = "index.html";
-      }
+        window.location.href = "../html/Proyecto_SISCOM.html";     
     });
   }
 });
@@ -1125,6 +1122,7 @@ function escapeHtml(str){
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
 }
+
 document.addEventListener('DOMContentLoaded', () => {
   const sidebar = document.querySelector('.sidebar');
   const overlay = document.querySelector('.overlay');
