@@ -1,24 +1,19 @@
-/* ========== BASE ========== */
 body {
   font-family: 'Poppins', sans-serif;
   background-color: #f8fafc;
   margin: 0;
-  padding: 15px;
-  box-sizing: border-box;
+  padding: 20px;
 }
 
-/* ========== CONTENEDORES ========== */
 .ficha-container {
   max-width: 700px;
-  width: 90%;
   background: #fff;
-  margin: 20px auto;
-  padding: 20px;
+  margin: 0 auto;
+  padding: 25px;
   border-radius: 15px;
   box-shadow: 0 5px 20px rgba(0,0,0,0.08);
 }
 
-/* ========== TIPOGRAFÍA ========== */
 h2 {
   color: #4c1d95;
   margin-bottom: 10px;
@@ -30,7 +25,6 @@ h2 {
   margin-bottom: 25px;
 }
 
-/* ========== FORMULARIOS ========== */
 .campo {
   margin-bottom: 20px;
 }
@@ -42,22 +36,20 @@ label {
   margin-bottom: 6px;
 }
 
-input, select, textarea {
+input, select {
   width: 100%;
   padding: 10px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 14px;
   outline: none;
-  box-sizing: border-box;
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus, select:focus {
   border-color: #7c3aed;
   box-shadow: 0 0 0 3px rgba(124,58,237,0.2);
 }
 
-/* ========== LISTAS ========== */
 ul {
   list-style: none;
   padding: 0;
@@ -74,7 +66,6 @@ ul li {
   align-items: center;
 }
 
-/* ========== BOTONES ========== */
 .btn-principal, .btn-secundario, .btn-peligro {
   border: none;
   border-radius: 8px;
@@ -82,26 +73,41 @@ ul li {
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s;
-  font-size: 14px;
 }
 
-.btn-principal { background-color: #7c3aed; color: #fff; }
-.btn-principal:hover { background-color: #6d28d9; }
+.btn-principal {
+  background-color: #7c3aed;
+  color: white;
+}
 
-.btn-secundario { background-color: #ede9fe; color: #5b21b6; }
-.btn-secundario:hover { background-color: #ddd6fe; }
+.btn-principal:hover {
+  background-color: #6d28d9;
+}
 
-.btn-peligro { background-color: #ef4444; color: #fff; }
-.btn-peligro:hover { background-color: #dc2626; }
+.btn-secundario {
+  background-color: #ede9fe;
+  color: #5b21b6;
+}
+
+.btn-secundario:hover {
+  background-color: #ddd6fe;
+}
+
+.btn-peligro {
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-peligro:hover {
+  background-color: #dc2626;
+}
 
 .botones {
   display: flex;
-  flex-wrap: wrap;
   gap: 10px;
   margin-top: 20px;
 }
 
-/* ========== ALERTAS ========== */
 .alerta-critica {
   background-color: #fef2f2;
   color: #991b1b;
@@ -112,54 +118,86 @@ ul li {
   margin-top: 10px;
 }
 
-/* ========== TOAST ========== */
+.oculto {
+  display: none;
+}
+
+
+/* ================== CONTENEDOR DE TOAST ================== */
 #toast-container {
   position: fixed;
-  top: 15px;
-  right: 15px;
+  top: 20px;
+  right: 20px;
   z-index: 9999;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+/* ================== ESTILO BASE DE TOAST ================== */
 .toast {
-  min-width: 200px;
-  max-width: 90vw;
+  min-width: 250px;
+  max-width: 320px;
   padding: 12px 16px;
   border-radius: 8px;
   color: #fff;
-  font-size: 14px;
+  font-size: 15px;
   font-family: "Segoe UI", Arial, sans-serif;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
   opacity: 0;
   transform: translateX(100%);
   transition: all 0.3s ease;
 }
 
+/* Mostrar toast */
 .toast.show {
   opacity: 1;
   transform: translateX(0);
 }
 
-.toast.success { background: linear-gradient(135deg, #28a745, #218838); }
-.toast.error { background: linear-gradient(135deg, #dc3545, #b02a37); }
-.toast.warning { background: linear-gradient(135deg, #ffc107, #d39e00); color: #222; }
-.toast.info { background: linear-gradient(135deg, #17a2b8, #117a8b); }
+/* ================== COLORES POR TIPO ================== */
+.toast.success {
+  background: linear-gradient(135deg, #28a745, #218838);
+}
 
+.toast.error {
+  background: linear-gradient(135deg, #dc3545, #b02a37);
+}
+
+.toast.warning {
+  background: linear-gradient(135deg, #ffc107, #d39e00);
+  color: #222;
+}
+
+.toast.info {
+  background: linear-gradient(135deg, #17a2b8, #117a8b);
+}
+
+/* ================== ANIMACIÓN DE SALIDA ================== */
+.toast:not(.show) {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+/* ================== ANIMACIÓN SUAVE ================== */
 @keyframes fadeInRight {
-  from { opacity: 0; transform: translateX(100%); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes fadeOutRight {
-  from { opacity: 1; transform: translateX(0); }
-  to { opacity: 0; transform: translateX(100%); }
-}
-
-/* ========== RESPONSIVE ========== */
-@media (max-width: 768px) {
-  body { padding: 10px; }
-  .ficha-container { padding: 15px; width: 95%; }
-  .botones { flex-direction: column; }
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
 }
