@@ -847,7 +847,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // ===============================
-// MÓDULO DE PEDIDOS A FARMACIAss
+// MÓDULO DE PEDIDOS A FARMACIAS CON WHATSAPP
 // ===============================
 (function(){
   const openBtn = document.getElementById('open-create-order');
@@ -870,6 +870,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const previewContent = document.getElementById('previewContent');
   const formMessage = document.getElementById('formMessage');
   const detailBody = document.getElementById('detailBody');
+
+  // NÚMEROS DE WHATSAPP POR FARMACIA (Actualiza estos números)
+  const farmaciasWhatsApp = {
+   'Farmacia Kielsa': '50422071000',
+    'Farmacia El Ahorro': '50422306636',
+    'Farmacia Siman': '50425530321'
+  };
 
   openBtn.onclick = () => modal.show();
   addEmptyRowBtn.onclick = () => addRow();
@@ -915,13 +922,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const data = await resp.json();
       console.log('Respuesta exitosa:', data);
-      showMsg('Pedido guardado correctamente','text-success');
+      showMsg('Pedido guardado. Ahora puedes enviarlo por WhatsApp desde el historial.','text-success');
       
       setTimeout(()=>{
         modal.hide(); 
         resetForm();
         cargarHistorial();
-      },1000);
+      },1500);
       
     } catch (error) {
       console.error('Error completo:', error);
@@ -977,6 +984,71 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
+  function generarMensajeWhatsApp(pedido, items) {
+    let mensaje = `*PEDIDO DE MEDICAMENTOS*\n\n`;
+    mensaje += `Pedido: ${pedido.id}\n`;
+    mensaje += `Fecha: ${new Date(pedido.fecha_creacion).toLocaleString()}\n\n`;
+    mensaje += `*MEDICAMENTOS SOLICITADOS:*\n`;
+    
+    items.forEach((item, index) => {
+      mensaje += `\n${index + 1}. ${item.nombre_medicamento}\n`;
+      mensaje += `   Dosis: ${item.dosis}\n`;
+      mensaje += `   Cantidad: ${item.cantidad} unidades\n`;
+    });
+    
+    if (pedido.notas) {
+      mensaje += `\n*Notas adicionales:*\n${pedido.notas}\n`;
+    }
+    
+    mensaje += `\n\nPueden confirmar disponibilidad y precio? Gracias.`;
+    
+    return encodeURIComponent(mensaje);
+  }
+
+  function enviarPorWhatsApp(pedidoId) {
+    fetch(`http://localhost:3000/obtenerPedido/${pedidoId}`)
+      .then(resp => resp.json())
+      .then(data => {
+        if (data.pedido && data.items) {
+          const numeroWhatsApp = farmaciasWhatsApp[data.pedido.farmacia];
+          
+          if (!numeroWhatsApp) {
+            alert('No hay número de WhatsApp configurado para esta farmacia');
+            return;
+          }
+          
+          const mensaje = generarMensajeWhatsApp(data.pedido, data.items);
+          const urlWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${mensaje}`;
+          
+          // Abrir WhatsApp en nueva pestaña
+          window.open(urlWhatsApp, '_blank');
+          
+          // Actualizar estado del pedido a "Enviado"
+          actualizarEstadoPedido(pedidoId, 'Enviado por WhatsApp');
+        }
+      })
+      .catch(error => {
+        console.error('Error al obtener pedido:', error);
+        alert('Error al cargar los datos del pedido');
+      });
+  }
+
+  async function actualizarEstadoPedido(pedidoId, nuevoEstado) {
+    try {
+      const resp = await fetch(`http://localhost:3000/actualizarEstadoPedido/${pedidoId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: nuevoEstado })
+      });
+
+      if (resp.ok) {
+        cargarHistorial();
+      }
+    } catch (error) {
+      console.error('Error al actualizar estado:', error);
+    }
+  }
+
   function showMsg(msg,cls){
     formMessage.className='fw-semibold '+cls;
     formMessage.textContent=msg;
@@ -1022,13 +1094,18 @@ document.addEventListener("DOMContentLoaded", () => {
           <small>${o.total_items} ítem(s) — ${escapeHtml(o.estado)}</small>
         </div>
         <div>
+          <button class="btn btn-sm btn-success me-2 btn-whatsapp">
+            <i class="bi bi-whatsapp me-1"></i> WhatsApp
+          </button>
           <button class="btn btn-sm btn-outline-secondary me-2 btn-ver">Ver</button>
           <button class="btn btn-sm btn-outline-danger btn-del">Eliminar</button>
         </div>`;
       
+      const whatsappBtn = div.querySelector('.btn-whatsapp');
       const viewBtn = div.querySelector('.btn-ver');
       const delBtn = div.querySelector('.btn-del');
       
+      whatsappBtn.onclick = () => enviarPorWhatsApp(o.id);
       viewBtn.onclick = () => showDetail(o.id);
       delBtn.onclick = () => {
         if(confirm('¿Eliminar este pedido?')){
