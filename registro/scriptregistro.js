@@ -37,10 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const cerrarSesionBtn = document.getElementById("cerrarSesionBtn");
   if (cerrarSesionBtn) {
     cerrarSesionBtn.addEventListener("click", () => {
-      if (confirm("¿Seguro que deseas cerrar sesión?")) {
-        alert("Has cerrado sesión correctamente.");
-        window.location.href = "index.html";
-      }
+        window.location.href = "index.html";     
     });
   }
 });
