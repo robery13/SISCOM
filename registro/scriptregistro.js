@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const cerrarSesionBtn = document.getElementById("cerrarSesionBtn");
   if (cerrarSesionBtn) {
     cerrarSesionBtn.addEventListener("click", () => {
-        window.location.href = "index.html";     
+        window.location.href = "../html/Proyecto_SISCOM.html";     
     });
   }
 });
