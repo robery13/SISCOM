@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SISCOM - Portal del Paciente</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Estilos propios -->
+  <link rel="stylesheet" href="estilospaciente.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">SISCOM</div>
+
+      <nav class="nav-menu">
+        <button class="nav-btn active" data-section="inicio"><i class="bi bi-house-door"></i> <span>Inicio</span></button>
+        <button class="nav-btn" data-section="seccion1"><i class="bi bi-capsule"></i> <span>Sección 1</span></button>
+        <button class="nav-btn" data-section="seccion2"><i class="bi bi-calendar-check"></i> <span>Sección 2</span></button>
+        <button class="nav-btn" data-section="seccion3"><i class="bi bi-check2-square"></i> <span>Sección 3</span></button>
+        <button class="nav-btn" data-section="seccion4"><i class="bi bi-person-circle"></i> <span>Sección 4</span></button>
+        <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
+      </nav>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="main">
+
+      <!-- SECCIÓN INICIO -->
+      <section id="inicio" class="section">
+        <div class="section-header">
+          <h2>Inicio</h2>
+          <p class="muted">Contenido de la sección de inicio</p>
+        </div>
+
+        <div class="card">
+          <!-- Aquí va tu contenido -->
+          <p>Agrega tu contenido aquí...</p>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 1 -->
+      <section id="seccion1" class="section d-none">
+        <div class="section-header">
+          <h2>Sección 1</h2>
+          <p class="muted">Descripción de la sección 1</p>
+        </div>
+
+        <div class="card">
+          <!-- Aquí va tu contenido -->
+          <p>Agrega tu contenido aquí...</p>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 2 -->
+      <section id="seccion2" class="section d-none">
+        <div class="section-header">
+          <h2>Sección 2</h2>
+          <p class="muted">Descripción de la sección 2</p>
+        </div>
+
+        <div class="card">
+          <!-- Aquí va tu contenido -->
+          <p>Agrega tu contenido aquí...</p>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 3 -->
+      <section id="seccion3" class="section d-none">
+        <div class="section-header">
+          <h2>Sección 3</h2>
+          <p class="muted">Descripción de la sección 3</p>
+        </div>
+
+        <div class="card">
+          <!-- Aquí va tu contenido -->
+          <p>Agrega tu contenido aquí...</p>
+        </div>
+      </section>
+
+      <!-- SECCIÓN 4 -->
+      <section id="seccion4" class="section d-none">
+        <div class="section-header">
+          <h2>Sección 4</h2>
+          <p class="muted">Descripción de la sección 4</p>
+        </div>
+
+        <div class="card">
+          <!-- Aquí va tu contenido -->
+          <p>Agrega tu contenido aquí...</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Script propio -->
+  <script src="scriptpaciente.js"></script>
+</body>
+</html>
