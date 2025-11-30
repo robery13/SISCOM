@@ -1,5 +1,5 @@
 // ===============================
-// NAVEGACIÓN ENTRE SECCIONES
+// NAVEGACIÓN ENTRE SECCIONES!
 // ===============================
 document.addEventListener("DOMContentLoaded", () => {
   const navBtns = document.querySelectorAll(".nav-btn");
@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ===============================
-// BOTÓN CERRAR SESIÓN
+// BOTÓN PARA CERRAR SESION!
 // ===============================
 document.addEventListener("DOMContentLoaded", () => {
   const cerrarSesionBtn = document.getElementById("cerrarSesionBtn");
