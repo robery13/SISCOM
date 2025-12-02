@@ -1,4 +1,5 @@
-/*ESTILOS*/
+/* ESTILOS PARA SISCOM - PORTAL DEL PACIENTE */
+
 :root {
   --primary: #0d6efd;
   --accent: #0d6efd;
@@ -115,4 +116,483 @@ body {
 
 .d-none {
   display: none !important;
+}
+
+/* Estilos adicionales para las tablas */
+.table-hover tbody tr:hover {
+  background-color: #f8f9fa;
+  cursor: pointer;
+}
+
+/* Estilos para botones de acción */
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Estilos para las alertas */
+.alert {
+  border-left: 4px solid;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0; 
+    transform: translateX(-20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+/* Mejoras para cards de estadísticas */
+.bg-primary, .bg-success, .bg-warning, .bg-info, .bg-danger {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
+}
+
+.bg-primary:hover, .bg-success:hover, .bg-warning:hover, .bg-info:hover, .bg-danger:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+/* Estilos para el botón de emergencia */
+.btn-emergencia-sos {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  border: 6px solid #fff;
+  box-shadow: 0 8px 24px rgba(220, 53, 69, 0.4), 0 0 0 0 rgba(220, 53, 69, 0.4);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  outline: none;
+  animation: pulse-ring 2s infinite;
+}
+
+.btn-emergencia-sos:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 32px rgba(220, 53, 69, 0.6);
+}
+
+.btn-emergencia-sos:active {
+  transform: scale(0.95);
+}
+
+.btn-emergencia-sos:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.sos-icon {
+  font-size: 4rem;
+  margin-bottom: 0.5rem;
+}
+
+.sos-text {
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.sos-subtext {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  margin-top: 0.25rem;
+  opacity: 0.9;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 8px 24px rgba(220, 53, 69, 0.4), 0 0 0 0 rgba(220, 53, 69, 0.7);
+  }
+  50% {
+    box-shadow: 0 8px 24px rgba(220, 53, 69, 0.4), 0 0 0 15px rgba(220, 53, 69, 0);
+  }
+  100% {
+    box-shadow: 0 8px 24px rgba(220, 53, 69, 0.4), 0 0 0 0 rgba(220, 53, 69, 0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Estilos para medallas y trofeos */
+.bi-star-fill, .bi-trophy-fill, .bi-award-fill {
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Mejoras para el progreso */
+.progress {
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* ============================================
+   HU-30: OPTIMIZACIÓN MULTIPLATAFORMA
+   ============================================ */
+
+/* Responsive para Tablets (768px - 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  :root {
+    --sidebar-width: 220px;
+  }
+  
+  .sidebar {
+    width: var(--sidebar-width);
+  }
+  
+  .main {
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+  }
+  
+  .nav-btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+  }
+  
+  .card {
+    padding: 1.25rem;
+  }
+  
+  .btn-emergencia-sos {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .sos-icon {
+    font-size: 3.5rem;
+  }
+  
+  .sos-text {
+    font-size: 1.75rem;
+  }
+}
+
+/* Responsive para Móviles (hasta 768px) */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  
+  .brand {
+    padding: 1rem;
+    font-size: 1.5rem;
+    border-bottom: none;
+    border-right: 1px solid rgba(255,255,255,0.1);
+  }
+  
+  .nav-menu {
+    flex-direction: row;
+    padding: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  .nav-btn {
+    padding: 1rem;
+    flex-shrink: 0;
+    min-width: 120px;
+    text-align: center;
+  }
+  
+  .nav-btn i {
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+  
+  .nav-btn span {
+    font-size: 0.75rem;
+  }
+  
+  .main {
+    margin-left: 0;
+    width: 100%;
+    padding: 1rem;
+  }
+  
+  .section-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .card-title {
+    font-size: 1.1rem;
+  }
+  
+  /* Tablas responsive */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .table {
+    font-size: 0.85rem;
+  }
+  
+  /* Formularios responsive */
+  .form-control, .form-select {
+    font-size: 16px; /* Evita zoom en iOS */
+  }
+  
+  /* Botón de emergencia móvil */
+  .btn-emergencia-sos {
+    width: 160px;
+    height: 160px;
+  }
+  
+  .sos-icon {
+    font-size: 2.5rem;
+  }
+  
+  .sos-text {
+    font-size: 1.5rem;
+    letter-spacing: 3px;
+  }
+  
+  .sos-subtext {
+    font-size: 0.75rem;
+  }
+  
+  /* Cards de estadísticas en móvil */
+  .row > [class*='col-'] {
+    margin-bottom: 1rem;
+  }
+  
+  /* Botones responsive */
+  .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+  }
+  
+  /* Historial responsive */
+  #historialMedicacion .list-group-item,
+  #historialEmergencias .list-group-item {
+    padding: 0.75rem;
+  }
+  
+  #historialMedicacion h6,
+  #historialEmergencias h6 {
+    font-size: 0.95rem;
+  }
+}
+
+/* Responsive para Móviles pequeños (hasta 480px) */
+@media (max-width: 480px) {
+  .sidebar {
+    font-size: 0.85rem;
+  }
+  
+  .brand {
+    font-size: 1.25rem;
+    padding: 0.75rem;
+  }
+  
+  .nav-btn {
+    min-width: 100px;
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .main {
+    padding: 0.75rem;
+  }
+  
+  .section-header h2 {
+    font-size: 1.25rem;
+  }
+  
+  .section-header p {
+    font-size: 0.85rem;
+  }
+  
+  .card {
+    padding: 0.75rem;
+  }
+  
+  .card-title {
+    font-size: 1rem;
+  }
+  
+  .btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+  }
+  
+  .btn-emergencia-sos {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .sos-icon {
+    font-size: 2rem;
+  }
+  
+  .sos-text {
+    font-size: 1.25rem;
+    letter-spacing: 2px;
+  }
+  
+  .sos-subtext {
+    font-size: 0.65rem;
+  }
+  
+  /* Modales responsive */
+  div[style*="max-width:500px"] {
+    max-width: 95% !important;
+    padding: 1.5rem !important;
+  }
+  
+  /* Badges y labels más pequeños */
+  .badge {
+    font-size: 0.7rem;
+  }
+  
+  small, .text-muted {
+    font-size: 0.75rem;
+  }
+}
+
+/* Optimización para pantallas táctiles */
+@media (hover: none) and (pointer: coarse) {
+  .btn, .nav-btn, button {
+    min-height: 44px; /* Tamaño mínimo táctil recomendado */
+    min-width: 44px;
+  }
+  
+  .list-group-item {
+    padding: 1rem;
+  }
+  
+  .form-control, .form-select {
+    min-height: 44px;
+  }
+}
+
+/* Orientación horizontal en móviles */
+@media (max-height: 500px) and (orientation: landscape) {
+  .sidebar {
+    height: auto;
+    max-height: 100vh;
+  }
+  
+  .main {
+    padding: 0.5rem;
+  }
+  
+  .card {
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Soporte para modo oscuro del sistema */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #1a1a1a;
+    color: #e0e0e0;
+  }
+  
+  .card {
+    background: #2a2a2a;
+    color: #e0e0e0;
+  }
+  
+  .table {
+    color: #e0e0e0;
+  }
+  
+  .form-control, .form-select {
+    background: #333;
+    color: #e0e0e0;
+    border-color: #444;
+  }
+}
+
+/* Impresión optimizada */
+@media print {
+  .sidebar, .nav-menu, .btn {
+    display: none;
+  }
+  
+  .main {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .card {
+    page-break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+}
+
+/* Estilos adicionales para historial */
+#historialMedicacion .list-group-item,
+#historialEmergencias .list-group-item {
+  border-left: 4px solid #0d6efd;
+  transition: all 0.2s;
+}
+
+#historialMedicacion .list-group-item:hover,
+#historialEmergencias .list-group-item:hover {
+  background-color: #f8f9fa;
+  transform: translateX(5px);
+}
+
+/* Animaciones suaves */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
