@@ -8,6 +8,227 @@ function getUsuarioId() {
   return usuario.id || 1;
 }
 
+// ============================================
+// SISTEMA DE MODALES Y NOTIFICACIONES
+// ============================================
+
+// Estilos CSS para animaciones
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes scaleIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  @keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  @keyframes slideOut {
+    from { transform: translateX(0); }
+    to { transform: translateX(100%); }
+  }
+`;
+document.head.appendChild(styleSheet);
+
+// Sistema de notificaciones toast
+function mostrarNotificacion(mensaje, tipo = 'info') {
+  const colores = {
+    success: '#10b981',
+    error: '#ef4444',
+    info: '#3b82f6',
+    warning: '#f59e0b'
+  };
+  
+  const iconos = {
+    success: 'check-circle-fill',
+    error: 'exclamation-circle-fill',
+    info: 'info-circle-fill',
+    warning: 'exclamation-triangle-fill'
+  };
+  
+  const notif = document.createElement('div');
+  notif.style.cssText = `
+    position:fixed;
+    top:20px;
+    right:20px;
+    background:white;
+    color:#333;
+    padding:1rem 1.5rem;
+    border-radius:0.5rem;
+    box-shadow:0 4px 12px rgba(0,0,0,0.15);
+    z-index:10000;
+    border-left:4px solid ${colores[tipo]};
+    min-width:300px;
+    animation:slideIn 0.3s ease-out;
+  `;
+  notif.innerHTML = `
+    <div style="display:flex;align-items:center;gap:0.75rem">
+      <i class="bi bi-${iconos[tipo]}" style="color:${colores[tipo]};font-size:1.5rem"></i>
+      <span style="flex:1">${mensaje}</span>
+    </div>
+  `;
+  
+  document.body.appendChild(notif);
+  
+  setTimeout(() => {
+    notif.style.animation = 'slideOut 0.3s ease-out';
+    setTimeout(() => notif.remove(), 300);
+  }, 3000);
+}
+
+// Modal de confirmación
+function mostrarConfirmacion(titulo, mensaje) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(0,0,0,0.5);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      animation:fadeIn 0.2s ease-out;
+    `;
+    
+    modal.innerHTML = `
+      <div style="background:white;padding:2rem;border-radius:1rem;max-width:450px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation:scaleIn 0.3s ease-out">
+        <h5 style="margin:0 0 1rem 0;color:#1e3a8a;font-size:1.25rem">${titulo}</h5>
+        <p style="margin:0 0 1.5rem 0;color:#666;line-height:1.5">${mensaje}</p>
+        <div style="display:flex;gap:1rem;justify-content:flex-end">
+          <button class="btn btn-secondary" id="btnCancelar">Cancelar</button>
+          <button class="btn btn-primary" id="btnAceptar">Aceptar</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    document.getElementById('btnAceptar').addEventListener('click', () => {
+      modal.remove();
+      resolve(true);
+    });
+    
+    document.getElementById('btnCancelar').addEventListener('click', () => {
+      modal.remove();
+      resolve(false);
+    });
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+        resolve(false);
+      }
+    });
+  });
+}
+
+// Modal de prompt (entrada de texto)
+function mostrarPrompt(titulo, mensaje, placeholder = '') {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(0,0,0,0.5);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      animation:fadeIn 0.2s ease-out;
+    `;
+    
+    modal.innerHTML = `
+      <div style="background:white;padding:2rem;border-radius:1rem;max-width:450px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation:scaleIn 0.3s ease-out">
+        <h5 style="margin:0 0 1rem 0;color:#1e3a8a;font-size:1.25rem">${titulo}</h5>
+        <p style="margin:0 0 1rem 0;color:#666">${mensaje}</p>
+        <input type="text" class="form-control" id="promptInput" placeholder="${placeholder}" style="margin-bottom:1.5rem">
+        <div style="display:flex;gap:1rem;justify-content:flex-end">
+          <button class="btn btn-secondary" id="btnCancelarPrompt">Cancelar</button>
+          <button class="btn btn-primary" id="btnAceptarPrompt">Aceptar</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    const input = document.getElementById('promptInput');
+    input.focus();
+    
+    document.getElementById('btnAceptarPrompt').addEventListener('click', () => {
+      const valor = input.value.trim();
+      modal.remove();
+      resolve(valor || null);
+    });
+    
+    document.getElementById('btnCancelarPrompt').addEventListener('click', () => {
+      modal.remove();
+      resolve(null);
+    });
+    
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        const valor = input.value.trim();
+        modal.remove();
+        resolve(valor || null);
+      }
+    });
+  });
+}
+
+// Modal de alerta simple
+function mostrarAlerta(titulo, mensaje) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(0,0,0,0.5);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      animation:fadeIn 0.2s ease-out;
+    `;
+    
+    modal.innerHTML = `
+      <div style="background:white;padding:2rem;border-radius:1rem;max-width:400px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation:scaleIn 0.3s ease-out">
+        <h5 style="margin:0 0 1rem 0;color:#1e3a8a;font-size:1.25rem">${titulo}</h5>
+        <p style="margin:0 0 1.5rem 0;color:#666;line-height:1.5">${mensaje}</p>
+        <div style="display:flex;justify-content:flex-end">
+          <button class="btn btn-primary" id="btnEntendido">Entendido</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    document.getElementById('btnEntendido').addEventListener('click', () => {
+      modal.remove();
+      resolve(true);
+    });
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+        resolve(true);
+      }
+    });
+  });
+}
 // ===============================
 // NAVEGACIÓN ENTRE SECCIONES
 // ===============================
@@ -59,11 +280,18 @@ document.addEventListener("DOMContentLoaded", () => {
 document.addEventListener("DOMContentLoaded", () => {
   const cerrarSesionBtn = document.getElementById("cerrarSesionBtn");
   if (cerrarSesionBtn) {
-    cerrarSesionBtn.addEventListener("click", () => {
-      if (confirm("¿Estás seguro que deseas cerrar sesión?")) {
+    cerrarSesionBtn.addEventListener("click", async () => {
+      const confirmado = await mostrarConfirmacion(
+        'Cerrar Sesión',
+        'Estás a punto de cerrar tu sesión. Deberás iniciar sesión nuevamente para acceder.'
+      );
+      
+      if (confirmado) {
         localStorage.removeItem('usuario');
-        alert("Sesión cerrada exitosamente");
-        window.location.href = "index.html";
+        mostrarNotificacion('Sesión cerrada exitosamente', 'success');
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 1000);
       }
     });
   }
@@ -109,16 +337,19 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
-
 // ===============================
-// SECCIÓN: EMERGENCIA - SIN NOTIFICACIÓN PUSH
+// SECCIÓN: EMERGENCIA
 // ===============================
 document.addEventListener("DOMContentLoaded", () => {
   const emergenciaBtn = document.getElementById("emergenciaBtn");
   if (emergenciaBtn) {
     emergenciaBtn.addEventListener("click", async () => {
-      if (confirm("¿Estás seguro de activar la emergencia? Se notificará a tus contactos de emergencia y se compartirá tu ubicación.")) {
-        
+      const confirmado = await mostrarConfirmacion(
+        'Activar Emergencia',
+        'Estás a punto de activar el protocolo de emergencia. Se notificará a tus contactos de emergencia y se compartirá tu ubicación.'
+      );
+      
+      if (confirmado) {
         emergenciaBtn.disabled = true;
         emergenciaBtn.innerHTML = '<div class="sos-icon"><i class="bi bi-hourglass-split"></i></div><div class="sos-text">ACTIVANDO</div>';
         
@@ -140,7 +371,7 @@ document.addEventListener("DOMContentLoaded", () => {
               });
               
               const data = await response.json();
-              mostrarNotificacion('🚨 Emergencia activada. Contactos notificados.', 'error');
+              mostrarNotificacion('Emergencia activada. Contactos notificados.', 'error');
               cargarHistorialEmergencias();
               
             } catch (error) {
@@ -163,7 +394,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 })
               });
               
-              mostrarNotificacion('🚨 Emergencia activada', 'error');
+              mostrarNotificacion('Emergencia activada', 'error');
               cargarHistorialEmergencias();
             } catch (error) {
               console.error('Error:', error);
@@ -223,7 +454,7 @@ async function cargarContactosEmergencia() {
 }
 
 // ===============================
-// HU-15: HISTORIAL DE EMERGENCIAS
+// HISTORIAL DE EMERGENCIAS
 // ===============================
 async function cargarHistorialEmergencias() {
   const idUsuario = getUsuarioId();
@@ -270,7 +501,11 @@ async function cargarHistorialEmergencias() {
 }
 
 async function cancelarEmergencia(id) {
-  const motivo = prompt('Motivo de la cancelación (opcional):');
+  const motivo = await mostrarPrompt(
+    'Cancelar Emergencia',
+    'Motivo de la cancelación (opcional):',
+    'Escribe el motivo...'
+  );
   
   if (motivo === null) return;
   
@@ -292,38 +527,122 @@ async function cancelarEmergencia(id) {
     mostrarNotificacion('Error al cancelar emergencia', 'error');
   }
 }
+// ===============================
+// RECONOCIMIENTO DE VOZ PARA EMERGENCIA
+// ===============================
+document.addEventListener("DOMContentLoaded", () => {
+  const activarVozBtn = document.getElementById("activarVozBtn");
+  const vozStatus = document.getElementById("vozStatus");
+  
+  if (!activarVozBtn) return;
 
-// Sistema de notificaciones
-function mostrarNotificacion(mensaje, tipo = 'info') {
-  const colores = {
-    success: '#10b981',
-    error: '#ef4444',
-    info: '#3b82f6',
-    warning: '#f59e0b'
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  
+  if (!SpeechRecognition) {
+    vozStatus.innerHTML = '<div class="alert alert-warning mt-3"><i class="bi bi-exclamation-triangle"></i> Tu navegador no soporta reconocimiento de voz.</div>';
+    activarVozBtn.disabled = true;
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'es-ES';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  let escuchando = false;
+
+  activarVozBtn.addEventListener("click", () => {
+    if (!escuchando) {
+      recognition.start();
+      escuchando = true;
+      activarVozBtn.innerHTML = '<i class="bi bi-mic-fill"></i> Escuchando...';
+      activarVozBtn.classList.remove("btn-outline-primary");
+      activarVozBtn.classList.add("btn-danger");
+      vozStatus.innerHTML = '<div class="alert alert-info mt-3"><i class="bi bi-mic-fill"></i> <strong>Escuchando...</strong> Di "emergencia", "SOS", "ayuda" o "auxilio"</div>';
+    } else {
+      recognition.stop();
+      escuchando = false;
+      activarVozBtn.innerHTML = '<i class="bi bi-mic"></i> Activar Reconocimiento de Voz';
+      activarVozBtn.classList.remove("btn-danger");
+      activarVozBtn.classList.add("btn-outline-primary");
+      vozStatus.innerHTML = '';
+    }
+  });
+
+  recognition.onresult = async (event) => {
+    const transcript = event.results[0][0].transcript.toLowerCase();
+    vozStatus.innerHTML = `<div class="alert alert-secondary mt-3">Escuché: <strong>"${transcript}"</strong></div>`;
+    
+    if (transcript.includes("emergencia") || 
+        transcript.includes("sos") || 
+        transcript.includes("ayuda") || 
+        transcript.includes("auxilio")) {
+      
+      vozStatus.innerHTML = '<div class="alert alert-danger mt-3"><strong>EMERGENCIA DETECTADA POR VOZ</strong></div>';
+      
+      setTimeout(async () => {
+        const confirmado = await mostrarConfirmacion(
+          'Emergencia Detectada',
+          'Se detectó una palabra de emergencia por voz. ¿Deseas activar el protocolo de emergencia?'
+        );
+        
+        if (confirmado) {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(async (position) => {
+              try {
+                await fetch(`${API_URL}/activarEmergencia`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    id_usuario: getUsuarioId(),
+                    tipo_activacion: 'voz',
+                    ubicacion_lat: position.coords.latitude,
+                    ubicacion_lng: position.coords.longitude
+                  })
+                });
+                
+                mostrarNotificacion('Emergencia activada por voz', 'error');
+                cargarHistorialEmergencias();
+              } catch (error) {
+                console.error('Error:', error);
+              }
+            });
+          }
+        }
+      }, 500);
+    }
+    
+    escuchando = false;
+    activarVozBtn.innerHTML = '<i class="bi bi-mic"></i> Activar Reconocimiento de Voz';
+    activarVozBtn.classList.remove("btn-danger");
+    activarVozBtn.classList.add("btn-outline-primary");
   };
-  
-  const notif = document.createElement('div');
-  notif.style.cssText = `
-    position:fixed;
-    top:20px;
-    right:20px;
-    background:${colores[tipo]};
-    color:white;
-    padding:1rem 1.5rem;
-    border-radius:0.5rem;
-    box-shadow:0 4px 6px rgba(0,0,0,0.1);
-    z-index:10000;
-    animation:slideIn 0.3s ease-out;
-  `;
-  notif.textContent = mensaje;
-  
-  document.body.appendChild(notif);
-  
-  setTimeout(() => {
-    notif.style.animation = 'slideOut 0.3s ease-out';
-    setTimeout(() => notif.remove(), 300);
-  }, 3000);
-}
+
+  recognition.onerror = (event) => {
+    let errorMsg = "Error desconocido";
+    switch(event.error) {
+      case 'no-speech': errorMsg = "No se detectó voz"; break;
+      case 'audio-capture': errorMsg = "No se pudo acceder al micrófono"; break;
+      case 'not-allowed': errorMsg = "Permiso de micrófono denegado"; break;
+      default: errorMsg = `Error: ${event.error}`;
+    }
+    
+    vozStatus.innerHTML = `<div class="alert alert-danger mt-3"><i class="bi bi-x-circle"></i> ${errorMsg}</div>`;
+    escuchando = false;
+    activarVozBtn.innerHTML = '<i class="bi bi-mic"></i> Activar Reconocimiento de Voz';
+    activarVozBtn.classList.remove("btn-danger");
+    activarVozBtn.classList.add("btn-outline-primary");
+  };
+
+  recognition.onend = () => {
+    if (escuchando) {
+      escuchando = false;
+      activarVozBtn.innerHTML = '<i class="bi bi-mic"></i> Activar Reconocimiento de Voz';
+      activarVozBtn.classList.remove("btn-danger");
+      activarVozBtn.classList.add("btn-outline-primary");
+    }
+  };
+});
 // ===============================
 // SECCIÓN: RECETAS MÉDICAS
 // ===============================
@@ -369,10 +688,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function mostrarModalReceta() {
   const modal = document.createElement('div');
-  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 0.2s ease-out';
   
   modal.innerHTML = `
-    <div style="background:white;padding:2rem;border-radius:1rem;max-width:500px;width:90%">
+    <div style="background:white;padding:2rem;border-radius:1rem;max-width:500px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation:scaleIn 0.3s ease-out">
       <h5 style="margin-bottom:1.5rem;color:#1e3a8a">Nueva Receta Médica</h5>
       
       <div style="margin-bottom:1rem">
@@ -391,7 +710,7 @@ function mostrarModalReceta() {
       </div>
       
       <div style="display:flex;gap:1rem;justify-content:flex-end">
-        <button class="btn btn-secondary" onclick="this.closest('div[style*=fixed]').remove()">Cancelar</button>
+        <button class="btn btn-secondary" id="btnCancelarReceta">Cancelar</button>
         <button class="btn btn-primary" id="btnGuardarReceta">Guardar Receta</button>
       </div>
     </div>
@@ -399,13 +718,23 @@ function mostrarModalReceta() {
   
   document.body.appendChild(modal);
   
+  document.getElementById('modalNombre').focus();
+  
+  document.getElementById('btnCancelarReceta').addEventListener('click', () => {
+    modal.remove();
+  });
+  
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+  
   document.getElementById('btnGuardarReceta').addEventListener('click', async () => {
-    const nombre = document.getElementById('modalNombre').value;
-    const dosis = document.getElementById('modalDosis').value;
-    const frecuencia = document.getElementById('modalFrecuencia').value;
+    const nombre = document.getElementById('modalNombre').value.trim();
+    const dosis = document.getElementById('modalDosis').value.trim();
+    const frecuencia = document.getElementById('modalFrecuencia').value.trim();
     
     if (!nombre || !dosis || !frecuencia) {
-      alert('Todos los campos son obligatorios');
+      await mostrarAlerta('Campos incompletos', 'Todos los campos son obligatorios');
       return;
     }
     
@@ -453,7 +782,12 @@ async function registrarMedicamento(nombre, dosis, frecuencia) {
 }
 
 async function eliminarReceta(id) {
-  if (!confirm('¿Eliminar esta receta?')) return;
+  const confirmado = await mostrarConfirmacion(
+    'Eliminar Receta',
+    '¿Estás seguro de que deseas eliminar esta receta? Esta acción no se puede deshacer.'
+  );
+  
+  if (!confirmado) return;
   
   try {
     const response = await fetch(`${API_URL}/recetas/${id}`, {
@@ -470,11 +804,10 @@ async function eliminarReceta(id) {
 }
 
 function verReceta(id) {
-  alert('Funcionalidad de ver receta - ID: ' + id);
+  mostrarAlerta('Información', 'Funcionalidad de ver receta - ID: ' + id);
 }
-
 // ===============================
-// HU-16: HISTORIAL DE MEDICACIÓN
+// HISTORIAL DE MEDICACIÓN
 // ===============================
 async function cargarHistorialMedicacion() {
   const idUsuario = getUsuarioId();
@@ -612,10 +945,10 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const fecha = citaForm.querySelector('input[type="date"]').value;
       const hora = citaForm.querySelector('input[type="time"]').value;
-      const motivo = citaForm.querySelector('input[placeholder*="Consulta"]').value;
+      const motivo = citaForm.querySelector('input[placeholder*="Consulta"]').value.trim();
       
       if (!fecha || !hora || !motivo) {
-        alert('Por favor completa todos los campos');
+        await mostrarAlerta('Campos incompletos', 'Por favor completa todos los campos');
         return;
       }
       
@@ -647,7 +980,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function eliminarCita(id) {
-  if (!confirm('¿Cancelar esta cita?')) return;
+  const confirmado = await mostrarConfirmacion(
+    'Cancelar Cita',
+    '¿Estás seguro de que deseas cancelar esta cita médica?'
+  );
+  
+  if (!confirmado) return;
   
   try {
     const response = await fetch(`${API_URL}/eliminarCita/${id}`, {
@@ -662,9 +1000,8 @@ async function eliminarCita(id) {
     mostrarNotificacion('Error al cancelar', 'error');
   }
 }
-
 // ===============================
-// SECCIÓN: RECOMPENSAS
+// SECCIÓN: RECOMPENSAs
 // ===============================
 async function cargarRecompensas() {
   const idUsuario = getUsuarioId();
@@ -717,115 +1054,3 @@ async function registrarCumplimiento() {
     console.error('Error:', error);
   }
 }
-// ===============================
-// RECONOCIMIENTO DE VOZ PARA EMERGENCIA
-// ===============================
-document.addEventListener("DOMContentLoaded", () => {
-  const activarVozBtn = document.getElementById("activarVozBtn");
-  const vozStatus = document.getElementById("vozStatus");
-  
-  if (!activarVozBtn) return;
-
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  
-  if (!SpeechRecognition) {
-    vozStatus.innerHTML = '<div class="alert alert-warning mt-3"><i class="bi bi-exclamation-triangle"></i> Tu navegador no soporta reconocimiento de voz.</div>';
-    activarVozBtn.disabled = true;
-    return;
-  }
-
-  const recognition = new SpeechRecognition();
-  recognition.lang = 'es-ES';
-  recognition.continuous = false;
-  recognition.interimResults = false;
-
-  let escuchando = false;
-
-  activarVozBtn.addEventListener("click", () => {
-    if (!escuchando) {
-      recognition.start();
-      escuchando = true;
-      activarVozBtn.innerHTML = '<i class="bi bi-mic-fill"></i> Escuchando...';
-      activarVozBtn.classList.remove("btn-outline-primary");
-      activarVozBtn.classList.add("btn-danger");
-      vozStatus.innerHTML = '<div class="alert alert-info mt-3"><i class="bi bi-mic-fill"></i> <strong>Escuchando...</strong> Di "emergencia", "SOS", "ayuda" o "auxilio"</div>';
-    } else {
-      recognition.stop();
-      escuchando = false;
-      activarVozBtn.innerHTML = '<i class="bi bi-mic"></i> Activar Reconocimiento de Voz';
-      activarVozBtn.classList.remove("btn-danger");
-      activarVozBtn.classList.add("btn-outline-primary");
-      vozStatus.innerHTML = '';
-    }
-  });
-
-  recognition.onresult = async (event) => {
-    const transcript = event.results[0][0].transcript.toLowerCase();
-    vozStatus.innerHTML = `<div class="alert alert-secondary mt-3">📝 Escuché: <strong>"${transcript}"</strong></div>`;
-    
-    if (transcript.includes("emergencia") || 
-        transcript.includes("sos") || 
-        transcript.includes("ayuda") || 
-        transcript.includes("auxilio")) {
-      
-      vozStatus.innerHTML = '<div class="alert alert-danger mt-3"><strong>🚨 EMERGENCIA DETECTADA POR VOZ</strong></div>';
-      
-      setTimeout(async () => {
-        if (confirm("🚨 Se detectó una palabra de emergencia por voz.\n\n¿Activar protocolo de emergencia?")) {
-          
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(async (position) => {
-              try {
-                await fetch(`${API_URL}/activarEmergencia`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    id_usuario: getUsuarioId(),
-                    tipo_activacion: 'voz',
-                    ubicacion_lat: position.coords.latitude,
-                    ubicacion_lng: position.coords.longitude
-                  })
-                });
-                
-                mostrarNotificacion('🚨 Emergencia activada por voz', 'error');
-                cargarHistorialEmergencias();
-              } catch (error) {
-                console.error('Error:', error);
-              }
-            });
-          }
-        }
-      }, 500);
-    }
-    
-    escuchando = false;
-    activarVozBtn.innerHTML = '<i class="bi bi-mic"></i> Activar Reconocimiento de Voz';
-    activarVozBtn.classList.remove("btn-danger");
-    activarVozBtn.classList.add("btn-outline-primary");
-  };
-
-  recognition.onerror = (event) => {
-    let errorMsg = "Error desconocido";
-    switch(event.error) {
-      case 'no-speech': errorMsg = "No se detectó voz"; break;
-      case 'audio-capture': errorMsg = "No se pudo acceder al micrófono"; break;
-      case 'not-allowed': errorMsg = "Permiso de micrófono denegado"; break;
-      default: errorMsg = `Error: ${event.error}`;
-    }
-    
-    vozStatus.innerHTML = `<div class="alert alert-danger mt-3"><i class="bi bi-x-circle"></i> ${errorMsg}</div>`;
-    escuchando = false;
-    activarVozBtn.innerHTML = '<i class="bi bi-mic"></i> Activar Reconocimiento de Voz';
-    activarVozBtn.classList.remove("btn-danger");
-    activarVozBtn.classList.add("btn-outline-primary");
-  };
-
-  recognition.onend = () => {
-    if (escuchando) {
-      escuchando = false;
-      activarVozBtn.innerHTML = '<i class="bi bi-mic"></i> Activar Reconocimiento de Voz';
-      activarVozBtn.classList.remove("btn-danger");
-      activarVozBtn.classList.add("btn-outline-primary");
-    }
-  };
-});
