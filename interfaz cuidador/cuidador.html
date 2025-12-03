@@ -32,103 +32,95 @@
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main">
 
-      <!-- SECCIÓN INICIO -->
-      <section id="inicio" class="section">
-        <div class="section-header">
-          <h2>Inicio</h2>
-          <p class="muted">Bienvenido a tu panel de control</p>
-        </div>
+   <!-- SECCIÓN INICIO -->
+<section id="inicio" class="section">
+  <div class="section-header">
+    <h2>Inicio</h2>
+    <p class="muted">Bienvenido a tu panel de control</p>
+  </div>
 
-        <div class="card">
-          <h5 class="card-title">Panel de Control</h5>
-          <div class="row">
-            <div class="col-md-3 mb-3">
-              <div class="p-4 bg-primary text-white rounded text-center">
-                <i class="bi bi-prescription2" style="font-size: 2.5rem;"></i>
-                <h3 class="mt-2">3</h3>
-                <p class="mb-0">Recetas Activas</p>
-              </div>
-            </div>
-            <div class="col-md-3 mb-3">
-              <div class="p-4 bg-success text-white rounded text-center">
-                <i class="bi bi-calendar-check" style="font-size: 2.5rem;"></i>
-                <h3 class="mt-2">2</h3>
-                <p class="mb-0">Citas Próximas</p>
-              </div>
-            </div>
-            <div class="col-md-3 mb-3">
-              <div class="p-4 bg-warning text-white rounded text-center">
-                <i class="bi bi-star-fill" style="font-size: 2.5rem;"></i>
-                <h3 class="mt-2">350</h3>
-                <p class="mb-0">Puntos</p>
-              </div>
-            </div>
-            <div class="col-md-3 mb-3">
-              <div class="p-4 bg-info text-white rounded text-center">
-                <i class="bi bi-graph-up" style="font-size: 2.5rem;"></i>
-                <h3 class="mt-2">85%</h3>
-                <p class="mb-0">Cumplimiento</p>
-              </div>
-            </div>
-          </div>
+  <div class="card">
+    <h5 class="card-title">Panel de Control</h5>
+    <div class="row">
+      <div class="col-md-3 mb-3">
+        <div class="p-4 bg-primary text-white rounded text-center">
+          <i class="bi bi-prescription2" style="font-size: 2.5rem;"></i>
+          <h3 class="mt-2" id="stat-recetas">0</h3>
+          <p class="mb-0">Recetas Activas</p>
         </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="p-4 bg-success text-white rounded text-center">
+          <i class="bi bi-calendar-check" style="font-size: 2.5rem;"></i>
+          <h3 class="mt-2" id="stat-citas">0</h3>
+          <p class="mb-0">Citas Próximas</p>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="p-4 bg-warning text-white rounded text-center">
+          <i class="bi bi-star-fill" style="font-size: 2.5rem;"></i>
+          <h3 class="mt-2" id="stat-puntos">0</h3>
+          <p class="mb-0">Puntos</p>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="p-4 bg-info text-white rounded text-center">
+          <i class="bi bi-graph-up" style="font-size: 2.5rem;"></i>
+          <h3 class="mt-2" id="stat-cumplimiento">0%</h3>
+          <p class="mb-0">Cumplimiento</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        <div class="row">
-          <div class="col-md-8">
-            <div class="card">
-              <h5 class="card-title">Recordatorios de Hoy</h5>
-              <div class="list-group list-group-flush">
-                <div class="list-group-item">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                      <i class="bi bi-capsule text-primary"></i>
-                      <strong>Ibuprofeno 400mg</strong> - 10:00 AM
-                    </div>
-                    <button class="btn btn-sm btn-success"><i class="bi bi-check2"></i> Tomado</button>
-                  </div>
-                </div>
-                <div class="list-group-item">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                      <i class="bi bi-capsule text-primary"></i>
-                      <strong>Losartán 50mg</strong> - 2:00 PM
-                    </div>
-                    <button class="btn btn-sm btn-outline-secondary">Pendiente</button>
-                  </div>
-                </div>
-                <div class="list-group-item">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                      <i class="bi bi-calendar-event text-success"></i>
-                      <strong>Cita - Cardiología</strong> - 4:00 PM
-                    </div>
-                    <span class="badge bg-info">Hoy</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="col-md-4">
-            <div class="card bg-danger text-white">
-              <h5 class="card-title">Emergencia</h5>
-              <p>¿Necesitas ayuda inmediata?</p>
-              <button class="btn btn-light btn-lg w-100">
-                <i class="bi bi-telephone-fill"></i> Activar Emergencia
-              </button>
-            </div>
-            
-            <div class="card mt-3">
-              <h5 class="card-title">Logro Reciente</h5>
-              <div class="text-center">
-                <i class="bi bi-trophy-fill text-warning" style="font-size: 3rem;"></i>
-                <p class="mt-2 mb-0"><strong>¡Semana Perfecta!</strong></p>
-                <small class="text-muted">Completaste 7 días consecutivos</small>
-              </div>
-            </div>
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card">
+        <h5 class="card-title">Mis Medicamentos de Hoy</h5>
+        <div id="listaMedicamentosHoy" class="list-group list-group-flush">
+          <div class="list-group-item text-center text-muted">
+            Cargando medicamentos...
           </div>
         </div>
-      </section>
+      </div>
+
+      <div class="card">
+        <h5 class="card-title">Tomas Registradas Hoy</h5>
+        <div id="listaTomasHoy" class="list-group list-group-flush">
+          <div class="list-group-item text-center text-muted">
+            Aún no has registrado ninguna toma
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="card bg-danger text-white">
+        <h5 class="card-title">Emergencia</h5>
+        <p>¿Necesitas ayuda inmediata?</p>
+        <button class="btn btn-light btn-lg w-100" onclick="irASeccionEmergencia()">
+          <i class="bi bi-telephone-fill"></i> Activar Emergencia
+        </button>
+      </div>
+      
+      <div class="card mt-3">
+        <h5 class="card-title">Próxima Cita</h5>
+        <div id="proximaCita" class="text-center">
+          <p class="text-muted">Sin citas próximas</p>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <h5 class="card-title">Logro Reciente</h5>
+        <div id="logroReciente" class="text-center">
+          <i class="bi bi-trophy-fill text-warning" style="font-size: 3rem;"></i>
+          <p class="mt-2 mb-0"><strong>Sigue así</strong></p>
+          <small class="text-muted">Completa tus medicamentos</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
       <!-- SECCIÓN RECETAS MÉDICAS -->
       <section id="recetas" class="section d-none">

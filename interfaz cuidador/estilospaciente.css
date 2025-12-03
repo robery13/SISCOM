@@ -596,3 +596,254 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+/* ============================================
+   AGREGAR AL FINAL DE estilospaciente.css
+   ANIMACIONES PARA NOTIFICACIONES Y MODALES
+   ============================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { 
+    transform: scale(0.9); 
+    opacity: 0; 
+  }
+  to { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
+}
+
+@keyframes slideIn {
+  from { 
+    transform: translateX(100%); 
+    opacity: 0;
+  }
+  to { 
+    transform: translateX(0); 
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from { 
+    transform: translateX(0); 
+    opacity: 1;
+  }
+  to { 
+    transform: translateX(100%); 
+    opacity: 0;
+  }
+}
+
+/* ============================================
+   ESTILOS PARA BOTONES DE ACCIÓN
+   ============================================ */
+
+.btn-tomar-medicamento {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  color: white;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.btn-tomar-medicamento:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.btn-tomar-medicamento:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+   MEJORAS VISUALES PARA LISTAS
+   ============================================ */
+
+#listaMedicamentosHoy .list-group-item,
+#listaTomasHoy .list-group-item {
+  border-left: 4px solid transparent;
+  transition: all 0.2s ease;
+}
+
+#listaMedicamentosHoy .list-group-item {
+  border-left-color: #0d6efd;
+}
+
+#listaMedicamentosHoy .list-group-item:hover {
+  background-color: #f8f9fa;
+  transform: translateX(5px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#listaTomasHoy .list-group-item {
+  border-left-color: #10b981;
+  background-color: #f0fdf4;
+}
+
+/* ============================================
+   BADGES Y ETIQUETAS
+   ============================================ */
+
+.badge-hora {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+}
+
+.badge-pendiente {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+}
+
+/* ============================================
+   ICONOS ANIMADOS
+   ============================================ */
+
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.icon-animated {
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+/* ============================================
+   CARD HOVER EFFECTS
+   ============================================ */
+
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+/* ============================================
+   RESPONSIVE IMPROVEMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+  .btn-tomar-medicamento {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  
+  #listaMedicamentosHoy .list-group-item,
+  #listaTomasHoy .list-group-item {
+    padding: 0.75rem;
+  }
+}
+
+/* ============================================
+   LOADING SPINNER
+   ============================================ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  border: 3px solid rgba(0,0,0,0.1);
+  border-top-color: #0d6efd;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+/* ============================================
+   MEJORAS PARA MODALES
+   ============================================ */
+
+.modal-backdrop-custom {
+  backdrop-filter: blur(4px);
+}
+
+.modal-content-custom {
+  border: none;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+/* ============================================
+   ESTADO DE MEDICAMENTOS
+   ============================================ */
+
+.medicamento-tomado {
+  opacity: 0.6;
+  background-color: #f0fdf4;
+}
+
+.medicamento-tomado::before {
+  content: "✓";
+  color: #10b981;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.medicamento-pendiente {
+  background-color: #fffbeb;
+}
+
+.medicamento-vencido {
+  background-color: #fef2f2;
+  border-left-color: #ef4444 !important;
+}
+
+/* ============================================
+   TOOLTIPS PERSONALIZADOS
+   ============================================ */
+
+[data-tooltip] {
+  position: relative;
+  cursor: pointer;
+}
+
+[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 0.75rem;
+  background: #1e293b;
+  color: white;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  z-index: 1000;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+[data-tooltip]:hover::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 0.5rem solid transparent;
+  border-top-color: #1e293b;
+  z-index: 1000;
+}
