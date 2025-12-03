@@ -195,15 +195,55 @@ app.post('/Registro_medicamentos', (req, res) => {
   });
 });
 
-// Obtener todos los medicamentos registrados
-app.get('/Registro_medicamentos', (req, res) => {
-  const sql = 'SELECT * FROM Registro_medicamentos';
-  db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ mensaje: 'Error al cargar registro' });
-    res.json(results);
+
+
+//==========================================================
+//solicitar pacientes para el combo
+// Endpoint que enviará los datos del ComboBox
+//?
+app.get("/pacientes_usuario", (req, res) => {
+ const id_usuario = req.query.id_usuario;
+  if (!id_usuario) return res.status(400).json({ mensaje: "Falta id_usuario" });
+
+    const sql = `SELECT   
+    p.id_paciente,
+    p.nombre_completo
+FROM paciente p
+INNER JOIN usuarios u ON p.usuario_id = u.id
+WHERE u.id = ?`;
+
+    db.query(sql, [id_usuario], (err, results) => {
+        if (err) {
+            res.status(500).json({ error: "Error consultando la base" });
+            return;
+        }
+        res.json(results); // Envía JSON al frontend
+    });
+});
+
+
+//==========================================================
+// carga de lista de  medicamentos
+//==========================================================
+app.get("/medicamentos_paciente", (req, res) => {
+  const id_paciente = req.query.id_paciente;
+ if (!id_paciente) return res.status(400).json({ mensaje: "Falta id_paciente" });
+
+  const sql = `
+     SELECT nombre, dosis, frecuencia, hora
+    FROM medicamentos
+    WHERE paciente_id = ?
+  `;  
+
+   db.query(sql, [id_paciente], (err, resultados) => {
+    if (err) return res.status(500).json({ mensaje: "Error en la BD" });
+
+    res.json(resultados);
   });
 });
 
+
+//==========================================================
 
 //  RUTA 3: GUARDAR EN inventario
 app.post('/inventario', (req, res) => {
@@ -223,7 +263,7 @@ app.post('/inventario', (req, res) => {
   });
 });
 
-// Obtener todo el inventario
+// Obtener todo el inventario 
 app.get('/inventario', (req, res) => {
   const sql = 'SELECT * FROM inventario';
   db.query(sql, (err, results) => {

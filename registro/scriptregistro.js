@@ -1,3 +1,65 @@
+// ==============================================
+//recuperar id_usuario desde localStorage
+// ==============================================
+const idUsuario = sessionStorage.getItem("id_usuario");
+
+if (!idUsuario) {
+  // Si no hay login, bloquear acceso
+  window.location.href = "../login/login.html";
+}
+
+
+const nombre = sessionStorage.getItem("nombre_completo");
+
+if (nombre) {
+  document.getElementById("usuarioNombre").textContent = "Bienvenido "+nombre;
+}
+
+
+
+///=============================================
+///cargar opciones del combo de pacientes
+///=============================================
+
+async function cargarCombo() {
+   const id_usuario = sessionStorage.getItem("id_usuario"); // Recuperar ID
+  if (!id_usuario) return;
+
+
+    const combo = document.getElementById("miCombo");
+
+    try {
+        const results = await fetch(`http://localhost:3000/pacientes_usuario?id_usuario=${id_usuario}`);
+        const datos = await results.json(); // Esperamos JSON
+
+        combo.innerHTML = ""; // Limpiar
+
+        // Agregar opción por defecto
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";               // valor vacío
+        defaultOption.textContent = "--Selecciona un paciente--";
+        combo.appendChild(defaultOption);
+
+        datos.forEach(item => {
+            let option = document.createElement("option");
+            option.value = item.id_paciente;
+option.textContent = item.nombre_completo;
+
+            combo.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error("Error cargando combo:", error);
+       console.log(error);
+        combo.innerHTML = `<option>Error al cargar</option>`;
+    }
+}
+
+cargarCombo(); // Ejecutar al iniciar
+
+
+
+
 // ===============================
 // NAVEGACIÓN ENTRE SECCIONES
 // ===============================
@@ -61,13 +123,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const datos = { nombre, dosis, frecuencia_horas: frecuencia, hora };
+      const datos = { nombre, dosis, frecuencia_horas: frecuencia, hora,id_usuario: idUsuario};
 
       try {
         const resp = await fetch("http://localhost:3000/Registro_medicamentos", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(datos)
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ id_usuario: idUsuario }) // Agregar id_usuario al cuerpo
         });
 
         const resultado = await resp.json();
@@ -85,36 +147,53 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("No se pudo conectar con el servidor.");
       }
     });
-  }
+  }//==============================================================================
+    //FUNCION CARGAR MEDICAMENTOS
+    //==============================================================================
+    async function cargarRegistroMedicamentos(id_paciente) {
+      try {
+        const respuesta = await fetch(`http://localhost:3000/medicamentos_paciente?id_paciente=${id_paciente}`);
+        const data = await respuesta.json();
 
-  async function cargarRegistroMedicamentos() {
-    try {
-      const respuesta = await fetch("http://localhost:3000/Registro_medicamentos");
-      const data = await respuesta.json();
-      renderMedicamentos(data);
-    } catch (err) {
-      console.error("Error al cargar registro:", err);
+        if (!Array.isArray(data)) {
+          console.error("Datos recibidos no son un array:", data);
+          return;
+        }
+
+        renderMedicamentos(data);
+      } catch (err) {
+        console.error("Error al cargar registro:", err);
+      }
     }
-  }
 
-  function renderMedicamentos(lista) {
-    if (!tablaMedicamentos) return;
-    tablaMedicamentos.innerHTML = "";
-    lista.forEach((m) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(m.nombre)}</td>
-        <td>${escapeHtml(m.dosis)}</td>
-        <td>${m.frecuencia_horas}</td>
-        <td>${m.hora}</td>
-      `;
-      tablaMedicamentos.appendChild(tr);
+
+
+          function renderMedicamentos(lista) {
+            if (!tablaMedicamentos) return;
+            tablaMedicamentos.innerHTML = "";
+            lista.forEach((m) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${escapeHtml(m.nombre)}</td>
+                <td>${escapeHtml(m.dosis)}</td>
+                <td>${m.frecuencia}</td>
+                <td>${m.hora}</td>
+              `;
+              tablaMedicamentos.appendChild(tr);
+            });
+          }
+
+
+     
+
+        document.getElementById("miCombo").addEventListener("change", function () {
+      const id_paciente = this.value;
+
+      if (id_paciente) {
+        cargarRegistroMedicamentos(id_paciente);
+      }   
     });
-  }
-
-  cargarRegistroMedicamentos();
-
-})();
+   })();
 
 // ===============================
 // INVENTARIO
@@ -1122,3 +1201,19 @@ function escapeHtml(str){
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.querySelector('.overlay');
+  const menuToggle = document.querySelector('.menu-toggle');
+
+  // Abrir/cerrar menú con botón
+  menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('open'); // activa/desactiva el menú
+  });
+
+  // Cerrar menú al hacer click en overlay
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('open'); // quita clase "open" y el overlay se oculta automáticamente
+  });
+});

@@ -81,7 +81,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const data = await respuesta.json();
 
         if (respuesta.ok && data.ok) {
+//===============================================>
+          //guardar id_usuario en localStorage
           showToast("Inicio de sesión exitoso!", "success");
+         // Guardar el ID de usuario
+    sessionStorage.setItem("id_usuario", data.usuario.id);
+
+    // Guardar el nombre y apellido
+    sessionStorage.setItem("nombres", data.usuario.nombres);
+    sessionStorage.setItem("apellidos", data.usuario.apellidos);
+
+    // Guardar nombre completo
+    sessionStorage.setItem("nombre_completo",
+      `${data.usuario.nombres} ${data.usuario.apellidos}`
+    );
+//===============================================<
           setTimeout(() => {
             if (btnLogin) {
               btnLogin.disabled = false;
