@@ -277,6 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
   cargarEstadisticasInicio();
   iniciarVerificacionCitas();
   limpiarNotificacionesAntiguas();
+  iniciarSistemaNotificacionesMedicamentos();
 });
 
 // ===============================
@@ -659,10 +660,30 @@ function mostrarModalReceta() {
         <input type="text" id="modalDosis" class="form-control" placeholder="Ej: 400mg">
       </div>
       
-      <div style="margin-bottom:1.5rem">
-        <label style="display:block;margin-bottom:0.5rem;font-weight:500">Frecuencia:</label>
-        <input type="text" id="modalFrecuencia" class="form-control" placeholder="Ej: cada 8 horas">
-      </div>
+     <div style="margin-bottom:1.5rem">
+  <label style="display:block;margin-bottom:0.5rem;font-weight:500">Frecuencia:</label>
+  <select id="modalFrecuencia" class="form-select">
+    <option value="">Selecciona frecuencia</option>
+    <optgroup label="Pruebas (Minutos)">
+      <option value="cada 1 minuto">Cada 1 minuto</option>
+      <option value="cada 2 minutos">Cada 2 minutos</option>
+      <option value="cada 3 minutos">Cada 3 minutos</option>
+      <option value="cada 5 minutos">Cada 5 minutos</option>
+      <option value="cada 10 minutos">Cada 10 minutos</option>
+      <option value="cada 15 minutos">Cada 15 minutos</option>
+      <option value="cada 30 minutos">Cada 30 minutos</option>
+    </optgroup>
+    <optgroup label="Frecuencias Comunes (Horas)">
+      <option value="cada 1 hora">Cada 1 hora</option>
+      <option value="cada 2 horas">Cada 2 horas</option>
+      <option value="cada 4 horas">Cada 4 horas</option>
+      <option value="cada 6 horas">Cada 6 horas</option>
+      <option value="cada 8 horas">Cada 8 horas</option>
+      <option value="cada 12 horas">Cada 12 horas</option>
+      <option value="cada 24 horas">Cada 24 horas (1 vez al día)</option>
+    </optgroup>
+  </select>
+</div>
       
       <div style="display:flex;gap:1rem;justify-content:flex-end">
         <button class="btn btn-secondary" id="btnCancelarReceta">Cancelar</button>
@@ -898,8 +919,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const fecha = citaForm.querySelector('input[type="date"]').value;
       const hora = citaForm.querySelector('input[type="time"]').value;
       const motivo = citaForm.querySelector('input[placeholder*="Consulta"]').value.trim();
+      const doctor = document.getElementById('selectDoctor').value;
       
-      if (!fecha || !hora || !motivo) {
+      if (!fecha || !hora || !motivo || !doctor) {
         await mostrarAlerta('Campos incompletos', 'Por favor completa todos los campos');
         return;
       }
@@ -913,7 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({
             id_paciente: getUsuarioId(),
             fecha_hora: fechaHora,
-            motivo: motivo,
+            motivo: `${motivo} - ${doctor}`,
             anticipacion_min: 30
           })
         });
@@ -1516,3 +1538,285 @@ function limpiarNotificacionesAntiguas() {
     }
   });
 }
+
+// ============================================
+// SISTEMA DE NOTIFICACIONES DE MEDICAMENTOS
+// ============================================
+
+let intervalosNotificaciones = [];
+
+function iniciarSistemaNotificacionesMedicamentos() {
+  console.log('Sistema de notificaciones de medicamentos iniciado');
+  
+  // Limpiar intervalos previos
+  intervalosNotificaciones.forEach(intervalo => clearInterval(intervalo));
+  intervalosNotificaciones = [];
+  
+  // Cargar medicamentos y configurar notificaciones
+  cargarYConfigurarNotificaciones();
+  
+  // Recargar cada hora por si hay cambios
+  setInterval(() => {
+    cargarYConfigurarNotificaciones();
+  }, 3600000); // Cada hora
+}
+
+async function cargarYConfigurarNotificaciones() {
+  const idUsuario = getUsuarioId();
+  
+  try {
+    const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
+    
+    if (!response.ok) {
+      throw new Error('Error al cargar medicamentos');
+    }
+    
+    const recetas = await response.json();
+    
+    console.log('Recetas cargadas para notificaciones:', recetas);
+    
+    recetas.forEach(receta => {
+      configurarNotificacionMedicamento(receta);
+    });
+    
+  } catch (error) {
+    console.error('Error al cargar medicamentos para notificaciones:', error);
+  }
+}
+
+function configurarNotificacionMedicamento(receta) {
+  // Extraer frecuencia en minutos
+  const frecuenciaMinutos = extraerFrecuenciaMinutos(receta.frecuencia);
+  
+  if (!frecuenciaMinutos || frecuenciaMinutos <= 0) {
+    console.log(`No se pudo determinar frecuencia para ${receta.nombre_medicamento}`);
+    return;
+  }
+  
+  console.log(`Configurando notificación para ${receta.nombre_medicamento} cada ${frecuenciaMinutos} minutos`);
+  
+  // Crear intervalo para este medicamento
+  const intervalo = setInterval(() => {
+    mostrarNotificacionMedicamento(receta);
+  }, frecuenciaMinutos * 60 * 1000);
+  
+  intervalosNotificaciones.push(intervalo);
+  
+  // Mostrar primera notificación inmediatamente (opcional)
+  // setTimeout(() => mostrarNotificacionMedicamento(receta), 5000);
+}
+
+function extraerFrecuenciaMinutos(frecuenciaTexto) {
+  if (!frecuenciaTexto) return null;
+  
+  const texto = frecuenciaTexto.toLowerCase();
+  
+  // Patrones: "cada 2 horas", "cada 30 minutos", "2 minutos", "8 horas"
+  
+  // Buscar minutos
+  const matchMinutos = texto.match(/(\d+)\s*min/i);
+  if (matchMinutos) {
+    return parseInt(matchMinutos[1]);
+  }
+  
+  // Buscar horas
+  const matchHoras = texto.match(/(\d+)\s*h/i);
+  if (matchHoras) {
+    return parseInt(matchHoras[1]) * 60;
+  }
+  
+  // Si dice "cada X" extraer el número
+  const matchCada = texto.match(/cada\s*(\d+)/i);
+  if (matchCada) {
+    const numero = parseInt(matchCada[1]);
+    // Asumir horas si el número es pequeño (< 24)
+    if (numero < 24) {
+      return numero * 60;
+    }
+    return numero; // Asumir minutos
+  }
+  
+  return null;
+}
+
+function mostrarNotificacionMedicamento(receta) {
+  // Verificar si ya se tomó hoy
+  verificarSiYaSeTomoHoy(receta.id).then(yaTomado => {
+    if (yaTomado) {
+      console.log(`Ya se tomó ${receta.nombre_medicamento} hoy`);
+      return;
+    }
+    
+    // Crear modal de notificación
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      animation: fadeIn 0.3s ease-out;
+    `;
+    
+    // Reproducir sonido de notificación (opcional)
+    reproducirSonidoNotificacion();
+    
+    const horaActual = new Date().toLocaleTimeString('es', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    modal.innerHTML = `
+      <div style="background: white; padding: 2.5rem; border-radius: 1.5rem; max-width: 550px; width: 90%; box-shadow: 0 25px 80px rgba(0,0,0,0.4); animation: scaleIn 0.4s ease-out;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 1.5rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4); animation: pulse 2s infinite;">
+            <i class="bi bi-alarm-fill" style="font-size: 3.5rem; color: white;"></i>
+          </div>
+          <h3 style="color: #dc2626; margin: 0 0 0.5rem 0; font-size: 1.75rem; font-weight: 700;">
+            Es hora de tu medicamento
+          </h3>
+          <p style="color: #64748b; margin: 0; font-size: 1.1rem;">
+            ${horaActual}
+          </p>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); padding: 1.5rem; border-radius: 1rem; margin-bottom: 2rem; border-left: 5px solid #dc2626;">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+            <i class="bi bi-capsule-pill" style="font-size: 2.5rem; color: #dc2626;"></i>
+            <div style="flex: 1;">
+              <h4 style="margin: 0 0 0.5rem 0; color: #1e3a8a; font-size: 1.4rem; font-weight: 600;">
+                ${receta.nombre_medicamento}
+              </h4>
+              <p style="margin: 0; color: #64748b; font-size: 1rem;">
+                <strong>Dosis:</strong> ${receta.dosis}
+              </p>
+              <p style="margin: 0.25rem 0 0 0; color: #64748b; font-size: 0.95rem;">
+                <strong>Frecuencia:</strong> ${receta.frecuencia}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+          <button class="btn btn-outline-secondary" id="btnPosponer" style="min-width: 150px; padding: 0.75rem 1.5rem; font-size: 1rem;">
+            <i class="bi bi-clock-history"></i> Posponer 10 min
+          </button>
+          <button class="btn btn-success" id="btnYaTome" style="min-width: 150px; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 600;">
+            <i class="bi bi-check-circle-fill"></i> Ya tomé
+          </button>
+        </div>
+        
+        <p style="text-align: center; margin: 1.5rem 0 0 0; color: #94a3b8; font-size: 0.875rem;">
+          <i class="bi bi-info-circle"></i> Es importante tomar tus medicamentos a tiempo
+        </p>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Botón "Ya tomé"
+    document.getElementById('btnYaTome').addEventListener('click', async () => {
+      modal.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => modal.remove(), 300);
+      
+      // Registrar que tomó el medicamento
+      await confirmarTomaMedicamento(receta.id, receta.nombre_medicamento);
+      
+      mostrarNotificacion(`¡Excelente! Registramos tu toma de ${receta.nombre_medicamento}`, 'success');
+    });
+    
+    // Botón "Posponer"
+    document.getElementById('btnPosponer').addEventListener('click', () => {
+      modal.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => modal.remove(), 300);
+      
+      // Posponer 10 minutos
+      setTimeout(() => {
+        mostrarNotificacionMedicamento(receta);
+      }, 10 * 60 * 1000);
+      
+      mostrarNotificacion('Notificación pospuesta 10 minutos', 'info');
+    });
+  });
+}
+
+async function verificarSiYaSeTomoHoy(id_receta) {
+  const idUsuario = getUsuarioId();
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+  
+  try {
+    const response = await fetch(`${API_URL}/tomasHoy/${idUsuario}`);
+    const tomas = await response.json();
+    
+    // Verificar si ya se tomó este medicamento hoy
+    const yaTomado = tomas.some(toma => {
+      return toma.fecha_toma === fechaHoy;
+    });
+    
+    return yaTomado;
+  } catch (error) {
+    console.error('Error al verificar tomas:', error);
+    return false;
+  }
+}
+
+function reproducirSonidoNotificacion() {
+  // Crear un beep simple usando Web Audio API
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.5);
+  } catch (error) {
+    console.log('No se pudo reproducir sonido:', error);
+  }
+}
+// ========================================
+// MENÚ RESPONSIVE PARA MÓVILES
+// ========================================
+const menuToggle = document.getElementById('menuToggle');
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('overlay');
+
+// Abrir/cerrar menú
+if (menuToggle) {
+  menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+  });
+}
+
+// Cerrar menú al hacer clic en el overlay
+if (overlay) {
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+  });
+}
+
+// Cerrar menú en móvil después de seleccionar una opción
+document.querySelectorAll('.nav-btn[data-section]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    // Cerrar menú en móvil después de seleccionar
+    if (window.innerWidth <= 768) {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
+    }
+  });
+});
