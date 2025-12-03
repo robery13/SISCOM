@@ -914,7 +914,7 @@ body {
 .btn-outline-secondary:hover {
   transform: translateY(-2px);
 }
-/* Mejoras para pantallas táctiles */
+/* Mejoras parpantallas táctiles */
 @media (hover: none) and (pointer: coarse) {
   .btn, .nav-btn, button {
     min-height: 44px;

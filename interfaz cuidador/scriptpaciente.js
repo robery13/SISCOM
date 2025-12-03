@@ -9,7 +9,7 @@ function getUsuarioId() {
 }
 
 // ============================================
-// SISTEMA DE MODALES Y NOTIFICACIONES
+// SISTEMA DE MODALES  NOTIFICACIONES
 // ============================================
 
 const styleSheet = document.createElement('style');
