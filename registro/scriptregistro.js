@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // ===============================
 // REGISTRO DE MEDICAMENTOS
 // ===============================
-(function(){
+(function(){ 
   const guardarBtn = document.getElementById("guardarBtn");
   const tablaMedicamentos = document.querySelector("#tablaMedicamentos tbody");
 
@@ -117,20 +117,23 @@ document.addEventListener("DOMContentLoaded", () => {
       const dosis = document.getElementById("dosis").value.trim();
       const frecuencia = parseInt(document.getElementById("frecuencia").value, 10);
       const hora = document.getElementById("hora").value;
+      const paciente_id = document.getElementById("miCombo").value; // <-- paciente seleccionado
 
-      if (!nombre || !dosis || !frecuencia || !hora) {
+
+      if (!nombre || !dosis || !frecuencia || !hora || !paciente_id) {
         alert("Por favor complete todos los campos.");
         return;
       }
 
-      const datos = { nombre, dosis, frecuencia_horas: frecuencia, hora,id_usuario: idUsuario};
+      const datos = { nombre, dosis, frecuencia: frecuencia, hora, paciente_id};
 
       try {
-        const resp = await fetch("http://localhost:3000/Registro_medicamentos", {
-          method: "POST",
+    const resp = await fetch("http://localhost:3000/Registro_medicamentos", {
+  method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ id_usuario: idUsuario }) // Agregar id_usuario al cuerpo
-        });
+  body: JSON.stringify(datos) // <-- Aquí enviamos los datos
+});
+
 
         const resultado = await resp.json();
         alert(resultado.mensaje || "Medicamento registrado correctamente.");
@@ -1202,18 +1205,68 @@ function escapeHtml(str){
     .replace(/'/g,"&#039;");
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const sidebar = document.querySelector('.sidebar');
-  const overlay = document.querySelector('.overlay');
-  const menuToggle = document.querySelector('.menu-toggle');
+// document.addEventListener('DOMContentLoaded', () => {
+  // const sidebar = document.querySelector('.sidebar');
+  // const overlay = document.querySelector('.overlay');
+  // const menuToggle = document.querySelector('.menu-toggle');
 
   // Abrir/cerrar menú con botón
-  menuToggle.addEventListener('click', () => {
-    sidebar.classList.toggle('open'); // activa/desactiva el menú
-  });
+  // menuToggle.addEventListener('click', () => {
+    // sidebar.classList.toggle('open'); // activa/desactiva el menú
+  // });
 
   // Cerrar menú al hacer click en overlay
-  overlay.addEventListener('click', () => {
-    sidebar.classList.remove('open'); // quita clase "open" y el overlay se oculta automáticamente
-  });
+  // overlay.addEventListener('click', () => {
+    // sidebar.classList.remove('open'); // quita clase "open" y el overlay se oculta automáticamente
+  // });
+// });
+
+document.addEventListener("show.bs.modal", () => {
+  document.body.classList.remove("sidebar-open");
 });
+
+
+
+
+// Cuando un modal abre → cerrar el menú y ocultar overlay
+document.addEventListener("show.bs.modal", () => {
+  const sidebar = document.querySelector(".sidebar");
+  const overlay = document.querySelector(".overlay");
+
+  // Si el menú está abierto, cerrarlo
+  if (sidebar.classList.contains("open")) {
+    sidebar.classList.remove("open");
+  }
+
+  // Ocultar overlay del sidebar
+  if (overlay) {
+    overlay.classList.remove("active");
+    overlay.style.opacity = "0";
+    overlay.style.visibility = "hidden";
+  }
+});
+  
+
+/// ===============================
+document.addEventListener("show.bs.modal", () => {
+  const sidebar = document.querySelector(".sidebar");
+  const overlay = document.querySelector(".overlay");
+
+  // Cerrar el sidebar si está abierto
+  if (sidebar.classList.contains("open")) {
+    sidebar.classList.remove("open");
+  }
+
+  // Asegurarse de que el overlay del sidebar no bloquee el modal
+  if (overlay) {
+    overlay.style.display = "none"; // oculta completamente
+  }
+});
+
+document.addEventListener("hidden.bs.modal", () => {
+  const overlay = document.querySelector(".overlay");
+  if (overlay) {
+    overlay.style.display = ""; // restaura el display original
+  }
+});
+  

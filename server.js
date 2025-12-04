@@ -179,19 +179,19 @@ app.listen(3000, () => {
 
 //  RUTA 2: GUARDAR EN Registro_medicamentos
 app.post('/Registro_medicamentos', (req, res) => {
-  const { nombre, dosis, frecuencia_horas, hora } = req.body;
+  const { nombre, dosis, frecuencia, hora, paciente_id  } = req.body;
 
-  if (!nombre || !dosis || !frecuencia_horas || !hora) {
+  if (!nombre || !dosis || !frecuencia || !hora || !paciente_id) {
     return res.status(400).json({ mensaje: ' Campos incompletos' });
   }
 
-  const sql = 'INSERT INTO Registro_medicamentos (nombre, dosis, frecuencia_horas, hora) VALUES (?, ?, ?, ?)';
-  db.query(sql, [nombre, dosis, frecuencia_horas, hora], (err, result) => {
+  const sql = 'INSERT INTO medicamentos (nombre, dosis, frecuencia, hora,paciente_id) VALUES (?, ?, ?, ?,?)';
+  db.query(sql, [nombre, dosis, frecuencia, hora, paciente_id], (err, result) => {
     if (err) {
       //console.error(' Error al guardar en Registro_medicamentos:', err);
       return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
     }
-    res.json({ mensaje: ' Medicamento registrado correctamente en Registro_medicamentos' });
+    res.json({ mensaje: ' Medicamento registrado correctamente a paciente' });
   });
 });
 
