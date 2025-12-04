@@ -29,7 +29,7 @@
   <div class="app">
 
     <!-- SIDEBAR -->
-    <aside class="sidebar">
+    <aside id="sidebar" class="sidebar">
       <div class="brand">SISCOM</div>
 
     <!-- Nombre de usuario dinámico -->
@@ -278,6 +278,53 @@
     </div>
   </div>
 </section>
+
+ <!-- Modal Registrar Medicamento -->
+  <div class="modal fade" id="modalMedicamento" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i> Registrar Medicamento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <label for="nombre">Nombre del medicamento</label>
+            <input id="nombre" type="text" class="form-control" placeholder="Ej. Paracetamol">
+          </div>
+
+          <div class="form-row">
+            <label for="dosis">Dosis</label>
+            <input id="dosis" type="text" class="form-control" placeholder="Ej. 500 mg">
+          </div>
+
+          <div class="form-row">
+            <label for="frecuencia">Frecuencia (horas)</label>
+            <select id="frecuencia" class="form-select">
+              <option value="" selected disabled>Seleccione frecuencia</option>
+              <option value="2">Cada 2 horas</option>
+              <option value="4">Cada 4 horas</option>
+              <option value="6">Cada 6 horas</option>
+              <option value="8">Cada 8 horas</option>
+              <option value="12">Cada 12 horas</option>
+              <option value="24">Cada 24 horas</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="hora">Horario</label>
+            <input id="hora" type="time" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button id="guardarBtn" class="btn btn-primary">Guardar Medicamento</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
 <!-- Modal Registrar Inventario -->
 <div class="modal fade" id="modalInventario" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">

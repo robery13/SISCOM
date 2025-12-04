@@ -110,8 +110,8 @@
     flex: 1;
     padding: 2rem;
     width: calc(100% - var(--sidebar-width));
-    position: relative;
-    z-index: 1; /* contenido detrás del sidebar */
+ 
+    
   }
   /* SECTION HEADER */
   .section-header{max-width:960px;margin:0 auto 18px;text-align:center}
@@ -275,7 +275,7 @@
       .section-header,
   .brand {
     position: relative;
-    z-index: 4000; /* por debajo del botón pero sobre el sidebar */
+    z-index: 1000; /* por debajo del botón pero sobre el sidebar */
     padding-left: 60px; /* espacio para que el botón no tape el texto */
   }
       .nav-menu {
@@ -576,10 +576,10 @@
   .menu-toggle{
     display:none;
     position:fixed;
-    top:15px;
-    left:15px;
+    top:5px;
+    left:5px;
     font-size:28px;
-    background:#1e3a8a;
+    background:#4180aa;
     color:white;
     border:none;
     padding:10px 12px;
