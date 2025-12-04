@@ -24,28 +24,52 @@
 
   <div class="app">
 
-    <!-- BARRA LATERAL -->
-    <aside class="sidebar">
-      <div class="brand">SISCOM</div>
+ <!-- BARRA LATERAL -->
+<aside class="sidebar" id="sidebar">
+  <!--  PERFIL DE USUARIO -->
+  <div class="user-profile">
+    <div class="user-avatar-container">
+      <div class="user-avatar" id="sidebar-avatar"></div>
+      <button class="avatar-edit-btn" onclick="irAPersonalizacion()" title="Editar perfil">
+        <i class="bi bi-pencil-fill"></i>
+      </button>
+    </div>
+    <div class="user-info">
+      <h6 class="user-name" id="sidebar-username">Usuario</h6>
+      <small class="user-role">Paciente</small>
+      <div class="user-theme-indicator" id="theme-indicator">
+        <i class="bi bi-circle-fill"></i> <span id="theme-name">Azul Clásico</span>
+      </div>
+    </div>
+  </div>
 
-      <nav class="nav-menu">
-        <button class="nav-btn active" data-section="inicio"><i class="bi bi-house-door"></i> <span>Inicio</span></button>
-        <button class="nav-btn" data-section="recetas"><i class="bi bi-prescription2"></i> <span>Recetas Médicas</span></button>
-        <button class="nav-btn" data-section="agenda"><i class="bi bi-calendar-check"></i> <span>Agenda Médica</span></button>
-        <button class="nav-btn" data-section="recompensas"><i class="bi bi-trophy"></i> <span>Recompensas</span></button>
-        <button class="nav-btn" data-section="emergencia"><i class="bi bi-mic-fill"></i> <span>Emergencia</span></button>
-        <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
-      </nav>
-    </aside>
+  <div class="brand">SISCOM</div>
 
+  <nav class="nav-menu">
+    <button class="nav-btn active" data-section="inicio"><i class="bi bi-house-door"></i> <span>Inicio</span></button>
+    <button class="nav-btn" data-section="recetas"><i class="bi bi-prescription2"></i> <span>Recetas Médicas</span></button>
+    <button class="nav-btn" data-section="agenda"><i class="bi bi-calendar-check"></i> <span>Agenda Médica</span></button>
+    <button class="nav-btn" data-section="recompensas"><i class="bi bi-trophy"></i> <span>Recompensas</span></button>
+    <button class="nav-btn" data-section="emergencia"><i class="bi bi-mic-fill"></i> <span>Emergencia</span></button>
+    <button class="nav-btn" data-section="personalizacion"><i class="bi bi-palette-fill"></i> <span>Personalización</span></button>
+    <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
+  </nav>
+</aside>
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main">
 
    <!-- SECCIÓN INICIO -->
 <section id="inicio" class="section">
-  <div class="section-header">
-    <h2>Inicio</h2>
-    <p class="muted">Bienvenido a tu panel de control</p>
+  <!--  ENCABEZADO MEJORADO CON AVATAR -->
+  <div class="welcome-header">
+    <div class="welcome-avatar-large" id="welcome-avatar"></div>
+    <div class="welcome-text">
+      <h1 class="welcome-title">¡Hola, <span id="welcome-username">Usuario</span>!</h1>
+      <p class="welcome-subtitle">Bienvenido a tu panel de control</p>
+      <button class="btn btn-sm btn-outline-primary" onclick="irAPersonalizacion()">
+        <i class="bi bi-palette"></i> Personalizar mi perfil
+      </button>
+    </div>
   </div>
 
   <div class="card">
@@ -488,7 +512,17 @@
           </div>
         </div>
       </section>
+<!-- SECCIÓN PERSONALIZACIÓN -->
+<section id="personalizacion" class="section d-none">
+  <div class="section-header">
+    <h2><i class="bi bi-palette-fill"></i> Personalización Visual</h2>
+    <p class="muted">Personaliza tu experiencia con avatares y temas</p>
+  </div>
 
+  <div class="card">
+    <div id="personalizacion-container"></div>
+  </div>
+</section>
     </main>
   </div>
 
@@ -517,5 +551,15 @@
       }, 300);
     });
   </script>
+  <script>
+  // Cargar avatar al entrar a personalización
+  document.querySelector('.nav-btn[data-section="personalizacion"]')?.addEventListener('click', () => {
+    setTimeout(() => {
+      if (typeof cargarPersonalizacion === 'function') {
+        cargarPersonalizacion();
+      }
+    }, 300);
+  });
+</script>
 </body>
 </html>

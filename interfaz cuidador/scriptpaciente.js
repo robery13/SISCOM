@@ -270,6 +270,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (sectionId === 'inicio') {
           cargarEstadisticasInicio();
         }
+        if (sectionId === 'personalizacion') {
+            cargarPersonalizacion();
+          }
       }
     });
   });
@@ -992,13 +995,22 @@ async function cargarRecompensas() {
     const response = await fetch(`${API_URL}/recompensas/${idUsuario}`);
     const recompensas = await response.json();
     
-    document.querySelector('#recompensas .bg-light:nth-child(1) h3').textContent = recompensas.puntos_totales || 0;
-    document.querySelector('#recompensas .bg-light:nth-child(2) h3').textContent = recompensas.medallas || 0;
-    document.querySelector('#recompensas .bg-light:nth-child(3) h3').textContent = `${recompensas.porcentaje_cumplimiento || 0}%`;
+    // Validar que existan los elementos antes de actualizar
+    const puntosTotales = document.querySelector('#recompensas .bg-light:nth-child(1) h3');
+    const medallas = document.querySelector('#recompensas .bg-light:nth-child(2) h3');
+    const cumplimiento = document.querySelector('#recompensas .bg-light:nth-child(3) h3');
+    
+    if (puntosTotales) puntosTotales.textContent = recompensas.puntos_totales || 0;
+    if (medallas) medallas.textContent = recompensas.medallas || 0;
+    if (cumplimiento) cumplimiento.textContent = `${recompensas.porcentaje_cumplimiento || 0}%`;
     
     const progreso = ((recompensas.puntos_totales || 0) % 500) / 500 * 100;
-    document.querySelector('#recompensas .progress-bar').style.width = `${progreso}%`;
-    document.querySelector('#recompensas .progress-bar').textContent = `${Math.round(progreso)}%`;
+    const progressBar = document.querySelector('#recompensas .progress-bar');
+    
+    if (progressBar) {
+      progressBar.style.width = `${progreso}%`;
+      progressBar.textContent = `${Math.round(progreso)}%`;
+    }
     
     const logrosRes = await fetch(`${API_URL}/logros/${idUsuario}`);
     const logros = await logrosRes.json();
@@ -1018,6 +1030,7 @@ async function cargarRecompensas() {
     }
   } catch (error) {
     console.error('Error al cargar recompensas:', error);
+    // No mostrar error al usuario, solo registrar en consola
   }
 }
 
@@ -1818,5 +1831,537 @@ document.querySelectorAll('.nav-btn[data-section]').forEach(btn => {
       sidebar.classList.remove('active');
       overlay.classList.remove('active');
     }
+  });
+});
+// ============================================
+// FUNCIÓN GLOBAL PARA OBTENER AVATARES SVG
+// ============================================
+function obtenerAvatarSVG(avatarId, size = '100%') {
+  const avatares = {
+    'default': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#5B4D8D"/>
+        <circle cx="20" cy="15" r="6" fill="white"/>
+        <path d="M8 35C8 27.268 13.268 21 20 21C26.732 21 32 27.268 32 35" fill="white"/>
+      </svg>
+    `,
+    'hombre1': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#FDB44B"/>
+        <circle cx="20" cy="14" r="7" fill="#FFDA6A"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#FFDA6A"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'hombre2': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#A0AEC0"/>
+        <circle cx="20" cy="14" r="7" fill="#E2E8F0"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#E2E8F0"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'mujer1': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#FDB44B"/>
+        <circle cx="20" cy="14" r="7" fill="#FFDA6A"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#FFDA6A"/>
+        <path d="M14 12C14 10 16 8 20 8C24 8 26 10 26 12C26 13 25 14 24 14H16C15 14 14 13 14 12Z" fill="#8B5A3C"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'mujer2': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#A0AEC0"/>
+        <circle cx="20" cy="14" r="7" fill="#E2E8F0"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#E2E8F0"/>
+        <path d="M14 12C14 10 16 8 20 8C24 8 26 10 26 12C26 13 25 14 24 14H16C15 14 14 13 14 12Z" fill="#CBD5E0"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'medico': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#3B82F6"/>
+        <circle cx="20" cy="14" r="6" fill="#FFDA6A"/>
+        <path d="M8 35C8 27 13 21 20 21C27 21 32 27 32 35" fill="white"/>
+        <circle cx="20" cy="12" r="2" fill="white" opacity="0.9"/>
+        <rect x="19" y="13" width="2" height="6" fill="white"/>
+        <rect x="16" y="15" width="8" height="2" fill="white"/>
+      </svg>
+    `,
+    'enfermera': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#3B82F6"/>
+        <circle cx="20" cy="14" r="6" fill="#FFDA6A"/>
+        <path d="M8 35C8 27 13 21 20 21C27 21 32 27 32 35" fill="white"/>
+        <path d="M14 10C14 8 16 7 20 7C24 7 26 8 26 10C26 11 25 12 24 12H16C15 12 14 11 14 10Z" fill="#8B5A3C"/>
+        <rect x="19" y="9" width="2" height="4" fill="#EF4444"/>
+        <rect x="17" y="11" width="6" height="2" fill="#EF4444"/>
+      </svg>
+    `,
+    'mascota1': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#D97706"/>
+        <circle cx="20" cy="20" r="12" fill="#F59E0B"/>
+        <ellipse cx="16" cy="18" rx="2" ry="3" fill="#92400E"/>
+        <ellipse cx="24" cy="18" rx="2" ry="3" fill="#92400E"/>
+        <circle cx="16" cy="18" r="1" fill="white"/>
+        <circle cx="24" cy="18" r="1" fill="white"/>
+        <circle cx="20" cy="22" r="1.5" fill="#92400E"/>
+        <path d="M20 22C20 24 18 25 18 25C18 25 20 24 20 22Z" fill="#92400E"/>
+        <path d="M20 22C20 24 22 25 22 25C22 25 20 24 20 22Z" fill="#92400E"/>
+        <ellipse cx="13" cy="12" rx="3" ry="5" fill="#F59E0B"/>
+        <ellipse cx="27" cy="12" rx="3" ry="5" fill="#F59E0B"/>
+      </svg>
+    `,
+    'mascota2': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#F59E0B"/>
+        <circle cx="20" cy="20" r="12" fill="#FCD34D"/>
+        <circle cx="16" cy="18" r="1.5" fill="#92400E"/>
+        <circle cx="24" cy="18" r="1.5" fill="#92400E"/>
+        <circle cx="16" cy="18" r="0.5" fill="white"/>
+        <circle cx="24" cy="18" r="0.5" fill="white"/>
+        <path d="M18 23C18 23 19 24 20 24C21 24 22 23 22 23" stroke="#92400E" stroke-width="1" stroke-linecap="round"/>
+        <path d="M14 15L12 10L16 12Z" fill="#FCD34D"/>
+        <path d="M26 15L28 10L24 12Z" fill="#FCD34D"/>
+      </svg>
+    `
+  };
+  
+  return avatares[avatarId] || avatares['default'];
+}
+
+// ============================================
+// HU-29: PERSONALIZACIÓN VISUAL
+// ============================================
+function cargarPersonalizacion() {
+  const container = document.getElementById('personalizacion-container');
+  if (!container) return;
+
+  if (container.innerHTML !== '') return;
+
+  container.innerHTML = `
+    <div style="text-align: center; padding: 3rem;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-3 text-muted">Cargando personalización...</p>
+    </div>
+  `;
+
+  setTimeout(() => {
+    renderizarPersonalizacion();
+  }, 500);
+}
+
+function renderizarPersonalizacion() {
+  const container = document.getElementById('personalizacion-container');
+  if (!container) return;
+
+  container.innerHTML = `
+    <style>
+      .avatar-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+        margin: 2rem 0;
+      }
+      
+      .avatar-item {
+        padding: 1.5rem 1rem;
+        background: white;
+        border: 3px solid #e2e8f0;
+        border-radius: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+      }
+      
+      .avatar-item:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      }
+      
+      .avatar-item.selected {
+        border-color: var(--primary);
+        background: linear-gradient(135deg, rgba(13, 110, 253, 0.1) 0%, rgba(13, 110, 253, 0.2) 100%);
+      }
+      
+      .avatar-svg-container {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 0.5rem;
+      }
+      
+      .avatar-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #64748b;
+      }
+      
+      .tema-grid {
+        display: grid;
+        gap: 1rem;
+        margin: 2rem 0;
+      }
+      
+      .tema-item {
+        padding: 1.5rem;
+        background: white;
+        border: 3px solid #e2e8f0;
+        border-radius: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      
+      .tema-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+      
+      .tema-item.selected {
+        border-color: var(--primary);
+        background: linear-gradient(135deg, rgba(13, 110, 253, 0.1) 0%, rgba(13, 110, 253, 0.2) 100%);
+      }
+      
+      .tema-colors {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        height: 40px;
+      }
+      
+      .tema-color {
+        flex: 1;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      
+      .preview-section {
+        padding: 2rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border-radius: 1rem;
+        margin: 2rem 0;
+        text-align: center;
+      }
+      
+      .preview-avatar {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    </style>
+
+    <div class="row">
+      <div class="col-md-6">
+        <h4 class="mb-4"><i class="bi bi-person-circle"></i> Seleccionar Avatar</h4>
+        
+        <div class="preview-section">
+          <div class="preview-avatar" id="preview-avatar">${obtenerAvatarSVG('default')}</div>
+          <h5 id="preview-avatar-name">Predeterminado</h5>
+          <span class="badge bg-primary">Avatar Actual</span>
+        </div>
+        
+        <div class="avatar-grid" id="avatar-grid">
+          ${generarAvatares()}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <h4 class="mb-4"><i class="bi bi-palette-fill"></i> Seleccionar Tema</h4>
+        
+        <div class="tema-grid" id="tema-grid">
+          ${generarTemas()}
+        </div>
+        
+        <div class="mt-4">
+          <label class="form-check">
+            <input type="checkbox" class="form-check-input" id="vista-previa">
+            <span class="form-check-label">👁️ Activar vista previa automática</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-3 mt-4">
+      <button class="btn btn-success flex-fill" onclick="guardarPersonalizacion()">
+        <i class="bi bi-save"></i> Guardar Preferencias
+      </button>
+      <button class="btn btn-outline-secondary flex-fill" onclick="reiniciarPersonalizacion()">
+        <i class="bi bi-arrow-clockwise"></i> Reiniciar
+      </button>
+    </div>
+
+    <div class="alert alert-info mt-4">
+      <i class="bi bi-info-circle"></i> <strong>Información:</strong>
+      Tus preferencias se guardarán automáticamente y se mantendrán entre sesiones.
+    </div>
+  `;
+
+  inicializarEventosPersonalizacion();
+  cargarPreferenciasGuardadas();
+}
+
+function generarAvatares() {
+  const avatares = [
+    { id: 'default', nombre: 'Predeterminado' },
+    { id: 'hombre1', nombre: 'Hombre 1' },
+    { id: 'hombre2', nombre: 'Hombre Mayor' },
+    { id: 'mujer1', nombre: 'Mujer 1' },
+    { id: 'mujer2', nombre: 'Mujer Mayor' },
+    { id: 'medico', nombre: 'Médico' },
+    { id: 'enfermera', nombre: 'Enfermera' },
+    { id: 'mascota1', nombre: 'Perrito' },
+    { id: 'mascota2', nombre: 'Gatito' }
+  ];
+
+  return avatares.map(avatar => `
+    <div class="avatar-item" data-avatar="${avatar.id}" onclick="seleccionarAvatar('${avatar.id}', '${avatar.nombre}')">
+      <div class="avatar-svg-container">${obtenerAvatarSVG(avatar.id)}</div>
+      <div class="avatar-name">${avatar.nombre}</div>
+    </div>
+  `).join('');
+}
+
+function generarTemas() {
+  const temas = [
+    { id: 'azul', nombre: 'Azul Clásico', colores: ['#0d6efd', '#1e3a8a', '#3b82f6', '#dbeafe'] },
+    { id: 'verde', nombre: 'Verde Salud', colores: ['#10b981', '#065f46', '#34d399', '#d1fae5'] },
+    { id: 'morado', nombre: 'Morado Elegante', colores: ['#8b5cf6', '#5b21b6', '#a78bfa', '#ede9fe'] },
+    { id: 'naranja', nombre: 'Naranja Cálido', colores: ['#f97316', '#c2410c', '#fb923c', '#fed7aa'] },
+    { id: 'rosa', nombre: 'Rosa Suave', colores: ['#ec4899', '#be185d', '#f472b6', '#fce7f3'] },
+    { id: 'oscuro', nombre: 'Modo Oscuro', colores: ['#3b82f6', '#1e293b', '#60a5fa', '#0f172a'] }
+  ];
+
+  return temas.map(tema => `
+    <div class="tema-item" data-tema="${tema.id}" onclick="seleccionarTema('${tema.id}', ${JSON.stringify(tema.colores).replace(/"/g, '&quot;')})">
+      <div class="d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">${tema.nombre}</h6>
+        <span class="badge bg-primary d-none tema-badge-${tema.id}">Seleccionado</span>
+      </div>
+      <div class="tema-colors">
+        ${tema.colores.map(color => `<div class="tema-color" style="background: ${color}"></div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+let avatarActual = 'default';
+let temaActual = 'azul';
+
+function inicializarEventosPersonalizacion() {
+  document.querySelector('[data-avatar="default"]')?.classList.add('selected');
+  document.querySelector('[data-tema="azul"]')?.classList.add('selected');
+  document.querySelector('.tema-badge-azul')?.classList.remove('d-none');
+}
+
+function seleccionarAvatar(id, nombre) {
+  avatarActual = id;
+  
+  document.querySelectorAll('.avatar-item').forEach(item => {
+    item.classList.remove('selected');
+  });
+  document.querySelector(`[data-avatar="${id}"]`)?.classList.add('selected');
+  
+  document.getElementById('preview-avatar').innerHTML = obtenerAvatarSVG(id);
+  document.getElementById('preview-avatar-name').textContent = nombre;
+}
+
+function seleccionarTema(id, colores) {
+  temaActual = id;
+  
+  document.querySelectorAll('.tema-item').forEach(item => {
+    item.classList.remove('selected');
+  });
+  document.querySelectorAll('[class*="tema-badge-"]').forEach(badge => {
+    badge.classList.add('d-none');
+  });
+  
+  document.querySelector(`[data-tema="${id}"]`)?.classList.add('selected');
+  document.querySelector(`.tema-badge-${id}`)?.classList.remove('d-none');
+  
+  if (document.getElementById('vista-previa')?.checked) {
+    aplicarTema(colores);
+  }
+}
+
+function aplicarTema(colores) {
+  const root = document.documentElement;
+  root.style.setProperty('--primary', colores[0]);
+  root.style.setProperty('--accent', colores[2]);
+  
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) {
+    sidebar.style.background = `linear-gradient(180deg, ${colores[1]} 0%, ${colores[0]} 100%)`;
+  }
+}
+
+async function guardarPersonalizacion() {
+  try {
+    await window.storage?.set('avatar_usuario', avatarActual);
+    await window.storage?.set('tema_usuario', temaActual);
+    
+    const temaData = document.querySelector(`[data-tema="${temaActual}"]`);
+    if (temaData) {
+      const coloresStr = temaData.getAttribute('onclick').match(/\[(.*?)\]/)[1];
+      const colores = coloresStr.split(',').map(c => c.trim().replace(/['"]/g, ''));
+      aplicarTema(colores);
+    }
+    
+    mostrarNotificacion('Preferencias guardadas correctamente', 'success');
+    
+    // Esperar un poco y luego actualizar
+    setTimeout(() => {
+      actualizarAvatarEnSistema();
+      console.log('Avatar actualizado después de guardar');
+    }, 500);
+    
+  } catch (error) {
+    console.error('Error al guardar:', error);
+    mostrarNotificacion('Error al guardar preferencias', 'error');
+  }
+}
+async function cargarPreferenciasGuardadas() {
+  try {
+    const avatarGuardado = await window.storage?.get('avatar_usuario');
+    const temaGuardado = await window.storage?.get('tema_usuario');
+    
+    if (avatarGuardado?.value) {
+      const avatarElement = document.querySelector(`[data-avatar="${avatarGuardado.value}"]`);
+      if (avatarElement) {
+        avatarElement.click();
+      }
+    }
+    
+    if (temaGuardado?.value) {
+      const temaElement = document.querySelector(`[data-tema="${temaGuardado.value}"]`);
+      if (temaElement) {
+        temaElement.click();
+      }
+    }
+  } catch (error) {
+    console.log('No hay preferencias guardadas');
+  }
+}
+
+function reiniciarPersonalizacion() {
+  avatarActual = 'default';
+  temaActual = 'azul';
+  
+  document.querySelector('[data-avatar="default"]')?.click();
+  document.querySelector('[data-tema="azul"]')?.click();
+  
+  mostrarNotificacion('Configuración reiniciada', 'success');
+}
+
+// ============================================
+// MOSTRAR AVATAR EN TODO EL SISTEMA
+// ============================================
+function actualizarAvatarEnSistema() {
+  cargarAvatarYNombre();
+}
+
+async function cargarAvatarYNombre() {
+  try {
+    const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const nombreUsuario = usuario.nombres || 'Usuario';
+    
+    const avatarGuardado = await window.storage?.get('avatar_usuario');
+    const temaGuardado = await window.storage?.get('tema_usuario');
+    
+    const avatarId = avatarGuardado?.value || 'default';
+    const avatarHTML = obtenerAvatarSVG(avatarId, '100%');
+    const temaNombre = obtenerNombreTema(temaGuardado?.value || 'azul');
+    
+    console.log('Cargando avatar:', avatarId); // Debug
+    
+    // Actualizar sidebar
+    const sidebarAvatar = document.getElementById('sidebar-avatar');
+    const sidebarUsername = document.getElementById('sidebar-username');
+    const themeName = document.getElementById('theme-name');
+    const themeIndicator = document.getElementById('theme-indicator');
+    
+    if (sidebarAvatar) {
+      sidebarAvatar.innerHTML = avatarHTML;
+      console.log('Avatar sidebar actualizado'); // Debug
+    }
+    if (sidebarUsername) sidebarUsername.textContent = nombreUsuario;
+    if (themeName) themeName.textContent = temaNombre;
+    if (themeIndicator) {
+      const colorTema = obtenerColorTema(temaGuardado?.value || 'azul');
+      const icono = themeIndicator.querySelector('i');
+      if (icono) icono.style.color = colorTema;
+    }
+    
+    // Actualizar bienvenida
+    const welcomeAvatar = document.getElementById('welcome-avatar');
+    const welcomeUsername = document.getElementById('welcome-username');
+    
+    if (welcomeAvatar) {
+      welcomeAvatar.innerHTML = avatarHTML;
+      console.log('Avatar bienvenida actualizado'); // Debug
+    }
+    if (welcomeUsername) welcomeUsername.textContent = nombreUsuario;
+    
+  } catch (error) {
+    console.log('Error al cargar avatar:', error);
+  }
+}
+
+function obtenerNombreTema(temaId) {
+  const temas = {
+    'azul': 'Azul Clásico',
+    'verde': 'Verde Salud',
+    'morado': 'Morado Elegante',
+    'naranja': 'Naranja Cálido',
+    'rosa': 'Rosa Suave',
+    'oscuro': 'Modo Oscuro'
+  };
+  return temas[temaId] || 'Azul Clásico';
+}
+
+function obtenerColorTema(temaId) {
+  const colores = {
+    'azul': '#0d6efd',
+    'verde': '#10b981',
+    'morado': '#8b5cf6',
+    'naranja': '#f97316',
+    'rosa': '#ec4899',
+    'oscuro': '#3b82f6'
+  };
+  return colores[temaId] || '#0d6efd';
+}
+
+function irAPersonalizacion() {
+  const btnPersonalizacion = document.querySelector('.nav-btn[data-section="personalizacion"]');
+  if (btnPersonalizacion) {
+    btnPersonalizacion.click();
+  }
+}
+// Cargar avatar al iniciar - VERSIÓN MEJORADA
+document.addEventListener("DOMContentLoaded", () => {
+  // Esperar a que todo el DOM esté listo
+  setTimeout(() => {
+    actualizarAvatarEnSistema();
+  }, 1000); // Aumentado a 1 segundo
+  
+  // También actualizar cuando se cambia de sección
+  const navBtns = document.querySelectorAll('.nav-btn[data-section]');
+  navBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.section === 'inicio') {
+        setTimeout(() => {
+          actualizarAvatarEnSistema();
+        }, 300);
+      }
+    });
   });
 });
