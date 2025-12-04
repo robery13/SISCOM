@@ -9,7 +9,7 @@ function getUsuarioId() {
 }
 
 // ============================================
-// SISTEMA DE MODALES Y NOTIFICACIONES
+// SISTEMA DE MODALES  NOTIFICACIONES
 // ============================================
 
 const styleSheet = document.createElement('style');
@@ -277,6 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
   cargarEstadisticasInicio();
   iniciarVerificacionCitas();
   limpiarNotificacionesAntiguas();
+  iniciarSistemaNotificacionesMedicamentos();
 });
 
 // ===============================
@@ -659,10 +660,30 @@ function mostrarModalReceta() {
         <input type="text" id="modalDosis" class="form-control" placeholder="Ej: 400mg">
       </div>
       
-      <div style="margin-bottom:1.5rem">
-        <label style="display:block;margin-bottom:0.5rem;font-weight:500">Frecuencia:</label>
-        <input type="text" id="modalFrecuencia" class="form-control" placeholder="Ej: cada 8 horas">
-      </div>
+     <div style="margin-bottom:1.5rem">
+  <label style="display:block;margin-bottom:0.5rem;font-weight:500">Frecuencia:</label>
+  <select id="modalFrecuencia" class="form-select">
+    <option value="">Selecciona frecuencia</option>
+    <optgroup label="Pruebas (Minutos)">
+      <option value="cada 1 minuto">Cada 1 minuto</option>
+      <option value="cada 2 minutos">Cada 2 minutos</option>
+      <option value="cada 3 minutos">Cada 3 minutos</option>
+      <option value="cada 5 minutos">Cada 5 minutos</option>
+      <option value="cada 10 minutos">Cada 10 minutos</option>
+      <option value="cada 15 minutos">Cada 15 minutos</option>
+      <option value="cada 30 minutos">Cada 30 minutos</option>
+    </optgroup>
+    <optgroup label="Frecuencias Comunes (Horas)">
+      <option value="cada 1 hora">Cada 1 hora</option>
+      <option value="cada 2 horas">Cada 2 horas</option>
+      <option value="cada 4 horas">Cada 4 horas</option>
+      <option value="cada 6 horas">Cada 6 horas</option>
+      <option value="cada 8 horas">Cada 8 horas</option>
+      <option value="cada 12 horas">Cada 12 horas</option>
+      <option value="cada 24 horas">Cada 24 horas (1 vez al día)</option>
+    </optgroup>
+  </select>
+</div>
       
       <div style="display:flex;gap:1rem;justify-content:flex-end">
         <button class="btn btn-secondary" id="btnCancelarReceta">Cancelar</button>
@@ -889,22 +910,32 @@ async function cargarCitas() {
   }
 }
 
+// ====================================================================
+// ====================================================================
+
 document.addEventListener('DOMContentLoaded', () => {
   const citaForm = document.getElementById('citaForm');
   if (citaForm) {
     citaForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       
+      //  CORRECCIÓN: Obtener valores correctamente
       const fecha = citaForm.querySelector('input[type="date"]').value;
       const hora = citaForm.querySelector('input[type="time"]').value;
-      const motivo = citaForm.querySelector('input[placeholder*="Consulta"]').value.trim();
+      const especialidad = document.getElementById('selectEspecialidad').value.trim(); // ✅ Especialidad del select
+      const doctor = document.getElementById('selectDoctor').value.trim(); // ✅ Doctor del select
       
-      if (!fecha || !hora || !motivo) {
+      // Validar que todos los campos estén completos
+      if (!fecha || !hora || !especialidad || !doctor) {
         await mostrarAlerta('Campos incompletos', 'Por favor completa todos los campos');
         return;
       }
       
+      // Combinar fecha y hora en formato MySQL
       const fechaHora = `${fecha} ${hora}:00`;
+      
+      // Crear el motivo combinando especialidad y doctor
+      const motivo = `${especialidad} - ${doctor}`;
       
       try {
         const response = await fetch(`${API_URL}/guardarCita`, {
@@ -920,9 +951,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const data = await response.json();
         mostrarNotificacion(data.mensaje, 'success');
-        citaForm.reset();
-        cargarCitas();
-        cargarEstadisticasInicio();
+        citaForm.reset(); // Limpiar formulario
+        cargarCitas(); // Recargar lista de citas
+        cargarEstadisticasInicio(); // Actualizar estadísticas
       } catch (error) {
         console.error('Error:', error);
         mostrarNotificacion('Error al guardar la cita', 'error');
@@ -1516,3 +1547,795 @@ function limpiarNotificacionesAntiguas() {
     }
   });
 }
+
+// ============================================
+// SISTEMA DE NOTIFICACIONES DE MEDICAMENTOS
+// ============================================
+
+let intervalosNotificaciones = [];
+
+function iniciarSistemaNotificacionesMedicamentos() {
+  console.log('Sistema de notificaciones de medicamentos iniciado');
+  
+  // Limpiar intervalos previos
+  intervalosNotificaciones.forEach(intervalo => clearInterval(intervalo));
+  intervalosNotificaciones = [];
+  
+  // Cargar medicamentos y configurar notificaciones
+  cargarYConfigurarNotificaciones();
+  
+  // Recargar cada hora por si hay cambios
+  setInterval(() => {
+    cargarYConfigurarNotificaciones();
+  }, 3600000); // Cada hora
+}
+
+async function cargarYConfigurarNotificaciones() {
+  const idUsuario = getUsuarioId();
+  
+  try {
+    const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
+    
+    if (!response.ok) {
+      throw new Error('Error al cargar medicamentos');
+    }
+    
+    const recetas = await response.json();
+    
+    console.log('Recetas cargadas para notificaciones:', recetas);
+    
+    recetas.forEach(receta => {
+      configurarNotificacionMedicamento(receta);
+    });
+    
+  } catch (error) {
+    console.error('Error al cargar medicamentos para notificaciones:', error);
+  }
+}
+
+function configurarNotificacionMedicamento(receta) {
+  // Extraer frecuencia en minutos
+  const frecuenciaMinutos = extraerFrecuenciaMinutos(receta.frecuencia);
+  
+  if (!frecuenciaMinutos || frecuenciaMinutos <= 0) {
+    console.log(`No se pudo determinar frecuencia para ${receta.nombre_medicamento}`);
+    return;
+  }
+  
+  console.log(`Configurando notificación para ${receta.nombre_medicamento} cada ${frecuenciaMinutos} minutos`);
+  
+  // Crear intervalo para este medicamento
+  const intervalo = setInterval(() => {
+    mostrarNotificacionMedicamento(receta);
+  }, frecuenciaMinutos * 60 * 1000);
+  
+  intervalosNotificaciones.push(intervalo);
+  
+  // Mostrar primera notificación inmediatamente (opcional)
+  // setTimeout(() => mostrarNotificacionMedicamento(receta), 5000);
+}
+
+function extraerFrecuenciaMinutos(frecuenciaTexto) {
+  if (!frecuenciaTexto) return null;
+  
+  const texto = frecuenciaTexto.toLowerCase();
+  
+  // Patrones: "cada 2 horas", "cada 30 minutos", "2 minutos", "8 horas"
+  
+  // Buscar minutos
+  const matchMinutos = texto.match(/(\d+)\s*min/i);
+  if (matchMinutos) {
+    return parseInt(matchMinutos[1]);
+  }
+  
+  // Buscar horas
+  const matchHoras = texto.match(/(\d+)\s*h/i);
+  if (matchHoras) {
+    return parseInt(matchHoras[1]) * 60;
+  }
+  
+  // Si dice "cada X" extraer el número
+  const matchCada = texto.match(/cada\s*(\d+)/i);
+  if (matchCada) {
+    const numero = parseInt(matchCada[1]);
+    // Asumir horas si el número es pequeño (< 24)
+    if (numero < 24) {
+      return numero * 60;
+    }
+    return numero; // Asumir minutos
+  }
+  
+  return null;
+}
+
+function mostrarNotificacionMedicamento(receta) {
+  // Verificar si ya se tomó hoy
+  verificarSiYaSeTomoHoy(receta.id).then(yaTomado => {
+    if (yaTomado) {
+      console.log(`Ya se tomó ${receta.nombre_medicamento} hoy`);
+      return;
+    }
+    
+    // Crear modal de notificación
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      animation: fadeIn 0.3s ease-out;
+    `;
+    
+    // Reproducir sonido de notificación (opcional)
+    reproducirSonidoNotificacion();
+    
+    const horaActual = new Date().toLocaleTimeString('es', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    modal.innerHTML = `
+      <div style="background: white; padding: 2.5rem; border-radius: 1.5rem; max-width: 550px; width: 90%; box-shadow: 0 25px 80px rgba(0,0,0,0.4); animation: scaleIn 0.4s ease-out;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 1.5rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4); animation: pulse 2s infinite;">
+            <i class="bi bi-alarm-fill" style="font-size: 3.5rem; color: white;"></i>
+          </div>
+          <h3 style="color: #dc2626; margin: 0 0 0.5rem 0; font-size: 1.75rem; font-weight: 700;">
+            Es hora de tu medicamento
+          </h3>
+          <p style="color: #64748b; margin: 0; font-size: 1.1rem;">
+            ${horaActual}
+          </p>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); padding: 1.5rem; border-radius: 1rem; margin-bottom: 2rem; border-left: 5px solid #dc2626;">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+            <i class="bi bi-capsule-pill" style="font-size: 2.5rem; color: #dc2626;"></i>
+            <div style="flex: 1;">
+              <h4 style="margin: 0 0 0.5rem 0; color: #1e3a8a; font-size: 1.4rem; font-weight: 600;">
+                ${receta.nombre_medicamento}
+              </h4>
+              <p style="margin: 0; color: #64748b; font-size: 1rem;">
+                <strong>Dosis:</strong> ${receta.dosis}
+              </p>
+              <p style="margin: 0.25rem 0 0 0; color: #64748b; font-size: 0.95rem;">
+                <strong>Frecuencia:</strong> ${receta.frecuencia}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+          <button class="btn btn-outline-secondary" id="btnPosponer" style="min-width: 150px; padding: 0.75rem 1.5rem; font-size: 1rem;">
+            <i class="bi bi-clock-history"></i> Posponer 10 min
+          </button>
+          <button class="btn btn-success" id="btnYaTome" style="min-width: 150px; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 600;">
+            <i class="bi bi-check-circle-fill"></i> Ya tomé
+          </button>
+        </div>
+        
+        <p style="text-align: center; margin: 1.5rem 0 0 0; color: #94a3b8; font-size: 0.875rem;">
+          <i class="bi bi-info-circle"></i> Es importante tomar tus medicamentos a tiempo
+        </p>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Botón "Ya tomé"
+    document.getElementById('btnYaTome').addEventListener('click', async () => {
+      modal.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => modal.remove(), 300);
+      
+      // Registrar que tomó el medicamento
+      await confirmarTomaMedicamento(receta.id, receta.nombre_medicamento);
+      
+      mostrarNotificacion(`¡Excelente! Registramos tu toma de ${receta.nombre_medicamento}`, 'success');
+    });
+    
+    // Botón "Posponer"
+    document.getElementById('btnPosponer').addEventListener('click', () => {
+      modal.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => modal.remove(), 300);
+      
+      // Posponer 10 minutos
+      setTimeout(() => {
+        mostrarNotificacionMedicamento(receta);
+      }, 10 * 60 * 1000);
+      
+      mostrarNotificacion('Notificación pospuesta 10 minutos', 'info');
+    });
+  });
+}
+
+async function verificarSiYaSeTomoHoy(id_receta) {
+  const idUsuario = getUsuarioId();
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+  
+  try {
+    const response = await fetch(`${API_URL}/tomasHoy/${idUsuario}`);
+    const tomas = await response.json();
+    
+    // Verificar si ya se tomó este medicamento hoy
+    const yaTomado = tomas.some(toma => {
+      return toma.fecha_toma === fechaHoy;
+    });
+    
+    return yaTomado;
+  } catch (error) {
+    console.error('Error al verificar tomas:', error);
+    return false;
+  }
+}
+
+function reproducirSonidoNotificacion() {
+  // Crear un beep simple usando Web Audio API
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.5);
+  } catch (error) {
+    console.log('No se pudo reproducir sonido:', error);
+  }
+}
+// ========================================
+// MENÚ RESPONSIVE PARA MÓVILES
+// ========================================
+const menuToggle = document.getElementById('menuToggle');
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('overlay');
+
+// Abrir/cerrar menú
+if (menuToggle) {
+  menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+  });
+}
+
+// Cerrar menú al hacer clic en el overlay
+if (overlay) {
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+  });
+}
+
+// Cerrar menú en móvil después de seleccionar una opción
+document.querySelectorAll('.nav-btn[data-section]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    // Cerrar menú en móvil después de seleccionar
+    if (window.innerWidth <= 768) {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
+    }
+  });
+});
+// ============================================
+// FUNCIÓN GLOBAL PARA OBTENER AVATARES SVG
+// ============================================
+function obtenerAvatarSVG(avatarId, size = '100%') {
+  const avatares = {
+    'default': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#5B4D8D"/>
+        <circle cx="20" cy="15" r="6" fill="white"/>
+        <path d="M8 35C8 27.268 13.268 21 20 21C26.732 21 32 27.268 32 35" fill="white"/>
+      </svg>
+    `,
+    'hombre1': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#FDB44B"/>
+        <circle cx="20" cy="14" r="7" fill="#FFDA6A"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#FFDA6A"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'hombre2': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#A0AEC0"/>
+        <circle cx="20" cy="14" r="7" fill="#E2E8F0"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#E2E8F0"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'mujer1': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#FDB44B"/>
+        <circle cx="20" cy="14" r="7" fill="#FFDA6A"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#FFDA6A"/>
+        <path d="M14 12C14 10 16 8 20 8C24 8 26 10 26 12C26 13 25 14 24 14H16C15 14 14 13 14 12Z" fill="#8B5A3C"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'mujer2': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#A0AEC0"/>
+        <circle cx="20" cy="14" r="7" fill="#E2E8F0"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#E2E8F0"/>
+        <path d="M14 12C14 10 16 8 20 8C24 8 26 10 26 12C26 13 25 14 24 14H16C15 14 14 13 14 12Z" fill="#CBD5E0"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'medico': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#3B82F6"/>
+        <circle cx="20" cy="14" r="6" fill="#FFDA6A"/>
+        <path d="M8 35C8 27 13 21 20 21C27 21 32 27 32 35" fill="white"/>
+        <circle cx="20" cy="12" r="2" fill="white" opacity="0.9"/>
+        <rect x="19" y="13" width="2" height="6" fill="white"/>
+        <rect x="16" y="15" width="8" height="2" fill="white"/>
+      </svg>
+    `,
+    'enfermera': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#3B82F6"/>
+        <circle cx="20" cy="14" r="6" fill="#FFDA6A"/>
+        <path d="M8 35C8 27 13 21 20 21C27 21 32 27 32 35" fill="white"/>
+        <path d="M14 10C14 8 16 7 20 7C24 7 26 8 26 10C26 11 25 12 24 12H16C15 12 14 11 14 10Z" fill="#8B5A3C"/>
+        <rect x="19" y="9" width="2" height="4" fill="#EF4444"/>
+        <rect x="17" y="11" width="6" height="2" fill="#EF4444"/>
+      </svg>
+    `,
+    'mascota1': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#D97706"/>
+        <circle cx="20" cy="20" r="12" fill="#F59E0B"/>
+        <ellipse cx="16" cy="18" rx="2" ry="3" fill="#92400E"/>
+        <ellipse cx="24" cy="18" rx="2" ry="3" fill="#92400E"/>
+        <circle cx="16" cy="18" r="1" fill="white"/>
+        <circle cx="24" cy="18" r="1" fill="white"/>
+        <circle cx="20" cy="22" r="1.5" fill="#92400E"/>
+        <path d="M20 22C20 24 18 25 18 25C18 25 20 24 20 22Z" fill="#92400E"/>
+        <path d="M20 22C20 24 22 25 22 25C22 25 20 24 20 22Z" fill="#92400E"/>
+        <ellipse cx="13" cy="12" rx="3" ry="5" fill="#F59E0B"/>
+        <ellipse cx="27" cy="12" rx="3" ry="5" fill="#F59E0B"/>
+      </svg>
+    `,
+    'mascota2': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#F59E0B"/>
+        <circle cx="20" cy="20" r="12" fill="#FCD34D"/>
+        <circle cx="16" cy="18" r="1.5" fill="#92400E"/>
+        <circle cx="24" cy="18" r="1.5" fill="#92400E"/>
+        <circle cx="16" cy="18" r="0.5" fill="white"/>
+        <circle cx="24" cy="18" r="0.5" fill="white"/>
+        <path d="M18 23C18 23 19 24 20 24C21 24 22 23 22 23" stroke="#92400E" stroke-width="1" stroke-linecap="round"/>
+        <path d="M14 15L12 10L16 12Z" fill="#FCD34D"/>
+        <path d="M26 15L28 10L24 12Z" fill="#FCD34D"/>
+      </svg>
+    `
+  };
+  
+  return avatares[avatarId] || avatares['default'];
+}
+
+// ============================================
+// HU-29: PERSONALIZACIÓN VISUAL
+// ============================================
+function cargarPersonalizacion() {
+  const container = document.getElementById('personalizacion-container');
+  if (!container) return;
+
+  if (container.innerHTML !== '') return;
+
+  container.innerHTML = `
+    <div style="text-align: center; padding: 3rem;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-3 text-muted">Cargando personalización...</p>
+    </div>
+  `;
+
+  setTimeout(() => {
+    renderizarPersonalizacion();
+  }, 500);
+}
+
+function renderizarPersonalizacion() {
+  const container = document.getElementById('personalizacion-container');
+  if (!container) return;
+
+  container.innerHTML = `
+    <style>
+      .avatar-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+        margin: 2rem 0;
+      }
+      
+      .avatar-item {
+        padding: 1.5rem 1rem;
+        background: white;
+        border: 3px solid #e2e8f0;
+        border-radius: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+      }
+      
+      .avatar-item:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      }
+      
+      .avatar-item.selected {
+        border-color: var(--primary);
+        background: linear-gradient(135deg, rgba(13, 110, 253, 0.1) 0%, rgba(13, 110, 253, 0.2) 100%);
+      }
+      
+      .avatar-svg-container {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 0.5rem;
+      }
+      
+      .avatar-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #64748b;
+      }
+      
+      .tema-grid {
+        display: grid;
+        gap: 1rem;
+        margin: 2rem 0;
+      }
+      
+      .tema-item {
+        padding: 1.5rem;
+        background: white;
+        border: 3px solid #e2e8f0;
+        border-radius: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      
+      .tema-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+      
+      .tema-item.selected {
+        border-color: var(--primary);
+        background: linear-gradient(135deg, rgba(13, 110, 253, 0.1) 0%, rgba(13, 110, 253, 0.2) 100%);
+      }
+      
+      .tema-colors {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        height: 40px;
+      }
+      
+      .tema-color {
+        flex: 1;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      
+      .preview-section {
+        padding: 2rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border-radius: 1rem;
+        margin: 2rem 0;
+        text-align: center;
+      }
+      
+      .preview-avatar {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    </style>
+
+    <div class="row">
+      <div class="col-md-6">
+        <h4 class="mb-4"><i class="bi bi-person-circle"></i> Seleccionar Avatar</h4>
+        
+        <div class="preview-section">
+          <div class="preview-avatar" id="preview-avatar">${obtenerAvatarSVG('default')}</div>
+          <h5 id="preview-avatar-name">Predeterminado</h5>
+          <span class="badge bg-primary">Avatar Actual</span>
+        </div>
+        
+        <div class="avatar-grid" id="avatar-grid">
+          ${generarAvatares()}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <h4 class="mb-4"><i class="bi bi-palette-fill"></i> Seleccionar Tema</h4>
+        
+        <div class="tema-grid" id="tema-grid">
+          ${generarTemas()}
+        </div>
+        
+        <div class="mt-4">
+          <label class="form-check">
+            <input type="checkbox" class="form-check-input" id="vista-previa">
+            <span class="form-check-label">👁️ Activar vista previa automática</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-3 mt-4">
+      <button class="btn btn-success flex-fill" onclick="guardarPersonalizacion()">
+        <i class="bi bi-save"></i> Guardar Preferencias
+      </button>
+      <button class="btn btn-outline-secondary flex-fill" onclick="reiniciarPersonalizacion()">
+        <i class="bi bi-arrow-clockwise"></i> Reiniciar
+      </button>
+    </div>
+
+    <div class="alert alert-info mt-4">
+      <i class="bi bi-info-circle"></i> <strong>Información:</strong>
+      Tus preferencias se guardarán automáticamente y se mantendrán entre sesiones.
+    </div>
+  `;
+
+  inicializarEventosPersonalizacion();
+  cargarPreferenciasGuardadas();
+}
+
+function generarAvatares() {
+  const avatares = [
+    { id: 'default', nombre: 'Predeterminado' },
+    { id: 'hombre1', nombre: 'Hombre 1' },
+    { id: 'hombre2', nombre: 'Hombre Mayor' },
+    { id: 'mujer1', nombre: 'Mujer 1' },
+    { id: 'mujer2', nombre: 'Mujer Mayor' },
+    { id: 'medico', nombre: 'Médico' },
+    { id: 'enfermera', nombre: 'Enfermera' },
+    { id: 'mascota1', nombre: 'Perrito' },
+    { id: 'mascota2', nombre: 'Gatito' }
+  ];
+
+  return avatares.map(avatar => `
+    <div class="avatar-item" data-avatar="${avatar.id}" onclick="seleccionarAvatar('${avatar.id}', '${avatar.nombre}')">
+      <div class="avatar-svg-container">${obtenerAvatarSVG(avatar.id)}</div>
+      <div class="avatar-name">${avatar.nombre}</div>
+    </div>
+  `).join('');
+}
+
+function generarTemas() {
+  const temas = [
+    { id: 'azul', nombre: 'Azul Clásico', colores: ['#0d6efd', '#1e3a8a', '#3b82f6', '#dbeafe'] },
+    { id: 'verde', nombre: 'Verde Salud', colores: ['#10b981', '#065f46', '#34d399', '#d1fae5'] },
+    { id: 'morado', nombre: 'Morado Elegante', colores: ['#8b5cf6', '#5b21b6', '#a78bfa', '#ede9fe'] },
+    { id: 'naranja', nombre: 'Naranja Cálido', colores: ['#f97316', '#c2410c', '#fb923c', '#fed7aa'] },
+    { id: 'rosa', nombre: 'Rosa Suave', colores: ['#ec4899', '#be185d', '#f472b6', '#fce7f3'] },
+    { id: 'oscuro', nombre: 'Modo Oscuro', colores: ['#3b82f6', '#1e293b', '#60a5fa', '#0f172a'] }
+  ];
+
+  return temas.map(tema => `
+    <div class="tema-item" data-tema="${tema.id}" onclick="seleccionarTema('${tema.id}', ${JSON.stringify(tema.colores).replace(/"/g, '&quot;')})">
+      <div class="d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">${tema.nombre}</h6>
+        <span class="badge bg-primary d-none tema-badge-${tema.id}">Seleccionado</span>
+      </div>
+      <div class="tema-colors">
+        ${tema.colores.map(color => `<div class="tema-color" style="background: ${color}"></div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+let avatarActual = 'default';
+let temaActual = 'azul';
+
+function inicializarEventosPersonalizacion() {
+  document.querySelector('[data-avatar="default"]')?.classList.add('selected');
+  document.querySelector('[data-tema="azul"]')?.classList.add('selected');
+  document.querySelector('.tema-badge-azul')?.classList.remove('d-none');
+}
+
+function seleccionarAvatar(id, nombre) {
+  avatarActual = id;
+  
+  document.querySelectorAll('.avatar-item').forEach(item => {
+    item.classList.remove('selected');
+  });
+  document.querySelector(`[data-avatar="${id}"]`)?.classList.add('selected');
+  
+  document.getElementById('preview-avatar').innerHTML = obtenerAvatarSVG(id);
+  document.getElementById('preview-avatar-name').textContent = nombre;
+}
+
+function seleccionarTema(id, colores) {
+  temaActual = id;
+  
+  document.querySelectorAll('.tema-item').forEach(item => {
+    item.classList.remove('selected');
+  });
+  document.querySelectorAll('[class*="tema-badge-"]').forEach(badge => {
+    badge.classList.add('d-none');
+  });
+  
+  document.querySelector(`[data-tema="${id}"]`)?.classList.add('selected');
+  document.querySelector(`.tema-badge-${id}`)?.classList.remove('d-none');
+  
+  if (document.getElementById('vista-previa')?.checked) {
+    aplicarTema(colores);
+  }
+}
+
+function aplicarTema(colores) {
+  const root = document.documentElement;
+  root.style.setProperty('--primary', colores[0]);
+  root.style.setProperty('--accent', colores[2]);
+  
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) {
+    sidebar.style.background = `linear-gradient(180deg, ${colores[1]} 0%, ${colores[0]} 100%)`;
+  }
+}
+
+async function guardarPersonalizacion() {
+  try {
+    await window.storage?.set('avatar_usuario', avatarActual);
+    await window.storage?.set('tema_usuario', temaActual);
+    
+    const temaData = document.querySelector(`[data-tema="${temaActual}"]`);
+    if (temaData) {
+      const coloresStr = temaData.getAttribute('onclick').match(/\[(.*?)\]/)[1];
+      const colores = coloresStr.split(',').map(c => c.trim().replace(/['"]/g, ''));
+      aplicarTema(colores);
+    }
+    
+    // IMPORTANTE: Actualizar inmediatamente después de guardar
+    setTimeout(() => {
+      actualizarAvatarEnSistema();
+    }, 100);
+    
+    mostrarNotificacion('Preferencias guardadas correctamente', 'success');
+  } catch (error) {
+    console.error('Error al guardar:', error);
+    mostrarNotificacion('Error al guardar preferencias', 'error');
+  }
+}
+
+async function cargarPreferenciasGuardadas() {
+  try {
+    const avatarGuardado = await window.storage?.get('avatar_usuario');
+    const temaGuardado = await window.storage?.get('tema_usuario');
+    
+    if (avatarGuardado?.value) {
+      const avatarElement = document.querySelector(`[data-avatar="${avatarGuardado.value}"]`);
+      if (avatarElement) {
+        avatarElement.click();
+      }
+    }
+    
+    if (temaGuardado?.value) {
+      const temaElement = document.querySelector(`[data-tema="${temaGuardado.value}"]`);
+      if (temaElement) {
+        temaElement.click();
+      }
+    }
+  } catch (error) {
+    console.log('No hay preferencias guardadas');
+  }
+}
+
+function reiniciarPersonalizacion() {
+  avatarActual = 'default';
+  temaActual = 'azul';
+  
+  document.querySelector('[data-avatar="default"]')?.click();
+  document.querySelector('[data-tema="azul"]')?.click();
+  
+  mostrarNotificacion('Configuración reiniciada', 'success');
+}
+
+// ============================================
+// MOSTRAR AVATAR EN TODO EL SISTEMA
+// ============================================
+function actualizarAvatarEnSistema() {
+  cargarAvatarYNombre();
+}
+
+async function cargarAvatarYNombre() {
+  try {
+    const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const nombreUsuario = usuario.nombres || 'Usuario';
+    
+    const avatarGuardado = await window.storage?.get('avatar_usuario');
+    const temaGuardado = await window.storage?.get('tema_usuario');
+    
+    const avatarHTML = obtenerAvatarSVG(avatarGuardado?.value || 'default', '100%');
+    const temaNombre = obtenerNombreTema(temaGuardado?.value || 'azul');
+    
+    // Actualizar sidebar
+    const sidebarAvatar = document.getElementById('sidebar-avatar');
+    const sidebarUsername = document.getElementById('sidebar-username');
+    const themeName = document.getElementById('theme-name');
+    const themeIndicator = document.getElementById('theme-indicator');
+    
+    if (sidebarAvatar) sidebarAvatar.innerHTML = avatarHTML;
+    if (sidebarUsername) sidebarUsername.textContent = nombreUsuario;
+    if (themeName) themeName.textContent = temaNombre;
+    if (themeIndicator) {
+      const colorTema = obtenerColorTema(temaGuardado?.value || 'azul');
+      const icono = themeIndicator.querySelector('i');
+      if (icono) icono.style.color = colorTema;
+    }
+    
+    // Actualizar bienvenida
+    const welcomeAvatar = document.getElementById('welcome-avatar');
+    const welcomeUsername = document.getElementById('welcome-username');
+    
+    if (welcomeAvatar) welcomeAvatar.innerHTML = avatarHTML;
+    if (welcomeUsername) welcomeUsername.textContent = nombreUsuario;
+    
+  } catch (error) {
+    console.log('Error al cargar avatar:', error);
+  }
+}
+
+function obtenerNombreTema(temaId) {
+  const temas = {
+    'azul': 'Azul Clásico',
+    'verde': 'Verde Salud',
+    'morado': 'Morado Elegante',
+    'naranja': 'Naranja Cálido',
+    'rosa': 'Rosa Suave',
+    'oscuro': 'Modo Oscuro'
+  };
+  return temas[temaId] || 'Azul Clásico';
+}
+
+function obtenerColorTema(temaId) {
+  const colores = {
+    'azul': '#0d6efd',
+    'verde': '#10b981',
+    'morado': '#8b5cf6',
+    'naranja': '#f97316',
+    'rosa': '#ec4899',
+    'oscuro': '#3b82f6'
+  };
+  return colores[temaId] || '#0d6efd';
+}
+
+function irAPersonalizacion() {
+  const btnPersonalizacion = document.querySelector('.nav-btn[data-section="personalizacion"]');
+  if (btnPersonalizacion) {
+    btnPersonalizacion.click();
+  }
+}
+
+// Cargar avatar al iniciar
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    actualizarAvatarEnSistema();
+  }, 500);
+});

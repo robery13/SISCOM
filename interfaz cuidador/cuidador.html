@@ -13,57 +13,89 @@
   <link rel="stylesheet" href="estilospaciente.css" />
 </head>
 <body>
+
+  <!-- Botón para abrir menú en móvil -->
+<button class="menu-toggle" id="menuToggle">
+  <i class="bi bi-list"></i>
+</button>
+
+<!-- Overlay para cerrar menú al hacer clic fuera -->
+<div class="overlay" id="overlay"></div>
+
   <div class="app">
 
-    <!-- BARRA LATERAL -->
-    <aside class="sidebar">
-      <div class="brand">SISCOM</div>
+ <!-- BARRA LATERAL -->
+<aside class="sidebar" id="sidebar">
+  <div class="brand">SISCOM</div>
+  <!--  PERFIL DE USUARIO -->
+  <div class="user-profile">
+    <div class="user-avatar-container">
+      <div class="user-avatar" id="sidebar-avatar"></div>
+      <button class="avatar-edit-btn" onclick="irAPersonalizacion()" title="Editar perfil">
+        <i class="bi bi-pencil-fill"></i>
+      </button>
+    </div>
+    <div class="user-info">
+      <h6 class="user-name" id="sidebar-username">Usuario</h6>
+      <small class="user-role">Paciente</small>
+      <div class="user-theme-indicator" id="theme-indicator">
+        <i class="bi bi-circle-fill"></i> <span id="theme-name">Azul Clásico</span>
+      </div>
+    </div>
+  </div>
 
-      <nav class="nav-menu">
-        <button class="nav-btn active" data-section="inicio"><i class="bi bi-house-door"></i> <span>Inicio</span></button>
-        <button class="nav-btn" data-section="recetas"><i class="bi bi-prescription2"></i> <span>Recetas Médicas</span></button>
-        <button class="nav-btn" data-section="agenda"><i class="bi bi-calendar-check"></i> <span>Agenda Médica</span></button>
-        <button class="nav-btn" data-section="recompensas"><i class="bi bi-trophy"></i> <span>Recompensas</span></button>
-        <button class="nav-btn" data-section="emergencia"><i class="bi bi-mic-fill"></i> <span>Emergencia</span></button>
-        <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
-      </nav>
-    </aside>
-
+  <nav class="nav-menu">
+    <button class="nav-btn active" data-section="inicio"><i class="bi bi-house-door"></i> <span>Inicio</span></button>
+    <button class="nav-btn" data-section="recetas"><i class="bi bi-prescription2"></i> <span>Recetas Médicas</span></button>
+    <button class="nav-btn" data-section="agenda"><i class="bi bi-calendar-check"></i> <span>Agenda Médica</span></button>
+    <button class="nav-btn" data-section="recompensas"><i class="bi bi-trophy"></i> <span>Recompensas</span></button>
+    <button class="nav-btn" data-section="emergencia"><i class="bi bi-mic-fill"></i> <span>Emergencia</span></button>
+    <button class="nav-btn" data-section="personalizacion"><i class="bi bi-palette-fill"></i> <span>Personalización</span></button>
+    <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
+  </nav>
+</aside>
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main">
 
    <!-- SECCIÓN INICIO -->
 <section id="inicio" class="section">
-  <div class="section-header">
-    <h2>Inicio</h2>
-    <p class="muted">Bienvenido a tu panel de control</p>
+  <!--  ENCABEZADO MEJORADO CON AVATAR -->
+  <div class="welcome-header">
+    <div class="welcome-avatar-large" id="welcome-avatar"></div>
+    <div class="welcome-text">
+      <h1 class="welcome-title">¡Hola, <span id="welcome-username">Usuario</span>!</h1>
+      <p class="welcome-subtitle">Bienvenido a tu panel de control</p>
+      <button class="btn btn-sm btn-outline-primary" onclick="irAPersonalizacion()">
+        <i class="bi bi-palette"></i> Personalizar mi perfil
+      </button>
+    </div>
   </div>
 
   <div class="card">
     <h5 class="card-title">Panel de Control</h5>
     <div class="row">
-      <div class="col-md-3 mb-3">
+      <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-primary text-white rounded text-center">
           <i class="bi bi-prescription2" style="font-size: 2.5rem;"></i>
           <h3 class="mt-2" id="stat-recetas">0</h3>
           <p class="mb-0">Recetas Activas</p>
         </div>
       </div>
-      <div class="col-md-3 mb-3">
+      <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-success text-white rounded text-center">
           <i class="bi bi-calendar-check" style="font-size: 2.5rem;"></i>
           <h3 class="mt-2" id="stat-citas">0</h3>
           <p class="mb-0">Citas Próximas</p>
         </div>
       </div>
-      <div class="col-md-3 mb-3">
+      <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-warning text-white rounded text-center">
           <i class="bi bi-star-fill" style="font-size: 2.5rem;"></i>
           <h3 class="mt-2" id="stat-puntos">0</h3>
           <p class="mb-0">Puntos</p>
         </div>
       </div>
-      <div class="col-md-3 mb-3">
+      <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-info text-white rounded text-center">
           <i class="bi bi-graph-up" style="font-size: 2.5rem;"></i>
           <h3 class="mt-2" id="stat-cumplimiento">0%</h3>
@@ -74,7 +106,7 @@
   </div>
 
   <div class="row">
-    <div class="col-md-8">
+    <div class="col-md-8 mb-3">
       <div class="card">
         <h5 class="card-title">Mis Medicamentos de Hoy</h5>
         <div id="listaMedicamentosHoy" class="list-group list-group-flush">
@@ -135,7 +167,7 @@
             <label class="form-label">Selecciona o escanea tu receta</label>
             <input type="file" class="form-control" accept="image/*,.pdf" id="recetaInput">
           </div>
-          <button class="btn btn-primary"><i class="bi bi-upload"></i> Cargar Receta</button>
+          <button class="btn btn-primary w-100 w-md-auto"><i class="bi bi-upload"></i> Cargar Receta</button>
         </div>
 
         <div class="card">
@@ -213,11 +245,64 @@
             </div>
             <div class="mb-3">
               <label class="form-label">Especialidad/Motivo</label>
-              <input type="text" class="form-control" placeholder="Ej: Consulta cardiología">
+              <select class="form-select" id="selectEspecialidad" required>
+                <option value="">Selecciona una especialidad</option>
+                <optgroup label="Especialidades Médicas">
+                  <option value="Medicina General">Medicina General</option>
+                  <option value="Cardiología">Cardiología</option>
+                  <option value="Neurología">Neurología</option>
+                  <option value="Medicina Interna">Medicina Interna</option>
+                  <option value="Endocrinología">Endocrinología</option>
+                  <option value="Geriatría">Geriatría</option>
+                  <option value="Psiquiatría">Psiquiatría</option>
+                  <option value="Ortopedia">Ortopedia</option>
+                </optgroup>
+                <optgroup label="Servicios de Enfermería">
+                  <option value="Control de Signos Vitales">Control de Signos Vitales</option>
+                  <option value="Administración de Medicamentos">Administración de Medicamentos</option>
+                  <option value="Curación de Heridas">Curación de Heridas</option>
+                  <option value="Toma de Muestras">Toma de Muestras</option>
+                  <option value="Control de Glucosa">Control de Glucosa</option>
+                </optgroup>
+                <optgroup label="Servicios de Cuidado">
+                  <option value="Cuidado Personal">Cuidado Personal</option>
+                  <option value="Acompañamiento">Acompañamiento</option>
+                  <option value="Asistencia en Movilidad">Asistencia en Movilidad</option>
+                  <option value="Apoyo en Alimentación">Apoyo en Alimentación</option>
+                  <option value="Supervisión General">Supervisión General</option>
+                </optgroup>
+                <optgroup label="Otros">
+                  <option value="Consulta de Seguimiento">Consulta de Seguimiento</option>
+                  <option value="Revisión de Tratamiento">Revisión de Tratamiento</option>
+                  <option value="Evaluación General">Evaluación General</option>
+                </optgroup>
+              </select>
             </div>
             <div class="mb-3">
-              <label class="form-label">Doctor</label>
-              <input type="text" class="form-control" placeholder="Nombre del médico">
+         <label class="form-label">Doctor o Cuidador</label>
+              <select class="form-select" id="selectDoctor" required>
+                <option value="">Selecciona un profesional</option>
+                <optgroup label="Médicos">
+                <option value="Dr. Juan Pérez - Médico General">Dr. Juan Pérez - Médico General</option>
+      <option value="Dra. María López - Cardióloga">Dra. María López - Cardióloga</option>
+      <option value="Dr. Carlos Rodríguez - Neurólogo">Dr. Carlos Rodríguez - Neurólogo</option>
+      <option value="Dr. Roberto Fernández - Internista">Dr. Roberto Fernández - Internista</option>
+      <option value="Dra. Patricia Morales - Endocrinóloga">Dra. Patricia Morales - Endocrinóloga</option>
+      <option value="Dr. Luis Hernández - Geriatra">Dr. Luis Hernández - Geriatra</option>
+      <option value="Dra. Carmen Díaz - Psiquiatra">Dra. Carmen Díaz - Psiquiatra</option>
+      <option value="Dr. Miguel Ángel Torres - Ortopedista">Dr. Miguel Ángel Torres - Ortopedista</option>
+    </optgroup>
+    <optgroup label="Cuidadores">
+      <option value="Enfermera Ana García">Enfermera Ana García</option>
+      <option value="Cuidador Pedro Martínez">Cuidador Pedro Martínez</option>
+      <option value="Enfermera Laura Sánchez">Enfermera Laura Sánchez</option>
+      <option value="Enfermero José Ramírez">Enfermero José Ramírez</option>
+      <option value="Cuidadora Sofia Castillo">Cuidadora Sofia Castillo</option>
+      <option value="Enfermera Gabriela Núñez">Enfermera Gabriela Núñez</option>
+      <option value="Cuidador Antonio Vargas">Cuidador Antonio Vargas</option>
+      <option value="Enfermera Rosa Mendoza">Enfermera Rosa Mendoza</option>
+    </optgroup>
+              </select>
             </div>
             <button type="submit" class="btn btn-primary"><i class="bi bi-calendar-plus"></i> Agendar Cita</button>
           </form>
@@ -335,7 +420,7 @@
         </div>
       </section>
 
-      <!-- SECCIÓN EMERGENCIA -->
+      <!-- SECCIÓN EMRGENCIA -->
       <section id="emergencia" class="section d-none">
         <div class="section-header">
           <h2><i class="bi bi-exclamation-triangle-fill"></i> Activación de Emergencia</h2>
@@ -426,7 +511,17 @@
           </div>
         </div>
       </section>
+<!-- SECCIÓN PERSONALIZACIÓN -->
+<section id="personalizacion" class="section d-none">
+  <div class="section-header">
+    <h2><i class="bi bi-palette-fill"></i> Personalización Visual</h2>
+    <p class="muted">Personaliza tu experiencia con avatares y temas</p>
+  </div>
 
+  <div class="card">
+    <div id="personalizacion-container"></div>
+  </div>
+</section>
     </main>
   </div>
 
@@ -455,5 +550,15 @@
       }, 300);
     });
   </script>
+  <script>
+  // Cargar avatar al entrar a personalización
+  document.querySelector('.nav-btn[data-section="personalizacion"]')?.addEventListener('click', () => {
+    setTimeout(() => {
+      if (typeof cargarPersonalizacion === 'function') {
+        cargarPersonalizacion();
+      }
+    }, 300);
+  });
+</script>
 </body>
 </html>
