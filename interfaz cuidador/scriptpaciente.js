@@ -270,9 +270,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (sectionId === 'inicio') {
           cargarEstadisticasInicio();
         }
-        if (sectionId === 'personalizacion') {
-            cargarPersonalizacion();
-          }
       }
     });
   });
@@ -913,23 +910,32 @@ async function cargarCitas() {
   }
 }
 
+// ====================================================================
+// ====================================================================
+
 document.addEventListener('DOMContentLoaded', () => {
   const citaForm = document.getElementById('citaForm');
   if (citaForm) {
     citaForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       
+      //  CORRECCIÓN: Obtener valores correctamente
       const fecha = citaForm.querySelector('input[type="date"]').value;
       const hora = citaForm.querySelector('input[type="time"]').value;
-      const motivo = citaForm.querySelector('input[placeholder*="Consulta"]').value.trim();
-      const doctor = document.getElementById('selectDoctor').value;
+      const especialidad = document.getElementById('selectEspecialidad').value.trim(); // ✅ Especialidad del select
+      const doctor = document.getElementById('selectDoctor').value.trim(); // ✅ Doctor del select
       
-      if (!fecha || !hora || !motivo || !doctor) {
+      // Validar que todos los campos estén completos
+      if (!fecha || !hora || !especialidad || !doctor) {
         await mostrarAlerta('Campos incompletos', 'Por favor completa todos los campos');
         return;
       }
       
+      // Combinar fecha y hora en formato MySQL
       const fechaHora = `${fecha} ${hora}:00`;
+      
+      // Crear el motivo combinando especialidad y doctor
+      const motivo = `${especialidad} - ${doctor}`;
       
       try {
         const response = await fetch(`${API_URL}/guardarCita`, {
@@ -938,16 +944,16 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({
             id_paciente: getUsuarioId(),
             fecha_hora: fechaHora,
-            motivo: `${motivo} - ${doctor}`,
+            motivo: motivo,
             anticipacion_min: 30
           })
         });
         
         const data = await response.json();
         mostrarNotificacion(data.mensaje, 'success');
-        citaForm.reset();
-        cargarCitas();
-        cargarEstadisticasInicio();
+        citaForm.reset(); // Limpiar formulario
+        cargarCitas(); // Recargar lista de citas
+        cargarEstadisticasInicio(); // Actualizar estadísticas
       } catch (error) {
         console.error('Error:', error);
         mostrarNotificacion('Error al guardar la cita', 'error');
@@ -995,22 +1001,13 @@ async function cargarRecompensas() {
     const response = await fetch(`${API_URL}/recompensas/${idUsuario}`);
     const recompensas = await response.json();
     
-    // Validar que existan los elementos antes de actualizar
-    const puntosTotales = document.querySelector('#recompensas .bg-light:nth-child(1) h3');
-    const medallas = document.querySelector('#recompensas .bg-light:nth-child(2) h3');
-    const cumplimiento = document.querySelector('#recompensas .bg-light:nth-child(3) h3');
-    
-    if (puntosTotales) puntosTotales.textContent = recompensas.puntos_totales || 0;
-    if (medallas) medallas.textContent = recompensas.medallas || 0;
-    if (cumplimiento) cumplimiento.textContent = `${recompensas.porcentaje_cumplimiento || 0}%`;
+    document.querySelector('#recompensas .bg-light:nth-child(1) h3').textContent = recompensas.puntos_totales || 0;
+    document.querySelector('#recompensas .bg-light:nth-child(2) h3').textContent = recompensas.medallas || 0;
+    document.querySelector('#recompensas .bg-light:nth-child(3) h3').textContent = `${recompensas.porcentaje_cumplimiento || 0}%`;
     
     const progreso = ((recompensas.puntos_totales || 0) % 500) / 500 * 100;
-    const progressBar = document.querySelector('#recompensas .progress-bar');
-    
-    if (progressBar) {
-      progressBar.style.width = `${progreso}%`;
-      progressBar.textContent = `${Math.round(progreso)}%`;
-    }
+    document.querySelector('#recompensas .progress-bar').style.width = `${progreso}%`;
+    document.querySelector('#recompensas .progress-bar').textContent = `${Math.round(progreso)}%`;
     
     const logrosRes = await fetch(`${API_URL}/logros/${idUsuario}`);
     const logros = await logrosRes.json();
@@ -1030,7 +1027,6 @@ async function cargarRecompensas() {
     }
   } catch (error) {
     console.error('Error al cargar recompensas:', error);
-    // No mostrar error al usuario, solo registrar en consola
   }
 }
 
@@ -2216,19 +2212,18 @@ async function guardarPersonalizacion() {
       aplicarTema(colores);
     }
     
-    mostrarNotificacion('Preferencias guardadas correctamente', 'success');
-    
-    // Esperar un poco y luego actualizar
+    // IMPORTANTE: Actualizar inmediatamente después de guardar
     setTimeout(() => {
       actualizarAvatarEnSistema();
-      console.log('Avatar actualizado después de guardar');
-    }, 500);
+    }, 100);
     
+    mostrarNotificacion('Preferencias guardadas correctamente', 'success');
   } catch (error) {
     console.error('Error al guardar:', error);
     mostrarNotificacion('Error al guardar preferencias', 'error');
   }
 }
+
 async function cargarPreferenciasGuardadas() {
   try {
     const avatarGuardado = await window.storage?.get('avatar_usuario');
@@ -2277,11 +2272,8 @@ async function cargarAvatarYNombre() {
     const avatarGuardado = await window.storage?.get('avatar_usuario');
     const temaGuardado = await window.storage?.get('tema_usuario');
     
-    const avatarId = avatarGuardado?.value || 'default';
-    const avatarHTML = obtenerAvatarSVG(avatarId, '100%');
+    const avatarHTML = obtenerAvatarSVG(avatarGuardado?.value || 'default', '100%');
     const temaNombre = obtenerNombreTema(temaGuardado?.value || 'azul');
-    
-    console.log('Cargando avatar:', avatarId); // Debug
     
     // Actualizar sidebar
     const sidebarAvatar = document.getElementById('sidebar-avatar');
@@ -2289,10 +2281,7 @@ async function cargarAvatarYNombre() {
     const themeName = document.getElementById('theme-name');
     const themeIndicator = document.getElementById('theme-indicator');
     
-    if (sidebarAvatar) {
-      sidebarAvatar.innerHTML = avatarHTML;
-      console.log('Avatar sidebar actualizado'); // Debug
-    }
+    if (sidebarAvatar) sidebarAvatar.innerHTML = avatarHTML;
     if (sidebarUsername) sidebarUsername.textContent = nombreUsuario;
     if (themeName) themeName.textContent = temaNombre;
     if (themeIndicator) {
@@ -2305,10 +2294,7 @@ async function cargarAvatarYNombre() {
     const welcomeAvatar = document.getElementById('welcome-avatar');
     const welcomeUsername = document.getElementById('welcome-username');
     
-    if (welcomeAvatar) {
-      welcomeAvatar.innerHTML = avatarHTML;
-      console.log('Avatar bienvenida actualizado'); // Debug
-    }
+    if (welcomeAvatar) welcomeAvatar.innerHTML = avatarHTML;
     if (welcomeUsername) welcomeUsername.textContent = nombreUsuario;
     
   } catch (error) {
@@ -2346,22 +2332,10 @@ function irAPersonalizacion() {
     btnPersonalizacion.click();
   }
 }
-// Cargar avatar al iniciar - VERSIÓN MEJORADA
+
+// Cargar avatar al iniciar
 document.addEventListener("DOMContentLoaded", () => {
-  // Esperar a que todo el DOM esté listo
   setTimeout(() => {
     actualizarAvatarEnSistema();
-  }, 1000); // Aumentado a 1 segundo
-  
-  // También actualizar cuando se cambia de sección
-  const navBtns = document.querySelectorAll('.nav-btn[data-section]');
-  navBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.dataset.section === 'inicio') {
-        setTimeout(() => {
-          actualizarAvatarEnSistema();
-        }, 300);
-      }
-    });
-  });
+  }, 500);
 });
