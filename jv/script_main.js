@@ -82,8 +82,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (respuesta.ok && data.ok) {
 //===============================================>
-          //guardar id_usuario en localStorage
-          showToast("Inicio de sesión exitoso!", "success");
+         
+         
          // Guardar el ID de usuario
     sessionStorage.setItem("id_usuario", data.usuario.id);
 
@@ -96,16 +96,30 @@ document.addEventListener("DOMContentLoaded", () => {
       `${data.usuario.nombres} ${data.usuario.apellidos}`
     );
 //===============================================<
+
+
+ showToast("Inicio de sesión exitoso!", "success");
+
           setTimeout(() => {
             if (btnLogin) {
               btnLogin.disabled = false;
               btnLogin.style.opacity = "1";
               btnLogin.style.cursor = "pointer";
             }
+
+  // 🔹 Redirigir según el rol del usuario
+    if (data.usuario.rol === "administrador") {
+      window.location.href = "../registro/Registro.html";
+    } else {
+      window.location.href = "../interfaz cuidador/cuidador.html"; // usuario normal
+    }
+            
           }, 2100);
 
+
+          
           formLogin.reset();
-          window.location.href = "../registro/Registro.html";
+         
         } else {
           showToast(data.message || "Correo o contraseña incorrectos.", "error");
           setTimeout(() => {
