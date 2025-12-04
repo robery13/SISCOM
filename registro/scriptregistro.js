@@ -1,3 +1,65 @@
+// ==============================================
+//recuperar id_usuario desde localStorage
+// ==============================================
+const idUsuario = sessionStorage.getItem("id_usuario");
+
+if (!idUsuario) {
+  // Si no hay login, bloquear acceso
+  window.location.href = "../login/login.html";
+}
+
+
+const nombre = sessionStorage.getItem("nombre_completo");
+
+if (nombre) {
+  document.getElementById("usuarioNombre").textContent = "Bienvenido "+nombre;
+}
+
+
+
+///=============================================
+///cargar opciones del combo de pacientes
+///=============================================
+
+async function cargarCombo() {
+   const id_usuario = sessionStorage.getItem("id_usuario"); // Recuperar ID
+  if (!id_usuario) return;
+
+
+    const combo = document.getElementById("miCombo");
+
+    try {
+        const results = await fetch(`http://localhost:3000/pacientes_usuario?id_usuario=${id_usuario}`);
+        const datos = await results.json(); // Esperamos JSON
+
+        combo.innerHTML = ""; // Limpiar
+
+        // Agregar opción por defecto
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";               // valor vacío
+        defaultOption.textContent = "--Selecciona un paciente--";
+        combo.appendChild(defaultOption);
+
+        datos.forEach(item => {
+            let option = document.createElement("option");
+            option.value = item.id_paciente;
+option.textContent = item.nombre_completo;
+
+            combo.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error("Error cargando combo:", error);
+       console.log(error);
+        combo.innerHTML = `<option>Error al cargar</option>`;
+    }
+}
+
+cargarCombo(); // Ejecutar al iniciar
+
+
+
+
 // ===============================
 // NAVEGACIÓN ENTRE SECCIONES
 // ===============================
@@ -61,13 +123,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const datos = { nombre, dosis, frecuencia_horas: frecuencia, hora };
+      const datos = { nombre, dosis, frecuencia_horas: frecuencia, hora,id_usuario: idUsuario};
 
       try {
         const resp = await fetch("http://localhost:3000/Registro_medicamentos", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(datos)
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ id_usuario: idUsuario }) // Agregar id_usuario al cuerpo
         });
 
         const resultado = await resp.json();
@@ -85,36 +147,53 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("No se pudo conectar con el servidor.");
       }
     });
-  }
+  }//==============================================================================
+    //FUNCION CARGAR MEDICAMENTOS
+    //==============================================================================
+    async function cargarRegistroMedicamentos(id_paciente) {
+      try {
+        const respuesta = await fetch(`http://localhost:3000/medicamentos_paciente?id_paciente=${id_paciente}`);
+        const data = await respuesta.json();
 
-  async function cargarRegistroMedicamentos() {
-    try {
-      const respuesta = await fetch("http://localhost:3000/Registro_medicamentos");
-      const data = await respuesta.json();
-      renderMedicamentos(data);
-    } catch (err) {
-      console.error("Error al cargar registro:", err);
+        if (!Array.isArray(data)) {
+          console.error("Datos recibidos no son un array:", data);
+          return;
+        }
+
+        renderMedicamentos(data);
+      } catch (err) {
+        console.error("Error al cargar registro:", err);
+      }
     }
-  }
 
-  function renderMedicamentos(lista) {
-    if (!tablaMedicamentos) return;
-    tablaMedicamentos.innerHTML = "";
-    lista.forEach((m) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(m.nombre)}</td>
-        <td>${escapeHtml(m.dosis)}</td>
-        <td>${m.frecuencia_horas}</td>
-        <td>${m.hora}</td>
-      `;
-      tablaMedicamentos.appendChild(tr);
+
+
+          function renderMedicamentos(lista) {
+            if (!tablaMedicamentos) return;
+            tablaMedicamentos.innerHTML = "";
+            lista.forEach((m) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${escapeHtml(m.nombre)}</td>
+                <td>${escapeHtml(m.dosis)}</td>
+                <td>${m.frecuencia}</td>
+                <td>${m.hora}</td>
+              `;
+              tablaMedicamentos.appendChild(tr);
+            });
+          }
+
+
+     
+
+        document.getElementById("miCombo").addEventListener("change", function () {
+      const id_paciente = this.value;
+
+      if (id_paciente) {
+        cargarRegistroMedicamentos(id_paciente);
+      }   
     });
-  }
-
-  cargarRegistroMedicamentos();
-
-})();
+   })();
 
 // ===============================
 // INVENTARIO
@@ -847,7 +926,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // ===============================
-// MÓDULO DE PEDIDOS A FARMACIAS CON WHATSAPP
+// MÓDULO DE PEDIDOS A FARMACIAss
 // ===============================
 (function(){
   const openBtn = document.getElementById('open-create-order');
@@ -870,13 +949,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const previewContent = document.getElementById('previewContent');
   const formMessage = document.getElementById('formMessage');
   const detailBody = document.getElementById('detailBody');
-
-  // NÚMEROS DE WHATSAPP POR FARMACIA (Actualiza estos números)
-  const farmaciasWhatsApp = {
-   'Farmacia Kielsa': '50422071000',
-    'Farmacia El Ahorro': '50422306636',
-    'Farmacia Siman': '50425530321'
-  };
 
   openBtn.onclick = () => modal.show();
   addEmptyRowBtn.onclick = () => addRow();
@@ -922,13 +994,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const data = await resp.json();
       console.log('Respuesta exitosa:', data);
-      showMsg('Pedido guardado. Ahora puedes enviarlo por WhatsApp desde el historial.','text-success');
+      showMsg('Pedido guardado correctamente','text-success');
       
       setTimeout(()=>{
         modal.hide(); 
         resetForm();
         cargarHistorial();
-      },1500);
+      },1000);
       
     } catch (error) {
       console.error('Error completo:', error);
@@ -984,71 +1056,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
-  function generarMensajeWhatsApp(pedido, items) {
-    let mensaje = `*PEDIDO DE MEDICAMENTOS*\n\n`;
-    mensaje += `Pedido: ${pedido.id}\n`;
-    mensaje += `Fecha: ${new Date(pedido.fecha_creacion).toLocaleString()}\n\n`;
-    mensaje += `*MEDICAMENTOS SOLICITADOS:*\n`;
-    
-    items.forEach((item, index) => {
-      mensaje += `\n${index + 1}. ${item.nombre_medicamento}\n`;
-      mensaje += `   Dosis: ${item.dosis}\n`;
-      mensaje += `   Cantidad: ${item.cantidad} unidades\n`;
-    });
-    
-    if (pedido.notas) {
-      mensaje += `\n*Notas adicionales:*\n${pedido.notas}\n`;
-    }
-    
-    mensaje += `\n\nPueden confirmar disponibilidad y precio? Gracias.`;
-    
-    return encodeURIComponent(mensaje);
-  }
-
-  function enviarPorWhatsApp(pedidoId) {
-    fetch(`http://localhost:3000/obtenerPedido/${pedidoId}`)
-      .then(resp => resp.json())
-      .then(data => {
-        if (data.pedido && data.items) {
-          const numeroWhatsApp = farmaciasWhatsApp[data.pedido.farmacia];
-          
-          if (!numeroWhatsApp) {
-            alert('No hay número de WhatsApp configurado para esta farmacia');
-            return;
-          }
-          
-          const mensaje = generarMensajeWhatsApp(data.pedido, data.items);
-          const urlWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${mensaje}`;
-          
-          // Abrir WhatsApp en nueva pestaña
-          window.open(urlWhatsApp, '_blank');
-          
-          // Actualizar estado del pedido a "Enviado"
-          actualizarEstadoPedido(pedidoId, 'Enviado por WhatsApp');
-        }
-      })
-      .catch(error => {
-        console.error('Error al obtener pedido:', error);
-        alert('Error al cargar los datos del pedido');
-      });
-  }
-
-  async function actualizarEstadoPedido(pedidoId, nuevoEstado) {
-    try {
-      const resp = await fetch(`http://localhost:3000/actualizarEstadoPedido/${pedidoId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado })
-      });
-
-      if (resp.ok) {
-        cargarHistorial();
-      }
-    } catch (error) {
-      console.error('Error al actualizar estado:', error);
-    }
-  }
-
   function showMsg(msg,cls){
     formMessage.className='fw-semibold '+cls;
     formMessage.textContent=msg;
@@ -1094,18 +1101,13 @@ document.addEventListener("DOMContentLoaded", () => {
           <small>${o.total_items} ítem(s) — ${escapeHtml(o.estado)}</small>
         </div>
         <div>
-          <button class="btn btn-sm btn-success me-2 btn-whatsapp">
-            <i class="bi bi-whatsapp me-1"></i> WhatsApp
-          </button>
           <button class="btn btn-sm btn-outline-secondary me-2 btn-ver">Ver</button>
           <button class="btn btn-sm btn-outline-danger btn-del">Eliminar</button>
         </div>`;
       
-      const whatsappBtn = div.querySelector('.btn-whatsapp');
       const viewBtn = div.querySelector('.btn-ver');
       const delBtn = div.querySelector('.btn-del');
       
-      whatsappBtn.onclick = () => enviarPorWhatsApp(o.id);
       viewBtn.onclick = () => showDetail(o.id);
       delBtn.onclick = () => {
         if(confirm('¿Eliminar este pedido?')){
@@ -1199,3 +1201,19 @@ function escapeHtml(str){
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.querySelector('.overlay');
+  const menuToggle = document.querySelector('.menu-toggle');
+
+  // Abrir/cerrar menú con botón
+  menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('open'); // activa/desactiva el menú
+  });
+
+  // Cerrar menú al hacer click en overlay
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('open'); // quita clase "open" y el overlay se oculta automáticamente
+  });
+});
