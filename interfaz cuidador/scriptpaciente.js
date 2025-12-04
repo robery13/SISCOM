@@ -296,7 +296,7 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.removeItem('usuario');
         mostrarNotificacion('Sesion cerrada exitosamente', 'success');
         setTimeout(() => {
-          window.location.href = "index.html";
+          window.location.href = "../html/Proyecto_SISCOM.html";
         }, 1000);
       }
     });
