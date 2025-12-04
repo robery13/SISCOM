@@ -108,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
   // 🔹 Redirigir según el rol del usuario
-    if (data.usuario.rol === "admin") {
+    if (data.usuario.rol === "administrador") {
       window.location.href = "../registro/Registro.html";
     } else {
       window.location.href = "../interfaz cuidador/cuidador.html"; // usuario normal
