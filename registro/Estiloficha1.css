@@ -5,6 +5,10 @@ body {
   padding: 20px;
 }
 
+/* ============================= */
+/* CONTENEDORES */
+/* ============================= */
+
 .ficha-container {
   max-width: 700px;
   background: #fff;
@@ -13,6 +17,12 @@ body {
   border-radius: 15px;
   box-shadow: 0 5px 20px rgba(0,0,0,0.08);
 }
+
+
+
+/* ============================= */
+/* TITULOS Y TEXTO */
+/* ============================= */
 
 h2 {
   color: #4c1d95;
@@ -25,6 +35,10 @@ h2 {
   margin-bottom: 25px;
 }
 
+/* ============================= */
+/* CAMPOS */
+/* ============================= */
+
 .campo {
   margin-bottom: 20px;
 }
@@ -36,7 +50,8 @@ label {
   margin-bottom: 6px;
 }
 
-input, select {
+input,
+select {
   width: 100%;
   padding: 10px;
   border: 1px solid #d1d5db;
@@ -45,10 +60,15 @@ input, select {
   outline: none;
 }
 
-input:focus, select:focus {
+input:focus,
+select:focus {
   border-color: #7c3aed;
   box-shadow: 0 0 0 3px rgba(124,58,237,0.2);
 }
+
+/* ============================= */
+/* LISTAS */
+/* ============================= */
 
 ul {
   list-style: none;
@@ -66,7 +86,13 @@ ul li {
   align-items: center;
 }
 
-.btn-principal, .btn-secundario, .btn-peligro {
+/* ============================= */
+/* BOTONES */
+/* ============================= */
+
+.btn-principal,
+.btn-secundario,
+.btn-peligro {
   border: none;
   border-radius: 8px;
   padding: 10px 16px;
@@ -108,6 +134,10 @@ ul li {
   margin-top: 20px;
 }
 
+/* ============================= */
+/* ALERTAS */
+/* ============================= */
+
 .alerta-critica {
   background-color: #fef2f2;
   color: #991b1b;
@@ -117,6 +147,10 @@ ul li {
   font-weight: 500;
   margin-top: 10px;
 }
+
+/* ============================= */
+/* UTILIDADES */
+/* ============================= */
 
 .oculto {
   display: none;

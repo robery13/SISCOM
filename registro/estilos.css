@@ -375,3 +375,41 @@ body{
       text-align: center;
       color: #94a3b8;
     }
+    /* ============================= */
+/* CHECKLIST - CARD ANCHA */
+/* ============================= */
+
+#checklist .card,
+#checklist .form-card {
+  max-width: 100% !important;
+  width: 100%;
+}
+
+/* Opcional: alinear con el layout principal */
+#checklist {
+  padding-left: 0;
+  padding-right: 0;
+}
+/* Igualar altura entre Lista y Auditoría */
+#checklist .row {
+  align-items: stretch;
+}
+
+#checklist .card {
+  height: 100%;
+}
+/* ============================= */
+/* CITAS MÉDICAS - CARD ANCHA */
+/* ============================= */
+
+#recetas .card,
+#recetas .form-card {
+  max-width: 100% !important;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+#citas .row .card {
+  max-width: 100%;
+}

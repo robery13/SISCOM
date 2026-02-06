@@ -146,75 +146,89 @@
       </section>
 
    <!-- CHECKLIST -->
-      <section id="checklist" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-check2-square me-2"></i> Checklist de Medicamentos</h2>
-          <p class="muted">Confirma la toma de medicamentos diaria con registro de auditoría.</p>
+<section id="checklist" class="section d-none ficha-container-wide">
+
+  <div class="section-header">
+    <h2><i class="bi bi-check2-square me-2"></i> Checklist de Medicamentos</h2>
+    <p class="muted">Confirma la toma de medicamentos diaria con registro de auditoría.</p>
+  </div>
+
+  <!-- CARD ANCHA -->
+  <div class="card form-card mb-4 w-100">
+    <h5 class="card-title">
+      <i class="bi bi-person-check me-2"></i> Seleccionar Paciente y Fecha
+    </h5>
+    
+    <div class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label">Paciente ID / Nombre</label>
+        <input id="patientInput" class="form-control"
+          placeholder="Ej: 1 - Juan Pérez" value="1 - Paciente Demo">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Fecha</label>
+        <input id="dateInput" type="date" class="form-control">
+      </div>
+
+      <div class="col-md-4 d-grid">
+        <button id="loadBtn" class="btn btn-primary">
+          <i class="bi bi-download me-2"></i> Cargar Datos
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-3 d-flex gap-2 flex-wrap">
+      <button id="addSampleBtn" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-plus-circle me-1"></i> Cargar Medicamentos Ejemplo
+      </button>
+
+      <button id="clearDayBtn" class="btn btn-outline-danger btn-sm">
+        <i class="bi bi-trash me-1"></i> Limpiar Día
+      </button>
+
+      <button id="exportCsvBtn" class="btn btn-outline-success btn-sm ms-auto">
+        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar CSV
+      </button>
+    </div>
+
+    <div id="statusMsg" class="alert alert-info mt-3 d-none"></div>
+  </div>
+
+  <!-- CONTENIDO INFERIOR -->
+  <div class="row">
+    <div class="col-lg-8 mb-4">
+      <div class="card">
+        <div class="card-header">
+          <i class="bi bi-clipboard-check me-2"></i> Lista de Medicamentos del Día
         </div>
-
-        <div class="card form-card mb-4">
-          <h5 class="card-title"><i class="bi bi-person-check me-2"></i> Seleccionar Paciente y Fecha</h5>
-          
-          <div class="row g-3 align-items-end">
-            <div class="col-md-4">
-              <label class="form-label">Paciente ID / Nombre</label>
-              <input id="patientInput" class="form-control" placeholder="Ej: 1 - Juan Pérez" value="1 - Paciente Demo">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Fecha</label>
-              <input id="dateInput" type="date" class="form-control">
-            </div>
-            <div class="col-md-4 d-grid">
-              <button id="loadBtn" class="btn btn-primary">
-                <i class="bi bi-download me-2"></i> Cargar Datos
-              </button>
-            </div>
-          </div>
-
-          <div class="mt-3 d-flex gap-2 flex-wrap">
-            <button id="addSampleBtn" class="btn btn-outline-secondary btn-sm">
-              <i class="bi bi-plus-circle me-1"></i> Cargar Medicamentos Ejemplo
-            </button>
-            <button id="clearDayBtn" class="btn btn-outline-danger btn-sm">
-              <i class="bi bi-trash me-1"></i> Limpiar Día
-            </button>
-            <button id="exportCsvBtn" class="btn btn-outline-success btn-sm ms-auto">
-              <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar CSV
-            </button>
-          </div>
-
-          <div id="statusMsg" class="alert alert-info mt-3 d-none"></div>
-        </div>
-
-        <div class="row">
-          <div class="col-lg-8 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-clipboard-check me-2"></i> Lista de Medicamentos del Día
-              </div>
-              <div class="card-body p-0">
-                <div id="medList" class="list-group list-group-flush">
-                  <div class="text-center text-muted p-4">Selecciona paciente y fecha, luego presiona "Cargar Datos"</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-lg-4 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-clock-history me-2"></i> Registro de Auditoría
-              </div>
-              <div class="card-body">
-                <p class="small text-muted mb-2">Últimas acciones del día:</p>
-                <ul id="auditList" class="list-unstyled small">
-                  <li class="text-muted">Sin acciones registradas hoy.</li>
-                </ul>
-              </div>
+        <div class="card-body p-0">
+          <div id="medList" class="list-group list-group-flush">
+            <div class="text-center text-muted p-4">
+              Selecciona paciente y fecha, luego presiona "Cargar Datos"
             </div>
           </div>
         </div>
-      </section>
+      </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+      <div class="card">
+        <div class="card-header">
+          <i class="bi bi-clock-history me-2"></i> Registro de Auditoría
+        </div>
+        <div class="card-body">
+          <p class="small text-muted mb-2">Últimas acciones del día:</p>
+          <ul id="auditList" class="list-unstyled small">
+            <li class="text-muted">Sin acciones registradas hoy.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
   <!-- INVENTARIO -->
 <section id="inventario" class="section d-none">
   <div class="section-header">
