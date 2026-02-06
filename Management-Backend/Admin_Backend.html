@@ -222,6 +222,22 @@
     <p class="muted">Registra stock, consume dosis y recibe alertas de bajo inventario.</p>
   </div>
 
+  <!-- ALERTAS DE STOCK BAJO -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="card-title mb-0">
+        <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Alertas de Stock Bajo
+      </h5>
+    </div>
+    <div class="card-body">
+      <p class="text-muted">Medicamentos que necesitan reposición</p>
+      <div id="alertasStock" class="list-group">
+        <!-- Se poblará dinámicamente con JavaScript -->
+        <div class="list-group-item text-center text-muted">No hay alertas de stock bajo</div>
+      </div>
+    </div>
+  </div>
+
   <!-- TARJETA -->
   <div class="card table-card p-3">
 
@@ -232,7 +248,7 @@
       </h5>
 
       <button id="abrirModalInventario" class="btn btn-primary">
-        <i class="bi bi-plus-circle me-2"></i> Registrar Medicamento
+        <i class="bi bi-plus-circle me-2"></i> Registrar o Actualizar Medicamento
       </button>
     </div>
 
@@ -257,22 +273,38 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i> Registrar Inventario</h5>
+        <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i> Gestionar Inventario</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
       <div class="modal-body">
-        <div class="form-row">
+        <div class="mb-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="modoActualizar">
+            <label class="form-check-label" for="modoActualizar">
+              Actualizar stock existente
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row" id="selectMedicamentoRow" style="display: none;">
+          <label for="selectMedicamento">Seleccionar Medicamento Existente</label>
+          <select id="selectMedicamento" class="form-select">
+            <option value="">Selecciona un medicamento</option>
+          </select>
+        </div>
+
+        <div class="form-row" id="inputNombreRow">
           <label for="nombreInv">Nombre</label>
           <input id="nombreInv" type="text" class="form-control" placeholder="Ej. Ibuprofeno">
         </div>
 
         <div class="form-row">
-          <label for="cantidadInv">Cantidad (unidades)</label>
-          <input id="cantidadInv" type="number" class="form-control" min="0" placeholder="Ej. 30">
+          <label for="cantidadInv">Cantidad a Agregar (unidades)</label>
+          <input id="cantidadInv" type="number" class="form-control" min="1" placeholder="Ej. 30">
         </div>
 
-        <div class="form-row">
+        <div class="form-row" id="consumoRow">
           <label for="consumoInv">Consumo por dosis</label>
           <input id="consumoInv" type="number" class="form-control" min="1" placeholder="Ej. 1">
         </div>

@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
           showMessage("Contraseña actualizada. Redirigiendo al login...", "green");
        
             setTimeout(() => {
-    window.location.href = "Proyecto_SISCOM.html";
+    window.location.href = "index.html";
 
 
           }, 2000);

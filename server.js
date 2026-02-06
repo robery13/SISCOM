@@ -677,6 +677,53 @@ app.delete('/eliminarTodosPedidos', (req, res) => {
 });
 
 // ============================================
+// RUTAS DE RECETAS MÉDICAS
+// ============================================
+
+app.post('/recetas', (req, res) => {
+  const { id_usuario, nombre_medicamento, dosis, frecuencia } = req.body;
+
+  if (!id_usuario || !nombre_medicamento || !dosis || !frecuencia) {
+    return res.status(400).json({ mensaje: 'Campos incompletos' });
+  }
+
+  const sql = 'INSERT INTO recetas_medicas (id_usuario, nombre_medicamento, dosis, frecuencia, fecha_subida) VALUES (?, ?, ?, ?, NOW())';
+  db.query(sql, [id_usuario, nombre_medicamento, dosis, frecuencia], (err, result) => {
+    if (err) {
+      console.error('Error al guardar receta:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar la receta' });
+    }
+    res.json({ mensaje: 'Receta guardada correctamente' });
+  });
+});
+
+app.get('/recetas/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = 'SELECT * FROM recetas_medicas WHERE id_usuario = ? ORDER BY fecha_subida DESC';
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al cargar recetas:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar recetas' });
+    }
+    res.json(results);
+  });
+});
+
+app.delete('/recetas/:id', (req, res) => {
+  const { id } = req.params;
+
+  const sql = 'DELETE FROM recetas_medicas WHERE id = ?';
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar receta:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar la receta' });
+    }
+    res.json({ mensaje: 'Receta eliminada correctamente' });
+  });
+});
+
+// ============================================
 // RUTA DE PRUEBA
 // ============================================
 app.get('/test', (req, res) => {
