@@ -1,0 +1,488 @@
+ /* ======== ESTILO GENERAL ======== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background-color: #f7f9fb;
+      color: #222;
+      line-height: 1.6;
+    }
+
+    /* ======== ENCABEZADO ======== */
+    header {
+      background-color: #083b66;
+      color: white;
+      padding: 20px 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 1200px;
+  margin: auto;
+  padding: 0 30px;
+}
+
+/* Grupo logo + título juntos a la izquierda */
+.topbar .logo,
+.topbar .titulo {
+  flex-shrink: 0;
+}
+
+.topbar .logo {
+  margin-right: 20px; /* Espacio entre logo y título */
+}
+
+/* El título NO crece para llenar espacio */
+.topbar .titulo {
+  margin-right: auto; /* Empuja los botones a la derecha */
+}
+
+   .logo {
+  width: 80px; /* ← Un poco más pequeño */
+  height: 80px;
+  border-radius: 8px;
+  background-color: white;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0; /* ← Evita que se comprima */
+}
+    .titulo h1 {
+      font-size: 2.2em;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .titulo p {
+      font-size: 1em;
+      color: #d0e4f7;
+    }
+
+    /* Grupo de marca (logo + título) */
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+    /* ======== BOTONES DEL HEADER ======== */
+.header-buttons {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.btn-header {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.95em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid white;
+  white-space: nowrap; /* Evita que el texto se parta */
+}
+
+.btn-header-login {
+  background-color: transparent;
+  color: white;
+}
+
+.btn-header-login:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.btn-header-registro {
+  background-color: white;
+  color: #083b66;
+  border-color: white;
+}
+
+.btn-header-registro:hover {
+  background-color: #f0f8ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+}
+
+    /* ======== PRESENTACIÓN ======== */
+    .presentacion {
+      text-align: center;
+      margin: 40px auto;
+      max-width: 900px;
+      padding: 0 20px;
+    }
+
+    .presentacion h2 {
+      color: #083b66;
+      font-size: 1.9em;
+      margin-bottom: 15px;
+    }
+
+    .presentacion p {
+      font-size: 1.1em;
+      color: #333;
+      margin-bottom: 30px;
+    }
+
+    /* ======== ROLES ======== */
+    .roles {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 60px;
+      flex-wrap: wrap;
+      margin: 50px 0;
+    }
+
+    .rol {
+      text-align: center;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      width: 180px;
+    }
+
+    .rol:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border-radius: 12px;
+      background-color: #f9fbff;
+    }
+
+    .rol img {
+      width: 130px;
+      height: 130px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 3px solid #e3efff;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .rol:hover img {
+      transform: scale(1.05);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    .rol h4 {
+      margin-top: 12px;
+      color: #083b66;
+      font-weight: 600;
+      font-size: 1.05em;
+    }
+
+ 
+    /* ======== MODAL ======== */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .modal.active {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      width: 90%;
+      max-width: 450px;
+      position: relative;
+      animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+      from { transform: translateY(-50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .close {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      font-size: 28px;
+      font-weight: bold;
+      color: #999;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    }
+
+    .close:hover {
+      color: #333;
+    }
+
+    .modal-content h3 {
+      color: #083b66;
+      margin-bottom: 25px;
+      font-size: 1.8em;
+      text-align: center;
+    }
+
+    /* ======== FORMULARIOS ======== */
+    form input,
+    form select {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1em;
+    }
+
+    form input:focus,
+    form select:focus {
+      outline: none;
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 1.1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      margin-top: 10px;
+    }
+
+    .btn-azul {
+      background: #0d6efd;
+    }
+
+    .btn-azul:hover {
+      background: #0b5ed7;
+    }
+
+    .btn-morado {
+      background: #7b4dff;
+    }
+
+    .btn-morado:hover {
+      background: #6a38ff;
+    }
+
+    /* ===== CAMPOS DE CONTRASEÑA ===== */
+    .password-container {
+      position: relative;
+      margin-bottom: 15px;
+    }
+
+    .password-container input {
+      width: 100%;
+      padding-right: 45px;
+      margin-bottom: 0;
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      cursor: pointer;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .toggle-password:hover {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+
+    .forgot-link {
+      display: block;
+      text-align: center;
+      margin-top: 15px;
+      color: #0d6efd;
+      text-decoration: none;
+      font-size: 0.95em;
+    }
+
+    .forgot-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ======== EXTRAS ======== */
+    .extras {
+      margin: 50px 0;
+      text-align: center;
+    }
+
+    .extras-container {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .btn-extra {
+      background: #0d6efd;
+      color: white;
+      border: none;
+      border-radius: 30px;
+      padding: 12px 28px;
+      font-size: 1em;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    }
+
+    .btn-extra:hover {
+      background: #0b5ed7;
+      transform: translateY(-2px);
+    }
+
+    /* ======== PIE DE PÁGINA ======== */
+    footer {
+      background-color: #062c4e;
+      color: #e1e8f0;
+      text-align: center;
+      padding: 20px;
+      font-size: 0.9em;
+      margin-top: 60px;
+    }
+
+    footer p {
+      margin: 5px 0;
+    }
+
+    /* ======== RESPONSIVE ======== */
+    @media (max-width: 768px) {
+       .topbar {
+    flex-direction: column;
+    text-align: center;
+    padding: 0 15px; /* ← nuevos cambios */
+  }
+
+   .header-buttons {
+    width: 100%;
+    justify-content: center;
+    margin-top: 15px;
+  }
+
+   .btn-header {
+    padding: 8px 18px;
+    font-size: 0.9em;
+  }
+
+      .roles {
+        gap: 30px;
+      }
+
+      /* ←  ESTO es una prueba / by robert */
+  /* .btn-accion {
+    width: 90%;
+    display: block;
+    margin: 15px auto;
+  } */
+
+      .modal-content {
+        width: 95%;
+        padding: 30px 20px;
+      }
+    }
+
+
+    /* ================== CONTENEDOR DE TOAST ================== */
+#toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ================== ESTILO BASE DE TOAST ================== */
+.toast {
+  min-width: 250px;
+  max-width: 320px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 15px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+}
+
+/* Mostrar toast */
+.toast.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ================== COLORES POR TIPO ================== */
+.toast.success {
+  background: linear-gradient(135deg, #28a745, #218838);
+}
+
+.toast.error {
+  background: linear-gradient(135deg, #dc3545, #b02a37);
+}
+
+.toast.warning {
+  background: linear-gradient(135deg, #ffc107, #d39e00);
+  color: #222;
+}
+
+.toast.info {
+  background: linear-gradient(135deg, #17a2b8, #117a8b);
+}
+
+/* ================== ANIMACIÓN DE SALIDA ================== */
+.toast:not(.show) {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+/* ================== ANIMACIÓN SUAVE ================== */
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
