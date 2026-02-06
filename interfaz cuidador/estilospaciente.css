@@ -1,0 +1,1164 @@
+/* ESTILOS PARA SISCOM - PORTAL DEL PACIENTE */
+
+:root {
+  --primary: #0d6efd;
+  --accent: #0d6efd;
+  --sidebar-width: 260px;
+}
+
+* { 
+  margin: 0; 
+  padding: 0; 
+  box-sizing: border-box; 
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f5f7fa;
+}
+
+.app {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 100vh;
+  overflow-y: auto;
+   z-index: 1000;                    
+  transition: transform 0.3s ease; 
+}
+
+.brand {
+  padding: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+}
+
+.nav-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.8);
+  padding: 1rem 1.5rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1rem;
+}
+
+.nav-btn:hover, .nav-btn.active {
+  background: rgba(255,255,255,0.1);
+  color: white;
+}
+
+.nav-btn i {
+  font-size: 1.25rem;
+}
+
+.main {
+  margin-left: var(--sidebar-width);
+  flex: 1;
+  padding: 2rem;
+  width: calc(100% - var(--sidebar-width));
+}
+
+.section {
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.section-header {
+  margin-bottom: 2rem;
+}
+
+.section-header h2 {
+  color: #1e3a8a;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.muted {
+  color: #64748b;
+}
+
+.card {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.card-title {
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  color: #1e3a8a;
+}
+
+.d-none {
+  display: none !important;
+}
+
+/* Estilos adicionales para las tablas */
+.table-hover tbody tr:hover {
+  background-color: #f8f9fa;
+  cursor: pointer;
+}
+
+/* Estilos para botones de acción */
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Estilos para las alertas */
+.alert {
+  border-left: 4px solid;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0; 
+    transform: translateX(-20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+/* Mejoras para cards de estadísticas */
+.bg-primary, .bg-success, .bg-warning, .bg-info, .bg-danger {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
+}
+
+.bg-primary:hover, .bg-success:hover, .bg-warning:hover, .bg-info:hover, .bg-danger:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+/* Estilos para el botón de emergencia */
+.btn-emergencia-sos {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  border: 6px solid #fff;
+  box-shadow: 0 8px 24px rgba(220, 53, 69, 0.4), 0 0 0 0 rgba(220, 53, 69, 0.4);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  outline: none;
+  animation: pulse-ring 2s infinite;
+}
+
+.btn-emergencia-sos:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 32px rgba(220, 53, 69, 0.6);
+}
+
+.btn-emergencia-sos:active {
+  transform: scale(0.95);
+}
+
+.btn-emergencia-sos:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.sos-icon {
+  font-size: 4rem;
+  margin-bottom: 0.5rem;
+}
+
+.sos-text {
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.sos-subtext {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  margin-top: 0.25rem;
+  opacity: 0.9;
+}
+/* Botón para abrir/cerrar menú en móvil */
+.menu-toggle {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1001;
+  background: #1e3a8a;
+  color: white;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.menu-toggle i {
+  font-size: 1.5rem;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+}
+
+.overlay.active {
+  display: block;
+}
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 8px 24px rgba(220, 53, 69, 0.4), 0 0 0 0 rgba(220, 53, 69, 0.7);
+  }
+  50% {
+    box-shadow: 0 8px 24px rgba(220, 53, 69, 0.4), 0 0 0 15px rgba(220, 53, 69, 0);
+  }
+  100% {
+    box-shadow: 0 8px 24px rgba(220, 53, 69, 0.4), 0 0 0 0 rgba(220, 53, 69, 0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Estilos para medallas y trofeos */
+.bi-star-fill, .bi-trophy-fill, .bi-award-fill {
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Mejoras para el progreso */
+.progress {
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* ============================================
+   HU-30: OPTIMIZACIÓN MULTIPLATAFORMA
+   ============================================ */
+
+/* Responsive para Tablets (768px - 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  :root {
+    --sidebar-width: 220px;
+  }
+  
+  .sidebar {
+    width: var(--sidebar-width);
+  }
+  
+  .main {
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+  }
+  
+  .nav-btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+  }
+  
+  .card {
+    padding: 1.25rem;
+  }
+  
+  .btn-emergencia-sos {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .sos-icon {
+    font-size: 3.5rem;
+  }
+  
+  .sos-text {
+    font-size: 1.75rem;
+  }
+}
+
+/* Responsive para Móviles (hasta 768px) */
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: block;
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    width: 280px;
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+  }
+
+  .main {
+    margin-left: 0;
+    width: 100%;
+    padding: 1rem;
+    padding-top: 4rem; /* Espacio para el botón de menú */
+  }
+
+  .section-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .card-title {
+    font-size: 1.1rem;
+  }
+
+  /* Ajustes para las cards del dashboard */
+  .row > [class*='col-'] {
+    margin-bottom: 1rem;
+  }
+
+  /* Botón de emergencia más pequeño en móvil */
+  .btn-emergencia-sos {
+    width: 180px;
+    height: 180px;
+  }
+
+  .sos-icon {
+    font-size: 3rem;
+  }
+
+  .sos-text {
+    font-size: 1.75rem;
+    letter-spacing: 3px;
+  }
+
+  .sos-subtext {
+    font-size: 0.8rem;
+  }
+
+  /* Tablas responsive */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    font-size: 0.85rem;
+  }
+
+  /* Formularios */
+  .form-control, .form-select {
+    font-size: 16px; /* Evita zoom en iOS */
+  }
+
+  /* Botones más grandes para pantallas táctiles */
+  .btn {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+  }
+
+  .btn-sm {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  /* Espaciado en listas */
+  .list-group-item {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Responsive para Móviles pequeños (hasta 480px) */
+@media (max-width: 480px) {
+  .main {
+    padding: 0.75rem;
+    padding-top: 3.5rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .section-header p {
+    font-size: 0.85rem;
+  }
+
+  .card {
+    padding: 0.75rem;
+  }
+
+  .btn-emergencia-sos {
+    width: 150px;
+    height: 150px;
+  }
+
+  .sos-icon {
+    font-size: 2.5rem;
+  }
+
+  .sos-text {
+    font-size: 1.5rem;
+    letter-spacing: 2px;
+  }
+
+  .sos-subtext {
+    font-size: 0.7rem;
+  }
+}
+/* Optimización para pantallas táctiles */
+@media (hover: none) and (pointer: coarse) {
+  .btn, .nav-btn, button {
+    min-height: 44px; /* Tamaño mínimo táctil recomendado */
+    min-width: 44px;
+  }
+  
+  .list-group-item {
+    padding: 1rem;
+  }
+  
+  .form-control, .form-select {
+    min-height: 44px;
+  }
+}
+
+/* Orientación horizontal en móviles */
+@media (max-height: 500px) and (orientation: landscape) {
+  .sidebar {
+    height: auto;
+    max-height: 100vh;
+  }
+  
+  .main {
+    padding: 0.5rem;
+  }
+  
+  .card {
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Soporte para modo oscuro del sistema */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #1a1a1a;
+    color: #e0e0e0;
+  }
+  
+  .card {
+    background: #2a2a2a;
+    color: #e0e0e0;
+  }
+  
+  .table {
+    color: #e0e0e0;
+  }
+  
+  .form-control, .form-select {
+    background: #333;
+    color: #e0e0e0;
+    border-color: #444;
+  }
+}
+
+/* Impresión optimizada */
+@media print {
+  .sidebar, .nav-menu, .btn {
+    display: none;
+  }
+  
+  .main {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .card {
+    page-break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+}
+
+/* Estilos adicionales para historial */
+#historialMedicacion .list-group-item,
+#historialEmergencias .list-group-item {
+  border-left: 4px solid #0d6efd;
+  transition: all 0.2s;
+}
+
+#historialMedicacion .list-group-item:hover,
+#historialEmergencias .list-group-item:hover {
+  background-color: #f8f9fa;
+  transform: translateX(5px);
+}
+
+/* Animaciones suaves */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+/* ============================================
+   AGREGAR AL FINAL DE estilospaciente.css
+   ANIMACIONES PARA NOTIFICACIONES Y MODALES
+   ============================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { 
+    transform: scale(0.9); 
+    opacity: 0; 
+  }
+  to { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
+}
+
+@keyframes slideIn {
+  from { 
+    transform: translateX(100%); 
+    opacity: 0;
+  }
+  to { 
+    transform: translateX(0); 
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from { 
+    transform: translateX(0); 
+    opacity: 1;
+  }
+  to { 
+    transform: translateX(100%); 
+    opacity: 0;
+  }
+}
+
+/* ============================================
+   ESTILOS PARA BOTONES DE ACCIÓN
+   ============================================ */
+
+.btn-tomar-medicamento {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  color: white;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.btn-tomar-medicamento:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.btn-tomar-medicamento:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+   MEJORAS VISUALES PARA LISTAS
+   ============================================ */
+
+#listaMedicamentosHoy .list-group-item,
+#listaTomasHoy .list-group-item {
+  border-left: 4px solid transparent;
+  transition: all 0.2s ease;
+}
+
+#listaMedicamentosHoy .list-group-item {
+  border-left-color: #0d6efd;
+}
+
+#listaMedicamentosHoy .list-group-item:hover {
+  background-color: #f8f9fa;
+  transform: translateX(5px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#listaTomasHoy .list-group-item {
+  border-left-color: #10b981;
+  background-color: #f0fdf4;
+}
+
+/* ============================================
+   BADGES Y ETIQUETAS
+   ============================================ */
+
+.badge-hora {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+}
+
+.badge-pendiente {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+}
+
+/* ============================================
+   ICONOS ANIMADOS
+   ============================================ */
+
+@keyframes iconPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.icon-animated {
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+/* ============================================
+   CARD HOVER EFFECTS
+   ============================================ */
+
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+/* ============================================
+   RESPONSIVE IMPROVEMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+  .btn-tomar-medicamento {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  
+  #listaMedicamentosHoy .list-group-item,
+  #listaTomasHoy .list-group-item {
+    padding: 0.75rem;
+  }
+}
+
+/* ============================================
+   LOADING SPINNER
+   ============================================ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  border: 3px solid rgba(0,0,0,0.1);
+  border-top-color: #0d6efd;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+/* ============================================
+   MEJORAS PARA MODALES
+   ============================================ */
+
+.modal-backdrop-custom {
+  backdrop-filter: blur(4px);
+}
+
+.modal-content-custom {
+  border: none;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+/* ============================================
+   ESTADO DE MEDICAMENTOS
+   ============================================ */
+
+.medicamento-tomado {
+  opacity: 0.6;
+  background-color: #f0fdf4;
+}
+
+.medicamento-tomado::before {
+  content: "✓";
+  color: #10b981;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.medicamento-pendiente {
+  background-color: #fffbeb;
+}
+
+.medicamento-vencido {
+  background-color: #fef2f2;
+  border-left-color: #ef4444 !important;
+}
+
+/* ============================================
+   TOOLTIPS PERSONALIZADOS
+   ============================================ */
+
+[data-tooltip] {
+  position: relative;
+  cursor: pointer;
+}
+
+[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 0.75rem;
+  background: #1e293b;
+  color: white;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  z-index: 1000;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+[data-tooltip]:hover::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 0.5rem solid transparent;
+  border-top-color: #1e293b;
+  z-index: 1000;
+}
+/* ============================================
+   ESTILOS PARA NOTIFICACIONES DE MEDICAMENTOS
+   ============================================ */
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.notification-modal-backdrop {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Animación de entrada para el modal de medicamento */
+@keyframes medicationAlert {
+  0% {
+    transform: scale(0.3) rotate(-10deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05) rotate(2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* Animación de pulso para el ícono de alarma */
+@keyframes alarmPulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1) rotate(-5deg);
+  }
+  75% {
+    transform: scale(1.1) rotate(5deg);
+  }
+}
+
+/* Estilos para el selector de doctor/cuidador */
+.form-select {
+  transition: all 0.3s ease;
+  border: 2px solid #e2e8f0;
+}
+
+.form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+}
+
+.form-select optgroup {
+  font-weight: 600;
+  color: #1e3a8a;
+  font-style: normal;
+  padding: 0.5rem 0;
+}
+
+.form-select option {
+  padding: 0.5rem;
+}
+
+/* Mejoras para botones en modales */
+.btn-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.btn-success:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.btn-outline-secondary {
+  transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+  transform: translateY(-2px);
+}
+/* Mejoras parpantallas táctiles */
+@media (hover: none) and (pointer: coarse) {
+  .btn, .nav-btn, button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+/* ============================================
+   HU-29: PERSONALIZACIÓN VISUAL
+   ============================================ */
+
+:root {
+  --primary: #0d6efd;
+  --accent: #3b82f6;
+}
+
+#personalizacion-container {
+  min-height: 400px;
+}
+
+@media (max-width: 768px) {
+  .avatar-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  
+  .preview-avatar {
+    font-size: 4rem !important;
+  }
+}
+/* ============================================
+   PERFIL DE USUARIO EN SIDEBAR
+   ============================================ */
+
+.user-profile {
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-avatar-container {
+  position: relative;
+}
+
+.user-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+}
+
+.user-avatar:hover {
+  transform: scale(1.1);
+}
+
+.avatar-edit-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.7rem;
+  transition: all 0.2s ease;
+}
+
+.avatar-edit-btn:hover {
+  transform: scale(1.1);
+  background: var(--accent);
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  color: white;
+  margin: 0 0 0.25rem 0;
+  font-weight: 600;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.75rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.user-theme-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.7rem;
+  margin-top: 0.25rem;
+}
+
+.user-theme-indicator i {
+  font-size: 0.5rem;
+  color: var(--primary);
+}
+
+/* ============================================
+   BIENVENIDA EN INICIO CON AVATAR GRANDE
+   ============================================ */
+
+.welcome-header {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  padding: 2rem;
+  border-radius: 1rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  animation: slideInDown 0.5s ease-out;
+}
+
+.welcome-avatar-large {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  animation: bounceIn 0.6s ease-out;
+}
+
+.welcome-text {
+  flex: 1;
+  color: white;
+}
+
+.welcome-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: white;
+}
+
+.welcome-subtitle {
+  font-size: 1.1rem;
+  margin: 0 0 1rem 0;
+  opacity: 0.9;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .user-profile {
+    padding: 1rem;
+  }
+
+  .user-avatar {
+    width: 50px;
+    height: 50px;
+    font-size: 1.75rem;
+  }
+
+  .welcome-header {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.5rem;
+  }
+
+  .welcome-avatar-large {
+    width: 80px;
+    height: 80px;
+    font-size: 3rem;
+  }
+
+  .welcome-title {
+    font-size: 1.5rem;
+  }
+}
+
+
+
+
+
+/* No Historia HU-36 */
+.alerta-stock-bajo {
+  border-left: 4px solid #f59e0b !important;
+  background-color: #fef3c7 !important;
+}
+
+.sugerencia-pedido {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-top: 0.5rem;
+  border: 1px solid #3b82f6;
+}
+
+.sugerencia-pedido strong {
+  color: #1e40af;
+}
