@@ -1,0 +1,256 @@
+/* ======== ESTILO GENERAL ======== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background-color: #f7f9fb;
+  color: #222;
+  line-height: 1.6;
+}
+
+/* ======== ENCABEZADO ======== */
+header {
+  background-color: #083b66;
+  color: white;
+  padding: 20px 0;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  max-width: 1000px;
+  margin: auto;
+}
+
+.logo {
+  width: 100px;
+  height: auto;
+  border-radius: 8px;
+  background-color: white;
+  padding: 5px;
+}
+
+.titulo h1 {
+  font-size: 2.2em;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.titulo p {
+  font-size: 1em;
+  color: #d0e4f7;
+}
+
+/* ======== PRESENTACIÓN ======== */
+.presentacion {
+  text-align: center;
+  margin: 40px auto;
+  max-width: 900px;
+}
+
+.presentacion h2 {
+  color: #083b66;
+  font-size: 1.9em;
+  margin-bottom: 15px;
+}
+
+.presentacion p {
+  font-size: 1.1em;
+  color: #333;
+}
+
+/* ======== FORMULARIOS ======== */
+.formularios {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 40px;
+  margin: 40px auto;
+  max-width: 900px;
+}
+
+.form-card {
+  background: white;
+  border-radius: 12px;
+  padding: 30px 40px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  width: 320px;
+}
+
+.form-card h3 {
+  color: #083b66;
+  margin-bottom: 20px;
+}
+
+form input, form select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1em;
+}
+
+form select {
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+form select:focus {
+  outline: none;
+  border-color: #0d6efd;
+  box-shadow: 0 0 5px rgba(13, 110, 253, 0.5);
+}
+
+/* ======== PASSWORD TOGGLE ======== */
+.password-container {
+  position: relative;
+}
+
+.password-container input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+/* ======== BOTONES ======== */
+.btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn-azul {
+  background: #0d6efd;
+}
+
+.btn-azul:hover {
+  background: #0b5ed7;
+}
+
+.btn-morado {
+  background: #7b4dff;
+}
+
+.btn-morado:hover {
+  background: #6a38ff;
+}
+
+.btn-secundario {
+  background: #1064b0;
+  margin: 10px;
+}
+
+.btn-secundario:hover {
+  background: #0a4d87;
+}
+
+/* ======== EXTRAS ======== */
+.extras {
+  text-align: center;
+  margin: 40px 0;
+}
+
+/* ======== PIE DE PÁGINA ======== */
+footer {
+  background-color: #062c4e;
+  color: #e1e8f0;
+  text-align: center;
+  padding: 15px;
+  font-size: 0.9em;
+}
+
+/* ======== RESPONSIVE ======== */
+@media (max-width: 768px) {
+  .topbar {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .formularios {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .form-card {
+    width: 90%;
+  }
+}
+
+
+
+/* ======== FOOTER PEGADO AL FONDO ======== */
+html, body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+
+/* === Estilo para las notificaciones === */
+#toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+}
+
+.toast {
+  background: #333;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  font-size: 15px;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.success {
+  background-color: #28a745;
+}
+
+.toast.error {
+  background-color: #dc3545;
+}
+
+.toast.warning {
+  background-color: #ffc107;
+  color: #333;
+}
