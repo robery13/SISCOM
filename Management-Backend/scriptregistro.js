@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const cerrarSesionBtn = document.getElementById("cerrarSesionBtn");
   if (cerrarSesionBtn) {
     cerrarSesionBtn.addEventListener("click", () => {
-        window.location.href = "../html/Proyecto_SISCOM.html";     
+        window.location.href = "../index.html";
     });
   }
 });
@@ -122,19 +122,89 @@ document.addEventListener("DOMContentLoaded", () => {
 (function(){
   const registrarBtn = document.getElementById("registrarBtn");
   const tablaInv = document.querySelector("#tablaInventario tbody");
+  const modoActualizarCheckbox = document.getElementById("modoActualizar");
+  const selectMedicamentoRow = document.getElementById("selectMedicamentoRow");
+  const inputNombreRow = document.getElementById("inputNombreRow");
+  const consumoRow = document.getElementById("consumoRow");
+  const selectMedicamento = document.getElementById("selectMedicamento");
+
+  let inventarioActual = [];
+
+  // Toggle entre modo nuevo y actualizar
+  if (modoActualizarCheckbox) {
+    modoActualizarCheckbox.addEventListener("change", () => {
+      const esModoActualizar = modoActualizarCheckbox.checked;
+      selectMedicamentoRow.style.display = esModoActualizar ? "block" : "none";
+      inputNombreRow.style.display = esModoActualizar ? "none" : "block";
+      consumoRow.style.display = esModoActualizar ? "none" : "block";
+
+      if (esModoActualizar) {
+        cargarMedicamentosParaSeleccion();
+      }
+    });
+  }
+
+  async function cargarMedicamentosParaSeleccion() {
+    try {
+      const respuesta = await fetch("http://localhost:3000/inventario");
+      const data = await respuesta.json();
+      inventarioActual = data;
+
+      selectMedicamento.innerHTML = '<option value="">Selecciona un medicamento</option>';
+      data.forEach(item => {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = `${item.nombre} (Stock actual: ${item.cantidad})`;
+        selectMedicamento.appendChild(option);
+      });
+    } catch (error) {
+      console.error("Error al cargar medicamentos:", error);
+    }
+  }
 
   if (registrarBtn) {
     registrarBtn.addEventListener("click", async () => {
-      const nombre = document.getElementById("nombreInv").value.trim();
+      const esModoActualizar = modoActualizarCheckbox.checked;
       const cantidad = parseInt(document.getElementById("cantidadInv").value, 10);
-      const consumo_por_dosis = parseInt(document.getElementById("consumoInv").value, 10);
 
-      if (!nombre || isNaN(cantidad) || isNaN(consumo_por_dosis)) {
-        alert("Por favor complete todos los campos correctamente.");
+      if (isNaN(cantidad) || cantidad < 1) {
+        alert("Por favor ingrese una cantidad válida mayor a 0.");
         return;
       }
 
-      const datos = { nombre, cantidad, consumo_por_dosis };
+      let datos;
+
+      if (esModoActualizar) {
+        // Modo actualizar stock existente
+        const medicamentoId = selectMedicamento.value;
+        if (!medicamentoId) {
+          alert("Por favor seleccione un medicamento existente.");
+          return;
+        }
+
+        const medicamento = inventarioActual.find(m => m.id == medicamentoId);
+        if (!medicamento) {
+          alert("Medicamento no encontrado.");
+          return;
+        }
+
+        datos = {
+          id: medicamentoId,
+          cantidad: medicamento.cantidad + cantidad, // Suma la cantidad existente
+          actualizar: true
+        };
+      } else {
+        // Modo nuevo medicamento
+        const nombre = document.getElementById("nombreInv").value.trim();
+        const consumo_por_dosis = parseInt(document.getElementById("consumoInv").value, 10);
+
+        if (!nombre || isNaN(consumo_por_dosis) || consumo_por_dosis < 1) {
+          alert("Por favor complete todos los campos correctamente.");
+          return;
+        }
+
+        datos = { nombre, cantidad, consumo_por_dosis };
+      }
 
       try {
         const resp = await fetch("http://localhost:3000/inventario", {
@@ -144,7 +214,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         const resultado = await resp.json();
-        alert(resultado.mensaje || "Medicamento agregado al inventario.");
+        alert(resultado.mensaje || (esModoActualizar ? "Stock actualizado correctamente." : "Medicamento agregado al inventario."));
         cargarInventario();
         clearInvForm();
 
@@ -159,6 +229,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const respuesta = await fetch("http://localhost:3000/inventario");
       const data = await respuesta.json();
+      inventarioActual = data;
       renderInventario(data);
     } catch (err) {
       console.error("Error al cargar inventario:", err);
@@ -184,11 +255,82 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("nombreInv").value = "";
     document.getElementById("cantidadInv").value = "";
     document.getElementById("consumoInv").value = "";
+    modoActualizarCheckbox.checked = false;
+    selectMedicamentoRow.style.display = "none";
+    inputNombreRow.style.display = "block";
+    consumoRow.style.display = "block";
+    selectMedicamento.value = "";
   }
 
   cargarInventario();
+  verificarAlertasStock();
 
 })();
+
+// ===============================
+// ALERTAS DE STOCK BAJO
+// ===============================
+async function verificarAlertasStock() {
+  try {
+    const response = await fetch("http://localhost:3000/inventario");
+    if (!response.ok) throw new Error('Error al cargar inventario');
+
+    const inventario = await response.json();
+    console.log('Inventario cargado para alertas:', inventario);
+
+    const alertas = inventario.filter(item => {
+      const cantidad = item.cantidad || 0;
+      // Considerar stock bajo si cantidad <= 10 (puedes ajustar este umbral)
+      return cantidad <= 10;
+    });
+
+    mostrarAlertasStock(alertas);
+  } catch (error) {
+    console.error('Error al verificar stock:', error);
+    mostrarAlertasStock([]);
+  }
+}
+
+function mostrarAlertasStock(alertas) {
+  const container = document.getElementById('alertasStock');
+  if (!container) {
+    console.error('Contenedor #alertasStock no encontrado');
+    return;
+  }
+
+  container.innerHTML = '';
+
+  if (alertas.length === 0) {
+    container.innerHTML = '<div class="list-group-item text-center text-muted">No hay alertas de stock bajo</div>';
+    return;
+  }
+
+  alertas.forEach(item => {
+    const cantidad = item.cantidad || 0;
+    const nivel = cantidad === 0 ? 'danger' : cantidad <= 5 ? 'danger' : 'warning';
+    const icono = cantidad === 0 ? 'exclamation-triangle-fill' : 'exclamation-triangle';
+    const mensaje = cantidad === 0 ? 'AGOTADO' : 'Stock Bajo';
+
+    const itemDiv = document.createElement('div');
+    itemDiv.className = `list-group-item list-group-item-${nivel}`;
+    itemDiv.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h6 class="mb-1">
+            <i class="bi bi-${icono} me-2"></i>
+            ${escapeHtml(item.nombre)}
+          </h6>
+          <p class="mb-1">Cantidad actual: <strong>${cantidad}</strong> unidades</p>
+          <small class="text-muted">Última actualización: ${new Date(item.fecha_registro).toLocaleString()}</small>
+        </div>
+        <div class="text-end">
+          <span class="badge bg-${nivel}">${mensaje}</span>
+        </div>
+      </div>
+    `;
+    container.appendChild(itemDiv);
+  });
+}
 
 // ===============================
 // FICHA MÉDICA

@@ -1,0 +1,504 @@
+Este es un proyecto que deseo mejorar y arreglar manteniendo el diseño actual, ordenar archivos y crear si es necesario. Te paso las instrucciones con las cuales se ha creado todo los archivos: 
+
+
+Proyecto: Sistema de Control de Medicación (SISCOM)
+
+Descripción general del proyecto: 
+El sistema SISCOM tiene como objetivo principal ayudar a los pacientes adultos y geriátricos en el control de su medicación diaria mediante alarmas programadas y registro de dosis. A través de una aplicación o sistema web, el paciente o su cuidador podrá ingresar los medicamentos con su respectiva dosis, frecuencia y horario. El sistema enviará recordatorios automáticos (alarmas) y permitirá marcar cuando una dosis ha sido tomada. Además, se generará un registro de cumplimiento que podrá ser visualizado por el cuidador o familiar para garantizar que el tratamiento se está siguiendo correctamente.
+
+Herramientas y tecnologías utilizadas:
+ - Lenguaje de programación: JavaScript (Node.js) 
+- Base de datos: MySQL 
+- Interfaz: HTML, CSS, JavaScript 
+- Framework Backend: Express.js v5.1.0 
+- Framework Frontend: Bootstrap 5.3.3 
+- Entorno de desarrollo: Visual Studio Code 
+- Control de versiones: GitHub 
+- Notificaciones: Web Notifications API
+ - Herramientas de gestión ágil: Trello
+ 
+SPRINT 
+Fecha de inicio: Miércoles 12 de noviembbre. de 25
+ Fecha de finalización: martes 11 de noviembre. de 25
+ Duración: 2 semanas
+
+OBJETIVOS DEL SPRINT 3:
+	Implementar sistema de autenticación y registro de usuarios 
+	Desarrollar módulo de registro y gestión de medicamentos 
+	Crear sistema de recordatorios automáticos
+	 Implementar checklist de confirmación de toma 
+	 Desarrollar módulo de inventario de medicamentos 
+	Crear sistema de solicitud manual a farmacias
+
+RESULTADOS ALCANZADOS:
+	15 historias de usuario completadas 
+	6 historias de usuario en progreso 
+	Sistema funcional con múltiples módulos integrados 
+	Base de datos MySQL implementada y funcionando 
+	Interfaz responsive con Bootstrap 
+
+
+
+
+No Historia	HU-01	Nombre de historia	Registro de medicamento por el cuidador
+Prioridad	 Alta 	Horas estimadas de desarrollo	 9 horas
+Sprint	 1	Responsable: Robertson Hernández e Itrean Pérez 	 Estado: Completada
+Descripción	Tareas Realizadas
+ 
+Como cuidador, quiero registrar los medicamentos del paciente con nombre, dosis y horario para que el sistema pueda generar recordatorios.
+	 Implementar modelo de datos MySQL (tabla medicamentos).
+	 Desarrollar formulario web funcional con validaciones.
+	 Integrar lógica de recordatorios y notificaciones.
+	Conectar backend Node.js + Express a MySQL.
+
+
+No Historia	HU-02	Nombre de historia	Confirmación de toma del medicamento
+Prioridad	 Alta 	Horas estimadas de desarrollo	 8
+Sprint	 1	Responsable: David Paz	 Estado: Completada
+Descripción	Tareas Realizadas
+
+Como paciente, quiero marcar con un check cuando ya tomé el medicamento para llevar control.	
+	 Diseñar interfaz de checklist diaria con lista de medicamentos y estados visuales.
+	Implementar registro del evento “medicamento tomado” con persistencia local.
+	Desarrollar panel de auditoría con historial diario y hora de confirmación.
+	Configurar exportación a CSV con detalles de toma y paciente.
+	Habilitar carga de datos por paciente y fecha, con opciones de ejemplo y limpieza diaria.
+
+No Historia	HU-03	Nombre de historia	 Notificación de toma del medicamento al cuidador
+Prioridad	 Alta 	Horas estimadas de desarrollo	 10
+Sprint	 1	Responsable Jonathan Menjivar	 Estado: Completado
+Descripción	Tareas 
+ Como cuidador, quiero recibir notificaciones cuando el paciente toma su medicamento.	 
+Configurar sistema de notificaciones push
+
+Asociar paciente con cuidador en base de datos
+
+Enviar confirmación de toma de medicamento
+
+Integrar API de WhatsApp Business para envío de mensajes automáticos
+
+
+
+
+No Historia	HU-04 	Nombre de historia	 Alerta por omisión de toma del medicamento
+Prioridad	 Alta 	Horas estimadas de desarrollo	 9
+Sprint	 1	Responsable: Robertson Hernández e Itrean Pérez	 Estado: En Pendiente
+Descripción	Tareas
+Como cuidador, quiero recibir alertas si el paciente no ha tomado el medicamento a tiempo.	Implementar lógica de vencimiento de horario
+
+Generar alerta automática si no hay check marcado
+
+Notificar al cuidador con mensaje personalizado
+
+Configurar alertas vía WhatsApp con mensaje personalizado
+
+
+No Historia	 HU-05	Nombre de historia	 Control de inventario de medicamentos
+Prioridad	 Media 	Horas estimadas de desarrollo	 12
+Sprint	 1	Responsable Itrean Perez	 Estado: Completada
+Descripción	Tareas Realizadas: 
+ Como cuidador, quiero ver cuántos medicamentos quedan para saber cuándo pedir más.		Implementar módulo de inventario con registro, edición y eliminación de medicamentos.
+	Diseñar formulario para registrar cantidad inicial y consumo por dosis.
+
+	Configurar tabla dinámica con actualización en tiempo real y alertas de bajo inventario.
+	 Programar sistema de consumo automático con validación.
+
+	Guardar datos en almacenamiento local y simular notificación por inventario bajo.
+
+No Historia	 HU-06	Nombre de historia	Solicitud manual a farmacia
+Prioridad	 Media 	Horas estimadas de desarrollo	 15
+Sprint	 1	Responsable: David Paz	 Estado: Completada
+Descripción	Tareas Realizadas: 
+Como cuidador, quiero poder hacer pedidos a la farmacia desde el sistema.		Implementar navbar completo con título y diseño profesional.
+	Desarrollar formulario de creación de pedido con selector de farmacia, tabla de medicamentos, adjuntar receta y área de notas.
+	Configurar sistema de gestión del pedido: previsualizar, guardar localmente y validar datos.
+	Crear módulo de historial de pedidos con lista, detalle, ver/eliminar pedidos y limpiar historial.
+	Garantizar persistencia de datos en LocalStorage con estructura JSON y archivos en Base64.
+
+
+No Historia	HU-07	Nombre de historia	Pedido automático por bajo inventario
+Prioridad	 Media 	Horas estimadas de desarrollo	 10
+Sprint	 7	Responsable	 
+Descripción	Tareas
+ Como farmacia, quiero recibir automáticamente los pedidos cuando el inventario esté bajo.	Configurar lógica de pedido automático
+
+Crear endpoint para recepción de pedidos
+
+Validar confirmación de surtido
+
+
+No Historia	HU-08	Nombre de historia	 Registro por tipo de usuario
+Prioridad	Alta  	Horas estimadas de desarrollo	 8
+Sprint	 1	Responsable:Jonathan Menjivar	 Estado: Completada
+Descripción	Tareas Realizadas:
+Como nuevo usuario, quiero poder registrarme como paciente, cuidador o farmacia para que el sistema me asigne las funciones correspondientes.		Diseñar página principal con dual-formulario y secciones de roles.
+	Crear formularios de registro y login con validaciones y toggle de contraseña.
+	 Configurar página de registro para administrador con selección de rol.
+	 Implementar backend Node.js + Express con endpoints de registro y login.
+	 Configurar base de datos MySQL con tabla usuarios.
+	 Aplicar estilos responsive y diseño moderno.
+
+No Historia	 HU-09	Nombre de historia	 Vinculación cuidador - paciente
+Prioridad	 Alta 	Horas estimadas de desarrollo	 10
+Sprint	 1 y 2	Responsable: Jonathan Menjivar	 Estado: Completado
+Descripción	Tareas
+ Como cuidador, quiero vincularme con uno o varios pacientes para poder gestionar su medicación y recibir alertas.	Crear lógica de vinculación entre usuarios
+
+Validar permisos y roles
+
+Mostrar panel de control del paciente
+
+
+
+
+
+
+
+
+No Historia	 HU-10	Nombre de historia	 Recordatorio de medicación   para el paciente
+Prioridad	 Alta 	Horas estimadas de desarrollo	 7
+Sprint	 1	Responsable: Robertson Hernández e Itrean Pérez	 Estado: Completada
+Descripción	Tareas Realizadas:
+Como paciente, quiero recibir recordatorios amigables para tomar mis medicamentos.		Implementar sistema de notificaciones del navegador con permisos y verificación.
+	 Programar lógica de recordatorios con cálculo automático y ajuste de hora.
+	Configurar recordatorios recurrentes según frecuencia.
+	Crear función mostrarNotificacion() con mensajes personalizados por medicamento y dosis.
+	Confirmar al usuario registro de medicamento con alertas.
+	 Persistir recordatorios en LocalStorage y re-programar al cargar página.
+	Integrar recordatorios en módulos de registro e inventario de medicamentos
+
+
+No Historia	 HU-11	Nombre de historia	Alerta escalada por falta de respuesta 
+Prioridad	 Alta 	Horas estimadas de desarrollo	 11
+Sprint	 2	Responsable Robertson Hernández	 Estado: Pendiente
+Descripción	Tareas
+ Como cuidador, quiero recibir alertas si el paciente no responde al recordatorio.	Implementar lógica de seguimiento
+
+Enviar alerta escalada tras tiempo de espera
+
+Registrar eventos de seguimiento
+
+
+No Historia	 HU-12	Nombre de historia	Botón de emergencia activable por el paciente
+Prioridad	 Critica 	Horas estimadas de desarrollo	 9
+Sprint	 2	Responsable Robertson Hernández	  Estado: Completada
+Descripción	Tareas
+Como paciente, quiero tener un botón de emergencia que pueda activar fácilmente para pedir ayuda inmediata.	 Diseñar botón visible y accesible en la interfaz principal
+
+
+Definir estados del botón (activado, cancelado, confirmado)
+
+Registrar evento de emergencia en la base de datos
+
+
+
+
+
+No Historia	 HU-13	Nombre de historia	 Notificación de emergencia al cuidador
+Prioridad	 Critica 	Horas estimadas de desarrollo	 12
+Sprint	 2	Responsable Robertson Hernández 	Estado: Completada
+Descripción	Tareas
+Como cuidador o médico, quiero recibir una notificación instantánea cuando el paciente active el botón de emergencia.	Configurar notificación push, SMS o email con prioridad alta
+
+Mostrar ubicación del paciente 
+
+Enviar mensaje de emergencia vía WhatsApp con ubicación y datos del paciente
+
+Activar protocolo de respuesta (llamada, visita, etc.)
+
+
+No Historia	 HU-14	Nombre de historia	 Alerta automática a servicios de emergencia
+Prioridad	 Critica 	Horas estimadas de desarrollo	 15
+Sprint	 2	Responsable Robertson Hernández Jonathan Menjivar	 Estado: Pendiente
+Descripción	Tareas
+ Como servicio de emergencia, quiero recibir alertas automáticas con los datos del paciente para actuar rápidamente.	Integrar API o canal de comunicación con servicios locales
+
+Enviar nombre, ubicación, condición médica relevante
+
+Registrar confirmación de recepción y atención
+
+
+No Historia	 HU-15	Nombre de historia	Cancelación de alerta por paciente
+Prioridad	 Media 	Horas estimadas de desarrollo	 6
+Sprint	 15	Responsable Itrean Perez	 Completada
+Descripción	Tareas
+Como paciente, quiero poder cancelar la alerta si fue un error, para evitar falsas alarmas.	Añadir opción de cancelación con confirmación
+
+Registrar motivo de cancelación
+
+ Notificar al cuidador que fue cancelada
+
+
+
+
+No Historia	 HU-16	Nombre de historia	 Historial de medicación del paciente 
+Prioridad	 Media 	Horas estimadas de desarrollo	 10
+Sprint	 2	Responsable David Paz y Itrean Perez	 Estado: Completada
+Descripción	Tareas
+ Como paciente, quiero ver mi historial de medicamentos para entender mi progreso.	Crear módulo de historial
+
+ Visualizar por día/semana/mes
+
+ Exportar reportes PDF/Excel
+
+No Historia	 HU-17	Nombre de historia	 Panel de cumplimiento para el cuidador 
+Prioridad	 Alta 	Horas estimadas de desarrollo	 12
+Sprint	 17	Responsable David Paz y Itrean Perez	 Pendiente
+Descripción	Tareas
+Como cuidador, quiero acceder al historial del paciente para evaluar su cumplimiento.	Mostrar estadísticas de cumplimiento
+
+ Filtrar por medicamento y fecha
+
+Compartir con médicos o familiares
+
+No Historia	 HU-18	Nombre de historia	 Recordatorio por vos para el paciente 
+Prioridad	 Media 	Horas estimadas de desarrollo	 12
+Sprint	 18	Responsable Itrean Perez	 Completada
+Descripción	Tareas
+ Como paciente, quiero recibir recordatorios hablados para facilitar el seguimiento.	Integrar síntesis de voz
+
+Configurar mensajes por horario
+
+Validar accesibilidad
+
+No Historia	 HU-19	Nombre de historia	 Activación de emergencia por vos 
+Prioridad	 Alta 	Horas estimadas de desarrollo	 13
+Sprint	 19	Responsable Itrean Perez	 Completada
+Descripción	Tareas
+ Como paciente, quiero activar el botón de emergencia por voz si no puedo usar mis manos.	Integrar reconocimiento de voz
+
+Asociar comando con evento de emergencia
+
+ Validar activación segura
+
+
+No Historia	 HU-20	Nombre de historia	 Agenda medica del paciente
+Prioridad	 Media 	Horas estimadas de desarrollo	 10
+Sprint	 2	Responsable David Paz y Itrean Perez	 Estado: Completada
+Descripción	Tareas
+ Como paciente, quiero registrar mis citas médicas para no olvidarlas.	Crear calendario de citas
+
+Registrar fecha, hora y motivo
+
+Notificar anticipadamente
+
+No Historia	 HU-21	Nombre de historia	 Agenda compartida con el cuidador 
+Prioridad	 Alta 	Horas estimadas de desarrollo	 10
+Sprint	 2	Responsable:Jonathan Menjivar	 Estado: Completada
+Descripción	Tareas
+Como cuidador, quiero ver la agenda médica del paciente para coordinar mejor.	Sincronizar con Google/Outlook
+
+Mostrar eventos próximos
+
+Registrar historial de visitas
+
+No Historia	 HU-22	Nombre de historia	 Ficha medica del paciente
+Prioridad	 Alta 	Horas estimadas de desarrollo	 12
+Sprint	 2	Responsable Itrean Perez	 Estado: Completada
+Descripción	Tareas
+Como cuidador, quiero ver el perfil médico del paciente para actuar con rapidez.	Crear ficha médica editable
+
+Registrar alergias y condiciones
+
+Mostrar datos críticos en emergencias
+
+No Historia	 HU-23	Nombre de historia	 Verificación de interacciones farmacéuticas 
+Prioridad	 Media 	Horas estimadas de desarrollo	 12
+Sprint	 2	Responsable Itrean Perez	 Estado: Pendiente
+Descripción	Tareas
+Como farmacia, quiero validar que los medicamentos no tengan interacciones peligrosas.	Implementar verificador de compatibilidad
+
+ Mostrar alertas de interacción
+
+Asociar con perfil médico
+
+
+No Historia	 HU-24	Nombre de historia	 Carga de recetas medicas
+Prioridad	 Media 	Horas estimadas de desarrollo	 10
+Sprint	 24	Responsable Itrean Perez	 Completada
+Descripción	Tareas
+Como paciente, quiero subir mis recetas médicas para facilitar el pedido	Permitir carga/escaneo de recetas
+
+ Validar dosis y frecuencia
+
+ Asociar receta con medicamento
+
+No Historia	 HU-25	Nombre de historia	 Recepción de recetas digitales por farmacia
+Prioridad	 Alta 	Horas estimadas de desarrollo	 12
+Sprint	 25	Responsable Itrean Perez	 Completada
+Descripción	Tareas
+Como farmacia, quiero recibir recetas digitales para preparar el pedido.	Enviar receta digital
+
+Validar autenticidad
+
+ Registrar confirmación de recepción
+
+No Historia	 HU-26	Nombre de historia	 Panel multiclientes para cuidadores
+Prioridad	 Alta 	Horas estimadas de desarrollo	 12
+Sprint	 26	Responsable	 
+Descripción	Tareas
+Como cuidador, quiero ver todos mis pacientes en un solo panel para organizarme mejor.	Diseñar vista consolidada
+
+Agrupar alertas por prioridad
+
+Filtrar por estado y fecha
+
+No Historia	 HU-27	Nombre de historia	 Estadística de salud por paciente
+Prioridad	 Alta 	Horas estimadas de desarrollo	 10
+Sprint	 27	Responsable	 
+Descripción	Tareas
+Como cuidador, quiero ver estadísticas de salud y cumplimiento por paciente.	Mostrar gráficos y porcentajes 
+
+Exportar informes
+
+Comparar entre pacientes
+
+
+No Historia	 HU-28	Nombre de historia	 Sistema de recompensa por cumplimiento
+Prioridad	 Media 	Horas estimadas de desarrollo	 10
+Sprint	 28	Responsable Itrean Perez	 Completada
+Descripción	Tareas
+Como paciente, quiero recibir recompensas virtuales por cumplir con mis medicamentos.	Crear sistema de puntos o medallas
+
+Registrar cumplimiento
+
+Mostrar progreso visual
+
+No Historia	 HU-29	Nombre de historia	 Personalización visual de la App
+Prioridad	 Baja 	Horas estimadas de desarrollo	 8
+Sprint	 29	Responsable	 
+Descripción	Tareas
+Como paciente, quiero personalizar mi app con avatares o temas visuales	Diseñar selector de avatares
+
+Implementar temas visuales
+
+ Guardar preferencias del usuario
+
+No Historia	 HU-30	Nombre de historia	 Acceso multiplataforma 
+Prioridad	 Alta 	Horas estimadas de desarrollo	 12
+Sprint	 30	Responsable: Jonathan Menjivar	 Completada
+Descripción	Tareas
+Como usuario, quiero acceder al sistema desde cualquier dispositivo.	Desarrollar versión web, móvil y Tablet
+
+Validar compatibilidad multiplataforma
+
+Optimizar interfaz responsiva
+
+No Historia	 HU-31	Nombre de historia	 Modo offline con sincronización
+Prioridad	 Media 	Horas estimadas de desarrollo	 12
+Sprint	 31	Responsable	 
+Descripción	Tareas
+Como usuario, quiero que el sistema funcione sin conexión y se sincronice después.	Implementar modo offline
+
+Sincronizar datos al reconectar
+
+Validar consistencia de datos
+
+
+
+No Historia	HU-32	Nombre de historia	Eliminación segura de medicamentos
+Prioridad	Media	Horas estimadas de desarrollo	5 horas
+Sprint	4		Estado: Pendiente
+Descripción	Como cuidador, quiero eliminar medicamentos que ya no forman parte del tratamiento del paciente para mantener el sistema actualizado.	Tareas	✓ Solicitar confirmación antes de eliminar
+✓ Cancelar recordatorios asociados
+✓ Actualizar inventario
+
+No Historia	HU-33	Nombre de historia	Visualización diaria de medicación
+Prioridad	Alta	Horas estimadas de desarrollo	7 horas
+Sprint	4		Estado: Pendiente
+Descripción	Como paciente, quiero visualizar un panel diario con todos mis medicamentos programados para no olvidar ninguna dosis.	Tareas	✓ Mostrar medicamentos por día
+✓ Resaltar dosis pendientes
+✓ Indicar medicamentos tomados
+
+No Historia	HU-34	Nombre de historia	Confirmación visual de recordatorio
+Prioridad	Media	Horas estimadas de desarrollo	6 horas
+Sprint	4		Estado: Pendiente
+Descripción	Como paciente, quiero ver una confirmación visual cuando un recordatorio se active.	Tareas	✓ Mostrar alerta en pantalla
+✓ Confirmar activación del recordatorio
+✓ Permitir marcar dosis como tomada
+
+No Historia	HU-35	Nombre de historia	Registro automático en inventario
+Prioridad	Alta	Horas estimadas de desarrollo	8 horas
+Sprint	4		Estado: Pendiente
+Descripción	Como sistema, quiero descontar automáticamente el inventario cuando el paciente confirme una dosis para mantener datos precisos.	Tareas	✓ Reducir cantidad según dosis
+✓ Validar stock disponible
+✓ Generar alerta por bajo inventario
+			
+
+No Historia	HU-36	Nombre de historia	Notificación de bajo inventario
+Prioridad	Media	Horas estimadas de desarrollo	6 horas
+Sprint	4	Responsable: Ángel	Estado: Pendiente
+Descripción	Como cuidador, quiero recibir alertas cuando un medicamento esté por agotarse para solicitar reposición a tiempo.	Tareas	✓ Detectar nivel mínimo
+✓ Enviar notificación automática
+✓ Sugerir pedido a farmacia
+
+No Historia	HU-37	Nombre de historia	Historial diario de tomas
+Prioridad	Alta	Horas estimadas de desarrollo	7 horas
+Sprint	4	Responsable: Ángel	Estado: Pendiente
+Descripción	Como cuidador, quiero consultar el historial diario de tomas para evaluar el cumplimiento del tratamiento.	Tareas	✓ Mostrar fecha y hora
+✓ Identificar omisiones
+✓ Filtrar por día
+
+No Historia	HU-38	Nombre de historia	Autenticación segura
+Prioridad	Alta	Horas estimadas de desarrollo	8 horas
+Sprint	4	Responsable: 	Estado: Pendiente
+Descripción	Como usuario, quiero iniciar sesión de forma segura para proteger mi información personal y médica.	Tareas	✓ Validar credenciales
+✓ Gestionar sesiones
+✓ Mostrar errores claros
+
+No Historia	HU-39	Nombre de historia 	Configuración de horarios personalizados
+Prioridad	Media	Horas 	4 horas
+Sprint	4	Responsable	Estado: Pendiente
+Descripción	Como paciente, quiero personalizar los horarios exactos de mis medicamentos para que los recordatorios se adapten a mi rutina diaria.	Tareas	✓ Permitir selección de múltiples horarios por medicamento
+✓ Validar conflictos entre horarios
+✓ Guardar configuración personalizada en base de datos
+✓ Actualizar recordatorios automáticamente
+
+
+
+No Historia	HU-40	Nombre de historia	Validación de roles de usuario
+Prioridad	Alta	Horas estimadas de desarrollo	6 horas
+Sprint	4	Responsable	Estado: Pendiente
+Descripción	Como sistema, quiero validar el rol del usuario para mostrar únicamente las funciones permitidas según su perfil.	Tareas	Tareas:
+✓ Restringir accesos por rol
+✓ Mostrar menús dinámicos
+✓ Validar permisos en backend
+
+
+No Historia	HU-41	Nombre de historia	Confirmación de dosis omitida
+Prioridad	Alta	Horas estimadas de desarrollo	6 horas
+Sprint	4	Responsable	Estado: Pendiente
+Descripción	Como paciente, quiero indicar cuando omití una dosis para que el sistema registre el motivo y notifique al cuidador.	
+Tareas	
+✓ Agregar opción “No tomada” en checklist
+✓ Solicitar motivo de omisión
+✓ Registrar evento en historial
+✓ Notificar al cuidador automáticamente
+
+
+No Historia	HU-42	Nombre de historia 	Reporte semanal de cumplimiento
+Prioridad	Alta	Horas estimadas de desarrollo	6 horas
+Sprint	4	Responsable	Estado: Pendiente
+Descripción	Como cuidador, quiero recibir un reporte semanal del cumplimiento del paciente para evaluar su adherencia al tratamiento.	Tareas	✓ Calcular porcentaje de cumplimiento semanal
+✓ Generar resumen automático
+✓ Mostrar reporte en panel del cuidador
+✓ Permitir exportación en PDF
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

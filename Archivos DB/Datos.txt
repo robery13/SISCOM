@@ -1,0 +1,59 @@
+1	administrador	admin	123456789	999999	admin@gmail.com	admin123	administrador
+2	mario	josee	1803200202309	12345678	jdmenjivar@unah.hn	palta123	usuario
+3	Hugo	perez	1023022010203	12341234	hugo@yahoo.es	hugo123	empleado
+4	jhony	carvajal	3902100429312	87654321	jhony@hotmail.com	prueba	administrador
+5	robery	prueba	0505199900706	88888888	eli@gmail.com	prueba123	usuario
+6	robertson	hernandez	0505199400706	88888888	robersonhernandez1@gmail.com	prueba1234	usuario
+36	alfredo	perez	1236555848848	33477747	Itreanperez44@gmail.com	7890	usuario
+43	prueba	prueba	1290200201993	12341234	prueba@gmail.com	prueba	usuario
+54	jose	montes	1093200201932	12341234	palta@gmail.com	hugo123	administrador
+66	marcos	josue carlos	0404199700706	88888888	eliarmas@gmail.com	prueba123	usuario
+67	prueba1234	prueba1234	1804200201492	12341234	hugo@gmail.es	prueba	usuario
+68	probando123	probando123	1804200301494	12341234	prueba@yahoo.com	prueba	usuario
+72	Kary	Hernandez Avila	0502198900964	33303908	karyhdez21@gmail.com	Temporal1	usuario
+73	Angel	Perdomo	0506199602205	93569165	angel26@gmail.com	admin	administrador
+
+
+
+
+
+HISTORIA A TRABAJAR DEL PROYECTO:
+
+
+HU-36
+HU-37
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

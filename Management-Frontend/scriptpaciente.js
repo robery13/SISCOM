@@ -296,7 +296,7 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.removeItem('usuario');
         mostrarNotificacion('Sesion cerrada exitosamente', 'success');
         setTimeout(() => {
-          window.location.href = "index.html";
+          window.location.href = "../index.html";
         }, 1000);
       }
     });
@@ -643,77 +643,74 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function mostrarModalReceta() {
-  const modal = document.createElement('div');
-  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 0.2s ease-out';
-  
-  modal.innerHTML = `
-    <div style="background:white;padding:2rem;border-radius:1rem;max-width:500px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation:scaleIn 0.3s ease-out">
-      <h5 style="margin-bottom:1.5rem;color:#1e3a8a">Nueva Receta Medica</h5>
-      
-      <div style="margin-bottom:1rem">
-        <label style="display:block;margin-bottom:0.5rem;font-weight:500">Medicamento:</label>
-        <input type="text" id="modalNombre" class="form-control" placeholder="Nombre del medicamento">
-      </div>
-      
-      <div style="margin-bottom:1rem">
-        <label style="display:block;margin-bottom:0.5rem;font-weight:500">Dosis:</label>
-        <input type="text" id="modalDosis" class="form-control" placeholder="Ej: 400mg">
-      </div>
-      
-     <div style="margin-bottom:1.5rem">
-  <label style="display:block;margin-bottom:0.5rem;font-weight:500">Frecuencia:</label>
-  <select id="modalFrecuencia" class="form-select">
-    <option value="">Selecciona frecuencia</option>
-    <optgroup label="Pruebas (Minutos)">
-      <option value="cada 1 minuto">Cada 1 minuto</option>
-      <option value="cada 2 minutos">Cada 2 minutos</option>
-      <option value="cada 3 minutos">Cada 3 minutos</option>
-      <option value="cada 5 minutos">Cada 5 minutos</option>
-      <option value="cada 10 minutos">Cada 10 minutos</option>
-      <option value="cada 15 minutos">Cada 15 minutos</option>
-      <option value="cada 30 minutos">Cada 30 minutos</option>
-    </optgroup>
-    <optgroup label="Frecuencias Comunes (Horas)">
-      <option value="cada 1 hora">Cada 1 hora</option>
-      <option value="cada 2 horas">Cada 2 horas</option>
-      <option value="cada 4 horas">Cada 4 horas</option>
-      <option value="cada 6 horas">Cada 6 horas</option>
-      <option value="cada 8 horas">Cada 8 horas</option>
-      <option value="cada 12 horas">Cada 12 horas</option>
-      <option value="cada 24 horas">Cada 24 horas (1 vez al día)</option>
-    </optgroup>
-  </select>
-</div>
-      
-      <div style="display:flex;gap:1rem;justify-content:flex-end">
-        <button class="btn btn-secondary" id="btnCancelarReceta">Cancelar</button>
-        <button class="btn btn-primary" id="btnGuardarReceta">Guardar Receta</button>
+  const modalHTML = `
+    <div class="modal fade" id="modalReceta" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Nueva Receta Medica</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Medicamento:</label>
+              <input type="text" id="modalNombre" class="form-control" placeholder="Nombre del medicamento">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Dosis:</label>
+              <input type="text" id="modalDosis" class="form-control" placeholder="Ej: 400mg">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Frecuencia:</label>
+              <select id="modalFrecuencia" class="form-select">
+                <option value="">Selecciona frecuencia</option>
+                <optgroup label="Pruebas (Minutos)">
+                  <option value="cada 1 minuto">Cada 1 minuto</option>
+                  <option value="cada 2 minutos">Cada 2 minutos</option>
+                  <option value="cada 3 minutos">Cada 3 minutos</option>
+                  <option value="cada 5 minutos">Cada 5 minutos</option>
+                  <option value="cada 10 minutos">Cada 10 minutos</option>
+                  <option value="cada 15 minutos">Cada 15 minutos</option>
+                  <option value="cada 30 minutos">Cada 30 minutos</option>
+                </optgroup>
+                <optgroup label="Frecuencias Comunes (Horas)">
+                  <option value="cada 1 hora">Cada 1 hora</option>
+                  <option value="cada 2 horas">Cada 2 horas</option>
+                  <option value="cada 4 horas">Cada 4 horas</option>
+                  <option value="cada 6 horas">Cada 6 horas</option>
+                  <option value="cada 8 horas">Cada 8 horas</option>
+                  <option value="cada 12 horas">Cada 12 horas</option>
+                  <option value="cada 24 horas">Cada 24 horas (1 vez al día)</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btnGuardarReceta">Guardar Receta</button>
+          </div>
+        </div>
       </div>
     </div>
   `;
-  
-  document.body.appendChild(modal);
-  
+
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  const modalElement = document.getElementById('modalReceta');
+  const modal = new bootstrap.Modal(modalElement);
+  modal.show();
+
   document.getElementById('modalNombre').focus();
-  
-  document.getElementById('btnCancelarReceta').addEventListener('click', () => {
-    modal.remove();
-  });
-  
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.remove();
-  });
-  
+
   document.getElementById('btnGuardarReceta').addEventListener('click', async () => {
     const nombre = document.getElementById('modalNombre').value.trim();
     const dosis = document.getElementById('modalDosis').value.trim();
     const frecuencia = document.getElementById('modalFrecuencia').value.trim();
-    
+
     if (!nombre || !dosis || !frecuencia) {
       await mostrarAlerta('Campos incompletos', 'Todos los campos son obligatorios');
       return;
     }
-    
+
     try {
       const response = await fetch(`${API_URL}/recetas`, {
         method: 'POST',
@@ -725,18 +722,25 @@ function mostrarModalReceta() {
           frecuencia: frecuencia
         })
       });
-      
+
       const data = await response.json();
       mostrarNotificacion(data.mensaje, 'success');
-      modal.remove();
+      modal.hide();
+      modalElement.addEventListener('hidden.bs.modal', () => {
+        modalElement.remove();
+      });
       cargarRecetas();
       cargarHistorialMedicacion();
-      
+
       await registrarMedicamento(nombre, dosis, frecuencia);
     } catch (error) {
       console.error('Error:', error);
       mostrarNotificacion('Error al guardar la receta', 'error');
     }
+  });
+
+  modalElement.addEventListener('hidden.bs.modal', () => {
+    modalElement.remove();
   });
 }
 
@@ -2342,136 +2346,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-// ============================================
-// No Historia HU-36 - FUNCIONALIDAD DE ALERTAS DE STOCK BAJO PARA CUIDADORES
-// ============================================
 
-async function verificarStockBajo() {
-  const idUsuario = getUsuarioId();
-  
-  try {
-    const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
-    if (!response.ok) throw new Error('Error en API');
-    
-    const recetas = await response.json();
-    console.log('Recetas cargadas para stock:', recetas);  // Log para depurar
-    
-    const alertas = [];
-    recetas.forEach(receta => {
-      // Asegúrate de que los campos existan (usa valores por defecto si no)
-      const stockActual = receta.stock_actual || 0;
-      const stockMinimo = receta.stock_minimo || 0;
-      
-      if (stockActual <= stockMinimo) {
-        alertas.push(receta);
-        mostrarNotificacion(`¡Alerta! ${receta.nombre_medicamento} está por agotarse (Stock: ${stockActual})`, 'warning');
-      }
-    });
-    
-    mostrarSugerenciasPedido(alertas);
-  } catch (error) {
-    console.error('Error al verificar stock:', error);
-    mostrarNotificacion('Error al verificar stock de medicamentos', 'error');
-  }
-}
-
-// Función para mostrar sugerencias (mejorada)
-function mostrarSugerenciasPedido(alertas) {
-  const container = document.getElementById('alertasStock');
-  if (!container) {
-    console.error('Contenedor #alertasStock no encontrado');
-    return;
-  }
-  
-  container.innerHTML = '';
-  
-  if (alertas.length === 0) {
-    container.innerHTML = '<div class="list-group-item text-center text-muted">No hay alertas de stock bajo</div>';
-    return;
-  }
-  
-  alertas.forEach(receta => {
-    const sugerenciaCantidad = Math.max((receta.stock_minimo || 5) * 2, 30);
-    
-    const item = document.createElement('div');
-    item.className = 'list-group-item alerta-stock-bajo';
-    item.innerHTML = `
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <h6 class="mb-1 text-warning"><i class="bi bi-exclamation-triangle-fill"></i> ${receta.nombre_medicamento}</h6>
-          <p class="mb-1">Stock actual: <strong>${receta.stock_actual || 0}</strong> | Mínimo: <strong>${receta.stock_minimo || 0}</strong></p>
-          <div class="sugerencia-pedido">
-            <strong>Sugerencia de pedido:</strong> Solicitar ${sugerenciaCantidad} unidades a la farmacia.
-            <br><small>Basado en consumo estimado para 30 días.</small>
-          </div>
-        </div>
-        <button class="btn btn-sm btn-primary" onclick="pedirAFarmacia('${receta.nombre_medicamento}', ${sugerenciaCantidad})">
-          <i class="bi bi-cart-plus"></i> Pedir
-        </button>
-      </div>
-    `;
-    container.appendChild(item);
-  });
-}
-
-// Función para pedido (sin cambios)
-function pedirAFarmacia(medicamento, cantidad) {
-  mostrarNotificacion(`Pedido enviado: ${cantidad} unidades de ${medicamento} a la farmacia`, 'success');
-}
-
-// Funciones de actualización (sin cambios)
-async function actualizarStock(input, idReceta) {
-  const nuevoStock = parseInt(input.value);
-  if (isNaN(nuevoStock) || nuevoStock < 0) {
-    mostrarNotificacion('Stock inválido', 'error');
-    return;
-  }
-  
-  try {
-    await fetch(`${API_URL}/recetas/${idReceta}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stock_actual: nuevoStock })
-    });
-    mostrarNotificacion('Stock actualizado', 'success');
-    verificarStockBajo();
-  } catch (error) {
-    mostrarNotificacion('Error al actualizar stock', 'error');
-  }
-}
-
-async function actualizarStockMinimo(input, idReceta) {
-  const nuevoMinimo = parseInt(input.value);
-  if (isNaN(nuevoMinimo) || nuevoMinimo < 0) {
-    mostrarNotificacion('Mínimo inválido', 'error');
-    return;
-  }
-  
-  try {
-    await fetch(`${API_URL}/recetas/${idReceta}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stock_minimo: nuevoMinimo })
-    });
-    mostrarNotificacion('Stock mínimo actualizado', 'success');
-    verificarStockBajo();
-  } catch (error) {
-    mostrarNotificacion('Error al actualizar mínimo', 'error');
-  }
-}
-
-// Integración mejorada: Llama verificarStockBajo al cargar recetas
-document.addEventListener('DOMContentLoaded', () => {
-  // Sobrescribe cargarRecetas para incluir verificación
-  const originalCargarRecetas = window.cargarRecetas || function() {};
-  window.cargarRecetas = async function() {
-    await originalCargarRecetas();
-    await verificarStockBajo();
-  };
-  
-  // Llama inicial
-  setTimeout(() => verificarStockBajo(), 1000);
-  
-  // Verificación periódica
-  setInterval(verificarStockBajo, 5 * 60 * 1000);
-});

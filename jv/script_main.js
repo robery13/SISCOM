@@ -91,7 +91,13 @@ document.addEventListener("DOMContentLoaded", () => {
           }, 2100);
 
           formLogin.reset();
-          window.location.href = "../registro/Registro.html";
+          // Redirigir según el rol del usuario
+          if (data.usuario && data.usuario.rol === 'usuario') {
+            window.location.href = "../Management-Frontend/main_paciente.html";
+          } else {
+            // empleado o administrador
+            window.location.href = "../Management-Backend/Admin_Backend.html";
+          }
         } else {
           showToast(data.message || "Correo o contraseña incorrectos.", "error");
           setTimeout(() => {
