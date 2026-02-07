@@ -207,20 +207,57 @@ app.get('/Registro_medicamentos', (req, res) => {
 
 //  RUTA 3: GUARDAR EN inventario
 app.post('/inventario', (req, res) => {
-  const { nombre, cantidad, consumo_por_dosis } = req.body;
+  const { nombre, cantidad, consumo_por_dosis, id, actualizar } = req.body;
 
-  if (!nombre || !cantidad || !consumo_por_dosis) {
-    return res.status(400).json({ mensaje: ' Campos incompletos' });
-  }
+  const cantidadNum = parseInt(cantidad, 10);
+  const consumoNum = parseInt(consumo_por_dosis || 0, 10);
 
-  const sql = 'INSERT INTO inventario (nombre, cantidad, consumo_por_dosis) VALUES (?, ?, ?)';
-  db.query(sql, [nombre, cantidad, consumo_por_dosis], (err, result) => {
-    if (err) {
-      //console.error(' Error al guardar en inventario:', err);
-      return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
+  if (id) {
+    // Modo actualizar stock existente
+    if (isNaN(cantidadNum)) {
+      return res.status(400).json({ mensaje: 'Cantidad debe ser un número válido' });
     }
-    res.json({ mensaje: ' Medicamento agregado al inventario correctamente' });
-  });
+    if (cantidadNum < 1) {
+      return res.status(400).json({ mensaje: 'Cantidad debe ser mayor a 0' });
+    }
+
+    // Primero obtener la cantidad actual
+    const sqlSelect = 'SELECT cantidad FROM inventario WHERE id = ?';
+    db.query(sqlSelect, [id], (err, results) => {
+      if (err) {
+        //console.error('Error al obtener inventario:', err);
+        return res.status(500).json({ mensaje: 'Error al obtener inventario' });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
+      }
+
+      const nuevaCantidad = results[0].cantidad + cantidadNum;
+      const sqlUpdate = 'UPDATE inventario SET cantidad = ? WHERE id = ?';
+      db.query(sqlUpdate, [nuevaCantidad, id], (err, result) => {
+        if (err) {
+          //console.error('Error al actualizar inventario:', err);
+          return res.status(500).json({ mensaje: 'Error al actualizar en la base de datos' });
+        }
+        res.json({ mensaje: 'Stock actualizado correctamente' });
+      });
+    });
+  } else {
+    // Modo agregar nuevo medicamento
+    if (!nombre || isNaN(cantidadNum) || cantidadNum < 1 || isNaN(consumoNum) || consumoNum < 1) {
+      return res.status(400).json({ mensaje: 'Campos incompletos' });
+    }
+
+    const sql = 'INSERT INTO inventario (nombre, cantidad, consumo_por_dosis) VALUES (?, ?, ?)';
+    db.query(sql, [nombre, cantidadNum, consumoNum], (err, result) => {
+      if (err) {
+        //console.error('Error al guardar en inventario:', err);
+        return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
+      }
+      res.json({ mensaje: 'Medicamento agregado al inventario correctamente' });
+    });
+  }
 });
 
 // Obtener todo el inventario

@@ -190,7 +190,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         datos = {
           id: medicamentoId,
-          cantidad: medicamento.cantidad + cantidad, // Suma la cantidad existente
+          cantidad: cantidad, // Cantidad a agregar
           actualizar: true
         };
       } else {
@@ -215,7 +215,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const resultado = await resp.json();
         alert(resultado.mensaje || (esModoActualizar ? "Stock actualizado correctamente." : "Medicamento agregado al inventario."));
-        cargarInventario();
+        await cargarInventario();
+        await verificarAlertasStock();
         clearInvForm();
 
       } catch (error) {
