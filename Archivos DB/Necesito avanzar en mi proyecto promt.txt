@@ -1,8 +1,0 @@
-En el archivo Admin_Backend.html: 
-Quiero recibir alertas cuando un medicamento esté por agotarse para solicitar reposición a tiempo; y las tareas son: 
-✓ Detectar nivel mínimo
-✓ Enviar notificación automática
-✓ Sugerir pedido a farmacia
-
-
-
