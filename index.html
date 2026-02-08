@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SISCOM | Sistema de Control de Medicación</title>
+  <link rel="stylesheet" href="../css/estilos_main.css">
+</head>
+
+<body>
+  <!-- ===== ENCABEZADO ===== -->
+  <header>
+  <div class="topbar">
+    <div class="logo">
+      <img src="../imagenes/logo.jpeg" alt="Logo SISCOM" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
+    </div>
+    <div class="titulo">
+      <h1>SISCOM</h1>
+      <p>Sistema Integral de Control de Medicación</p>
+    </div>
+    
+    <!-- Botones en el header -->
+    <div class="header-buttons">
+      <button class="btn-header btn-header-login" onclick="abrirModal('modalLogin')">
+        Iniciar sesión
+      </button>
+      <button class="btn-header btn-header-registro" onclick="abrirModal('modalRegistro')">
+        Registrarse
+      </button>
+    </div>
+  </div>
+</header>
+  <!-- ===== CONTENIDO PRINCIPAL ===== -->
+  <main>
+    <section class="presentacion">
+      <h2>Sistema de Gestión de Medicamentos</h2>
+      <p>
+        SISCOM ayuda a los pacientes adultos y geriátricos en el control de su medicación diaria mediante alarmas programadas y registro de dosis.
+        Permite a pacientes, cuidadores y farmacias mantener un seguimiento efectivo del tratamiento médico.
+      </p>
+    </section>
+
+    <!-- ===== ROLES ===== -->
+    <section class="roles">
+      <div class="rol">
+        <img src="../imagenes/paciente.jpg" alt="Paciente">
+        <h4>Paciente</h4>
+      </div>
+      <div class="rol">
+        <img src="../imagenes/cuidador.webp" alt="Cuidador">
+        <h4>Cuidador</h4>
+      </div>
+      <div class="rol">
+        <img src="../imagenes/farmacia.jpg" alt="Farmacia">
+        <h4>Farmacia</h4>
+      </div>
+      <div class="rol">
+        <img src="../imagenes/administrador.jpg" alt="Administrador">
+        <h4>Administrador</h4>
+      </div>
+    </section>
+
+   
+<!-- ===== SECCIÓN EXTRA ===== -->
+<section class="extras">
+  <div class="extras-container">
+    <!-- Botón que abre WhatsApp -->
+    <button class="btn-extra" id="btnContact">Contáctanos</button>
+
+    <!-- Botón que redirige a info_main.html -->
+    <button class="btn-extra" id="btnInfo">Más información</button>
+  </div>
+</section>
+
+<!-- Script para manejar los clics -->
+<script>
+  // Botón "Contáctanos" → abrir WhatsApp con mensaje
+  document.getElementById("btnContact").addEventListener("click", function () {
+    // Enlace con número y mensaje opcional
+    window.open("https://wa.me/50432563602?text=¡Hola!%20Estoy%20interesado%20en%20el%20sistema%20SISCOM.", "_blank");
+  });
+
+  // Botón "Más información" → redirige a archivo local info_main.html
+  document.getElementById("btnInfo").addEventListener("click", function () {
+    window.location.href = "info_main.html";
+  });
+</script>
+
+
+  <!-- ===== MODAL DE INICIO DE SESIÓN ===== -->
+  <div id="modalLogin" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="cerrarModal('modalLogin')">&times;</span>
+      <h3>Iniciar sesión</h3>
+      <form id="formLogin">
+        <input type="email" id="emailLogin" placeholder="Correo electrónico" required>
+        
+        <div class="password-container">
+          <input type="password" id="passwordLogin" placeholder="Contraseña" required>
+          <span class="toggle-password" onclick="togglePassword('passwordLogin', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </span>
+        </div>
+
+        <button type="submit" class="btn btn-morado">Entrar</button>
+             <!-- jonathan agrego esto by robert-->
+      <a href="../html/rec_contra.html">¿Olvidaste tu contraseña?</a>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== MODAL DE REGISTRO ===== -->
+  <div id="modalRegistro" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="cerrarModal('modalRegistro')">&times;</span>
+      <h3>Crear cuenta</h3>
+      <form id="formRegistro">
+        <input type="text" id="nombres" placeholder="Nombres" required>
+        <input type="text" id="apellidos" placeholder="Apellidos" required>
+        <input type="text" id="identidad" placeholder="Número de identidad" required pattern="[0-9]{13}" title="Debe contener 13 dígitos">
+        <input type="tel" id="telefono" placeholder="Número de teléfono" required pattern="[0-9]{8}" title="Debe contener 8 dígitos">
+        <input type="email" id="emailRegistro" placeholder="Correo electrónico" required>
+
+        <div class="password-container">
+          <input type="password" id="passwordRegistro" placeholder="Contraseña" required>
+          <span class="toggle-password" onclick="togglePassword('passwordRegistro', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </span>
+        </div>
+
+        <div class="password-container">
+          <input type="password" id="confirmarPassword" placeholder="Confirmar contraseña" required>
+          <span class="toggle-password" onclick="togglePassword('confirmarPassword', this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </span>
+        </div>
+
+        <button type="submit" class="btn btn-azul">Registrarse</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== PIE DE PÁGINA ===== -->
+  <footer>
+    <p>© <span id="year"></span> SISCOM | Sistema Integral de Control de Medicación</p>
+    <p>Proyecto Universitario de Análisis y Diseño de Sistemas</p>
+  </footer>
+
+  <script>
+   
+
+    // Funciones para abrir y cerrar modales
+    function abrirModal(modalId) {
+      document.getElementById(modalId).classList.add('active');
+    }
+
+    function cerrarModal(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    }
+
+    // Cerrar modal al hacer clic fuera de él
+    window.onclick = function(event) {
+      if (event.target.classList.contains('modal')) {
+        event.target.classList.remove('active');
+      }
+    }
+
+
+
+
+    // Manejadores de formularios
+
+
+  </script>
+  <!-- Contenedor para los toasts -->
+<div id="toast-container"></div>
+ 
+
+     <!-- Enlace a tu JavaScript -->
+  <script src="../jv/script_main.js"></script>
+
+
+
+</body>
+</html>
