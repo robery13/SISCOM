@@ -64,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // 🚫 Deshabilitar el botón para evitar spam
+      //  Deshabilitar el botón para evitar spam
       if (btnLogin) {
         btnLogin.disabled = true;
         btnLogin.style.opacity = "0.6";
@@ -91,12 +91,26 @@ document.addEventListener("DOMContentLoaded", () => {
           }, 2100);
 
           formLogin.reset();
+          // Almacenar información del usuario en localStorage
+          if (data.usuario) {
+            localStorage.setItem('userName', data.usuario.nombres + ' ' + data.usuario.apellidos);
+            localStorage.setItem('userRole', data.usuario.rol);
+          }
+
           // Redirigir según el rol del usuario
-          if (data.usuario && data.usuario.rol === 'usuario') {
-            window.location.href = "../Management-Frontend/main_paciente.html";
+          if (data.usuario && data.usuario.rol) {
+            const rol = data.usuario.rol.toLowerCase(); // Para manejar mayúsculas/minúsculas
+            if (rol === 'usuario') {
+              window.location.href = "../Management-Frontend/main_paciente.html";
+            } else if (rol === 'empleado') {
+              window.location.href = "../Management-Backend/cuidador_backend.html";
+            } else if (rol === 'administrador') {
+              window.location.href = "../Management-Backend/Admin_Backend.html";
+            } else {
+              showToast("Rol de usuario no reconocido.", "error");
+            }
           } else {
-            // empleado o administrador
-            window.location.href = "../Management-Backend/Admin_Backend.html";
+            showToast("Error al obtener información del usuario.", "error");
           }
         } else {
           showToast(data.message || "Correo o contraseña incorrectos.", "error");

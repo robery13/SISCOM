@@ -1231,14 +1231,14 @@ function mostrarAlertasStock(alertas) {
 
   clearAllBtn.onclick = async () => {
     if(!confirm('¿Borrar todo el historial?')) return;
-    
+
     try {
       const resp = await fetch('http://localhost:3000/eliminarTodosPedidos', {
         method: 'DELETE'
       });
-      
+
       const data = await resp.json();
-      
+
       if (resp.ok) {
         alert(data.mensaje || 'Historial limpiado');
         cargarHistorial();
@@ -1252,6 +1252,197 @@ function mostrarAlertasStock(alertas) {
   };
 
   cargarHistorial();
+})();
+
+// ===============================
+// GESTIÓN DE USUARIOS
+// ===============================
+(function(){
+  const abrirModalUsuarioBtn = document.getElementById('abrirModalUsuario');
+  const modalUsuarioEl = document.getElementById('modalUsuario');
+  const guardarUsuarioBtn = document.getElementById('guardarUsuarioBtn');
+  const tablaUsuarios = document.querySelector('#tablaUsuarios tbody');
+
+  let modalUsuario = null;
+  let editingUserId = null;
+
+  if (modalUsuarioEl) {
+    modalUsuario = new bootstrap.Modal(modalUsuarioEl);
+  }
+
+  if (abrirModalUsuarioBtn) {
+    abrirModalUsuarioBtn.addEventListener('click', () => {
+      editingUserId = null;
+      limpiarFormUsuario();
+      modalUsuario.show();
+    });
+  }
+
+  if (guardarUsuarioBtn) {
+    guardarUsuarioBtn.addEventListener('click', async () => {
+      const nombres = document.getElementById('nombresUsuario').value.trim();
+      const apellidos = document.getElementById('apellidosUsuario').value.trim();
+      const identidad = document.getElementById('identidadUsuario').value.trim();
+      const telefono = document.getElementById('telefonoUsuario').value.trim();
+      const email = document.getElementById('emailUsuario').value.trim();
+      const password = document.getElementById('passwordUsuario').value;
+      const rol = document.getElementById('rolUsuario').value;
+
+      if (!nombres || !apellidos || !identidad || !telefono || !email || !password || !rol) {
+        alert('Por favor complete todos los campos.');
+        return;
+      }
+
+      const datos = { nombres, apellidos, identidad, telefono, email, password, rol };
+
+      try {
+        let resp;
+        if (editingUserId) {
+          // Actualizar usuario existente
+          resp = await fetch(`http://localhost:3000/usuarios/${editingUserId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datos)
+          });
+        } else {
+          // Crear nuevo usuario
+          resp = await fetch('http://localhost:3000/registraradm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datos)
+          });
+        }
+
+        const resultado = await resp.json();
+        if (resp.ok) {
+          alert(resultado.mensaje || 'Usuario guardado correctamente.');
+          modalUsuario.hide();
+          cargarUsuarios();
+        } else {
+          alert('Error: ' + (resultado.error || resultado.mensaje));
+        }
+      } catch (error) {
+        console.error('Error al guardar usuario:', error);
+        alert('No se pudo conectar con el servidor.');
+      }
+    });
+  }
+
+  async function cargarUsuarios() {
+    try {
+      const respuesta = await fetch('http://localhost:3000/usuarios');
+      const data = await respuesta.json();
+      renderUsuarios(data);
+    } catch (err) {
+      console.error('Error al cargar usuarios:', err);
+    }
+  }
+
+  function renderUsuarios(usuarios) {
+    const tablaUsuarios = document.querySelector('#tablaUsuarios tbody');
+    const noUsuarios = document.getElementById('noUsuarios');
+
+    if (!tablaUsuarios) return;
+
+    tablaUsuarios.innerHTML = '';
+
+    if (usuarios.length === 0) {
+      noUsuarios.classList.remove('d-none');
+      return;
+    }
+
+    noUsuarios.classList.add('d-none');
+
+    usuarios.forEach(user => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="fw-semibold">${escapeHtml(user.nombres)}</td>
+        <td class="fw-semibold">${escapeHtml(user.apellidos)}</td>
+        <td><code class="text-muted">${escapeHtml(user.identidad)}</code></td>
+        <td>${escapeHtml(user.telefono)}</td>
+        <td>${escapeHtml(user.email)}</td>
+        <td><code class="text-danger font-monospace">${escapeHtml(user.password)}</code></td>
+        <td><span class="badge bg-${getRolBadgeClass(user.rol)}">${escapeHtml(user.rol)}</span></td>
+        <td class="text-center">
+          <div class="btn-group" role="group">
+            <button class="btn btn-sm btn-outline-primary" onclick="editarUsuario(${user.id})" title="Editar">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="eliminarUsuario(${user.id})" title="Eliminar">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </td>
+      `;
+      tablaUsuarios.appendChild(tr);
+    });
+  }
+
+  function getRolBadgeClass(rol) {
+    const classes = {
+      'paciente': 'primary',
+      'cuidador': 'success',
+      'farmacia': 'info',
+      'administrador': 'warning'
+    };
+    return classes[rol] || 'secondary';
+  }
+
+  window.editarUsuario = async function(id) {
+    try {
+      const respuesta = await fetch('http://localhost:3000/usuarios');
+      const usuarios = await respuesta.json();
+      const user = usuarios.find(u => u.id === id);
+
+      if (user) {
+        editingUserId = id;
+        document.getElementById('nombresUsuario').value = user.nombres;
+        document.getElementById('apellidosUsuario').value = user.apellidos;
+        document.getElementById('identidadUsuario').value = user.identidad;
+        document.getElementById('telefonoUsuario').value = user.telefono;
+        document.getElementById('emailUsuario').value = user.email;
+        document.getElementById('passwordUsuario').value = user.password; // Mostrar password para editar
+        document.getElementById('rolUsuario').value = user.rol;
+        modalUsuario.show();
+      }
+    } catch (error) {
+      console.error('Error al cargar usuario para editar:', error);
+    }
+  };
+
+  window.eliminarUsuario = async function(id) {
+    if (!confirm('¿Está seguro de que desea eliminar este usuario?')) return;
+
+    try {
+      const resp = await fetch(`http://localhost:3000/usuarios/${id}`, {
+        method: 'DELETE'
+      });
+
+      const resultado = await resp.json();
+      if (resp.ok) {
+        alert(resultado.mensaje || 'Usuario eliminado correctamente.');
+        cargarUsuarios();
+      } else {
+        alert('Error: ' + resultado.mensaje);
+      }
+    } catch (error) {
+      console.error('Error al eliminar usuario:', error);
+      alert('No se pudo conectar con el servidor.');
+    }
+  };
+
+  function limpiarFormUsuario() {
+    document.getElementById('nombresUsuario').value = '';
+    document.getElementById('apellidosUsuario').value = '';
+    document.getElementById('identidadUsuario').value = '';
+    document.getElementById('telefonoUsuario').value = '';
+    document.getElementById('emailUsuario').value = '';
+    document.getElementById('passwordUsuario').value = '';
+    document.getElementById('rolUsuario').value = '';
+  }
+
+  // Cargar usuarios al iniciar
+  cargarUsuarios();
 })();
 
 // ===============================
