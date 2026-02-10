@@ -108,7 +108,40 @@
   <div class="row">
     <div class="col-md-8 mb-3">
       <div class="card">
-        <h5 class="card-title">Mis Medicamentos de Hoy</h5>
+        <h5 class="card-title">Resumen Diario de Medicamentos</h5>
+        <div id="resumenDiario" class="text-center">
+
+          <div class="row mb-3">
+            
+            <div class="col-4">
+              <div class="p-3 bg-success text-white rounded">
+                <i class="bi bi-check-circle-fill" style="font-size: 2rem;"></i>
+                <h4 class="mt-2" id="tomadosHoy">0</h4>
+                <small>Tomados</small>
+              </div>
+              
+            </div>
+            <div class="col-4">
+              <div class="p-3 bg-warning text-white rounded">
+                <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                <h4 class="mt-2" id="pendientesHoy">0</h4>
+                <small>Pendientes</small>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-3 bg-info text-white rounded">
+                <i class="bi bi-graph-up" style="font-size: 2rem;"></i>
+                <h4 class="mt-2" id="cumplimientoDiario">0%</h4>
+                <small>Cumplimiento</small>
+              </div>
+            </div>
+          </div>
+          <p class="text-muted">Resumen actualizado automáticamente cada día</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h5 class="card-title">Medicamentos Pendientes Hoy</h5>
         <div id="listaMedicamentosHoy" class="list-group list-group-flush">
           <div class="list-group-item text-center text-muted">
             Cargando medicamentos...
@@ -511,6 +544,30 @@
           </div>
         </div>
       </section>
+
+      <!-- SECCIÓN MENSAJES MOTIVACIONALES -->
+      <section id="mensajes" class="section d-none">
+        <div class="section-header">
+          <h2><i class="bi bi-chat-heart-fill"></i> Mensajes Motivacionales</h2>
+          <p class="muted">Personaliza los mensajes que aparecen cuando completas tus medicamentos o agendas citas</p>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <p class="text-muted mb-3">Personaliza los mensajes que aparecen cuando completas tus medicamentos o agendas citas.</p>
+
+            <div class="d-flex gap-3">
+              <button class="btn btn-outline-primary" onclick="configurarMensajesPersonalizados()">
+                <i class="bi bi-pencil-square"></i> Configurar Mensajes
+              </button>
+              <button class="btn btn-outline-info" onclick="mostrarMensajeMotivacional()">
+                <i class="bi bi-eye"></i> Vista Previa
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
 <!-- SECCIÓN PERSONALIZACIÓN -->
 <section id="personalizacion" class="section d-none">
   <div class="section-header">
