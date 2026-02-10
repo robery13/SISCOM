@@ -267,6 +267,9 @@ document.addEventListener("DOMContentLoaded", () => {
           cargarContactosEmergencia();
           setTimeout(() => cargarHistorialEmergencias(), 300);
         }
+        if (sectionId === 'horarios') {
+          cargarHorariosMedicamentos();
+        }
         if (sectionId === 'inicio') {
           cargarEstadisticasInicio();
         }
@@ -1833,6 +1836,351 @@ document.querySelectorAll('.nav-btn[data-section]').forEach(btn => {
     }
   });
 });
+// ============================================
+// SECCIÓN HORARIOS MEDICAMENTOS
+// ============================================
+let horariosConfigurados = [];
+
+async function cargarHorariosMedicamentos() {
+  const idUsuario = getUsuarioId();
+
+  try {
+    // Cargar medicamentos disponibles
+    const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
+    const medicamentos = await response.json();
+
+    const select = document.getElementById('selectMedicamentoHorarios');
+    if (select) {
+      select.innerHTML = '<option value="">Selecciona un medicamento</option>';
+      medicamentos.forEach(med => {
+        const option = document.createElement('option');
+        option.value = med.id;
+        option.textContent = `${med.nombre_medicamento} - ${med.dosis}`;
+        select.appendChild(option);
+      });
+    }
+
+    // Cargar horarios existentes
+    await cargarHorariosExistentes();
+
+    // Configurar eventos
+    configurarEventosHorarios();
+
+  } catch (error) {
+    console.error('Error al cargar horarios:', error);
+    mostrarNotificacion('Error al cargar horarios de medicamentos', 'error');
+  }
+}
+
+async function cargarHorariosExistentes() {
+  const idUsuario = getUsuarioId();
+
+  try {
+    const response = await fetch(`${API_URL}/horariosMedicamentos/${idUsuario}`);
+    const horarios = await response.json();
+
+    horariosConfigurados = horarios;
+    mostrarHorariosConfigurados();
+
+  } catch (error) {
+    console.error('Error al cargar horarios existentes:', error);
+  }
+}
+
+function configurarEventosHorarios() {
+  // Evento para cambiar medicamento seleccionado
+  document.getElementById('selectMedicamentoHorarios')?.addEventListener('change', (e) => {
+    mostrarHorariosMedicamentoSeleccionado(e.target.value);
+  });
+
+  // Evento para mostrar/ocultar días personalizados
+  document.getElementById('diasSemanaHorario')?.addEventListener('change', (e) => {
+    const diasPersonalizados = document.getElementById('diasPersonalizados');
+    if (e.target.value === 'personalizado') {
+      diasPersonalizados?.classList.remove('d-none');
+    } else {
+      diasPersonalizados?.classList.add('d-none');
+    }
+  });
+}
+
+function mostrarHorariosMedicamentoSeleccionado(medicamentoId) {
+  const horariosActuales = document.getElementById('horariosActuales');
+
+  if (!medicamentoId) {
+    horariosActuales.innerHTML = 'Selecciona un medicamento para ver sus horarios';
+    return;
+  }
+
+  const horariosMedicamento = horariosConfigurados.filter(h => h.id_medicamento == medicamentoId);
+
+  if (horariosMedicamento.length === 0) {
+    horariosActuales.innerHTML = '<span class="text-warning">No hay horarios personalizados configurados</span>';
+  } else {
+    const listaHorarios = horariosMedicamento.map(h => {
+      const diasTexto = obtenerTextoDias(h.dias_semana);
+      return `<div class="badge bg-primary me-1">${h.hora} - ${diasTexto}</div>`;
+    }).join('');
+    horariosActuales.innerHTML = listaHorarios;
+  }
+}
+
+function obtenerTextoDias(dias) {
+  if (!dias) return 'Todos los días';
+
+  try {
+    const diasArray = JSON.parse(dias);
+    if (diasArray.length === 7) return 'Todos los días';
+    if (diasArray.length === 5 && diasArray.includes('lunes') && diasArray.includes('viernes')) {
+      return 'L-V';
+    }
+    return diasArray.slice(0, 3).join(', ') + (diasArray.length > 3 ? '...' : '');
+  } catch {
+    return dias;
+  }
+}
+
+function agregarHorario() {
+  const medicamentoId = document.getElementById('selectMedicamentoHorarios').value;
+  const hora = document.getElementById('nuevaHoraHorario').value;
+  const tipoDias = document.getElementById('diasSemanaHorario').value;
+
+  if (!medicamentoId || !hora) {
+    mostrarNotificacion('Selecciona un medicamento y establece una hora', 'warning');
+    return;
+  }
+
+  let diasSeleccionados = [];
+
+  if (tipoDias === 'todos') {
+    diasSeleccionados = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+  } else if (tipoDias === 'lunes-viernes') {
+    diasSeleccionados = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+  } else if (tipoDias === 'personalizado') {
+    // Obtener días marcados
+    const checkboxes = document.querySelectorAll('#diasPersonalizados input[type="checkbox"]:checked');
+    diasSeleccionados = Array.from(checkboxes).map(cb => cb.value);
+  }
+
+  if (diasSeleccionados.length === 0) {
+    mostrarNotificacion('Selecciona al menos un día', 'warning');
+    return;
+  }
+
+  // Validar conflictos
+  if (validarConflictoHorario(medicamentoId, hora, diasSeleccionados)) {
+    mostrarNotificacion('Conflicto detectado: Ya existe un horario similar', 'error');
+    return;
+  }
+
+  // Agregar a la lista temporal
+  const nuevoHorario = {
+    id_medicamento: medicamentoId,
+    hora: hora,
+    dias_semana: JSON.stringify(diasSeleccionados),
+    temporal: true
+  };
+
+  horariosConfigurados.push(nuevoHorario);
+  mostrarHorariosConfigurados();
+
+  // Limpiar formulario
+  document.getElementById('nuevaHoraHorario').value = '';
+  document.getElementById('diasSemanaHorario').value = 'todos';
+  document.getElementById('diasPersonalizados').classList.add('d-none');
+
+  // Desmarcar checkboxes
+  document.querySelectorAll('#diasPersonalizados input[type="checkbox"]').forEach(cb => cb.checked = false);
+
+  mostrarNotificacion('Horario agregado temporalmente', 'success');
+}
+
+function validarConflictoHorario(medicamentoId, hora, diasSeleccionados) {
+  return horariosConfigurados.some(h => {
+    if (h.id_medicamento != medicamentoId) return false;
+
+    // Verificar hora similar (margen de 30 minutos)
+    const hora1 = new Date(`2000-01-01T${h.hora}`);
+    const hora2 = new Date(`2000-01-01T${hora}`);
+    const diffMinutos = Math.abs((hora2 - hora1) / (1000 * 60));
+
+    if (diffMinutos > 30) return false;
+
+    // Verificar días coincidentes
+    try {
+      const diasExistentes = JSON.parse(h.dias_semana || '[]');
+      return diasSeleccionados.some(dia => diasExistentes.includes(dia));
+    } catch {
+      return false;
+    }
+  });
+}
+
+function mostrarHorariosConfigurados() {
+  const lista = document.getElementById('listaHorariosConfigurados');
+
+  if (horariosConfigurados.length === 0) {
+    lista.innerHTML = '<div class="list-group-item text-center text-muted">No hay horarios configurados</div>';
+    return;
+  }
+
+  lista.innerHTML = '';
+
+  horariosConfigurados.forEach((horario, index) => {
+    const item = document.createElement('div');
+    item.className = 'list-group-item';
+
+    const diasTexto = obtenerTextoDias(horario.dias_semana);
+    const badgeClass = horario.temporal ? 'bg-warning text-dark' : 'bg-success';
+
+    item.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <strong>${horario.hora}</strong> - ${diasTexto}
+          ${horario.temporal ? '<span class="badge bg-warning text-dark ms-2">Temporal</span>' : ''}
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="eliminarHorario(${index})">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    `;
+
+    lista.appendChild(item);
+  });
+
+  // Actualizar validación de conflictos
+  actualizarValidacionConflictos();
+}
+
+function eliminarHorario(index) {
+  horariosConfigurados.splice(index, 1);
+  mostrarHorariosConfigurados();
+  mostrarNotificacion('Horario eliminado', 'info');
+}
+
+function actualizarValidacionConflictos() {
+  const validacionDiv = document.getElementById('validacionConflictos');
+
+  // Verificar conflictos entre horarios
+  const conflictos = detectarConflictos();
+
+  if (conflictos.length > 0) {
+    validacionDiv.className = 'alert alert-danger';
+    validacionDiv.innerHTML = `
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <strong>Conflictos detectados:</strong><br>
+      ${conflictos.map(c => `• ${c}`).join('<br>')}
+    `;
+  } else {
+    validacionDiv.className = 'alert alert-success';
+    validacionDiv.innerHTML = `
+      <i class="bi bi-check-circle-fill"></i>
+      No se detectaron conflictos en los horarios configurados.
+    `;
+  }
+}
+
+function detectarConflictos() {
+  const conflictos = [];
+
+  for (let i = 0; i < horariosConfigurados.length; i++) {
+    for (let j = i + 1; j < horariosConfigurados.length; j++) {
+      const h1 = horariosConfigurados[i];
+      const h2 = horariosConfigurados[j];
+
+      // Solo verificar si son del mismo medicamento
+      if (h1.id_medicamento !== h2.id_medicamento) continue;
+
+      // Verificar hora similar
+      const hora1 = new Date(`2000-01-01T${h1.hora}`);
+      const hora2 = new Date(`2000-01-01T${h2.hora}`);
+      const diffMinutos = Math.abs((hora2 - hora1) / (1000 * 60));
+
+      if (diffMinutos <= 30) {
+        // Verificar días coincidentes
+        try {
+          const dias1 = JSON.parse(h1.dias_semana || '[]');
+          const dias2 = JSON.parse(h2.dias_semana || '[]');
+
+          const diasCoincidentes = dias1.filter(dia => dias2.includes(dia));
+
+          if (diasCoincidentes.length > 0) {
+            conflictos.push(`Horarios muy cercanos: ${h1.hora} y ${h2.hora} en ${diasCoincidentes.slice(0, 3).join(', ')}`);
+          }
+        } catch (e) {
+          // Ignorar errores de parsing
+        }
+      }
+    }
+  }
+
+  return conflictos;
+}
+
+async function guardarHorariosPersonalizados() {
+  if (horariosConfigurados.length === 0) {
+    mostrarNotificacion('No hay horarios para guardar', 'warning');
+    return;
+  }
+
+  // Verificar conflictos antes de guardar
+  const conflictos = detectarConflictos();
+  if (conflictos.length > 0) {
+    const confirmar = await mostrarConfirmacion(
+      'Conflictos Detectados',
+      `Se encontraron ${conflictos.length} conflicto(s) en los horarios. ¿Deseas guardar de todos modos?`
+    );
+
+    if (!confirmar) return;
+  }
+
+  const idUsuario = getUsuarioId();
+
+  try {
+    // Primero eliminar horarios existentes
+    await fetch(`${API_URL}/horariosMedicamentos/${idUsuario}`, {
+      method: 'DELETE'
+    });
+
+    // Guardar nuevos horarios
+    const horariosAGuardar = horariosConfigurados.map(h => ({
+      id_usuario: idUsuario,
+      id_medicamento: h.id_medicamento,
+      hora: h.hora,
+      dias_semana: h.dias_semana,
+      activo: 1
+    }));
+
+    for (const horario of horariosAGuardar) {
+      await fetch(`${API_URL}/horariosMedicamentos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(horario)
+      });
+    }
+
+    // Marcar como guardados
+    horariosConfigurados.forEach(h => delete h.temporal);
+    mostrarHorariosConfigurados();
+
+    mostrarNotificacion('Horarios guardados correctamente', 'success');
+
+    // Actualizar sistema de notificaciones
+    iniciarSistemaNotificacionesMedicamentos();
+
+  } catch (error) {
+    console.error('Error al guardar horarios:', error);
+    mostrarNotificacion('Error al guardar los horarios', 'error');
+  }
+}
+
+function limpiarHorarios() {
+  horariosConfigurados = [];
+  mostrarHorariosConfigurados();
+  document.getElementById('horariosActuales').innerHTML = 'Selecciona un medicamento para ver sus horarios';
+  mostrarNotificacion('Horarios limpiados', 'info');
+}
+
 // ============================================
 // FUNCIÓN GLOBAL PARA OBTENER AVATARES SVG
 // ============================================
