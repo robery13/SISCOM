@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const cerrarSesionBtn = document.getElementById("cerrarSesionBtn");
   if (cerrarSesionBtn) {
     cerrarSesionBtn.addEventListener("click", () => {
-        window.location.href = "../html/Proyecto_SISCOM.html";     
+        window.location.href = "../index.html";
     });
   }
 });
@@ -122,19 +122,89 @@ document.addEventListener("DOMContentLoaded", () => {
 (function(){
   const registrarBtn = document.getElementById("registrarBtn");
   const tablaInv = document.querySelector("#tablaInventario tbody");
+  const modoActualizarCheckbox = document.getElementById("modoActualizar");
+  const selectMedicamentoRow = document.getElementById("selectMedicamentoRow");
+  const inputNombreRow = document.getElementById("inputNombreRow");
+  const consumoRow = document.getElementById("consumoRow");
+  const selectMedicamento = document.getElementById("selectMedicamento");
+
+  let inventarioActual = [];
+
+  // Toggle entre modo nuevo y actualizar
+  if (modoActualizarCheckbox) {
+    modoActualizarCheckbox.addEventListener("change", () => {
+      const esModoActualizar = modoActualizarCheckbox.checked;
+      selectMedicamentoRow.style.display = esModoActualizar ? "block" : "none";
+      inputNombreRow.style.display = esModoActualizar ? "none" : "block";
+      consumoRow.style.display = esModoActualizar ? "none" : "block";
+
+      if (esModoActualizar) {
+        cargarMedicamentosParaSeleccion();
+      }
+    });
+  }
+
+  async function cargarMedicamentosParaSeleccion() {
+    try {
+      const respuesta = await fetch("http://localhost:3000/inventario");
+      const data = await respuesta.json();
+      inventarioActual = data;
+
+      selectMedicamento.innerHTML = '<option value="">Selecciona un medicamento</option>';
+      data.forEach(item => {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = `${item.nombre} (Stock actual: ${item.cantidad})`;
+        selectMedicamento.appendChild(option);
+      });
+    } catch (error) {
+      console.error("Error al cargar medicamentos:", error);
+    }
+  }
 
   if (registrarBtn) {
     registrarBtn.addEventListener("click", async () => {
-      const nombre = document.getElementById("nombreInv").value.trim();
+      const esModoActualizar = modoActualizarCheckbox.checked;
       const cantidad = parseInt(document.getElementById("cantidadInv").value, 10);
-      const consumo_por_dosis = parseInt(document.getElementById("consumoInv").value, 10);
 
-      if (!nombre || isNaN(cantidad) || isNaN(consumo_por_dosis)) {
-        alert("Por favor complete todos los campos correctamente.");
+      if (isNaN(cantidad) || cantidad < 1) {
+        alert("Por favor ingrese una cantidad válida mayor a 0.");
         return;
       }
 
-      const datos = { nombre, cantidad, consumo_por_dosis };
+      let datos;
+
+      if (esModoActualizar) {
+        // Modo actualizar stock existente
+        const medicamentoId = selectMedicamento.value;
+        if (!medicamentoId) {
+          alert("Por favor seleccione un medicamento existente.");
+          return;
+        }
+
+        const medicamento = inventarioActual.find(m => m.id == medicamentoId);
+        if (!medicamento) {
+          alert("Medicamento no encontrado.");
+          return;
+        }
+
+        datos = {
+          id: medicamentoId,
+          cantidad: cantidad, // Cantidad a agregar
+          actualizar: true
+        };
+      } else {
+        // Modo nuevo medicamento
+        const nombre = document.getElementById("nombreInv").value.trim();
+        const consumo_por_dosis = parseInt(document.getElementById("consumoInv").value, 10);
+
+        if (!nombre || isNaN(consumo_por_dosis) || consumo_por_dosis < 1) {
+          alert("Por favor complete todos los campos correctamente.");
+          return;
+        }
+
+        datos = { nombre, cantidad, consumo_por_dosis };
+      }
 
       try {
         const resp = await fetch("http://localhost:3000/inventario", {
@@ -144,8 +214,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         const resultado = await resp.json();
-        alert(resultado.mensaje || "Medicamento agregado al inventario.");
-        cargarInventario();
+        alert(resultado.mensaje || (esModoActualizar ? "Stock actualizado correctamente." : "Medicamento agregado al inventario."));
+        await cargarInventario();
+        await verificarAlertasStock();
         clearInvForm();
 
       } catch (error) {
@@ -159,6 +230,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const respuesta = await fetch("http://localhost:3000/inventario");
       const data = await respuesta.json();
+      inventarioActual = data;
       renderInventario(data);
     } catch (err) {
       console.error("Error al cargar inventario:", err);
@@ -184,11 +256,87 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("nombreInv").value = "";
     document.getElementById("cantidadInv").value = "";
     document.getElementById("consumoInv").value = "";
+    modoActualizarCheckbox.checked = false;
+    selectMedicamentoRow.style.display = "none";
+    inputNombreRow.style.display = "block";
+    consumoRow.style.display = "block";
+    selectMedicamento.value = "";
   }
 
   cargarInventario();
+  verificarAlertasStock();
 
 })();
+
+// ===============================
+// ALERTAS DE STOCK BAJO
+// ===============================
+async function verificarAlertasStock() {
+  try {
+    const response = await fetch("http://localhost:3000/inventario");
+    if (!response.ok) throw new Error('Error al cargar inventario');
+
+    const inventario = await response.json();
+    console.log('Inventario cargado para alertas:', inventario);
+
+    const alertas = inventario.filter(item => {
+      const cantidad = item.cantidad || 0;
+      // Considerar stock bajo si cantidad <= 10 (puedes ajustar este umbral)
+      return cantidad <= 10;
+    });
+
+    mostrarAlertasStock(alertas);
+
+    // Mostrar notificación automática como toast si hay alertas
+    if (alertas.length > 0) {
+      mostrarToast(`Hay ${alertas.length} medicamento(s) con stock bajo. Revisa las alertas.`, 'warning');
+    }
+  } catch (error) {
+    console.error('Error al verificar stock:', error);
+    mostrarAlertasStock([]);
+  }
+}
+
+function mostrarAlertasStock(alertas) {
+  const container = document.getElementById('alertasStock');
+  if (!container) {
+    console.error('Contenedor #alertasStock no encontrado');
+    return;
+  }
+
+  container.innerHTML = '';
+
+  if (alertas.length === 0) {
+    container.innerHTML = '<div class="list-group-item text-center text-muted">No hay alertas de stock bajo</div>';
+    return;
+  }
+
+  alertas.forEach(item => {
+    const cantidad = item.cantidad || 0;
+    const nivel = cantidad === 0 ? 'danger' : cantidad <= 5 ? 'danger' : 'warning';
+    const icono = cantidad === 0 ? 'exclamation-triangle-fill' : 'exclamation-triangle';
+    const mensaje = cantidad === 0 ? 'AGOTADO' : 'Stock Bajo';
+
+    const itemDiv = document.createElement('div');
+    itemDiv.className = `list-group-item list-group-item-${nivel}`;
+    itemDiv.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h6 class="mb-1">
+            <i class="bi bi-${icono} me-2"></i>
+            ${escapeHtml(item.nombre)}
+          </h6>
+          <p class="mb-1">Cantidad actual: <strong>${cantidad}</strong> unidades</p>
+          <small class="text-muted">Última actualización: ${new Date(item.fecha_registro).toLocaleString()}</small>
+        </div>
+        <div class="text-end">
+          <span class="badge bg-${nivel}">${mensaje}</span>
+        </div>
+      </div>
+    `;
+    container.appendChild(itemDiv);
+  });
+}
 
 // ===============================
 // FICHA MÉDICA
@@ -1088,14 +1236,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   clearAllBtn.onclick = async () => {
     if(!confirm('¿Borrar todo el historial?')) return;
-    
+
     try {
       const resp = await fetch('http://localhost:3000/eliminarTodosPedidos', {
         method: 'DELETE'
       });
-      
+
       const data = await resp.json();
-      
+
       if (resp.ok) {
         alert(data.mensaje || 'Historial limpiado');
         cargarHistorial();
@@ -1110,6 +1258,233 @@ document.addEventListener("DOMContentLoaded", () => {
 
   cargarHistorial();
 })();
+
+// ===============================
+// GESTIÓN DE USUARIOS
+// ===============================
+(function(){
+  const abrirModalUsuarioBtn = document.getElementById('abrirModalUsuario');
+  const modalUsuarioEl = document.getElementById('modalUsuario');
+  const guardarUsuarioBtn = document.getElementById('guardarUsuarioBtn');
+  const tablaUsuarios = document.querySelector('#tablaUsuarios tbody');
+
+  let modalUsuario = null;
+  let editingUserId = null;
+
+  if (modalUsuarioEl) {
+    modalUsuario = new bootstrap.Modal(modalUsuarioEl);
+  }
+
+  if (abrirModalUsuarioBtn) {
+    abrirModalUsuarioBtn.addEventListener('click', () => {
+      editingUserId = null;
+      limpiarFormUsuario();
+      modalUsuario.show();
+    });
+  }
+
+  if (guardarUsuarioBtn) {
+    guardarUsuarioBtn.addEventListener('click', async () => {
+      const nombres = document.getElementById('nombresUsuario').value.trim();
+      const apellidos = document.getElementById('apellidosUsuario').value.trim();
+      const identidad = document.getElementById('identidadUsuario').value.trim();
+      const telefono = document.getElementById('telefonoUsuario').value.trim();
+      const email = document.getElementById('emailUsuario').value.trim();
+      const password = document.getElementById('passwordUsuario').value;
+      const rol = document.getElementById('rolUsuario').value;
+
+      if (!nombres || !apellidos || !identidad || !telefono || !email || !password || !rol) {
+        alert('Por favor complete todos los campos.');
+        return;
+      }
+
+      const datos = { nombres, apellidos, identidad, telefono, email, password, rol };
+
+      try {
+        let resp;
+        if (editingUserId) {
+          // Actualizar usuario existente
+          resp = await fetch(`http://localhost:3000/usuarios/${editingUserId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datos)
+          });
+        } else {
+          // Crear nuevo usuario
+          resp = await fetch('http://localhost:3000/registraradm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datos)
+          });
+        }
+
+        const resultado = await resp.json();
+        if (resp.ok) {
+          alert(resultado.mensaje || 'Usuario guardado correctamente.');
+          modalUsuario.hide();
+          cargarUsuarios();
+        } else {
+          alert('Error: ' + (resultado.error || resultado.mensaje));
+        }
+      } catch (error) {
+        console.error('Error al guardar usuario:', error);
+        alert('No se pudo conectar con el servidor.');
+      }
+    });
+  }
+
+  async function cargarUsuarios() {
+    try {
+      const respuesta = await fetch('http://localhost:3000/usuarios');
+      const data = await respuesta.json();
+      renderUsuarios(data);
+    } catch (err) {
+      console.error('Error al cargar usuarios:', err);
+    }
+  }
+
+  function renderUsuarios(usuarios) {
+    const tablaUsuarios = document.querySelector('#tablaUsuarios tbody');
+    const noUsuarios = document.getElementById('noUsuarios');
+
+    if (!tablaUsuarios) return;
+
+    tablaUsuarios.innerHTML = '';
+
+    if (usuarios.length === 0) {
+      noUsuarios.classList.remove('d-none');
+      return;
+    }
+
+    noUsuarios.classList.add('d-none');
+
+    usuarios.forEach(user => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="fw-semibold">${escapeHtml(user.nombres)}</td>
+        <td class="fw-semibold">${escapeHtml(user.apellidos)}</td>
+        <td><code class="text-muted">${escapeHtml(user.identidad)}</code></td>
+        <td>${escapeHtml(user.telefono)}</td>
+        <td>${escapeHtml(user.email)}</td>
+        <td><code class="text-danger font-monospace">${escapeHtml(user.password)}</code></td>
+        <td><span class="badge bg-${getRolBadgeClass(user.rol)}">${escapeHtml(user.rol)}</span></td>
+        <td class="text-center">
+          <div class="btn-group" role="group">
+            <button class="btn btn-sm btn-outline-primary" onclick="editarUsuario(${user.id})" title="Editar">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="eliminarUsuario(${user.id})" title="Eliminar">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </td>
+      `;
+      tablaUsuarios.appendChild(tr);
+    });
+  }
+
+  function getRolBadgeClass(rol) {
+    const classes = {
+      'paciente': 'primary',
+      'cuidador': 'success',
+      'farmacia': 'info',
+      'administrador': 'warning'
+    };
+    return classes[rol] || 'secondary';
+  }
+
+  window.editarUsuario = async function(id) {
+    try {
+      const respuesta = await fetch('http://localhost:3000/usuarios');
+      const usuarios = await respuesta.json();
+      const user = usuarios.find(u => u.id === id);
+
+      if (user) {
+        editingUserId = id;
+        document.getElementById('nombresUsuario').value = user.nombres;
+        document.getElementById('apellidosUsuario').value = user.apellidos;
+        document.getElementById('identidadUsuario').value = user.identidad;
+        document.getElementById('telefonoUsuario').value = user.telefono;
+        document.getElementById('emailUsuario').value = user.email;
+        document.getElementById('passwordUsuario').value = user.password; // Mostrar password para editar
+        document.getElementById('rolUsuario').value = user.rol;
+        modalUsuario.show();
+      }
+    } catch (error) {
+      console.error('Error al cargar usuario para editar:', error);
+    }
+  };
+
+  window.eliminarUsuario = async function(id) {
+    if (!confirm('¿Está seguro de que desea eliminar este usuario?')) return;
+
+    try {
+      const resp = await fetch(`http://localhost:3000/usuarios/${id}`, {
+        method: 'DELETE'
+      });
+
+      const resultado = await resp.json();
+      if (resp.ok) {
+        alert(resultado.mensaje || 'Usuario eliminado correctamente.');
+        cargarUsuarios();
+      } else {
+        alert('Error: ' + resultado.mensaje);
+      }
+    } catch (error) {
+      console.error('Error al eliminar usuario:', error);
+      alert('No se pudo conectar con el servidor.');
+    }
+  };
+
+  function limpiarFormUsuario() {
+    document.getElementById('nombresUsuario').value = '';
+    document.getElementById('apellidosUsuario').value = '';
+    document.getElementById('identidadUsuario').value = '';
+    document.getElementById('telefonoUsuario').value = '';
+    document.getElementById('emailUsuario').value = '';
+    document.getElementById('passwordUsuario').value = '';
+    document.getElementById('rolUsuario').value = '';
+  }
+
+  // Cargar usuarios al iniciar
+  cargarUsuarios();
+})();
+
+// ===============================
+// TOASTS PARA NOTIFICACIONES
+// ===============================
+function mostrarToast(mensaje, tipo = 'info') {
+  const toastContainer = document.getElementById('toast-container');
+  if (!toastContainer) {
+    console.error('Contenedor de toasts no encontrado');
+    return;
+  }
+
+  const toastId = 'toast-' + Date.now();
+  const toastHTML = `
+    <div id="${toastId}" class="toast align-items-center text-bg-${tipo} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">${escapeHtml(mensaje)}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  `;
+
+  toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+
+  const toastElement = document.getElementById(toastId);
+  const toast = new bootstrap.Toast(toastElement, {
+    autohide: true,
+    delay: 5000
+  });
+
+  toast.show();
+
+  // Remover el toast del DOM después de ocultarse
+  toastElement.addEventListener('hidden.bs.toast', () => {
+    toastElement.remove();
+  });
+}
 
 // ===============================
 // UTILIDAD

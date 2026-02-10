@@ -21,14 +21,19 @@
     <aside class="sidebar">
       <div class="brand">SISCOM</div>
 
+      <div class="user-info" id="userInfo">
+        <div class="user-name" id="userName"></div>
+        <div class="user-role" id="userRole"></div>
+      </div>
+
       <nav class="nav-menu">
         
         <button class="nav-btn active" data-section="medicamentos"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
         <button class="nav-btn" data-section="recetas"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
-        <button class="nav-btn" data-section="checklist"><i class="bi bi-check2-square"></i> <span>Checklist</span></button>
         <button class="nav-btn" data-section="Ficha"><i class="bi bi-file-person"></i> <span>Ficha</span></button>
         <button class="nav-btn" data-section="inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
         <button class="nav-btn" data-section="pedidos"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
+        <button class="nav-btn" data-section="usuarios"><i class="bi bi-people"></i> <span>Gestión de Usuarios</span></button>
         <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
       </nav>
     </aside>
@@ -145,81 +150,28 @@
         </div>
       </section>
 
-   <!-- CHECKLIST -->
-      <section id="checklist" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-check2-square me-2"></i> Checklist de Medicamentos</h2>
-          <p class="muted">Confirma la toma de medicamentos diaria con registro de auditoría.</p>
-        </div>
 
-        <div class="card form-card mb-4">
-          <h5 class="card-title"><i class="bi bi-person-check me-2"></i> Seleccionar Paciente y Fecha</h5>
-          
-          <div class="row g-3 align-items-end">
-            <div class="col-md-4">
-              <label class="form-label">Paciente ID / Nombre</label>
-              <input id="patientInput" class="form-control" placeholder="Ej: 1 - Juan Pérez" value="1 - Paciente Demo">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Fecha</label>
-              <input id="dateInput" type="date" class="form-control">
-            </div>
-            <div class="col-md-4 d-grid">
-              <button id="loadBtn" class="btn btn-primary">
-                <i class="bi bi-download me-2"></i> Cargar Datos
-              </button>
-            </div>
-          </div>
-
-          <div class="mt-3 d-flex gap-2 flex-wrap">
-            <button id="addSampleBtn" class="btn btn-outline-secondary btn-sm">
-              <i class="bi bi-plus-circle me-1"></i> Cargar Medicamentos Ejemplo
-            </button>
-            <button id="clearDayBtn" class="btn btn-outline-danger btn-sm">
-              <i class="bi bi-trash me-1"></i> Limpiar Día
-            </button>
-            <button id="exportCsvBtn" class="btn btn-outline-success btn-sm ms-auto">
-              <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar CSV
-            </button>
-          </div>
-
-          <div id="statusMsg" class="alert alert-info mt-3 d-none"></div>
-        </div>
-
-        <div class="row">
-          <div class="col-lg-8 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-clipboard-check me-2"></i> Lista de Medicamentos del Día
-              </div>
-              <div class="card-body p-0">
-                <div id="medList" class="list-group list-group-flush">
-                  <div class="text-center text-muted p-4">Selecciona paciente y fecha, luego presiona "Cargar Datos"</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-lg-4 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-clock-history me-2"></i> Registro de Auditoría
-              </div>
-              <div class="card-body">
-                <p class="small text-muted mb-2">Últimas acciones del día:</p>
-                <ul id="auditList" class="list-unstyled small">
-                  <li class="text-muted">Sin acciones registradas hoy.</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
   <!-- INVENTARIO -->
 <section id="inventario" class="section d-none">
   <div class="section-header">
     <h2>Control de Inventario de Medicamentos</h2>
     <p class="muted">Registra stock, consume dosis y recibe alertas de bajo inventario.</p>
+  </div>
+
+  <!-- ALERTAS DE STOCK BAJO -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="card-title mb-0">
+        <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Alertas de Stock Bajo
+      </h5>
+    </div>
+    <div class="card-body">
+      <p class="text-muted">Medicamentos que necesitan reposición</p>
+      <div id="alertasStock" class="list-group">
+        <!-- Se poblará dinámicamente con JavaScript -->
+        <div class="list-group-item text-center text-muted">No hay alertas de stock bajo</div>
+      </div>
+    </div>
   </div>
 
   <!-- TARJETA -->
@@ -232,7 +184,7 @@
       </h5>
 
       <button id="abrirModalInventario" class="btn btn-primary">
-        <i class="bi bi-plus-circle me-2"></i> Registrar Medicamento
+        <i class="bi bi-plus-circle me-2"></i> Registrar o Actualizar Medicamento
       </button>
     </div>
 
@@ -257,22 +209,38 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i> Registrar Inventario</h5>
+        <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i> Gestionar Inventario</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
       <div class="modal-body">
-        <div class="form-row">
+        <div class="mb-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="modoActualizar">
+            <label class="form-check-label" for="modoActualizar">
+              Actualizar stock existente
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row" id="selectMedicamentoRow" style="display: none;">
+          <label for="selectMedicamento">Seleccionar Medicamento Existente</label>
+          <select id="selectMedicamento" class="form-select">
+            <option value="">Selecciona un medicamento</option>
+          </select>
+        </div>
+
+        <div class="form-row" id="inputNombreRow">
           <label for="nombreInv">Nombre</label>
           <input id="nombreInv" type="text" class="form-control" placeholder="Ej. Ibuprofeno">
         </div>
 
         <div class="form-row">
-          <label for="cantidadInv">Cantidad (unidades)</label>
-          <input id="cantidadInv" type="number" class="form-control" min="0" placeholder="Ej. 30">
+          <label for="cantidadInv">Cantidad a Agregar (unidades)</label>
+          <input id="cantidadInv" type="number" class="form-control" min="1" placeholder="Ej. 30">
         </div>
 
-        <div class="form-row">
+        <div class="form-row" id="consumoRow">
           <label for="consumoInv">Consumo por dosis</label>
           <input id="consumoInv" type="number" class="form-control" min="1" placeholder="Ej. 1">
         </div>
@@ -366,6 +334,50 @@
               <button id="clearAll" class="btn btn-outline-danger btn-sm">
                 <i class="bi bi-trash me-2"></i> Limpiar historial
               </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- GESTIÓN DE USUARIOS -->
+      <section id="usuarios" class="section d-none">
+        <div class="section-header">
+          <h2><i class="bi bi-people me-2"></i> Gestión de Usuarios</h2>
+          <p class="muted">Lista, agrega, modifica y elimina usuarios del sistema.</p>
+        </div>
+
+        <div class="card table-card">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0"><i class="bi bi-list me-2"></i> Usuarios Registrados</h5>
+            <button id="abrirModalUsuario" class="btn btn-primary">
+              <i class="bi bi-plus-circle me-2"></i> Nuevo Usuario
+            </button>
+          </div>
+          <div class="mb-3">
+            <input type="text" id="searchUsuarios" class="form-control" placeholder="Buscar usuarios...">
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover table-striped mb-0" id="tablaUsuarios">
+                <thead class="table-dark">
+                  <tr>
+                    <th class="fw-bold"><i class="bi bi-person me-2"></i>Nombres</th>
+                    <th class="fw-bold"><i class="bi bi-person me-2"></i>Apellidos</th>
+                    <th class="fw-bold"><i class="bi bi-card-text me-2"></i>Identidad</th>
+                    <th class="fw-bold"><i class="bi bi-telephone me-2"></i>Teléfono</th>
+                    <th class="fw-bold"><i class="bi bi-envelope me-2"></i>Email</th>
+                    <th class="fw-bold"><i class="bi bi-key me-2"></i>Password</th>
+                    <th class="fw-bold"><i class="bi bi-shield me-2"></i>Rol</th>
+                    <th class="fw-bold text-center"><i class="bi bi-gear me-2"></i>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div id="noUsuarios" class="text-center text-muted py-5 d-none">
+              <i class="bi bi-people display-4 mb-3"></i>
+              <h5>No hay usuarios registrados</h5>
+              <p>Haz clic en "Nuevo Usuario" para agregar el primer usuario.</p>
             </div>
           </div>
         </div>
@@ -491,6 +503,58 @@
     </div>
   </div>
 
+  <!-- Modal Gestionar Usuario -->
+  <div class="modal fade" id="modalUsuario" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i> Gestionar Usuario</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formUsuario" class="row g-3">
+            <div class="col-md-6">
+              <label for="nombresUsuario" class="form-label">Nombres</label>
+              <input type="text" id="nombresUsuario" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label for="apellidosUsuario" class="form-label">Apellidos</label>
+              <input type="text" id="apellidosUsuario" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label for="identidadUsuario" class="form-label">Identidad</label>
+              <input type="text" id="identidadUsuario" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label for="telefonoUsuario" class="form-label">Teléfono</label>
+              <input type="text" id="telefonoUsuario" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label for="emailUsuario" class="form-label">Email</label>
+              <input type="email" id="emailUsuario" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label for="passwordUsuario" class="form-label">Password</label>
+              <input type="password" id="passwordUsuario" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label for="rolUsuario" class="form-label">Rol</label>
+              <select id="rolUsuario" class="form-select" required>
+                <option value="">Seleccione rol</option>
+                <option value="usuario">Usuario</option>
+                <option value="empleado">Empleado</option>
+                <option value="administrador">Administrador</option>
+              </select>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button id="guardarUsuarioBtn" class="btn btn-primary">Guardar Usuario</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
  <!-- Contenedor para los toasts -->
 <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;"></div>
@@ -538,13 +602,13 @@ document.addEventListener('DOMContentLoaded', () => {
       navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
           const sectionId = btn.getAttribute('data-section');
-          
+
           // Ocultar todas las secciones
           sections.forEach(sec => sec.classList.add('d-none'));
-          
+
           // Remover clase active de todos los botonesvt
           navBtns.forEach(b => b.classList.remove('active'));
-          
+
           // Mostrar sección seleccionada y activar botónes
           const targetSection = document.getElementById(sectionId);
           if (targetSection) {
@@ -553,6 +617,68 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
       });
+    });
+  </script>
+
+  <!-- Script para mostrar información del usuario -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const userNameElement = document.getElementById('userName');
+      const userRoleElement = document.getElementById('userRole');
+
+      // Obtener datos del usuario desde localStorage (asumiendo que se guardan al iniciar sesión)
+      const userName = localStorage.getItem('userName') || 'Usuario Desconocido';
+      const userRole = localStorage.getItem('userRole') || 'Rol Desconocido';
+
+      // Actualizar los elementos en la interfaz
+      if (userNameElement) {
+        userNameElement.textContent = userName;
+      }
+      if (userRoleElement) {
+        userRoleElement.textContent = `Rol: ${userRole}`;
+      }
+    });
+  </script>
+
+  <!-- Script para búsqueda de usuarios -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const searchInput = document.getElementById('searchUsuarios');
+      const tableBody = document.querySelector('#tablaUsuarios tbody');
+      const noUsuariosDiv = document.getElementById('noUsuarios');
+
+      if (searchInput && tableBody) {
+        searchInput.addEventListener('input', () => {
+          const searchValue = searchInput.value.toLowerCase();
+          const rows = tableBody.querySelectorAll('tr');
+          let visibleRows = 0;
+
+          rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            let match = false;
+
+            cells.forEach(cell => {
+              if (cell.textContent.toLowerCase().includes(searchValue)) {
+                match = true;
+              }
+            });
+
+            if (match) {
+              row.style.display = '';
+              visibleRows++;
+            } else {
+              row.style.display = 'none';
+            }
+          });
+
+          // Mostrar/ocultar mensaje de no usuarios
+          if (visibleRows === 0 && rows.length > 0) {
+            noUsuariosDiv.classList.remove('d-none');
+          } else {
+            noUsuariosDiv.classList.add('d-none');
+          }
+        });
+      }
     });
   </script>
 </body>

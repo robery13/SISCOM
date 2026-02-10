@@ -207,20 +207,57 @@ app.get('/Registro_medicamentos', (req, res) => {
 
 //  RUTA 3: GUARDAR EN inventario
 app.post('/inventario', (req, res) => {
-  const { nombre, cantidad, consumo_por_dosis } = req.body;
+  const { nombre, cantidad, consumo_por_dosis, id, actualizar } = req.body;
 
-  if (!nombre || !cantidad || !consumo_por_dosis) {
-    return res.status(400).json({ mensaje: ' Campos incompletos' });
-  }
+  const cantidadNum = parseInt(cantidad, 10);
+  const consumoNum = parseInt(consumo_por_dosis || 0, 10);
 
-  const sql = 'INSERT INTO inventario (nombre, cantidad, consumo_por_dosis) VALUES (?, ?, ?)';
-  db.query(sql, [nombre, cantidad, consumo_por_dosis], (err, result) => {
-    if (err) {
-      //console.error(' Error al guardar en inventario:', err);
-      return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
+  if (id) {
+    // Modo actualizar stock existente
+    if (isNaN(cantidadNum)) {
+      return res.status(400).json({ mensaje: 'Cantidad debe ser un número válido' });
     }
-    res.json({ mensaje: ' Medicamento agregado al inventario correctamente' });
-  });
+    if (cantidadNum < 1) {
+      return res.status(400).json({ mensaje: 'Cantidad debe ser mayor a 0' });
+    }
+
+    // Primero obtener la cantidad actual
+    const sqlSelect = 'SELECT cantidad FROM inventario WHERE id = ?';
+    db.query(sqlSelect, [id], (err, results) => {
+      if (err) {
+        //console.error('Error al obtener inventario:', err);
+        return res.status(500).json({ mensaje: 'Error al obtener inventario' });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
+      }
+
+      const nuevaCantidad = results[0].cantidad + cantidadNum;
+      const sqlUpdate = 'UPDATE inventario SET cantidad = ? WHERE id = ?';
+      db.query(sqlUpdate, [nuevaCantidad, id], (err, result) => {
+        if (err) {
+          //console.error('Error al actualizar inventario:', err);
+          return res.status(500).json({ mensaje: 'Error al actualizar en la base de datos' });
+        }
+        res.json({ mensaje: 'Stock actualizado correctamente' });
+      });
+    });
+  } else {
+    // Modo agregar nuevo medicamento
+    if (!nombre || isNaN(cantidadNum) || cantidadNum < 1 || isNaN(consumoNum) || consumoNum < 1) {
+      return res.status(400).json({ mensaje: 'Campos incompletos' });
+    }
+
+    const sql = 'INSERT INTO inventario (nombre, cantidad, consumo_por_dosis) VALUES (?, ?, ?)';
+    db.query(sql, [nombre, cantidadNum, consumoNum], (err, result) => {
+      if (err) {
+        //console.error('Error al guardar en inventario:', err);
+        return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
+      }
+      res.json({ mensaje: 'Medicamento agregado al inventario correctamente' });
+    });
+  }
 });
 
 // Obtener todo el inventario
@@ -673,6 +710,131 @@ app.delete('/eliminarTodosPedidos', (req, res) => {
       return res.status(500).json({ mensaje: 'Error al eliminar los pedidos' });
     }
     res.json({ mensaje: 'Todos los pedidos eliminados correctamente' });
+  });
+});
+
+// ============================================
+// RUTAS DE RECETAS MÉDICAS
+// ============================================
+
+app.post('/recetas', (req, res) => {
+  const { id_usuario, nombre_medicamento, dosis, frecuencia } = req.body;
+
+  if (!id_usuario || !nombre_medicamento || !dosis || !frecuencia) {
+    return res.status(400).json({ mensaje: 'Campos incompletos' });
+  }
+
+  const sql = 'INSERT INTO recetas_medicas (id_usuario, nombre_medicamento, dosis, frecuencia, fecha_subida) VALUES (?, ?, ?, ?, NOW())';
+  db.query(sql, [id_usuario, nombre_medicamento, dosis, frecuencia], (err, result) => {
+    if (err) {
+      console.error('Error al guardar receta:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar la receta' });
+    }
+    res.json({ mensaje: 'Receta guardada correctamente' });
+  });
+});
+
+app.get('/recetas/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = 'SELECT * FROM recetas_medicas WHERE id_usuario = ? ORDER BY fecha_subida DESC';
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al cargar recetas:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar recetas' });
+    }
+    res.json(results);
+  });
+});
+
+app.delete('/recetas/:id', (req, res) => {
+  const { id } = req.params;
+
+  const sql = 'DELETE FROM recetas_medicas WHERE id = ?';
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar receta:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar la receta' });
+    }
+    res.json({ mensaje: 'Receta eliminada correctamente' });
+  });
+});
+
+// ============================================
+// RUTAS DE USUARIOS
+// ============================================
+
+app.get('/usuarios', (req, res) => {
+  const sql = 'SELECT * FROM usuarios';
+  db.query(sql, (err, results) => {
+    if (err) return res.status(500).json({ mensaje: 'Error al cargar usuarios' });
+    res.json(results);
+  });
+});
+
+app.put('/usuarios/:id', (req, res) => {
+  const { id } = req.params;
+  const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
+
+  // Validación básica
+  if (!nombres || !apellidos || !identidad || !telefono || !email || !password || !rol) {
+    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios.' });
+  }
+
+  // Verificar si el correo o identidad ya existen en otro usuario
+  const verificarSql = "SELECT * FROM usuarios WHERE (email = ? OR identidad = ?) AND id != ?";
+  db.query(verificarSql, [email, identidad, id], (err, resultados) => {
+    if (err) {
+      console.error('Error al verificar duplicados:', err);
+      return res.status(500).json({ mensaje: 'Error al verificar datos duplicados' });
+    }
+
+    if (resultados.length > 0) {
+      // Verificar cuál campo está duplicado
+      const correoExiste = resultados.some((r) => r.email === email);
+      const identidadExiste = resultados.some((r) => r.identidad === identidad);
+
+      if (correoExiste && identidadExiste) {
+        return res.status(400).json({ mensaje: 'El correo y la identidad ya están registrados en otro usuario' });
+      } else if (correoExiste) {
+        return res.status(400).json({ mensaje: 'El correo ya está registrado en otro usuario' });
+      } else if (identidadExiste) {
+        return res.status(400).json({ mensaje: 'La identidad ya está registrada en otro usuario' });
+      }
+    }
+
+    // Si no hay duplicados, actualizar el usuario
+    const sql = 'UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ?, email = ?, password = ?, rol = ? WHERE id = ?';
+    db.query(sql, [nombres, apellidos, identidad, telefono, email, password, rol, id], (err, result) => {
+      if (err) {
+        console.error('Error al actualizar usuario:', err);
+        // Proporcionar mensaje más específico según el tipo de error
+        if (err.code === 'ER_DUP_ENTRY') {
+          if (err.message.includes('email')) {
+            return res.status(400).json({ mensaje: 'El correo electrónico ya está registrado' });
+          } else if (err.message.includes('identidad')) {
+            return res.status(400).json({ mensaje: 'La identidad ya está registrada' });
+          }
+          return res.status(400).json({ mensaje: 'Ya existe un registro con estos datos' });
+        }
+        return res.status(500).json({ mensaje: 'Error al actualizar usuario en la base de datos' });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+      }
+
+      res.json({ mensaje: 'Usuario actualizado correctamente' });
+    });
+  });
+});
+
+app.delete('/usuarios/:id', (req, res) => {
+  const { id } = req.params;
+  const sql = 'DELETE FROM usuarios WHERE id = ?';
+  db.query(sql, [id], (err, result) => {
+    if (err) return res.status(500).json({ mensaje: 'Error al eliminar usuario' });
+    res.json({ mensaje: 'Usuario eliminado' });
   });
 });
 
