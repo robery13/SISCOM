@@ -3233,4 +3233,5 @@ function limpiarHorarios() {
   document.getElementById('horariosActuales').innerHTML = 'Selecciona un medicamento para ver sus horarios';
   mostrarNotificacion('Horarios limpiados', 'info');
 }
+
 });
