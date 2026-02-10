@@ -385,7 +385,7 @@ app.post('/guardarFichaMedica', (req, res) => {
   });
 });
 
-// ============================================
+/// ============================================
 // RUTAS DE CITAS MÉDICAS
 // ============================================
 
@@ -422,13 +422,51 @@ app.get('/obtenerCitas', (req, res) => {
 app.delete('/eliminarCita/:id', (req, res) => {
   const { id } = req.params;
   const sql = 'DELETE FROM citas WHERE id = ?';
-  
+
   db.query(sql, [id], (err, result) => {
     if (err) {
       console.error('Error al eliminar cita:', err);
       return res.status(500).json({ mensaje: 'Error al eliminar la cita.' });
     }
     res.status(200).json({ mensaje: 'Cita eliminada correctamente.' });
+  });
+});
+
+app.get('/citas/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = 'SELECT * FROM citas WHERE id_paciente = ? ORDER BY fecha_hora ASC';
+
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al obtener citas:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener citas' });
+    }
+    res.json(results);
+  });
+});
+
+app.put('/citas/:id/estado', (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  if (!estado) {
+    return res.status(400).json({ mensaje: 'Estado requerido' });
+  }
+
+  const sql = 'UPDATE citas SET estado = ? WHERE id_cita = ?';
+
+  db.query(sql, [estado, id], (err, result) => {
+    if (err) {
+      console.error('Error al actualizar estado de cita:', err);
+      return res.status(500).json({ mensaje: 'Error al actualizar estado' });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Cita no encontrada' });
+    }
+
+    res.json({ mensaje: 'Estado actualizado correctamente' });
   });
 });
 
@@ -837,7 +875,443 @@ app.delete('/usuarios/:id', (req, res) => {
     res.json({ mensaje: 'Usuario eliminado' });
   });
 });
+// ============================================
+// AGREGAR ESTAS RUTAS AL SERVER.JS EXISTENTE
+// ============================================
 
+// RUTA: Registrar que el paciente tomó un medicamento
+// ============================================
+// REEMPLAZAR ESTA RUTA EN TU SERVER.JS
+// Busca la ruta /registrarTomaMedicamento y reemplazala
+// ============================================
+
+// ============================================
+// REEMPLAZAR ESTA RUTA EN TU SERVER.JS
+// Busca la ruta /registrarTomaMedicamento y reemplazala
+// ============================================
+
+app.post('/registrarTomaMedicamento', (req, res) => {
+  const { id_usuario, id_receta, nombre_medicamento, hora_toma, fecha_toma } = req.body;
+
+  console.log('Datos recibidos en registrarTomaMedicamento:', req.body);
+
+  if (!id_usuario || !id_receta || !nombre_medicamento) {
+    return res.status(400).json({ mensaje: 'Datos incompletos' });
+  }
+
+  const horaActual = hora_toma || new Date().toTimeString().slice(0, 8);
+  const fechaActual = fecha_toma || new Date().toISOString().slice(0, 10);
+
+  // Insertar el registro en tomas_medicamentos
+  const sql = `
+    INSERT INTO tomas_medicamentos
+    (id_usuario, id_receta, nombre_medicamento, hora_toma, fecha_toma)
+    VALUES (?, ?, ?, ?, ?)
+  `;
+
+  db.query(sql, [id_usuario, id_receta, nombre_medicamento, horaActual, fechaActual], (err, result) => {
+    if (err) {
+      console.error('Error al registrar toma:', err);
+      return res.status(500).json({ mensaje: 'Error al registrar', error: err.message });
+    }
+
+    console.log('Toma registrada exitosamente:', result);
+
+    // Calcular puntos ganados (10 puntos por toma)
+    const puntosGanados = 10;
+
+    // Actualizar puntos del usuario en la tabla recompensas
+    const sqlPuntos = 'UPDATE recompensas SET puntos_totales = puntos_totales + ? WHERE id_usuario = ?';
+    db.query(sqlPuntos, [puntosGanados, id_usuario], (errPuntos) => {
+      if (errPuntos) {
+        console.error('Error al actualizar puntos:', errPuntos);
+      }
+    });
+
+    res.json({
+      mensaje: 'Toma registrada correctamente',
+      puntos_ganados: puntosGanados
+    });
+  });
+});
+// RUTA: Obtener historial de tomas del paciente
+app.get('/historialTomas/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = `
+    SELECT * FROM tomas_medicamentos
+    WHERE id_usuario = ?
+    ORDER BY fecha_toma DESC, hora_toma DESC
+    LIMIT 50
+  `;
+
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al obtener historial:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener historial' });
+    }
+    res.json(results);
+  });
+});
+
+// RUTA: Obtener tomas de hoy
+app.get('/tomasHoy/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+  
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+  
+  const sql = `
+    SELECT * FROM tomas_medicamentos
+    WHERE id_usuario = ? AND fecha_toma = ?
+    ORDER BY hora_toma DESC
+  `;
+  
+  db.query(sql, [id_usuario, fechaHoy], (err, results) => {
+    if (err) {
+      console.error('Error al obtener tomas de hoy:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener tomas' });
+    }
+    res.json(results);
+  });
+});
+
+// RUTA: Actualizar estado de pedido (para WhatsApp)
+app.put('/actualizarEstadoPedido/:id', (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  if (!estado) {
+    return res.status(400).json({ mensaje: 'Estado requerido' });
+  }
+
+  const sql = 'UPDATE pedidos_farmacia SET estado = ? WHERE id = ?';
+  
+  db.query(sql, [estado, id], (err, result) => {
+    if (err) {
+      console.error('Error al actualizar estado:', err);
+      return res.status(500).json({ mensaje: 'Error al actualizar' });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Pedido no encontrado' });
+    }
+    
+    res.json({ mensaje: 'Estado actualizado correctamente' });
+  });
+});
+// ============================================
+// RUTAS DE RECOMPENSAS Y PUNTOS
+// ============================================
+
+app.get('/recompensas/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+  
+  const sql = 'SELECT * FROM recompensas WHERE id_usuario = ?';
+  
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al obtener recompensas:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener recompensas' });
+    }
+    
+    if (results.length === 0) {
+      const sqlInsert = 'INSERT INTO recompensas (id_usuario, puntos_totales, medallas, nivel, porcentaje_cumplimiento, racha_dias) VALUES (?, 0, 0, 1, 0, 0)';
+      
+      db.query(sqlInsert, [id_usuario], (err, result) => {
+        if (err) {
+          console.error('Error al crear recompensas:', err);
+          return res.status(500).json({ mensaje: 'Error al crear recompensas' });
+        }
+        res.json({ 
+          id_usuario, 
+          puntos_totales: 0, 
+          medallas: 0, 
+          nivel: 1, 
+          porcentaje_cumplimiento: 0, 
+          racha_dias: 0 
+        });
+      });
+    } else {
+      res.json(results[0]);
+    }
+  });
+});
+
+app.post('/registrarCumplimiento', (req, res) => {
+  const { id_usuario } = req.body;
+
+  if (!id_usuario) {
+    return res.status(400).json({ mensaje: 'ID de usuario requerido' });
+  }
+
+  const sqlUpdate = `
+    UPDATE recompensas 
+    SET puntos_totales = puntos_totales + 10,
+        racha_dias = racha_dias + 1,
+        porcentaje_cumplimiento = LEAST(100, porcentaje_cumplimiento + 1)
+    WHERE id_usuario = ?
+  `;
+  
+  db.query(sqlUpdate, [id_usuario], (err, result) => {
+    if (err) {
+      console.error('Error al actualizar recompensas:', err);
+      return res.status(500).json({ mensaje: 'Error al actualizar' });
+    }
+
+    const sqlLogro = `
+      INSERT INTO logros (id_usuario, tipo_logro, descripcion, puntos_ganados) 
+      VALUES (?, 'cumplimiento', 'Tomaste tu medicamento a tiempo', 10)
+    `;
+    
+    db.query(sqlLogro, [id_usuario], (err) => {
+      if (err) console.error('Error al guardar logro:', err);
+    });
+
+    const sqlCheck = 'SELECT racha_dias FROM recompensas WHERE id_usuario = ?';
+    
+    db.query(sqlCheck, [id_usuario], (err, results) => {
+      if (err || results.length === 0) return res.json({ mensaje: 'Cumplimiento registrado' });
+
+      const racha = results[0].racha_dias;
+
+      if (racha === 7 || racha === 30) {
+        const nombreMedalla = racha === 7 ? 'Semana Perfecta' : 'Racha de 30';
+        const descripcion = racha === 7 ? '7 días consecutivos' : '30 días seguidos';
+        
+        const sqlMedalla = `
+          INSERT INTO medallas_usuario (id_usuario, nombre_medalla, descripcion, icono) 
+          VALUES (?, ?, ?, ?)
+        `;
+        
+        db.query(sqlMedalla, [id_usuario, nombreMedalla, descripcion, 'trophy'], (err) => {
+          if (err) console.error('Error al dar medalla:', err);
+        });
+
+        const sqlUpdateMedallas = 'UPDATE recompensas SET medallas = medallas + 1 WHERE id_usuario = ?';
+        db.query(sqlUpdateMedallas, [id_usuario], (err) => {
+          if (err) console.error('Error al actualizar medallas:', err);
+        });
+
+        const sqlLogroMedalla = `
+          INSERT INTO logros (id_usuario, tipo_logro, descripcion, puntos_ganados) 
+          VALUES (?, 'medalla', 'Obtuviste la medalla: ${nombreMedalla}', 50)
+        `;
+        
+        db.query(sqlLogroMedalla, [id_usuario], (err) => {
+          if (err) console.error('Error al registrar logro medalla:', err);
+        });
+      }
+
+      res.json({ mensaje: 'Cumplimiento registrado correctamente' });
+    });
+  });
+});
+
+app.get('/logros/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+  
+  const sql = 'SELECT * FROM logros WHERE id_usuario = ? ORDER BY fecha_obtenido DESC LIMIT 10';
+  
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al obtener logros:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener logros' });
+    }
+    res.json(results);
+  });
+});
+
+app.get('/medallas/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+  
+  const sql = 'SELECT * FROM medallas_usuario WHERE id_usuario = ? ORDER BY fecha_obtenida DESC';
+  
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al obtener medallas:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener medallas' });
+    }
+    res.json(results);
+  });
+});
+
+// ============================================
+// RUTAS DE EMERGENCIAS
+// ============================================
+
+app.post('/activarEmergencia', (req, res) => {
+  const { id_usuario, tipo_activacion, ubicacion_lat, ubicacion_lng, notas } = req.body;
+
+  if (!id_usuario || !tipo_activacion) {
+    return res.status(400).json({ mensaje: 'Datos incompletos' });
+  }
+
+  const sql = `
+    INSERT INTO historial_emergencias 
+    (id_usuario, tipo_activacion, ubicacion_lat, ubicacion_lng, notas, estado) 
+    VALUES (?, ?, ?, ?, ?, 'activa')
+  `;
+  
+  db.query(sql, [id_usuario, tipo_activacion, ubicacion_lat || null, ubicacion_lng || null, notas || null], (err, result) => {
+    if (err) {
+      console.error('Error al registrar emergencia:', err);
+      return res.status(500).json({ mensaje: 'Error al registrar emergencia' });
+    }
+
+    const sqlContactos = 'SELECT * FROM contactos_emergencia WHERE id_usuario = ? ORDER BY prioridad ASC';
+    
+    db.query(sqlContactos, [id_usuario], (err, contactos) => {
+      if (err) {
+        console.error('Error al obtener contactos:', err);
+      } else {
+        console.log('Notificar a contactos:', contactos);
+      }
+    });
+
+    res.json({ 
+      mensaje: 'Emergencia activada correctamente',
+      emergencia_id: result.insertId
+    });
+  });
+});
+
+app.put('/cancelarEmergencia/:id', (req, res) => {
+  const { id } = req.params;
+  const { estado, notas } = req.body;
+
+  if (!estado) {
+    return res.status(400).json({ mensaje: 'Estado requerido' });
+  }
+
+  const sql = `
+    UPDATE historial_emergencias 
+    SET estado = ?, notas = ?
+    WHERE id = ?
+  `;
+  
+  db.query(sql, [estado, notas || null, id], (err, result) => {
+    if (err) {
+      console.error('Error al cancelar emergencia:', err);
+      return res.status(500).json({ mensaje: 'Error al cancelar emergencia' });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Emergencia no encontrada' });
+    }
+    
+    res.json({ mensaje: 'Emergencia cancelada correctamente' });
+  });
+});
+
+app.get('/contactosEmergencia/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+  
+  const sql = 'SELECT * FROM contactos_emergencia WHERE id_usuario = ? ORDER BY prioridad ASC';
+  
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al obtener contactos:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener contactos' });
+    }
+    res.json(results);
+  });
+});
+
+app.post('/contactosEmergencia', (req, res) => {
+  const { id_usuario, nombre_contacto, relacion, telefono, tipo, prioridad } = req.body;
+
+  if (!id_usuario || !nombre_contacto || !telefono) {
+    return res.status(400).json({ mensaje: 'Datos incompletos' });
+  }
+
+  const sql = `
+    INSERT INTO contactos_emergencia 
+    (id_usuario, nombre_contacto, relacion, telefono, tipo, prioridad) 
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+  
+  db.query(sql, [id_usuario, nombre_contacto, relacion || null, telefono, tipo || 'familiar', prioridad || 1], (err, result) => {
+    if (err) {
+      console.error('Error al guardar contacto:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar contacto' });
+    }
+    res.json({ mensaje: 'Contacto guardado correctamente' });
+  });
+});
+
+app.delete('/contactosEmergencia/:id', (req, res) => {
+  const { id } = req.params;
+  
+  const sql = 'DELETE FROM contactos_emergencia WHERE id = ?';
+  
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar contacto:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar' });
+    }
+    res.json({ mensaje: 'Contacto eliminado correctamente' });
+  });
+});
+
+app.get('/historialEmergencias/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+  
+  const sql = 'SELECT * FROM historial_emergencias WHERE id_usuario = ? ORDER BY fecha_hora DESC';
+  
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al obtener historial:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener historial' });
+    }
+    res.json(results);
+  });
+});
+// ============================================
+// RUTAS DE HORARIOS MEDICAMENTOS
+// ============================================
+
+app.get('/horariosMedicamentos/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = 'SELECT * FROM horarios_medicamentos WHERE id_usuario = ? ORDER BY hora ASC';
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al cargar horarios:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar horarios' });
+    }
+    res.json(results);
+  });
+});
+
+app.post('/horariosMedicamentos', (req, res) => {
+  const { id_usuario, id_medicamento, hora, dias_semana, activo } = req.body;
+
+  if (!id_usuario || !id_medicamento || !hora) {
+    return res.status(400).json({ mensaje: 'Campos incompletos' });
+  }
+
+  const sql = 'INSERT INTO horarios_medicamentos (id_usuario, id_medicamento, hora, dias_semana, activo) VALUES (?, ?, ?, ?, ?)';
+  db.query(sql, [id_usuario, id_medicamento, hora, dias_semana || null, activo !== undefined ? activo : 1], (err, result) => {
+    if (err) {
+      console.error('Error al guardar horario:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar horario' });
+    }
+    res.json({ mensaje: 'Horario guardado correctamente', id: result.insertId });
+  });
+});
+
+app.delete('/horariosMedicamentos/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = 'DELETE FROM horarios_medicamentos WHERE id_usuario = ?';
+  db.query(sql, [id_usuario], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar horarios:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar horarios' });
+    }
+    res.json({ mensaje: 'Horarios eliminados correctamente' });
+  });
+});
 // ============================================
 // RUTA DE PRUEBA
 // ============================================
