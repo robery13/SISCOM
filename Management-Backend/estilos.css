@@ -16,6 +16,7 @@ body{
   background:var(--bg);
   color:#222;
 }
+/* HU-26: Panel consolidado de pacientes - animación hover en tarjetas */
 #panel .card {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
@@ -54,7 +55,10 @@ body{
 
 /* CARDS */
 .card{background:var(--card);border-radius:14px;padding:18px;box-shadow:0 6px 18px rgba(15,15,15,0.04);margin:14px auto;max-width:900px}
-.form-card{max-width:900px}
+.form-card{max-width:900px;width:100%}
+/* HU-32: Contenedor de filas del checklist (alineación con card superior) */
+.checklist-row{max-width:900px;margin:0 auto;width:100%}
+.checklist-row .card{max-width:100%;margin:0}
 .card-title{font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
 
 /* FORM ROW */
@@ -76,6 +80,10 @@ body{
 .table{width:100%;border-collapse:collapse}
 .table th,.table td{padding:10px;border-top:1px solid rgba(0,0,0,0.04);vertical-align:middle}
 .alerta-baja{color:#ff3b3b;font-weight:700}
+
+/* HU-26: Panel pacientes - tabla de alertas */
+.panel-tabla{max-width:900px;margin:0 auto;width:100%}
+.panel-tabla .card{width:100%;margin:14px 0;max-width:900px}
 
 /* VISIBILITY HELPERS */
 .d-none{display:none}
@@ -453,4 +461,25 @@ body{
     opacity: 0;
     transform: translateX(100%);
   }
+}
+
+/* ====== HU-27: ESTADÍSTICAS DE SALUD POR PACIENTE ====== */
+/* Estilos para: detalle scroll, toolbar selectores/botones, multi-select comparación */
+#estDetalle {
+  max-height: 280px;
+  overflow-y: auto;
+}
+.est-toolbar .form-select,
+.est-toolbar .btn {
+  height: 42px;
+  line-height: 1.2;
+}
+.est-toolbar .form-select[multiple] {
+  height: auto;
+  min-height: 42px;
+  flex: 1 1 320px;
+}
+.est-toolbar .form-select {
+  flex: 1 1 220px;
+  min-width: 220px;
 }

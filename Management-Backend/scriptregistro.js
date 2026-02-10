@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const medicamentos = document.getElementById("medicamentos");
   if (medicamentos) {
     medicamentos.classList.remove("d-none");
-    navBtns[0]?.classList.add("active");
+    document.querySelector('.nav-btn[data-section="medicamentos"]')?.classList.add('active');
   }
 
   navBtns.forEach(btn => {
@@ -653,6 +653,9 @@ function mostrarAlertasStock(alertas) {
 
 // ===============================
 // MÓDULO DE CHECKLIST CORREGIDO
+// Contiene HU-32: Eliminación segura de medicamentos
+// Funciones: Cargar pacientes desde BD, cargar datos del día, confirmar toma,
+//   eliminar medicamento con modal (HU-32), limpiar día, exportar CSV
 // ===============================
 (function(){
   const patientInput = document.getElementById("patientInput");
@@ -681,6 +684,31 @@ function mostrarAlertasStock(alertas) {
   if (dateInput) {
     dateInput.valueAsDate = new Date();
   }
+
+  // Cargar pacientes desde la BD al select
+  async function cargarPacientesChecklist() {
+    try {
+      const resp = await fetch('http://localhost:3000/pacientes');
+      const pacientes = await resp.json();
+      patientInput.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
+      pacientes.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = `${p.id_paciente} - ${p.nombre_completo}`;
+        opt.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+        patientInput.appendChild(opt);
+      });
+    } catch (err) {
+      console.error('Error al cargar pacientes en checklist:', err);
+    }
+  }
+
+  // Cargar pacientes al inicio y cuando se muestra la sección
+  cargarPacientesChecklist();
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.section === 'checklist') cargarPacientesChecklist();
+    });
+  });
 
   const escapeHtml = (text) => {
     const div = document.createElement('div');
@@ -714,19 +742,24 @@ function mostrarAlertasStock(alertas) {
       item.className = `list-group-item d-flex justify-content-between align-items-center ${taken ? 'bg-light' : ''}`;
       
       item.innerHTML = `
-        <div class="me-3">
+        <div class="me-3 flex-grow-1">
           <div><strong>${escapeHtml(m.name)}</strong></div>
           <div class="small text-muted">${escapeHtml(m.dose || "")} ${m.schedule ? "• " + m.schedule : ""}</div>
         </div>
-        <div class="text-end" style="min-width:170px">
-          <div class="mb-1">
-            <input type="checkbox" class="form-check-input me-2" id="chk_${m.id}" ${taken ? "checked" : ""}>
-            <label for="chk_${m.id}" class="form-check-label small">Tomado</label>
+        <div class="d-flex align-items-center gap-2">
+          <div class="text-end" style="min-width:140px">
+            <div class="mb-1">
+              <input type="checkbox" class="form-check-input me-2" id="chk_${m.id}" ${taken ? "checked" : ""}>
+              <label for="chk_${m.id}" class="form-check-label small">Tomado</label>
+            </div>
+            <div>
+              <span class="badge bg-secondary">${info && info.takenAt ? formatTime(info.takenAt) : "—"}</span>
+              ${info && info.actor ? `<span class="badge bg-info">${escapeHtml(info.actor)}</span>` : ''}
+            </div>
           </div>
-          <div>
-            <span class="badge bg-secondary">${info && info.takenAt ? formatTime(info.takenAt) : "—"}</span>
-            ${info && info.actor ? `<span class="badge bg-info">${escapeHtml(info.actor)}</span>` : ''}
-          </div>
+          <button class="btn btn-outline-danger btn-sm eliminar-med-btn" data-med-id="${m.id}" data-med-name="${escapeHtml(m.name)}" data-med-dose="${escapeHtml(m.dose || '')}" data-med-schedule="${m.schedule || ''}" title="Eliminar medicamento">
+            <i class="bi bi-trash"></i>
+          </button>
         </div>
       `;
       
@@ -754,6 +787,62 @@ function mostrarAlertasStock(alertas) {
         renderMeds();
         renderAudit();
       });
+
+      // HU-32: Botón eliminar medicamento del tratamiento
+      // Abre modal de confirmación, elimina med + confirmaciones, actualiza inventario
+      const delBtn = item.querySelector('.eliminar-med-btn');
+      if (delBtn) {
+        delBtn.addEventListener('click', () => {
+          const medId = delBtn.dataset.medId;
+          const medName = delBtn.dataset.medName;
+          const medDose = delBtn.dataset.medDose;
+          const medSchedule = delBtn.dataset.medSchedule;
+
+          const elimNombre = document.getElementById('elimMedNombre');
+          const elimDetalle = document.getElementById('elimMedDetalle');
+          const confirmarBtn = document.getElementById('confirmarEliminarMedBtn');
+
+          if (elimNombre) elimNombre.textContent = medName;
+          if (elimDetalle) elimDetalle.textContent = `${medDose} ${medSchedule ? '• ' + medSchedule : ''}`;
+
+          const modalEl = document.getElementById('modalEliminarMed');
+          const modal = new bootstrap.Modal(modalEl);
+          modal.show();
+
+          // Remover listener previo para evitar duplicados
+          const nuevoBtn = confirmarBtn.cloneNode(true);
+          confirmarBtn.parentNode.replaceChild(nuevoBtn, confirmarBtn);
+
+          nuevoBtn.addEventListener('click', async () => {
+            nuevoBtn.disabled = true;
+            nuevoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Eliminando...';
+
+            try {
+              const resp = await fetch(
+                `http://localhost:3000/eliminarMedicamentoChecklist/${encodeURIComponent(currentPatientKey)}/${currentDateStr}/${medId}`,
+                { method: 'DELETE' }
+              );
+              const data = await resp.json();
+
+              if (resp.ok) {
+                // Quitar de la lista local
+                meds = meds.filter(med => med.id !== parseInt(medId));
+                delete checks[medId];
+                setStatus(`✅ ${medName} eliminado del tratamiento. ${data.inventario_actualizado ? 'Inventario actualizado.' : ''}`, 'success');
+                renderMeds();
+                renderAudit();
+              } else {
+                setStatus('❌ ' + (data.mensaje || 'Error al eliminar'), 'danger');
+              }
+            } catch (err) {
+              console.error('Error al eliminar medicamento:', err);
+              setStatus('❌ Error de conexión al eliminar', 'danger');
+            }
+
+            modal.hide();
+          });
+        });
+      }
     });
   };
 
@@ -1446,6 +1535,264 @@ function mostrarAlertasStock(alertas) {
 })();
 
 // ===============================
+// PANEL CONSOLIDADO DE PACIENTES (CUIDADOR) - HU-26
+// Funciones: Listar pacientes por cuidador, filtrar por estatus de salud,
+//   filtrar alertas por estado/fecha, tabla de detalle de alertas
+// ===============================
+(function () {
+  const API_BASE = 'http://localhost:3000';
+
+  function normalizeDatetimeLocal(value) {
+    // Convierte "YYYY-MM-DDTHH:mm" a "YYYY-MM-DD HH:mm:00" (sin timezone)
+    if (!value) return '';
+    return value.replace('T', ' ') + ':00';
+  }
+
+  function getStatusLabel(estatus) {
+    const map = {
+      critico: 'Crítico',
+      importante: 'Importante',
+      normal: 'Normal',
+      leve: 'Leve'
+    };
+    return map[String(estatus || '').toLowerCase()] || 'Sin clasificar';
+  }
+
+  function getStatusBadgeClass(estatus) {
+    const key = String(estatus || '').toLowerCase();
+    if (key === 'critico') return 'danger';
+    if (key === 'importante') return 'warning';
+    if (key === 'normal') return 'primary';
+    if (key === 'leve') return 'success';
+    return 'secondary';
+  }
+
+  function getAlertStateLabel(estado) {
+    const key = String(estado || '').toLowerCase();
+    if (key === 'pendiente') return 'Pendiente';
+    if (key === 'atendida') return 'Atendida';
+    return 'Desconocido';
+  }
+
+  function getAlertStateBadgeClass(estado) {
+    const key = String(estado || '').toLowerCase();
+    if (key === 'pendiente') return 'danger';
+    if (key === 'atendida') return 'success';
+    return 'secondary';
+  }
+
+  async function fetchJson(url) {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    return { resp, data };
+  }
+
+  function renderEmpty(panelContenido, panelTabla, text) {
+    if (panelContenido) panelContenido.innerHTML = '';
+    if (panelTabla) {
+      panelTabla.innerHTML = `
+        <div class="card">
+          <div class="text-center text-muted p-4">${escapeHtml(text)}</div>
+        </div>
+      `;
+    }
+  }
+
+  function groupPatientsByStatus(pacientes) {
+    const groups = { critico: [], importante: [], normal: [], leve: [], other: [] };
+    pacientes.forEach(p => {
+      const key = String(p.estatus_salud || '').toLowerCase();
+      if (groups[key]) groups[key].push(p);
+      else groups.other.push(p);
+    });
+    return groups;
+  }
+
+  function hasActiveAlertFilters({ estado, desde, hasta }) {
+    return (estado && estado !== 'todas') || Boolean(desde) || Boolean(hasta);
+  }
+
+  function buildAlertsByPatient(alertas) {
+    const map = new Map();
+    (alertas || []).forEach(a => {
+      const pid = a.paciente_id;
+      if (!map.has(pid)) map.set(pid, []);
+      map.get(pid).push(a);
+    });
+    return map;
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) {
+      return String(value);
+    }
+    return d.toLocaleString();
+  }
+
+  function renderPanel(panelContenido, panelTabla, panelMsg, pacientes, alertas, filters) {
+    const alertasPorPaciente = buildAlertsByPatient(alertas);
+    const filtrosAlertasActivos = hasActiveAlertFilters(filters);
+
+    let pacientesMostrados = pacientes;
+    if (filtrosAlertasActivos) {
+      pacientesMostrados = pacientes.filter(p => {
+        const list = alertasPorPaciente.get(p.id_paciente) || [];
+        return list.length > 0;
+      });
+    }
+
+    const totalAlertas = pacientesMostrados.reduce((acc, p) => {
+      return acc + ((alertasPorPaciente.get(p.id_paciente) || []).length);
+    }, 0);
+
+    panelMsg.textContent = `${pacientesMostrados.length} paciente(s) · ${totalAlertas} alerta(s)`;
+
+    if (!pacientesMostrados.length) {
+      renderEmpty(panelContenido, panelTabla, filtrosAlertasActivos ? 'No hay pacientes con alertas para los filtros seleccionados.' : 'No hay pacientes asignados para mostrar.');
+      return;
+    }
+
+    // Tarjetas no requeridas: solo tabla
+    if (panelContenido) panelContenido.innerHTML = '';
+
+    // Tabla detalle (alertas filtradas)
+    const pacientesById = new Map();
+    pacientesMostrados.forEach(p => pacientesById.set(p.id_paciente, p));
+
+    const alertasDetalle = Array.isArray(alertas) ? alertas : [];
+    const rowsHtml = alertasDetalle.length
+      ? alertasDetalle.map(a => {
+          const p = pacientesById.get(a.paciente_id) || {};
+          const est = String(p.estatus_salud || '').toLowerCase();
+          return `
+            <tr>
+              <td class="fw-semibold">${escapeHtml(p.nombre_completo || `Paciente ${a.paciente_id}`)}</td>
+              <td><span class="badge bg-${getStatusBadgeClass(est)}">${escapeHtml(getStatusLabel(est))}</span></td>
+              <td>${escapeHtml(a.descripcion || '')}</td>
+              <td><span class="badge bg-${getAlertStateBadgeClass(a.estado)}">${escapeHtml(getAlertStateLabel(a.estado))}</span></td>
+              <td class="text-muted">${escapeHtml(formatDateTime(a.creado_en))}</td>
+            </tr>
+          `;
+        }).join('')
+      : '';
+
+    const tableHtml = `
+      <div class="card form-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="card-title mb-0"><i class="bi bi-table me-2"></i> Detalle de Alertas</h5>
+          <span class="small text-muted">${alertasDetalle.length} registro(s)</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Paciente</th>
+                <th>Estatus</th>
+                <th>Descripción</th>
+                <th>Estado</th>
+                <th>Creada</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || `<tr><td colspan="5" class="text-center text-muted p-4">No hay alertas para mostrar.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    if (panelTabla) panelTabla.innerHTML = tableHtml;
+  }
+
+  async function loadPanel(panelContenido, panelTabla, panelMsg, filters) {
+    const cuidadorId = localStorage.getItem('userId');
+    if (!cuidadorId) {
+      panelMsg.textContent = '';
+      renderEmpty(panelContenido, panelTabla, 'No se encontró el id del cuidador (userId). Vuelve a iniciar sesión.');
+      return;
+    }
+
+    panelMsg.textContent = 'Cargando...';
+    panelContenido.innerHTML = '<div class="text-center text-muted p-4">Cargando...</div>';
+    if (panelTabla) panelTabla.innerHTML = '';
+
+    try {
+      const { data: pacientesResp } = await fetchJson(`${API_BASE}/cuidador/${encodeURIComponent(cuidadorId)}/pacientes`);
+      let pacientes = Array.isArray(pacientesResp) ? pacientesResp : [];
+
+      const estatusFiltro = String(filters.estatus || 'todas').toLowerCase();
+      if (estatusFiltro && estatusFiltro !== 'todas') {
+        pacientes = pacientes.filter(p => String(p.estatus_salud || '').toLowerCase() === estatusFiltro);
+      }
+
+      const qs = new URLSearchParams();
+      if (filters.estado) qs.set('estado', filters.estado);
+      if (filters.desde) qs.set('desde', filters.desde);
+      if (filters.hasta) qs.set('hasta', filters.hasta);
+
+      const { data: alertasResp } = await fetchJson(`${API_BASE}/cuidador/${encodeURIComponent(cuidadorId)}/alertas?${qs.toString()}`);
+
+      if (alertasResp && alertasResp.needsSetup) {
+        panelMsg.textContent = 'Panel listo (sin tabla de alertas)';
+        renderPanel(panelContenido, panelTabla, panelMsg, pacientes, [], filters);
+        return;
+      }
+
+      let alertas = alertasResp && alertasResp.ok ? alertasResp.alertas : [];
+      alertas = Array.isArray(alertas) ? alertas : [];
+      const allowedIds = new Set(pacientes.map(p => p.id_paciente));
+      alertas = alertas.filter(a => allowedIds.has(a.paciente_id));
+
+      renderPanel(panelContenido, panelTabla, panelMsg, pacientes, alertas, filters);
+    } catch (err) {
+      console.error('Error al cargar panel:', err);
+      panelMsg.textContent = '';
+      renderEmpty(panelContenido, panelTabla, 'No se pudo cargar el panel. Verifica que el servidor esté activo.');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const panelContenido = document.getElementById('panelContenido');
+    const panelTabla = document.getElementById('panelTabla');
+    const panelMsg = document.getElementById('panelMsg');
+    const panelEstatus = document.getElementById('panelEstatus');
+    const panelEstado = document.getElementById('panelEstado');
+    const panelDesde = document.getElementById('panelDesde');
+    const panelHasta = document.getElementById('panelHasta');
+    const panelAplicar = document.getElementById('panelAplicar');
+    const panelLimpiar = document.getElementById('panelLimpiar');
+
+    if (!panelContenido || !panelMsg || !panelEstatus || !panelEstado || !panelDesde || !panelHasta || !panelAplicar || !panelLimpiar) return;
+
+    function currentFilters() {
+      return {
+        estatus: panelEstatus.value || 'todas',
+        estado: panelEstado.value || 'todas',
+        desde: normalizeDatetimeLocal(panelDesde.value),
+        hasta: normalizeDatetimeLocal(panelHasta.value)
+      };
+    }
+
+    panelAplicar.addEventListener('click', () => {
+      loadPanel(panelContenido, panelTabla, panelMsg, currentFilters());
+    });
+
+    panelLimpiar.addEventListener('click', () => {
+      panelEstatus.value = 'todas';
+      panelEstado.value = 'todas';
+      panelDesde.value = '';
+      panelHasta.value = '';
+      loadPanel(panelContenido, panelTabla, panelMsg, currentFilters());
+    });
+
+    // Carga inicial (sin filtros)
+    loadPanel(panelContenido, panelTabla, panelMsg, currentFilters());
+  });
+})();
+
+// ===============================
 // UTILIDAD
 // ===============================
 function escapeHtml(str){
@@ -1456,3 +1803,419 @@ function escapeHtml(str){
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
 }
+
+// ===============================
+// ESTADÍSTICAS DE SALUD (HU-27)
+// Funciones: Gráficos (cumplimiento doughnut, citas pie, condiciones bar),
+//   tarjetas resumen, detalle del paciente, exportar CSV, exportar PDF,
+//   comparar entre pacientes (tabla + gráfico barras agrupadas), limpiar comparación
+// ===============================
+(function(){
+  const API = "http://localhost:3000";
+
+  // Referencias DOM
+  const pacienteSelect = document.getElementById("estPacienteSelect");
+  const cargarBtn = document.getElementById("estCargarBtn");
+  const exportCsvBtn = document.getElementById("estExportarCsvBtn");
+  const exportPdfBtn = document.getElementById("estExportarPdfBtn");
+  const resumenDiv = document.getElementById("estResumen");
+  const compararSelect = document.getElementById("estCompararSelect");
+  const compararBtn = document.getElementById("estCompararBtn");
+  const comparacionDiv = document.getElementById("estComparacion");
+
+  const limpiarCompBtn = document.getElementById("estLimpiarCompBtn");
+
+  if (!pacienteSelect) return; // Si la sección no existe, salir
+
+  // Instancias de gráficos para destruir/recrear
+  let chartCumplimiento = null;
+  let chartCitas = null;
+  let chartCondiciones = null;
+  let chartComparacion = null;
+  let datosActuales = null; // Para exportar
+
+  // ---- Cargar lista de pacientes ----
+  async function cargarPacientes() {
+    try {
+      const resp = await fetch(`${API}/pacientes`);
+      const pacientes = await resp.json();
+
+      pacienteSelect.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
+      compararSelect.innerHTML = '';
+
+      pacientes.forEach(p => {
+        const opt1 = document.createElement("option");
+        opt1.value = p.id_paciente;
+        opt1.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+        pacienteSelect.appendChild(opt1);
+
+        const opt2 = document.createElement("option");
+        opt2.value = p.id_paciente;
+        opt2.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+        compararSelect.appendChild(opt2);
+      });
+    } catch (err) {
+      console.error("Error al cargar pacientes:", err);
+    }
+  }
+
+  // ---- Ver estadísticas de un paciente ----
+  cargarBtn.addEventListener("click", async () => {
+    const id = pacienteSelect.value;
+    if (!id) {
+      alert("Seleccione un paciente.");
+      return;
+    }
+
+    try {
+      const resp = await fetch(`${API}/estadisticas/paciente/${id}`);
+      const data = await resp.json();
+      datosActuales = data;
+
+      if (!data.paciente) {
+        alert("Paciente no encontrado.");
+        return;
+      }
+
+      // Mostrar resumen
+      resumenDiv.classList.remove("d-none");
+      exportCsvBtn.disabled = false;
+      exportPdfBtn.disabled = false;
+
+      // Tarjetas resumen
+      document.getElementById("estCumplimientoPct").textContent = data.cumplimiento.porcentaje + "%";
+      document.getElementById("estTotalMeds").textContent = data.medicamentos.length;
+      document.getElementById("estTotalCitas").textContent = data.citas.total;
+      document.getElementById("estTotalCondiciones").textContent = data.condiciones.length;
+
+      // Color de cumplimiento
+      const pctEl = document.getElementById("estCumplimientoPct");
+      pctEl.className = "mt-2 mb-0";
+      if (data.cumplimiento.porcentaje >= 80) pctEl.classList.add("text-success");
+      else if (data.cumplimiento.porcentaje >= 50) pctEl.classList.add("text-warning");
+      else pctEl.classList.add("text-danger");
+
+      // ---- Gráfico Cumplimiento (Doughnut) ----
+      if (chartCumplimiento) chartCumplimiento.destroy();
+      const ctxCump = document.getElementById("chartCumplimiento").getContext("2d");
+      const tomados = data.cumplimiento.total_tomados;
+      const noTomados = data.cumplimiento.total_programados - tomados;
+
+      chartCumplimiento = new Chart(ctxCump, {
+        type: "doughnut",
+        data: {
+          labels: ["Tomados", "No tomados"],
+          datasets: [{
+            data: [tomados, noTomados],
+            backgroundColor: ["#198754", "#dc3545"],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" },
+            title: {
+              display: true,
+              text: `Cumplimiento: ${data.cumplimiento.porcentaje}% (${tomados}/${data.cumplimiento.total_programados})`
+            }
+          }
+        }
+      });
+
+      // ---- Gráfico Citas (Pie) ----
+      if (chartCitas) chartCitas.destroy();
+      const ctxCitas = document.getElementById("chartCitas").getContext("2d");
+      const estadosCitas = { programada: 0, cumplida: 0, cancelada: 0, vencida: 0 };
+      data.citas.detalle.forEach(c => { estadosCitas[c.estado] = c.total; });
+
+      chartCitas = new Chart(ctxCitas, {
+        type: "pie",
+        data: {
+          labels: ["Programadas", "Cumplidas", "Canceladas", "Vencidas"],
+          datasets: [{
+            data: [estadosCitas.programada, estadosCitas.cumplida, estadosCitas.cancelada, estadosCitas.vencida],
+            backgroundColor: ["#0d6efd", "#198754", "#dc3545", "#6c757d"],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: "bottom" } }
+        }
+      });
+
+      // ---- Gráfico Condiciones (Bar) ----
+      if (chartCondiciones) chartCondiciones.destroy();
+      const ctxCond = document.getElementById("chartCondiciones").getContext("2d");
+      const niveles = { Leve: 0, Moderada: 0, "Crítica": 0 };
+      data.condiciones.forEach(c => { if(niveles[c.nivel] !== undefined) niveles[c.nivel]++; });
+
+      chartCondiciones = new Chart(ctxCond, {
+        type: "bar",
+        data: {
+          labels: ["Leve", "Moderada", "Crítica"],
+          datasets: [{
+            label: "Condiciones médicas",
+            data: [niveles.Leve, niveles.Moderada, niveles["Crítica"]],
+            backgroundColor: ["#ffc107", "#fd7e14", "#dc3545"],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // ---- Detalle del paciente ----
+      const detDiv = document.getElementById("estDetalle");
+      let html = `<p><strong>Nombre:</strong> ${escapeHtml(data.paciente.nombre_completo)}</p>`;
+      html += `<p><strong>Fecha nacimiento:</strong> ${data.paciente.fecha_nacimiento || "N/A"}</p>`;
+
+      html += `<p class="mt-2 mb-1"><strong>Alergias:</strong></p><ul>`;
+      if (data.alergias.length === 0) html += "<li class='text-muted'>Ninguna registrada</li>";
+      else data.alergias.forEach(a => { html += `<li>${escapeHtml(a.nombre_alergia)}</li>`; });
+      html += "</ul>";
+
+      html += `<p class="mb-1"><strong>Condiciones:</strong></p><ul>`;
+      if (data.condiciones.length === 0) html += "<li class='text-muted'>Ninguna registrada</li>";
+      else data.condiciones.forEach(c => {
+        const badge = c.nivel === "Crítica" ? "bg-danger" : c.nivel === "Moderada" ? "bg-warning text-dark" : "bg-secondary";
+        html += `<li>${escapeHtml(c.nombre_condicion)} <span class="badge ${badge}">${c.nivel}</span></li>`;
+      });
+      html += "</ul>";
+
+      html += `<p class="mb-1"><strong>Medicamentos asignados:</strong></p><ul>`;
+      if (data.medicamentos.length === 0) html += "<li class='text-muted'>Ninguno registrado</li>";
+      else data.medicamentos.forEach(m => { html += `<li>${escapeHtml(m.nombre)} - ${escapeHtml(m.dosis)} (cada ${m.frecuencia}h)</li>`; });
+      html += "</ul>";
+
+      detDiv.innerHTML = html;
+
+    } catch (err) {
+      console.error("Error al cargar estadísticas:", err);
+      alert("Error al obtener estadísticas del paciente.");
+    }
+  });
+
+  // ---- Exportar CSV ----
+  exportCsvBtn.addEventListener("click", () => {
+    if (!datosActuales || !datosActuales.paciente) return;
+    const d = datosActuales;
+    let csv = "Estadísticas de Salud - " + d.paciente.nombre_completo + "\n\n";
+    csv += "Métrica,Valor\n";
+    csv += `Cumplimiento (%),${d.cumplimiento.porcentaje}\n`;
+    csv += `Medicamentos programados,${d.cumplimiento.total_programados}\n`;
+    csv += `Medicamentos tomados,${d.cumplimiento.total_tomados}\n`;
+    csv += `Total medicamentos asignados,${d.medicamentos.length}\n`;
+    csv += `Total citas,${d.citas.total}\n`;
+    csv += `Total condiciones,${d.condiciones.length}\n`;
+    csv += `Total alergias,${d.alergias.length}\n\n`;
+
+    csv += "Condiciones Médicas\nNombre,Nivel\n";
+    d.condiciones.forEach(c => { csv += `${c.nombre_condicion},${c.nivel}\n`; });
+    csv += "\nAlergias\nNombre\n";
+    d.alergias.forEach(a => { csv += `${a.nombre_alergia}\n`; });
+    csv += "\nMedicamentos\nNombre,Dosis,Frecuencia (h)\n";
+    d.medicamentos.forEach(m => { csv += `${m.nombre},${m.dosis},${m.frecuencia}\n`; });
+    csv += "\nCitas por Estado\nEstado,Total\n";
+    d.citas.detalle.forEach(c => { csv += `${c.estado},${c.total}\n`; });
+
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Estadisticas_${d.paciente.nombre_completo.replace(/\s+/g, "_")}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
+
+  // ---- Exportar PDF (usando impresión del navegador) ----
+  exportPdfBtn.addEventListener("click", () => {
+    if (!datosActuales || !datosActuales.paciente) return;
+    const d = datosActuales;
+
+    const ventana = window.open("", "_blank");
+    ventana.document.write(`
+      <html><head><title>Informe - ${escapeHtml(d.paciente.nombre_completo)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1 { color: #333; font-size: 20px; }
+        h2 { font-size: 16px; margin-top: 18px; color: #555; }
+        table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+        th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 13px; }
+        th { background: #f5f5f5; }
+        .badge-critica { color: #dc3545; font-weight: bold; }
+        .badge-moderada { color: #fd7e14; font-weight: bold; }
+        .badge-leve { color: #6c757d; }
+        .resumen { display: flex; gap: 20px; margin: 10px 0; }
+        .resumen div { text-align: center; padding: 10px; border: 1px solid #ddd; border-radius: 6px; flex: 1; }
+        .resumen h3 { margin: 0; font-size: 24px; }
+        .resumen small { color: #888; }
+      </style></head><body>
+      <h1>Informe de Salud: ${escapeHtml(d.paciente.nombre_completo)}</h1>
+      <p>Fecha de nacimiento: ${d.paciente.fecha_nacimiento || "N/A"}</p>
+      <p>Fecha del informe: ${new Date().toLocaleDateString("es-HN")}</p>
+
+      <div class="resumen">
+        <div><h3>${d.cumplimiento.porcentaje}%</h3><small>Cumplimiento</small></div>
+        <div><h3>${d.medicamentos.length}</h3><small>Medicamentos</small></div>
+        <div><h3>${d.citas.total}</h3><small>Citas</small></div>
+        <div><h3>${d.condiciones.length}</h3><small>Condiciones</small></div>
+      </div>
+
+      <h2>Condiciones Médicas</h2>
+      <table><tr><th>Condición</th><th>Nivel</th></tr>
+      ${d.condiciones.length === 0 ? '<tr><td colspan="2">Ninguna</td></tr>' : d.condiciones.map(c => `<tr><td>${escapeHtml(c.nombre_condicion)}</td><td class="badge-${c.nivel.toLowerCase()}">${c.nivel}</td></tr>`).join("")}
+      </table>
+
+      <h2>Alergias</h2>
+      <table><tr><th>Alergia</th></tr>
+      ${d.alergias.length === 0 ? '<tr><td>Ninguna</td></tr>' : d.alergias.map(a => `<tr><td>${escapeHtml(a.nombre_alergia)}</td></tr>`).join("")}
+      </table>
+
+      <h2>Medicamentos Asignados</h2>
+      <table><tr><th>Nombre</th><th>Dosis</th><th>Frecuencia (h)</th></tr>
+      ${d.medicamentos.length === 0 ? '<tr><td colspan="3">Ninguno</td></tr>' : d.medicamentos.map(m => `<tr><td>${escapeHtml(m.nombre)}</td><td>${escapeHtml(m.dosis)}</td><td>${m.frecuencia}</td></tr>`).join("")}
+      </table>
+
+      <h2>Citas Médicas</h2>
+      <table><tr><th>Estado</th><th>Total</th></tr>
+      ${d.citas.detalle.length === 0 ? '<tr><td colspan="2">Sin citas</td></tr>' : d.citas.detalle.map(c => `<tr><td>${c.estado}</td><td>${c.total}</td></tr>`).join("")}
+      </table>
+
+      <h2>Cumplimiento de Medicamentos (Checklist)</h2>
+      <table>
+        <tr><th>Programados</th><td>${d.cumplimiento.total_programados}</td></tr>
+        <tr><th>Tomados</th><td>${d.cumplimiento.total_tomados}</td></tr>
+        <tr><th>Porcentaje</th><td>${d.cumplimiento.porcentaje}%</td></tr>
+      </table>
+
+      <script>window.onload = function(){ window.print(); }<\/script>
+      </body></html>
+    `);
+    ventana.document.close();
+  });
+
+  // ---- Comparar entre pacientes ----
+  compararBtn.addEventListener("click", async () => {
+    const seleccionados = Array.from(compararSelect.selectedOptions).map(o => o.value);
+
+    if (seleccionados.length < 2) {
+      alert("Seleccione al menos 2 pacientes para comparar.");
+      return;
+    }
+
+    try {
+      const resp = await fetch(`${API}/estadisticas/comparar?ids=${seleccionados.join(",")}`);
+      const data = await resp.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        alert("No se encontraron datos para estos pacientes.");
+        return;
+      }
+
+      comparacionDiv.classList.remove("d-none");
+
+      // Tabla comparativa
+      const tbody = document.querySelector("#tablaComparacion tbody");
+      tbody.innerHTML = "";
+      data.forEach(p => {
+        const nivelBadge = p.nivel_max === "Crítica" ? "bg-danger" : p.nivel_max === "Moderada" ? "bg-warning text-dark" : "bg-secondary";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(p.nombre_completo)}</strong></td>
+          <td>${p.total_medicamentos}</td>
+          <td>${p.total_condiciones}</td>
+          <td>${p.total_alergias}</td>
+          <td>${p.total_citas}</td>
+          <td>${p.citas_cumplidas || 0}</td>
+          <td>${p.citas_canceladas || 0}</td>
+          <td><span class="badge ${nivelBadge}">${p.nivel_max || "N/A"}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Gráfico comparativo (barras agrupadas)
+      if (chartComparacion) chartComparacion.destroy();
+      const ctx = document.getElementById("chartComparacion").getContext("2d");
+
+      chartComparacion = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: data.map(p => p.nombre_completo),
+          datasets: [
+            {
+              label: "Medicamentos",
+              data: data.map(p => p.total_medicamentos),
+              backgroundColor: "#0d6efd"
+            },
+            {
+              label: "Condiciones",
+              data: data.map(p => p.total_condiciones),
+              backgroundColor: "#fd7e14"
+            },
+            {
+              label: "Alergias",
+              data: data.map(p => p.total_alergias),
+              backgroundColor: "#ffc107"
+            },
+            {
+              label: "Citas Total",
+              data: data.map(p => p.total_citas),
+              backgroundColor: "#198754"
+            },
+            {
+              label: "Citas Cumplidas",
+              data: data.map(p => p.citas_cumplidas || 0),
+              backgroundColor: "#20c997"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 } }
+          },
+          plugins: {
+            legend: { position: "top" },
+            title: { display: true, text: "Comparación entre Pacientes" }
+          }
+        }
+      });
+
+    } catch (err) {
+      console.error("Error al comparar:", err);
+      alert("Error al comparar pacientes.");
+    }
+  });
+
+  // ---- Limpiar comparación ----
+  limpiarCompBtn.addEventListener("click", () => {
+    // Ocultar resultados
+    comparacionDiv.classList.add("d-none");
+    // Limpiar tabla
+    const tbody = document.querySelector("#tablaComparacion tbody");
+    if (tbody) tbody.innerHTML = "";
+    // Destruir gráfico
+    if (chartComparacion) { chartComparacion.destroy(); chartComparacion = null; }
+    // Deseleccionar opciones
+    Array.from(compararSelect.options).forEach(o => o.selected = false);
+  });
+
+  // ---- Inicialización: cargar pacientes al abrir sección ----
+  const navBtns = document.querySelectorAll(".nav-btn");
+  navBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.section === "estadisticas") {
+        cargarPacientes();
+      }
+    });
+  });
+
+  // También cargar al inicio por si ya está visible
+  cargarPacientes();
+})();

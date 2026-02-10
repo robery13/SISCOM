@@ -95,6 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (data.usuario) {
             localStorage.setItem('userName', data.usuario.nombres + ' ' + data.usuario.apellidos);
             localStorage.setItem('userRole', data.usuario.rol);
+            localStorage.setItem('userId', String(data.usuario.id));
           }
 
           // Redirigir según el rol del usuario

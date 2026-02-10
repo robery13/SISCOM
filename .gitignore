@@ -1,3 +1,10 @@
 .env
 tokens.json
 Archivos DB/
+node_modules/
+
+# Variantes por si cambias nombre o hay espacios diferentes
+Archivos DB
+Archivos DB/**
+node_modules
+node_modules/**

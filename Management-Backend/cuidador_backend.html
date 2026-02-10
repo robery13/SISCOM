@@ -28,11 +28,15 @@
 
       <nav class="nav-menu">
 
+        <!-- HU-26: Botón Panel Consolidado de Pacientes -->
+        <button class="nav-btn" data-section="panel"><i class="bi bi-people"></i> <span>Pacientes</span></button>
         <button class="nav-btn active" data-section="medicamentos"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
         <button class="nav-btn" data-section="recetas"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
         <button class="nav-btn" data-section="checklist"><i class="bi bi-check2-square"></i> <span>Checklist</span></button>
         <button class="nav-btn" data-section="Ficha"><i class="bi bi-file-person"></i> <span>Ficha</span></button>
         <button class="nav-btn" data-section="inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
+        <!-- HU-27: Botón Estadísticas de Salud -->
+        <button class="nav-btn" data-section="estadisticas"><i class="bi bi-bar-chart-line"></i> <span>Estadísticas</span></button>
         <button class="nav-btn" data-section="pedidos"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
         <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
       </nav>
@@ -41,7 +45,65 @@
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main">
 
+      <!-- HU-26: PANEL CONSOLIDADO DE PACIENTES -->
+      <!-- Funciones: Filtros por estatus/estado/fecha, tabla de alertas, conteo de pacientes -->
       <!-- PANEL DE CONTROL -->
+
+      <section id="panel" class="section d-none">
+        <div class="section-header">
+          <h2><i class="bi bi-people me-2"></i> Pacientes</h2>
+          <p class="muted">Vista consolidada de pacientes asignados y sus alertas. Filtra por estatus, por estado y por rango de fecha/hora de creación.</p>
+        </div>
+
+        <div class="card form-card mb-4">
+          <h5 class="card-title"><i class="bi bi-funnel me-2"></i> Filtros</h5>
+
+          <div class="row g-3 align-items-end">
+            <div class="col-lg-3 col-md-6">
+              <label for="panelEstatus" class="form-label">Estatus</label>
+              <select id="panelEstatus" class="form-select">
+                <option value="todas" selected>Todos</option>
+                <option value="critico">Críticos</option>
+                <option value="importante">Importantes</option>
+                <option value="normal">Normales</option>
+                <option value="leve">Leves</option>
+              </select>
+            </div>
+            <div class="col-lg-3 col-md-6">
+              <label for="panelEstado" class="form-label">Estado</label>
+              <select id="panelEstado" class="form-select">
+                <option value="todas" selected>Todas</option>
+                <option value="pendiente">Pendientes</option>
+                <option value="atendida">Atendidas</option>
+              </select>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+              <label for="panelDesde" class="form-label">Desde</label>
+              <input id="panelDesde" type="datetime-local" class="form-control">
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+              <label for="panelHasta" class="form-label">Hasta</label>
+              <input id="panelHasta" type="datetime-local" class="form-control">
+            </div>
+          </div>
+
+          <div class="mt-3 d-flex gap-2 flex-wrap align-items-center">
+            <button id="panelAplicar" class="btn btn-primary btn-sm">
+              <i class="bi bi-search me-1"></i> Aplicar
+            </button>
+            <button id="panelLimpiar" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-x-circle me-1"></i> Limpiar
+            </button>
+            <div id="panelMsg" class="ms-auto small text-muted"></div>
+          </div>
+        </div>
+
+        <div id="panelTabla" class="vstack gap-3 mb-4 panel-tabla"></div>
+
+        <div id="panelContenido" class="d-none"></div>
+      </section>
 
 
       <!-- MEDICAMENTOS -->
@@ -163,10 +225,12 @@
           <div class="row g-3 align-items-end">
             <div class="col-md-4">
               <label class="form-label">Paciente ID / Nombre</label>
-              <input id="patientInput" class="form-control" placeholder="Ej: 1 - Juan Pérez" value="1 - Paciente Demo">
+              <select id="patientInput" class="form-select">
+                <option value="">-- Seleccione un paciente --</option>
+              </select>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Fecha</label>
+              <label for="dateInput" class="form-label">Fecha</label>
               <input id="dateInput" type="date" class="form-control">
             </div>
             <div class="col-md-4 d-grid">
@@ -191,7 +255,7 @@
           <div id="statusMsg" class="alert alert-info mt-3 d-none"></div>
         </div>
 
-        <div class="row">
+        <div class="row checklist-row">
           <div class="col-lg-8 mb-4">
             <div class="card">
               <div class="card-header">
@@ -220,6 +284,34 @@
           </div>
         </div>
       </section>
+
+  <!-- HU-32: Modal Confirmación Eliminar Medicamento -->
+  <!-- Funciones: Solicitar confirmación antes de eliminar, cancelar recordatorios, actualizar inventario -->
+  <div class="modal fade" id="modalEliminarMed" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i> Eliminar Medicamento</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>¿Está seguro que desea eliminar el siguiente medicamento del tratamiento?</p>
+          <div class="alert alert-warning mb-3">
+            <strong id="elimMedNombre"></strong><br>
+            <small id="elimMedDetalle" class="text-muted"></small>
+          </div>
+          <p class="small text-muted mb-0"><i class="bi bi-info-circle me-1"></i> Esta acción eliminará el medicamento, cancelará sus recordatorios/confirmaciones y actualizará el inventario.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="confirmarEliminarMedBtn">
+            <i class="bi bi-trash me-1"></i> Sí, Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- INVENTARIO -->
 <section id="inventario" class="section d-none">
   <div class="section-header">
@@ -279,7 +371,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i> Gestionar Inventario</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" title="Cerrar"></button>
       </div>
 
       <div class="modal-body">
@@ -292,7 +384,7 @@
           </div>
         </div>
 
-        <div class="form-row" id="selectMedicamentoRow" style="display: none;">
+        <div class="form-row d-none" id="selectMedicamentoRow">
           <label for="selectMedicamento">Seleccionar Medicamento Existente</label>
           <select id="selectMedicamento" class="form-select">
             <option value="">Selecciona un medicamento</option>
@@ -355,7 +447,7 @@
               <label for="condiciones">Registrar condiciones</label>
               <div class="input-group mb-2">
                 <input type="text" id="condicionesInput" class="form-control" placeholder="Ej: Diabetes, Hipertensión...">
-                <select id="nivelCondicion" class="form-select" style="max-width: 150px;">
+                <select id="nivelCondicion" class="form-select nivel-condicion-select">
                   <option value="Leve">Leve</option>
                   <option value="Moderada">Moderada</option>
                   <option value="Crítica">Crítica</option>
@@ -374,6 +466,145 @@
               <button type="button" id="btnLimpiar" class="btn btn-danger">Limpiar</button>
             </div>
           </form>
+        </div>
+      </section>
+
+      <!-- HU-27: ESTADÍSTICAS DE SALUD POR PACIENTE -->
+      <!-- Funciones: Gráficos (cumplimiento, citas, condiciones), exportar CSV/PDF, comparar pacientes -->
+      <!-- ESTADÍSTICAS DE SALUD POR PACIENTE (HU-27) -->
+      <section id="estadisticas" class="section d-none">
+        <div class="section-header">
+          <h2><i class="bi bi-bar-chart-line me-2"></i> Estadísticas de Salud por Paciente</h2>
+          <p class="muted">Consulta gráficos, porcentajes de cumplimiento y compara entre pacientes.</p>
+        </div>
+
+        <!-- SELECTOR DE PACIENTE -->
+        <div class="card form-card mb-4">
+          <h5 class="card-title"><i class="bi bi-person-check me-2"></i> Seleccionar Paciente</h5>
+          <label for="estPacienteSelect" class="form-label">Paciente</label>
+          <div class="d-flex gap-2 align-items-stretch flex-wrap est-toolbar">
+            <select id="estPacienteSelect" class="form-select">
+              <option value="">-- Seleccione un paciente --</option>
+            </select>
+            <button id="estCargarBtn" class="btn btn-primary">
+              <i class="bi bi-search me-1"></i> Ver Estadísticas
+            </button>
+            <button id="estExportarCsvBtn" class="btn btn-outline-success" disabled>
+              <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar CSV
+            </button>
+            <button id="estExportarPdfBtn" class="btn btn-outline-danger" disabled>
+              <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- RESUMEN GENERAL DEL PACIENTE -->
+        <div id="estResumen" class="d-none">
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-heart-pulse fs-2 text-danger"></i>
+                <h3 id="estCumplimientoPct" class="mt-2 mb-0">0%</h3>
+                <small class="text-muted">Cumplimiento</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-capsule fs-2 text-primary"></i>
+                <h3 id="estTotalMeds" class="mt-2 mb-0">0</h3>
+                <small class="text-muted">Medicamentos</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-calendar-check fs-2 text-success"></i>
+                <h3 id="estTotalCitas" class="mt-2 mb-0">0</h3>
+                <small class="text-muted">Citas Totales</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-exclamation-triangle fs-2 text-warning"></i>
+                <h3 id="estTotalCondiciones" class="mt-2 mb-0">0</h3>
+                <small class="text-muted">Condiciones</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- GRÁFICOS -->
+          <div class="row g-4 mb-4">
+            <div class="col-lg-6">
+              <div class="card p-3">
+                <h6 class="card-title"><i class="bi bi-pie-chart me-2"></i> Cumplimiento de Medicamentos</h6>
+                <canvas id="chartCumplimiento" height="250"></canvas>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="card p-3">
+                <h6 class="card-title"><i class="bi bi-pie-chart me-2"></i> Estado de Citas</h6>
+                <canvas id="chartCitas" height="250"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-4 mb-4">
+            <div class="col-lg-6">
+              <div class="card p-3">
+                <h6 class="card-title"><i class="bi bi-bar-chart me-2"></i> Condiciones Médicas por Nivel</h6>
+                <canvas id="chartCondiciones" height="250"></canvas>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="card p-3">
+                <h6 class="card-title"><i class="bi bi-list-ul me-2"></i> Detalle del Paciente</h6>
+                <div id="estDetalle" class="small"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COMPARAR ENTRE PACIENTES -->
+        <div class="card form-card mb-4">
+          <h5 class="card-title"><i class="bi bi-people me-2"></i> Comparar entre Pacientes</h5>
+          <label for="estCompararSelect" class="form-label">Seleccione pacientes a comparar</label>
+          <div class="d-flex gap-2 align-items-stretch flex-wrap est-toolbar">
+            <select id="estCompararSelect" class="form-select" multiple size="4">
+            </select>
+            <button id="estCompararBtn" class="btn btn-outline-primary">
+              <i class="bi bi-arrow-left-right me-1"></i> Comparar
+            </button>
+            <button id="estLimpiarCompBtn" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle me-1"></i> Limpiar
+            </button>
+          </div>
+          <small class="text-muted mt-1 d-block">Mantenga Ctrl para seleccionar varios.</small>
+        </div>
+
+        <div id="estComparacion" class="d-none">
+          <div class="card p-3 mb-4">
+            <h6 class="card-title"><i class="bi bi-bar-chart me-2"></i> Comparación de Pacientes</h6>
+            <canvas id="chartComparacion" height="300"></canvas>
+          </div>
+          <div class="card p-3 mb-4">
+            <h6 class="card-title"><i class="bi bi-table me-2"></i> Tabla Comparativa</h6>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover" id="tablaComparacion">
+                <thead class="table-light">
+                  <tr>
+                    <th>Paciente</th>
+                    <th>Medicamentos</th>
+                    <th>Condiciones</th>
+                    <th>Alergias</th>
+                    <th>Citas Total</th>
+                    <th>Citas Cumplidas</th>
+                    <th>Citas Canceladas</th>
+                    <th>Nivel Máx.</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -419,7 +650,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i> Registrar Medicamento</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" title="Cerrar"></button>
         </div>
         <div class="modal-body">
           <div class="form-row">
@@ -464,7 +695,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Crear pedido a farmacia</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" title="Cerrar"></button>
         </div>
         <div class="modal-body">
           <form id="orderForm">
@@ -523,7 +754,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Detalle del pedido</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" title="Cerrar"></button>
         </div>
         <div class="modal-body" id="detailBody"></div>
       </div>
@@ -532,13 +763,15 @@
 
 
  <!-- Contenedor para los toasts -->
-<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;"></div>
+<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3 toast-container-custom"></div>
 
 
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Scripts propios -->
-  <script src="scriptregistro.js"></script>
+  <script src="scriptregistro.js?v=20260209"></script>
 
   <!-- Script para abrir modal de medicamentos -->
   <script>
