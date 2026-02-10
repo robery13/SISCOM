@@ -267,9 +267,6 @@ document.addEventListener("DOMContentLoaded", () => {
           cargarContactosEmergencia();
           setTimeout(() => cargarHistorialEmergencias(), 300);
         }
-        if (sectionId === 'horarios') {
-          cargarHorariosMedicamentos();
-        }
         if (sectionId === 'inicio') {
           cargarEstadisticasInicio();
         }
@@ -299,12 +296,49 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.removeItem('usuario');
         mostrarNotificacion('Sesion cerrada exitosamente', 'success');
         setTimeout(() => {
-          window.location.href = "../index.html";
+          window.location.href = "index.html";
         }, 1000);
       }
     });
   }
 });
+
+// ===============================
+// CARGAR RESUMEN DIARIO
+// ===============================
+async function cargarResumenDiario() {
+  const idUsuario = getUsuarioId();
+
+  try {
+    // Obtener todas las recetas del usuario
+    const recetasRes = await fetch(`${API_URL}/recetas/${idUsuario}`);
+    const recetas = await recetasRes.json();
+
+    // Obtener tomas de hoy
+    const tomasRes = await fetch(`${API_URL}/tomasHoy/${idUsuario}`);
+    const tomas = await tomasRes.json();
+
+    // Calcular estadísticas
+    const totalMedicamentos = recetas.length;
+    const tomados = tomas.length; // Contar cada toma individual, no recetas únicas
+    const pendientes = Math.max(0, totalMedicamentos - tomados);
+    const cumplimiento = totalMedicamentos > 0 ? Math.round((tomados / totalMedicamentos) * 100) : 0;
+
+    console.log('Resumen Diario:', { totalMedicamentos, tomados, pendientes, cumplimiento, tomas, recetas });
+
+    // Actualizar elementos del DOM
+    const tomadosElement = document.getElementById('tomadosHoy');
+    const pendientesElement = document.getElementById('pendientesHoy');
+    const cumplimientoElement = document.getElementById('cumplimientoDiario');
+
+    if (tomadosElement) tomadosElement.textContent = tomados;
+    if (pendientesElement) pendientesElement.textContent = pendientes;
+    if (cumplimientoElement) cumplimientoElement.textContent = cumplimiento + '%';
+
+  } catch (error) {
+    console.error('Error al cargar resumen diario:', error);
+  }
+}
 
 // ===============================
 // ESTADÍSTICAS DEL INICIO
@@ -331,6 +365,7 @@ async function cargarEstadisticasInicio() {
     if (statPuntos) statPuntos.textContent = recompensas.puntos_totales || 0;
     if (statCumplimiento) statCumplimiento.textContent = (recompensas.porcentaje_cumplimiento || 0) + '%';
 
+    await cargarResumenDiario();
     await cargarMedicamentosHoy();
     await cargarTomasRegistradasHoy();
     await cargarProximaCita();
@@ -574,10 +609,44 @@ async function confirmarTomaMedicamento(id_receta, nombre_medicamento) {
     const data = await response.json();
     
     mostrarNotificacion('Medicamento registrado. Ganaste ' + data.puntos_ganados + ' puntos', 'success');
-    
-    await cargarEstadisticasInicio();
-    await cargarRecompensas();
-    
+
+    // Delay más largo para asegurar que la base de datos se actualice completamente
+    setTimeout(async () => {
+      try {
+        // Actualizar el resumen diario y listas en orden
+        await cargarResumenDiario();
+        await new Promise(resolve => setTimeout(resolve, 200)); // Pequeño delay entre llamadas
+        await cargarMedicamentosHoy();
+        await new Promise(resolve => setTimeout(resolve, 200)); // Pequeño delay entre llamadas
+        await cargarTomasRegistradasHoy();
+
+        // Mostrar mensaje motivacional cada vez que toma un medicamento
+        mostrarMensajeMotivacional();
+
+        // Mostrar mensaje motivacional por ganar puntos (si son 10 o más)
+        if (data.puntos_ganados >= 10) {
+          mostrarMensajeMotivacionalPuntos(data.puntos_ganados);
+        }
+
+        await cargarRecompensas();
+
+        // Verificar cumplimiento diario completo (sin mostrar mensaje aquí)
+        await verificarCumplimientoDiario();
+      } catch (error) {
+        console.error('Error al actualizar la interfaz:', error);
+        // Reintentar una vez más después de un delay más largo
+        setTimeout(async () => {
+          try {
+            await cargarResumenDiario();
+            await cargarMedicamentosHoy();
+            await cargarTomasRegistradasHoy();
+          } catch (retryError) {
+            console.error('Error en reintento:', retryError);
+          }
+        }, 1000);
+      }
+    }, 1000); // Aumentar delay inicial a 1 segundo
+
   } catch (error) {
     console.error('Error completo:', error);
     mostrarNotificacion('Error al registrar la toma del medicamento', 'error');
@@ -646,74 +715,77 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function mostrarModalReceta() {
-  const modalHTML = `
-    <div class="modal fade" id="modalReceta" tabindex="-1">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Nueva Receta Medica</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <div class="mb-3">
-              <label class="form-label">Medicamento:</label>
-              <input type="text" id="modalNombre" class="form-control" placeholder="Nombre del medicamento">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Dosis:</label>
-              <input type="text" id="modalDosis" class="form-control" placeholder="Ej: 400mg">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Frecuencia:</label>
-              <select id="modalFrecuencia" class="form-select">
-                <option value="">Selecciona frecuencia</option>
-                <optgroup label="Pruebas (Minutos)">
-                  <option value="cada 1 minuto">Cada 1 minuto</option>
-                  <option value="cada 2 minutos">Cada 2 minutos</option>
-                  <option value="cada 3 minutos">Cada 3 minutos</option>
-                  <option value="cada 5 minutos">Cada 5 minutos</option>
-                  <option value="cada 10 minutos">Cada 10 minutos</option>
-                  <option value="cada 15 minutos">Cada 15 minutos</option>
-                  <option value="cada 30 minutos">Cada 30 minutos</option>
-                </optgroup>
-                <optgroup label="Frecuencias Comunes (Horas)">
-                  <option value="cada 1 hora">Cada 1 hora</option>
-                  <option value="cada 2 horas">Cada 2 horas</option>
-                  <option value="cada 4 horas">Cada 4 horas</option>
-                  <option value="cada 6 horas">Cada 6 horas</option>
-                  <option value="cada 8 horas">Cada 8 horas</option>
-                  <option value="cada 12 horas">Cada 12 horas</option>
-                  <option value="cada 24 horas">Cada 24 horas (1 vez al día)</option>
-                </optgroup>
-              </select>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-primary" id="btnGuardarReceta">Guardar Receta</button>
-          </div>
-        </div>
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 0.2s ease-out';
+  
+  modal.innerHTML = `
+    <div style="background:white;padding:2rem;border-radius:1rem;max-width:500px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation:scaleIn 0.3s ease-out">
+      <h5 style="margin-bottom:1.5rem;color:#1e3a8a">Nueva Receta Medica</h5>
+      
+      <div style="margin-bottom:1rem">
+        <label style="display:block;margin-bottom:0.5rem;font-weight:500">Medicamento:</label>
+        <input type="text" id="modalNombre" class="form-control" placeholder="Nombre del medicamento">
+      </div>
+      
+      <div style="margin-bottom:1rem">
+        <label style="display:block;margin-bottom:0.5rem;font-weight:500">Dosis:</label>
+        <input type="text" id="modalDosis" class="form-control" placeholder="Ej: 400mg">
+      </div>
+      
+     <div style="margin-bottom:1.5rem">
+  <label style="display:block;margin-bottom:0.5rem;font-weight:500">Frecuencia:</label>
+  <select id="modalFrecuencia" class="form-select">
+    <option value="">Selecciona frecuencia</option>
+    <optgroup label="Pruebas (Minutos)">
+      <option value="cada 1 minuto">Cada 1 minuto</option>
+      <option value="cada 2 minutos">Cada 2 minutos</option>
+      <option value="cada 3 minutos">Cada 3 minutos</option>
+      <option value="cada 5 minutos">Cada 5 minutos</option>
+      <option value="cada 10 minutos">Cada 10 minutos</option>
+      <option value="cada 15 minutos">Cada 15 minutos</option>
+      <option value="cada 30 minutos">Cada 30 minutos</option>
+    </optgroup>
+    <optgroup label="Frecuencias Comunes (Horas)">
+      <option value="cada 1 hora">Cada 1 hora</option>
+      <option value="cada 2 horas">Cada 2 horas</option>
+      <option value="cada 4 horas">Cada 4 horas</option>
+      <option value="cada 6 horas">Cada 6 horas</option>
+      <option value="cada 8 horas">Cada 8 horas</option>
+      <option value="cada 12 horas">Cada 12 horas</option>
+      <option value="cada 24 horas">Cada 24 horas (1 vez al día)</option>
+    </optgroup>
+  </select>
+</div>
+      
+      <div style="display:flex;gap:1rem;justify-content:flex-end">
+        <button class="btn btn-secondary" id="btnCancelarReceta">Cancelar</button>
+        <button class="btn btn-primary" id="btnGuardarReceta">Guardar Receta</button>
       </div>
     </div>
   `;
-
-  document.body.insertAdjacentHTML('beforeend', modalHTML);
-  const modalElement = document.getElementById('modalReceta');
-  const modal = new bootstrap.Modal(modalElement);
-  modal.show();
-
+  
+  document.body.appendChild(modal);
+  
   document.getElementById('modalNombre').focus();
-
+  
+  document.getElementById('btnCancelarReceta').addEventListener('click', () => {
+    modal.remove();
+  });
+  
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+  
   document.getElementById('btnGuardarReceta').addEventListener('click', async () => {
     const nombre = document.getElementById('modalNombre').value.trim();
     const dosis = document.getElementById('modalDosis').value.trim();
     const frecuencia = document.getElementById('modalFrecuencia').value.trim();
-
+    
     if (!nombre || !dosis || !frecuencia) {
       await mostrarAlerta('Campos incompletos', 'Todos los campos son obligatorios');
       return;
     }
-
+    
     try {
       const response = await fetch(`${API_URL}/recetas`, {
         method: 'POST',
@@ -725,25 +797,18 @@ function mostrarModalReceta() {
           frecuencia: frecuencia
         })
       });
-
+      
       const data = await response.json();
       mostrarNotificacion(data.mensaje, 'success');
-      modal.hide();
-      modalElement.addEventListener('hidden.bs.modal', () => {
-        modalElement.remove();
-      });
+      modal.remove();
       cargarRecetas();
       cargarHistorialMedicacion();
-
+      
       await registrarMedicamento(nombre, dosis, frecuencia);
     } catch (error) {
       console.error('Error:', error);
       mostrarNotificacion('Error al guardar la receta', 'error');
     }
-  });
-
-  modalElement.addEventListener('hidden.bs.modal', () => {
-    modalElement.remove();
   });
 }
 
@@ -958,9 +1023,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const data = await response.json();
         mostrarNotificacion(data.mensaje, 'success');
+        mostrarNotificacion('Cita agendada exitosamente. Recibirás recordatorios antes de la hora.', 'info');
+
+        // Mostrar mensaje motivacional por agendar cita
+        mostrarMensajeMotivacionalCita();
+
         citaForm.reset(); // Limpiar formulario
         cargarCitas(); // Recargar lista de citas
         cargarEstadisticasInicio(); // Actualizar estadísticas
+
+        // Ir a la sección de agenda para mostrar la cita agendada
+        const agendaBtn = document.querySelector('.nav-btn[data-section="agenda"]');
+        if (agendaBtn) {
+          agendaBtn.click();
+        }
       } catch (error) {
         console.error('Error:', error);
         mostrarNotificacion('Error al guardar la cita', 'error');
@@ -1460,9 +1536,9 @@ function mostrarNotificacionCita(cita, minutosRestantes) {
   });
 }
 
-function mostrarNotificacionCitaActiva(cita) {
+async function mostrarNotificacionCitaActiva(cita) {
   const notifKey = `notif_activa_${cita.id_cita}`;
-  
+
   const notifGuardada = localStorage.getItem(notifKey);
   if (notifGuardada) {
     const fechaNotif = new Date(notifGuardada);
@@ -1472,11 +1548,11 @@ function mostrarNotificacionCitaActiva(cita) {
       return;
     }
   }
-  
+
   localStorage.setItem(notifKey, new Date().toISOString());
-  
+
   const fechaCita = new Date(cita.fecha_hora);
-  
+
   const modal = document.createElement('div');
   modal.style.cssText = `
     position: fixed;
@@ -1491,17 +1567,17 @@ function mostrarNotificacionCitaActiva(cita) {
     z-index: 10000;
     animation: fadeIn 0.3s ease-out;
   `;
-  
+
   modal.innerHTML = `
     <div style="background: white; padding: 2rem; border-radius: 1rem; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: scaleIn 0.3s ease-out;">
       <div style="text-align: center; margin-bottom: 1.5rem;">
         <i class="bi bi-alarm-fill" style="font-size: 4rem; color: #dc3545;"></i>
       </div>
-      
+
       <h4 style="color: #dc3545; text-align: center; margin-bottom: 1rem;">
         Es hora de tu cita
       </h4>
-      
+
       <div style="background: #fef2f2; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border-left: 4px solid #dc3545;">
         <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #dc3545;">
           ${cita.motivo}
@@ -1513,7 +1589,7 @@ function mostrarNotificacionCitaActiva(cita) {
           La cita es AHORA
         </p>
       </div>
-      
+
       <div style="display: flex; gap: 1rem; justify-content: center;">
         <button class="btn btn-danger" id="btnConfirmarCita" style="min-width: 150px;">
           <i class="bi bi-check-circle"></i> Confirmar
@@ -1521,14 +1597,32 @@ function mostrarNotificacionCitaActiva(cita) {
       </div>
     </div>
   `;
-  
+
   document.body.appendChild(modal);
-  
-  document.getElementById('btnConfirmarCita').addEventListener('click', () => {
-    modal.style.animation = 'fadeOut 0.3s ease-out';
-    setTimeout(() => modal.remove(), 300);
+
+  document.getElementById('btnConfirmarCita').addEventListener('click', async () => {
+    try {
+      const response = await fetch(`${API_URL}/citas/${cita.id_cita}/estado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: 'cumplida' })
+      });
+
+      if (response.ok) {
+        mostrarNotificacion('Cita confirmada como cumplida', 'success');
+        modal.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => modal.remove(), 300);
+        // Recargar estadísticas
+        cargarEstadisticasInicio();
+      } else {
+        mostrarNotificacion('Error al confirmar la cita', 'error');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      mostrarNotificacion('Error al confirmar la cita', 'error');
+    }
   });
-  
+
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
       modal.style.animation = 'fadeOut 0.3s ease-out';
@@ -1837,6 +1931,965 @@ document.querySelectorAll('.nav-btn[data-section]').forEach(btn => {
   });
 });
 // ============================================
+// FUNCIÓN GLOBAL PARA OBTENER AVATARES SVG
+// ============================================
+function obtenerAvatarSVG(avatarId, size = '100%') {
+  const avatares = {
+    'default': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#5B4D8D"/>
+        <circle cx="20" cy="15" r="6" fill="white"/>
+        <path d="M8 35C8 27.268 13.268 21 20 21C26.732 21 32 27.268 32 35" fill="white"/>
+      </svg>
+    `,
+    'hombre1': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#FDB44B"/>
+        <circle cx="20" cy="14" r="7" fill="#FFDA6A"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#FFDA6A"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'hombre2': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#A0AEC0"/>
+        <circle cx="20" cy="14" r="7" fill="#E2E8F0"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#E2E8F0"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'mujer1': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#FDB44B"/>
+        <circle cx="20" cy="14" r="7" fill="#FFDA6A"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#FFDA6A"/>
+        <path d="M14 12C14 10 16 8 20 8C24 8 26 10 26 12C26 13 25 14 24 14H16C15 14 14 13 14 12Z" fill="#8B5A3C"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'mujer2': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#A0AEC0"/>
+        <circle cx="20" cy="14" r="7" fill="#E2E8F0"/>
+        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#E2E8F0"/>
+        <path d="M14 12C14 10 16 8 20 8C24 8 26 10 26 12C26 13 25 14 24 14H16C15 14 14 13 14 12Z" fill="#CBD5E0"/>
+        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
+      </svg>
+    `,
+    'medico': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#3B82F6"/>
+        <circle cx="20" cy="14" r="6" fill="#FFDA6A"/>
+        <path d="M8 35C8 27 13 21 20 21C27 21 32 27 32 35" fill="white"/>
+        <circle cx="20" cy="12" r="2" fill="white" opacity="0.9"/>
+        <rect x="19" y="13" width="2" height="6" fill="white"/>
+        <rect x="16" y="15" width="8" height="2" fill="white"/>
+      </svg>
+    `,
+    'enfermera': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#3B82F6"/>
+        <circle cx="20" cy="14" r="6" fill="#FFDA6A"/>
+        <path d="M8 35C8 27 13 21 20 21C27 21 32 27 32 35" fill="white"/>
+        <path d="M14 10C14 8 16 7 20 7C24 7 26 8 26 10C26 11 25 12 24 12H16C15 12 14 11 14 10Z" fill="#8B5A3C"/>
+        <rect x="19" y="9" width="2" height="4" fill="#EF4444"/>
+        <rect x="17" y="11" width="6" height="2" fill="#EF4444"/>
+      </svg>
+    `,
+    'mascota1': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#D97706"/>
+        <circle cx="20" cy="20" r="12" fill="#F59E0B"/>
+        <ellipse cx="16" cy="18" rx="2" ry="3" fill="#92400E"/>
+        <ellipse cx="24" cy="18" rx="2" ry="3" fill="#92400E"/>
+        <circle cx="16" cy="18" r="1" fill="white"/>
+        <circle cx="24" cy="18" r="1" fill="white"/>
+        <circle cx="20" cy="22" r="1.5" fill="#92400E"/>
+        <path d="M20 22C20 24 18 25 18 25C18 25 20 24 20 22Z" fill="#92400E"/>
+        <path d="M20 22C20 24 22 25 22 25C22 25 20 24 20 22Z" fill="#92400E"/>
+        <ellipse cx="13" cy="12" rx="3" ry="5" fill="#F59E0B"/>
+        <ellipse cx="27" cy="12" rx="3" ry="5" fill="#F59E0B"/>
+      </svg>
+    `,
+    'mascota2': `
+      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="#F59E0B"/>
+        <circle cx="20" cy="20" r="12" fill="#FCD34D"/>
+        <circle cx="16" cy="18" r="1.5" fill="#92400E"/>
+        <circle cx="24" cy="18" r="1.5" fill="#92400E"/>
+        <circle cx="16" cy="18" r="0.5" fill="white"/>
+        <circle cx="24" cy="18" r="0.5" fill="white"/>
+        <path d="M18 23C18 23 19 24 20 24C21 24 22 23 22 23" stroke="#92400E" stroke-width="1" stroke-linecap="round"/>
+        <path d="M14 15L12 10L16 12Z" fill="#FCD34D"/>
+        <path d="M26 15L28 10L24 12Z" fill="#FCD34D"/>
+      </svg>
+    `
+  };
+  
+  return avatares[avatarId] || avatares['default'];
+}
+
+// ============================================
+// HU-29: PERSONALIZACIÓN VISUAL
+// ============================================
+function cargarPersonalizacion() {
+  const container = document.getElementById('personalizacion-container');
+  if (!container) return;
+
+  if (container.innerHTML !== '') return;
+
+  container.innerHTML = `
+    <div style="text-align: center; padding: 3rem;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-3 text-muted">Cargando personalización...</p>
+    </div>
+  `;
+
+  setTimeout(() => {
+    renderizarPersonalizacion();
+  }, 500);
+}
+
+function renderizarPersonalizacion() {
+  const container = document.getElementById('personalizacion-container');
+  if (!container) return;
+
+  container.innerHTML = `
+    <style>
+      .avatar-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+        margin: 2rem 0;
+      }
+      
+      .avatar-item {
+        padding: 1.5rem 1rem;
+        background: white;
+        border: 3px solid #e2e8f0;
+        border-radius: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+      }
+      
+      .avatar-item:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      }
+      
+      .avatar-item.selected {
+        border-color: var(--primary);
+        background: linear-gradient(135deg, rgba(13, 110, 253, 0.1) 0%, rgba(13, 110, 253, 0.2) 100%);
+      }
+      
+      .avatar-svg-container {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 0.5rem;
+      }
+      
+      .avatar-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #64748b;
+      }
+      
+      .tema-grid {
+        display: grid;
+        gap: 1rem;
+        margin: 2rem 0;
+      }
+      
+      .tema-item {
+        padding: 1.5rem;
+        background: white;
+        border: 3px solid #e2e8f0;
+        border-radius: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      
+      .tema-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+      
+      .tema-item.selected {
+        border-color: var(--primary);
+        background: linear-gradient(135deg, rgba(13, 110, 253, 0.1) 0%, rgba(13, 110, 253, 0.2) 100%);
+      }
+      
+      .tema-colors {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        height: 40px;
+      }
+      
+      .tema-color {
+        flex: 1;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      
+      .preview-section {
+        padding: 2rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border-radius: 1rem;
+        margin: 2rem 0;
+        text-align: center;
+      }
+      
+      .preview-avatar {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    </style>
+
+    <div class="row">
+      <div class="col-md-6">
+        <h4 class="mb-4"><i class="bi bi-person-circle"></i> Seleccionar Avatar</h4>
+
+        <div class="preview-section">
+          <div class="preview-avatar" id="preview-avatar">${obtenerAvatarSVG('default')}</div>
+          <h5 id="preview-avatar-name">Predeterminado</h5>
+          <span class="badge bg-primary">Avatar Actual</span>
+        </div>
+
+        <div class="avatar-grid" id="avatar-grid">
+          ${generarAvatares()}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <h4 class="mb-4"><i class="bi bi-palette-fill"></i> Seleccionar Tema</h4>
+
+        <div class="tema-grid" id="tema-grid">
+          ${generarTemas()}
+        </div>
+
+        <div class="mt-4">
+          <label class="form-check">
+            <input type="checkbox" class="form-check-input" id="vista-previa">
+            <span class="form-check-label">👁️ Activar vista previa automática</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+
+
+    <div class="d-flex gap-3 mt-4">
+      <button class="btn btn-success flex-fill" onclick="guardarPersonalizacion()">
+        <i class="bi bi-save"></i> Guardar Preferencias
+      </button>
+      <button class="btn btn-outline-secondary flex-fill" onclick="reiniciarPersonalizacion()">
+        <i class="bi bi-arrow-clockwise"></i> Reiniciar
+      </button>
+    </div>
+
+    <div class="alert alert-info mt-4">
+      <i class="bi bi-info-circle"></i> <strong>Información:</strong>
+      Tus preferencias se guardarán automáticamente y se mantendrán entre sesiones.
+    </div>
+  `;
+
+  inicializarEventosPersonalizacion();
+  cargarPreferenciasGuardadas();
+}
+
+function generarAvatares() {
+  const avatares = [
+    { id: 'default', nombre: 'Predeterminado' },
+    { id: 'hombre1', nombre: 'Hombre 1' },
+    { id: 'hombre2', nombre: 'Hombre Mayor' },
+    { id: 'mujer1', nombre: 'Mujer 1' },
+    { id: 'mujer2', nombre: 'Mujer Mayor' },
+    { id: 'medico', nombre: 'Médico' },
+    { id: 'enfermera', nombre: 'Enfermera' },
+    { id: 'mascota1', nombre: 'Perrito' },
+    { id: 'mascota2', nombre: 'Gatito' }
+  ];
+
+  return avatares.map(avatar => `
+    <div class="avatar-item" data-avatar="${avatar.id}" onclick="seleccionarAvatar('${avatar.id}', '${avatar.nombre}')">
+      <div class="avatar-svg-container">${obtenerAvatarSVG(avatar.id)}</div>
+      <div class="avatar-name">${avatar.nombre}</div>
+    </div>
+  `).join('');
+}
+
+function generarTemas() {
+  const temas = [
+    { id: 'azul', nombre: 'Azul Clásico', colores: ['#0d6efd', '#1e3a8a', '#3b82f6', '#dbeafe'] },
+    { id: 'verde', nombre: 'Verde Salud', colores: ['#10b981', '#065f46', '#34d399', '#d1fae5'] },
+    { id: 'morado', nombre: 'Morado Elegante', colores: ['#8b5cf6', '#5b21b6', '#a78bfa', '#ede9fe'] },
+    { id: 'naranja', nombre: 'Naranja Cálido', colores: ['#f97316', '#c2410c', '#fb923c', '#fed7aa'] },
+    { id: 'rosa', nombre: 'Rosa Suave', colores: ['#ec4899', '#be185d', '#f472b6', '#fce7f3'] },
+    { id: 'oscuro', nombre: 'Modo Oscuro', colores: ['#3b82f6', '#1e293b', '#60a5fa', '#0f172a'] }
+  ];
+
+  return temas.map(tema => `
+    <div class="tema-item" data-tema="${tema.id}" onclick="seleccionarTema('${tema.id}', ${JSON.stringify(tema.colores).replace(/"/g, '&quot;')})">
+      <div class="d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">${tema.nombre}</h6>
+        <span class="badge bg-primary d-none tema-badge-${tema.id}">Seleccionado</span>
+      </div>
+      <div class="tema-colors">
+        ${tema.colores.map(color => `<div class="tema-color" style="background: ${color}"></div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+let avatarActual = 'default';
+let temaActual = 'azul';
+
+function inicializarEventosPersonalizacion() {
+  document.querySelector('[data-avatar="default"]')?.classList.add('selected');
+  document.querySelector('[data-tema="azul"]')?.classList.add('selected');
+  document.querySelector('.tema-badge-azul')?.classList.remove('d-none');
+}
+
+function seleccionarAvatar(id, nombre) {
+  avatarActual = id;
+  
+  document.querySelectorAll('.avatar-item').forEach(item => {
+    item.classList.remove('selected');
+  });
+  document.querySelector(`[data-avatar="${id}"]`)?.classList.add('selected');
+  
+  document.getElementById('preview-avatar').innerHTML = obtenerAvatarSVG(id);
+  document.getElementById('preview-avatar-name').textContent = nombre;
+}
+
+function seleccionarTema(id, colores) {
+  temaActual = id;
+  
+  document.querySelectorAll('.tema-item').forEach(item => {
+    item.classList.remove('selected');
+  });
+  document.querySelectorAll('[class*="tema-badge-"]').forEach(badge => {
+    badge.classList.add('d-none');
+  });
+  
+  document.querySelector(`[data-tema="${id}"]`)?.classList.add('selected');
+  document.querySelector(`.tema-badge-${id}`)?.classList.remove('d-none');
+  
+  if (document.getElementById('vista-previa')?.checked) {
+    aplicarTema(colores);
+  }
+}
+
+function aplicarTema(colores) {
+  const root = document.documentElement;
+  root.style.setProperty('--primary', colores[0]);
+  root.style.setProperty('--accent', colores[2]);
+  
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) {
+    sidebar.style.background = `linear-gradient(180deg, ${colores[1]} 0%, ${colores[0]} 100%)`;
+  }
+}
+
+async function guardarPersonalizacion() {
+  try {
+    await window.storage?.set('avatar_usuario', avatarActual);
+    await window.storage?.set('tema_usuario', temaActual);
+    
+    const temaData = document.querySelector(`[data-tema="${temaActual}"]`);
+    if (temaData) {
+      const coloresStr = temaData.getAttribute('onclick').match(/\[(.*?)\]/)[1];
+      const colores = coloresStr.split(',').map(c => c.trim().replace(/['"]/g, ''));
+      aplicarTema(colores);
+    }
+    
+    // IMPORTANTE: Actualizar inmediatamente después de guardar
+    setTimeout(() => {
+      actualizarAvatarEnSistema();
+    }, 100);
+    
+    mostrarNotificacion('Preferencias guardadas correctamente', 'success');
+  } catch (error) {
+    console.error('Error al guardar:', error);
+    mostrarNotificacion('Error al guardar preferencias', 'error');
+  }
+}
+
+async function cargarPreferenciasGuardadas() {
+  try {
+    const avatarGuardado = await window.storage?.get('avatar_usuario');
+    const temaGuardado = await window.storage?.get('tema_usuario');
+    
+    if (avatarGuardado?.value) {
+      const avatarElement = document.querySelector(`[data-avatar="${avatarGuardado.value}"]`);
+      if (avatarElement) {
+        avatarElement.click();
+      }
+    }
+    
+    if (temaGuardado?.value) {
+      const temaElement = document.querySelector(`[data-tema="${temaGuardado.value}"]`);
+      if (temaElement) {
+        temaElement.click();
+      }
+    }
+  } catch (error) {
+    console.log('No hay preferencias guardadas');
+  }
+}
+
+function reiniciarPersonalizacion() {
+  avatarActual = 'default';
+  temaActual = 'azul';
+  
+  document.querySelector('[data-avatar="default"]')?.click();
+  document.querySelector('[data-tema="azul"]')?.click();
+  
+  mostrarNotificacion('Configuración reiniciada', 'success');
+}
+
+// ============================================
+// MOSTRAR AVATAR EN TODO EL SISTEMA
+// ============================================
+function actualizarAvatarEnSistema() {
+  cargarAvatarYNombre();
+}
+
+async function cargarAvatarYNombre() {
+  try {
+    const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const nombreUsuario = usuario.nombres || 'Usuario';
+    
+    const avatarGuardado = await window.storage?.get('avatar_usuario');
+    const temaGuardado = await window.storage?.get('tema_usuario');
+    
+    const avatarHTML = obtenerAvatarSVG(avatarGuardado?.value || 'default', '100%');
+    const temaNombre = obtenerNombreTema(temaGuardado?.value || 'azul');
+    
+    // Actualizar sidebar
+    const sidebarAvatar = document.getElementById('sidebar-avatar');
+    const sidebarUsername = document.getElementById('sidebar-username');
+    const themeName = document.getElementById('theme-name');
+    const themeIndicator = document.getElementById('theme-indicator');
+    
+    if (sidebarAvatar) sidebarAvatar.innerHTML = avatarHTML;
+    if (sidebarUsername) sidebarUsername.textContent = nombreUsuario;
+    if (themeName) themeName.textContent = temaNombre;
+    if (themeIndicator) {
+      const colorTema = obtenerColorTema(temaGuardado?.value || 'azul');
+      const icono = themeIndicator.querySelector('i');
+      if (icono) icono.style.color = colorTema;
+    }
+    
+    // Actualizar bienvenida
+    const welcomeAvatar = document.getElementById('welcome-avatar');
+    const welcomeUsername = document.getElementById('welcome-username');
+    
+    if (welcomeAvatar) welcomeAvatar.innerHTML = avatarHTML;
+    if (welcomeUsername) welcomeUsername.textContent = nombreUsuario;
+    
+  } catch (error) {
+    console.log('Error al cargar avatar:', error);
+  }
+}
+
+function obtenerNombreTema(temaId) {
+  const temas = {
+    'azul': 'Azul Clásico',
+    'verde': 'Verde Salud',
+    'morado': 'Morado Elegante',
+    'naranja': 'Naranja Cálido',
+    'rosa': 'Rosa Suave',
+    'oscuro': 'Modo Oscuro'
+  };
+  return temas[temaId] || 'Azul Clásico';
+}
+
+function obtenerColorTema(temaId) {
+  const colores = {
+    'azul': '#0d6efd',
+    'verde': '#10b981',
+    'morado': '#8b5cf6',
+    'naranja': '#f97316',
+    'rosa': '#ec4899',
+    'oscuro': '#3b82f6'
+  };
+  return colores[temaId] || '#0d6efd';
+}
+
+function irAPersonalizacion() {
+  const btnPersonalizacion = document.querySelector('.nav-btn[data-section="personalizacion"]');
+  if (btnPersonalizacion) {
+    btnPersonalizacion.click();
+  }
+}
+
+// Cargar avatar al iniciar
+document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    actualizarAvatarEnSistema();
+  }, 500);
+});
+
+// ============================================
+// SISTEMA DE MENSAJES MOTIVACIONALES
+// ============================================
+
+// Mensajes motivacionales personalizables
+let mensajesMotivacionales = [
+  "¡Excelente trabajo! Has completado todos tus medicamentos del día. ¡Sigue así!",
+  "¡Felicitaciones! Tu compromiso con tu salud es admirable. ¡Eres un campeón!",
+  "¡Bravo! Has demostrado una gran disciplina. Tu salud te lo agradece.",
+  "¡Increíble! Has completado tu rutina diaria. ¡Cada día eres más fuerte!",
+  "¡Fantástico! Tu dedicación es inspiradora. ¡Continúa con esa energía!",
+  "¡Muy bien hecho! Has logrado tu objetivo diario. ¡Orgulloso de ti!",
+  "¡Genial! Tu constancia está dando frutos. ¡Sigue adelante!",
+  "¡Impresionante! Has demostrado que puedes lograrlo. ¡Eres un ejemplo!",
+  "¡Perfecto! Has completado tu jornada de medicamentos. ¡Descansa tranquilo!",
+  "¡Magnífico! Tu esfuerzo diario está transformando tu vida. ¡Felicitaciones!"
+];
+
+// Función para verificar cumplimiento diario completo
+async function verificarCumplimientoDiario() {
+  const idUsuario = getUsuarioId();
+
+  try {
+    // Obtener todas las recetas del usuario
+    const recetasRes = await fetch(`${API_URL}/recetas/${idUsuario}`);
+    const recetas = await recetasRes.json();
+
+    if (recetas.length === 0) return; // No hay medicamentos registrados
+
+    // Obtener tomas de hoy
+    const tomasRes = await fetch(`${API_URL}/tomasHoy/${idUsuario}`);
+    const tomas = await tomasRes.json();
+
+    // Verificar si todos los medicamentos han sido tomados
+    const medicamentosTomados = new Set(tomas.map(toma => toma.id_receta));
+    const todosTomados = recetas.every(receta => medicamentosTomados.has(receta.id));
+
+    if (todosTomados) {
+      // Mostrar mensaje motivacional
+      mostrarMensajeMotivacional();
+    }
+  } catch (error) {
+    console.error('Error al verificar cumplimiento diario:', error);
+  }
+}
+
+// Función para mostrar mensaje motivacional
+function mostrarMensajeMotivacional() {
+  // Mostrar mensaje cada vez que se toma un medicamento (sin cooldown)
+
+  // Seleccionar mensaje aleatorio
+  const mensajeAleatorio = mensajesMotivacionales[Math.floor(Math.random() * mensajesMotivacionales.length)];
+
+  // Crear modal motivacional
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.5s ease-out;
+  `;
+
+  modal.innerHTML = `
+    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 3rem; border-radius: 2rem; max-width: 500px; width: 90%; box-shadow: 0 25px 80px rgba(16, 185, 129, 0.4); animation: scaleIn 0.6s ease-out; text-align: center;">
+      <div style="margin-bottom: 2rem;">
+        <i class="bi bi-trophy-fill" style="font-size: 5rem; color: #fbbf24; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));"></i>
+      </div>
+
+      <h2 style="margin: 0 0 1.5rem 0; font-size: 2rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+        ¡Felicitaciones!
+      </h2>
+
+      <p style="margin: 0 0 2rem 0; font-size: 1.2rem; line-height: 1.6; opacity: 0.95;">
+        ${mensajeAleatorio}
+      </p>
+
+      <div style="display: flex; gap: 1rem; justify-content: center;">
+        <button class="btn btn-light btn-lg" id="btnCerrarMotivacional" style="min-width: 150px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+          <i class="bi bi-check-circle"></i> ¡Gracias!
+        </button>
+      </div>
+
+      <div style="margin-top: 2rem; opacity: 0.8;">
+        <small>💪 Tu salud es tu mayor victoria</small>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Reproducir sonido de celebración (opcional)
+  reproducirSonidoCelebracion();
+
+  document.getElementById('btnCerrarMotivacional').addEventListener('click', () => {
+    modal.style.animation = 'fadeOut 0.3s ease-out';
+    setTimeout(() => modal.remove(), 300);
+  });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => modal.remove(), 300);
+    }
+  });
+}
+
+// Función para reproducir sonido de celebración
+function reproducirSonidoCelebracion() {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    // Secuencia de notas para celebración
+    const frecuencias = [523.25, 659.25, 783.99, 1046.50]; // Do, Mi, Sol, Do
+    let indiceNota = 0;
+
+    function reproducirNota() {
+      if (indiceNota >= frecuencias.length) return;
+
+      oscillator.frequency.setValueAtTime(frecuencias[indiceNota], audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+      setTimeout(() => {
+        indiceNota++;
+        if (indiceNota < frecuencias.length) {
+          reproducirNota();
+        }
+      }, 150);
+    }
+
+    oscillator.start(audioContext.currentTime);
+    reproducirNota();
+
+    setTimeout(() => {
+      oscillator.stop(audioContext.currentTime + 0.3);
+    }, 1000);
+
+  } catch (error) {
+    console.log('No se pudo reproducir sonido de celebración:', error);
+  }
+}
+
+// Función para configurar mensajes personalizados
+function configurarMensajesPersonalizados() {
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.2s ease-out;
+  `;
+
+  let mensajesHTML = mensajesMotivacionales.map((mensaje, index) => `
+    <div class="input-group mb-2">
+      <input type="text" class="form-control" value="${mensaje}" id="mensaje-${index}">
+      <button class="btn btn-outline-danger" onclick="eliminarMensaje(${index})">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+  `).join('');
+
+  modal.innerHTML = `
+    <div style="background: white; padding: 2rem; border-radius: 1rem; max-width: 600px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: scaleIn 0.3s ease-out;">
+      <h5 style="margin-bottom: 1.5rem; color: #1e3a8a;">Configurar Mensajes Motivacionales</h5>
+
+      <div style="max-height: 400px; overflow-y: auto; margin-bottom: 1.5rem;">
+        ${mensajesHTML}
+      </div>
+
+      <div class="input-group mb-3">
+        <input type="text" class="form-control" placeholder="Nuevo mensaje motivacional..." id="nuevoMensaje">
+        <button class="btn btn-success" onclick="agregarMensaje()">
+          <i class="bi bi-plus-circle"></i> Agregar
+        </button>
+      </div>
+
+      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button class="btn btn-secondary" id="btnCancelarConfig">Cancelar</button>
+        <button class="btn btn-primary" id="btnGuardarConfig">Guardar</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  document.getElementById('btnCancelarConfig').addEventListener('click', () => {
+    modal.remove();
+  });
+
+  document.getElementById('btnGuardarConfig').addEventListener('click', () => {
+    guardarMensajesPersonalizados();
+    modal.remove();
+    mostrarNotificacion('Mensajes guardados correctamente', 'success');
+  });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+}
+
+// Función para agregar nuevo mensaje
+function agregarMensaje() {
+  const nuevoMensaje = document.getElementById('nuevoMensaje').value.trim();
+  if (nuevoMensaje) {
+    mensajesMotivacionales.push(nuevoMensaje);
+    document.getElementById('nuevoMensaje').value = '';
+    configurarMensajesPersonalizados(); // Recargar modal
+  }
+}
+
+// Función para eliminar mensaje
+function eliminarMensaje(index) {
+  if (mensajesMotivacionales.length > 1) { // Mantener al menos un mensaje
+    mensajesMotivacionales.splice(index, 1);
+    configurarMensajesPersonalizados(); // Recargar modal
+  } else {
+    mostrarNotificacion('Debe haber al menos un mensaje motivacional', 'warning');
+  }
+}
+
+// Función para guardar mensajes personalizados
+function guardarMensajesPersonalizados() {
+  // Actualizar inputs
+  const inputs = document.querySelectorAll('[id^="mensaje-"]');
+  mensajesMotivacionales = Array.from(inputs).map(input => input.value.trim()).filter(msg => msg);
+
+  // Guardar en localStorage
+  localStorage.setItem('mensajes_motivacionales', JSON.stringify(mensajesMotivacionales));
+}
+
+// Función para mostrar mensaje motivacional por ganar puntos
+function mostrarMensajeMotivacionalPuntos(puntosGanados) {
+  // Evitar mostrar múltiples mensajes en poco tiempo
+  const ultimaNotificacion = localStorage.getItem('ultima_notificacion_puntos');
+  const ahora = new Date().getTime();
+
+  if (ultimaNotificacion && (ahora - parseInt(ultimaNotificacion)) < 300000) { // 5 minutos
+    return;
+  }
+
+  localStorage.setItem('ultima_notificacion_puntos', ahora.toString());
+
+  // Seleccionar mensaje aleatorio
+  const mensajeAleatorio = mensajesMotivacionales[Math.floor(Math.random() * mensajesMotivacionales.length)];
+
+  // Crear modal motivacional por puntos
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.5s ease-out;
+  `;
+
+  modal.innerHTML = `
+    <div style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; padding: 3rem; border-radius: 2rem; max-width: 500px; width: 90%; box-shadow: 0 25px 80px rgba(251, 191, 36, 0.4); animation: scaleIn 0.6s ease-out; text-align: center;">
+      <div style="margin-bottom: 2rem;">
+        <i class="bi bi-star-fill" style="font-size: 5rem; color: #1e3a8a; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));"></i>
+      </div>
+
+      <h2 style="margin: 0 0 1.5rem 0; font-size: 2rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+        ¡Puntos Ganados!
+      </h2>
+
+      <p style="margin: 0 0 1rem 0; font-size: 1.2rem; line-height: 1.6; opacity: 0.95;">
+        ${mensajeAleatorio}
+      </p>
+
+      <div style="background: rgba(255,255,255,0.2); padding: 1rem; border-radius: 1rem; margin-bottom: 2rem;">
+        <h3 style="margin: 0; font-size: 2.5rem; font-weight: 700; color: #1e3a8a;">
+          +${puntosGanados}
+        </h3>
+        <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">puntos</p>
+      </div>
+
+      <div style="display: flex; gap: 1rem; justify-content: center;">
+        <button class="btn btn-dark btn-lg" id="btnCerrarPuntos" style="min-width: 150px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+          <i class="bi bi-check-circle"></i> ¡Genial!
+        </button>
+      </div>
+
+      <div style="margin-top: 2rem; opacity: 0.8;">
+        <small>⭐ Cada punto cuenta para tu progreso</small>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Reproducir sonido de celebración
+  reproducirSonidoCelebracion();
+
+  document.getElementById('btnCerrarPuntos').addEventListener('click', () => {
+    modal.style.animation = 'fadeOut 0.3s ease-out';
+    setTimeout(() => modal.remove(), 300);
+  });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => modal.remove(), 300);
+    }
+  });
+
+  // Registrar evento de incentivo
+  registrarEventoIncentivo('puntos_ganados', `Ganó ${puntosGanados} puntos por tomar medicamento`);
+}
+
+// Función para mostrar mensaje motivacional por agendar cita
+function mostrarMensajeMotivacionalCita() {
+  // Evitar mostrar múltiples mensajes en poco tiempo
+  const ultimaNotificacion = localStorage.getItem('ultima_notificacion_cita');
+  const ahora = new Date().getTime();
+
+  if (ultimaNotificacion && (ahora - parseInt(ultimaNotificacion)) < 300000) { // 5 minutos
+    return;
+  }
+
+  localStorage.setItem('ultima_notificacion_cita', ahora.toString());
+
+  // Seleccionar mensaje aleatorio
+  const mensajeAleatorio = mensajesMotivacionales[Math.floor(Math.random() * mensajesMotivacionales.length)];
+
+  // Crear modal motivacional por cita
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.5s ease-out;
+  `;
+
+  modal.innerHTML = `
+    <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 3rem; border-radius: 2rem; max-width: 500px; width: 90%; box-shadow: 0 25px 80px rgba(59, 130, 246, 0.4); animation: scaleIn 0.6s ease-out; text-align: center;">
+      <div style="margin-bottom: 2rem;">
+        <i class="bi bi-calendar-check-fill" style="font-size: 5rem; color: #fbbf24; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));"></i>
+      </div>
+
+      <h2 style="margin: 0 0 1.5rem 0; font-size: 2rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+        ¡Cita Agendada!
+      </h2>
+
+      <p style="margin: 0 0 2rem 0; font-size: 1.2rem; line-height: 1.6; opacity: 0.95;">
+        ${mensajeAleatorio}
+      </p>
+
+      <div style="display: flex; gap: 1rem; justify-content: center;">
+        <button class="btn btn-light btn-lg" id="btnCerrarCita" style="min-width: 150px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+          <i class="bi bi-check-circle"></i> ¡Perfecto!
+        </button>
+      </div>
+
+      <div style="margin-top: 2rem; opacity: 0.8;">
+        <small>📅 Tu salud es lo más importante</small>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Reproducir sonido de celebración
+  reproducirSonidoCelebracion();
+
+  document.getElementById('btnCerrarCita').addEventListener('click', () => {
+    modal.style.animation = 'fadeOut 0.3s ease-out';
+    setTimeout(() => modal.remove(), 300);
+  });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => modal.remove(), 300);
+    }
+  });
+
+  // Registrar evento de incentivo
+  registrarEventoIncentivo('cita_agendada', 'Agendó una cita médica');
+}
+
+// Función para registrar evento de incentivo
+async function registrarEventoIncentivo(tipo, descripcion) {
+  const idUsuario = getUsuarioId();
+
+  try {
+    const response = await fetch(`${API_URL}/registrarEventoIncentivo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_usuario: idUsuario,
+        tipo: tipo,
+        descripcion: descripcion,
+        fecha_hora: new Date().toISOString()
+      })
+    });
+
+    if (!response.ok) {
+      console.log('Error al registrar evento de incentivo:', response.status);
+    }
+  } catch (error) {
+    console.log('Error al registrar evento de incentivo:', error);
+  }
+}
+
+// Cargar mensajes personalizados al iniciar
+document.addEventListener("DOMContentLoaded", () => {
+  const mensajesGuardados = localStorage.getItem('mensajes_motivacionales');
+  if (mensajesGuardados) {
+    try {
+      mensajesMotivacionales = JSON.parse(mensajesGuardados);
+    } catch (error) {
+      console.log('Error al cargar mensajes guardados');
+    }
+  }
+  // ============================================
 // SECCIÓN HORARIOS MEDICAMENTOS
 // ============================================
 let horariosConfigurados = [];
@@ -2180,518 +3233,4 @@ function limpiarHorarios() {
   document.getElementById('horariosActuales').innerHTML = 'Selecciona un medicamento para ver sus horarios';
   mostrarNotificacion('Horarios limpiados', 'info');
 }
-
-// ============================================
-// FUNCIÓN GLOBAL PARA OBTENER AVATARES SVG
-// ============================================
-function obtenerAvatarSVG(avatarId, size = '100%') {
-  const avatares = {
-    'default': `
-      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="20" fill="#5B4D8D"/>
-        <circle cx="20" cy="15" r="6" fill="white"/>
-        <path d="M8 35C8 27.268 13.268 21 20 21C26.732 21 32 27.268 32 35" fill="white"/>
-      </svg>
-    `,
-    'hombre1': `
-      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="20" fill="#FDB44B"/>
-        <circle cx="20" cy="14" r="7" fill="#FFDA6A"/>
-        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#FFDA6A"/>
-        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
-        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
-      </svg>
-    `,
-    'hombre2': `
-      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="20" fill="#A0AEC0"/>
-        <circle cx="20" cy="14" r="7" fill="#E2E8F0"/>
-        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#E2E8F0"/>
-        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
-        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
-      </svg>
-    `,
-    'mujer1': `
-      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="20" fill="#FDB44B"/>
-        <circle cx="20" cy="14" r="7" fill="#FFDA6A"/>
-        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#FFDA6A"/>
-        <path d="M14 12C14 10 16 8 20 8C24 8 26 10 26 12C26 13 25 14 24 14H16C15 14 14 13 14 12Z" fill="#8B5A3C"/>
-        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
-        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
-      </svg>
-    `,
-    'mujer2': `
-      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="20" fill="#A0AEC0"/>
-        <circle cx="20" cy="14" r="7" fill="#E2E8F0"/>
-        <path d="M7 36C7 27.163 13.163 20 22 20C28.837 20 35 27.163 35 36" fill="#E2E8F0"/>
-        <path d="M14 12C14 10 16 8 20 8C24 8 26 10 26 12C26 13 25 14 24 14H16C15 14 14 13 14 12Z" fill="#CBD5E0"/>
-        <rect x="16" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
-        <rect x="24" y="16" width="2" height="2" rx="1" fill="#2D3748"/>
-      </svg>
-    `,
-    'medico': `
-      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="20" fill="#3B82F6"/>
-        <circle cx="20" cy="14" r="6" fill="#FFDA6A"/>
-        <path d="M8 35C8 27 13 21 20 21C27 21 32 27 32 35" fill="white"/>
-        <circle cx="20" cy="12" r="2" fill="white" opacity="0.9"/>
-        <rect x="19" y="13" width="2" height="6" fill="white"/>
-        <rect x="16" y="15" width="8" height="2" fill="white"/>
-      </svg>
-    `,
-    'enfermera': `
-      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="20" fill="#3B82F6"/>
-        <circle cx="20" cy="14" r="6" fill="#FFDA6A"/>
-        <path d="M8 35C8 27 13 21 20 21C27 21 32 27 32 35" fill="white"/>
-        <path d="M14 10C14 8 16 7 20 7C24 7 26 8 26 10C26 11 25 12 24 12H16C15 12 14 11 14 10Z" fill="#8B5A3C"/>
-        <rect x="19" y="9" width="2" height="4" fill="#EF4444"/>
-        <rect x="17" y="11" width="6" height="2" fill="#EF4444"/>
-      </svg>
-    `,
-    'mascota1': `
-      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="20" fill="#D97706"/>
-        <circle cx="20" cy="20" r="12" fill="#F59E0B"/>
-        <ellipse cx="16" cy="18" rx="2" ry="3" fill="#92400E"/>
-        <ellipse cx="24" cy="18" rx="2" ry="3" fill="#92400E"/>
-        <circle cx="16" cy="18" r="1" fill="white"/>
-        <circle cx="24" cy="18" r="1" fill="white"/>
-        <circle cx="20" cy="22" r="1.5" fill="#92400E"/>
-        <path d="M20 22C20 24 18 25 18 25C18 25 20 24 20 22Z" fill="#92400E"/>
-        <path d="M20 22C20 24 22 25 22 25C22 25 20 24 20 22Z" fill="#92400E"/>
-        <ellipse cx="13" cy="12" rx="3" ry="5" fill="#F59E0B"/>
-        <ellipse cx="27" cy="12" rx="3" ry="5" fill="#F59E0B"/>
-      </svg>
-    `,
-    'mascota2': `
-      <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="20" fill="#F59E0B"/>
-        <circle cx="20" cy="20" r="12" fill="#FCD34D"/>
-        <circle cx="16" cy="18" r="1.5" fill="#92400E"/>
-        <circle cx="24" cy="18" r="1.5" fill="#92400E"/>
-        <circle cx="16" cy="18" r="0.5" fill="white"/>
-        <circle cx="24" cy="18" r="0.5" fill="white"/>
-        <path d="M18 23C18 23 19 24 20 24C21 24 22 23 22 23" stroke="#92400E" stroke-width="1" stroke-linecap="round"/>
-        <path d="M14 15L12 10L16 12Z" fill="#FCD34D"/>
-        <path d="M26 15L28 10L24 12Z" fill="#FCD34D"/>
-      </svg>
-    `
-  };
-  
-  return avatares[avatarId] || avatares['default'];
-}
-
-// ============================================
-// HU-29: PERSONALIZACIÓN VISUAL
-// ============================================
-function cargarPersonalizacion() {
-  const container = document.getElementById('personalizacion-container');
-  if (!container) return;
-
-  if (container.innerHTML !== '') return;
-
-  container.innerHTML = `
-    <div style="text-align: center; padding: 3rem;">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Cargando...</span>
-      </div>
-      <p class="mt-3 text-muted">Cargando personalización...</p>
-    </div>
-  `;
-
-  setTimeout(() => {
-    renderizarPersonalizacion();
-  }, 500);
-}
-
-function renderizarPersonalizacion() {
-  const container = document.getElementById('personalizacion-container');
-  if (!container) return;
-
-  container.innerHTML = `
-    <style>
-      .avatar-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 1rem;
-        margin: 2rem 0;
-      }
-      
-      .avatar-item {
-        padding: 1.5rem 1rem;
-        background: white;
-        border: 3px solid #e2e8f0;
-        border-radius: 1rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-align: center;
-      }
-      
-      .avatar-item:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-      }
-      
-      .avatar-item.selected {
-        border-color: var(--primary);
-        background: linear-gradient(135deg, rgba(13, 110, 253, 0.1) 0%, rgba(13, 110, 253, 0.2) 100%);
-      }
-      
-      .avatar-svg-container {
-        width: 60px;
-        height: 60px;
-        margin: 0 auto 0.5rem;
-      }
-      
-      .avatar-name {
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: #64748b;
-      }
-      
-      .tema-grid {
-        display: grid;
-        gap: 1rem;
-        margin: 2rem 0;
-      }
-      
-      .tema-item {
-        padding: 1.5rem;
-        background: white;
-        border: 3px solid #e2e8f0;
-        border-radius: 1rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-      
-      .tema-item:hover {
-        transform: translateX(5px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      }
-      
-      .tema-item.selected {
-        border-color: var(--primary);
-        background: linear-gradient(135deg, rgba(13, 110, 253, 0.1) 0%, rgba(13, 110, 253, 0.2) 100%);
-      }
-      
-      .tema-colors {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 1rem;
-        height: 40px;
-      }
-      
-      .tema-color {
-        flex: 1;
-        border-radius: 0.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      }
-      
-      .preview-section {
-        padding: 2rem;
-        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-        border-radius: 1rem;
-        margin: 2rem 0;
-        text-align: center;
-      }
-      
-      .preview-avatar {
-        width: 100px;
-        height: 100px;
-        margin: 0 auto 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-    </style>
-
-    <div class="row">
-      <div class="col-md-6">
-        <h4 class="mb-4"><i class="bi bi-person-circle"></i> Seleccionar Avatar</h4>
-        
-        <div class="preview-section">
-          <div class="preview-avatar" id="preview-avatar">${obtenerAvatarSVG('default')}</div>
-          <h5 id="preview-avatar-name">Predeterminado</h5>
-          <span class="badge bg-primary">Avatar Actual</span>
-        </div>
-        
-        <div class="avatar-grid" id="avatar-grid">
-          ${generarAvatares()}
-        </div>
-      </div>
-
-      <div class="col-md-6">
-        <h4 class="mb-4"><i class="bi bi-palette-fill"></i> Seleccionar Tema</h4>
-        
-        <div class="tema-grid" id="tema-grid">
-          ${generarTemas()}
-        </div>
-        
-        <div class="mt-4">
-          <label class="form-check">
-            <input type="checkbox" class="form-check-input" id="vista-previa">
-            <span class="form-check-label">👁️ Activar vista previa automática</span>
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <div class="d-flex gap-3 mt-4">
-      <button class="btn btn-success flex-fill" onclick="guardarPersonalizacion()">
-        <i class="bi bi-save"></i> Guardar Preferencias
-      </button>
-      <button class="btn btn-outline-secondary flex-fill" onclick="reiniciarPersonalizacion()">
-        <i class="bi bi-arrow-clockwise"></i> Reiniciar
-      </button>
-    </div>
-
-    <div class="alert alert-info mt-4">
-      <i class="bi bi-info-circle"></i> <strong>Información:</strong>
-      Tus preferencias se guardarán automáticamente y se mantendrán entre sesiones.
-    </div>
-  `;
-
-  inicializarEventosPersonalizacion();
-  cargarPreferenciasGuardadas();
-}
-
-function generarAvatares() {
-  const avatares = [
-    { id: 'default', nombre: 'Predeterminado' },
-    { id: 'hombre1', nombre: 'Hombre 1' },
-    { id: 'hombre2', nombre: 'Hombre Mayor' },
-    { id: 'mujer1', nombre: 'Mujer 1' },
-    { id: 'mujer2', nombre: 'Mujer Mayor' },
-    { id: 'medico', nombre: 'Médico' },
-    { id: 'enfermera', nombre: 'Enfermera' },
-    { id: 'mascota1', nombre: 'Perrito' },
-    { id: 'mascota2', nombre: 'Gatito' }
-  ];
-
-  return avatares.map(avatar => `
-    <div class="avatar-item" data-avatar="${avatar.id}" onclick="seleccionarAvatar('${avatar.id}', '${avatar.nombre}')">
-      <div class="avatar-svg-container">${obtenerAvatarSVG(avatar.id)}</div>
-      <div class="avatar-name">${avatar.nombre}</div>
-    </div>
-  `).join('');
-}
-
-function generarTemas() {
-  const temas = [
-    { id: 'azul', nombre: 'Azul Clásico', colores: ['#0d6efd', '#1e3a8a', '#3b82f6', '#dbeafe'] },
-    { id: 'verde', nombre: 'Verde Salud', colores: ['#10b981', '#065f46', '#34d399', '#d1fae5'] },
-    { id: 'morado', nombre: 'Morado Elegante', colores: ['#8b5cf6', '#5b21b6', '#a78bfa', '#ede9fe'] },
-    { id: 'naranja', nombre: 'Naranja Cálido', colores: ['#f97316', '#c2410c', '#fb923c', '#fed7aa'] },
-    { id: 'rosa', nombre: 'Rosa Suave', colores: ['#ec4899', '#be185d', '#f472b6', '#fce7f3'] },
-    { id: 'oscuro', nombre: 'Modo Oscuro', colores: ['#3b82f6', '#1e293b', '#60a5fa', '#0f172a'] }
-  ];
-
-  return temas.map(tema => `
-    <div class="tema-item" data-tema="${tema.id}" onclick="seleccionarTema('${tema.id}', ${JSON.stringify(tema.colores).replace(/"/g, '&quot;')})">
-      <div class="d-flex justify-content-between align-items-center">
-        <h6 class="mb-0">${tema.nombre}</h6>
-        <span class="badge bg-primary d-none tema-badge-${tema.id}">Seleccionado</span>
-      </div>
-      <div class="tema-colors">
-        ${tema.colores.map(color => `<div class="tema-color" style="background: ${color}"></div>`).join('')}
-      </div>
-    </div>
-  `).join('');
-}
-
-let avatarActual = 'default';
-let temaActual = 'azul';
-
-function inicializarEventosPersonalizacion() {
-  document.querySelector('[data-avatar="default"]')?.classList.add('selected');
-  document.querySelector('[data-tema="azul"]')?.classList.add('selected');
-  document.querySelector('.tema-badge-azul')?.classList.remove('d-none');
-}
-
-function seleccionarAvatar(id, nombre) {
-  avatarActual = id;
-  
-  document.querySelectorAll('.avatar-item').forEach(item => {
-    item.classList.remove('selected');
-  });
-  document.querySelector(`[data-avatar="${id}"]`)?.classList.add('selected');
-  
-  document.getElementById('preview-avatar').innerHTML = obtenerAvatarSVG(id);
-  document.getElementById('preview-avatar-name').textContent = nombre;
-}
-
-function seleccionarTema(id, colores) {
-  temaActual = id;
-  
-  document.querySelectorAll('.tema-item').forEach(item => {
-    item.classList.remove('selected');
-  });
-  document.querySelectorAll('[class*="tema-badge-"]').forEach(badge => {
-    badge.classList.add('d-none');
-  });
-  
-  document.querySelector(`[data-tema="${id}"]`)?.classList.add('selected');
-  document.querySelector(`.tema-badge-${id}`)?.classList.remove('d-none');
-  
-  if (document.getElementById('vista-previa')?.checked) {
-    aplicarTema(colores);
-  }
-}
-
-function aplicarTema(colores) {
-  const root = document.documentElement;
-  root.style.setProperty('--primary', colores[0]);
-  root.style.setProperty('--accent', colores[2]);
-  
-  const sidebar = document.querySelector('.sidebar');
-  if (sidebar) {
-    sidebar.style.background = `linear-gradient(180deg, ${colores[1]} 0%, ${colores[0]} 100%)`;
-  }
-}
-
-async function guardarPersonalizacion() {
-  try {
-    await window.storage?.set('avatar_usuario', avatarActual);
-    await window.storage?.set('tema_usuario', temaActual);
-    
-    const temaData = document.querySelector(`[data-tema="${temaActual}"]`);
-    if (temaData) {
-      const coloresStr = temaData.getAttribute('onclick').match(/\[(.*?)\]/)[1];
-      const colores = coloresStr.split(',').map(c => c.trim().replace(/['"]/g, ''));
-      aplicarTema(colores);
-    }
-    
-    // IMPORTANTE: Actualizar inmediatamente después de guardar
-    setTimeout(() => {
-      actualizarAvatarEnSistema();
-    }, 100);
-    
-    mostrarNotificacion('Preferencias guardadas correctamente', 'success');
-  } catch (error) {
-    console.error('Error al guardar:', error);
-    mostrarNotificacion('Error al guardar preferencias', 'error');
-  }
-}
-
-async function cargarPreferenciasGuardadas() {
-  try {
-    const avatarGuardado = await window.storage?.get('avatar_usuario');
-    const temaGuardado = await window.storage?.get('tema_usuario');
-    
-    if (avatarGuardado?.value) {
-      const avatarElement = document.querySelector(`[data-avatar="${avatarGuardado.value}"]`);
-      if (avatarElement) {
-        avatarElement.click();
-      }
-    }
-    
-    if (temaGuardado?.value) {
-      const temaElement = document.querySelector(`[data-tema="${temaGuardado.value}"]`);
-      if (temaElement) {
-        temaElement.click();
-      }
-    }
-  } catch (error) {
-    console.log('No hay preferencias guardadas');
-  }
-}
-
-function reiniciarPersonalizacion() {
-  avatarActual = 'default';
-  temaActual = 'azul';
-  
-  document.querySelector('[data-avatar="default"]')?.click();
-  document.querySelector('[data-tema="azul"]')?.click();
-  
-  mostrarNotificacion('Configuración reiniciada', 'success');
-}
-
-// ============================================
-// MOSTRAR AVATAR EN TODO EL SISTEMA
-// ============================================
-function actualizarAvatarEnSistema() {
-  cargarAvatarYNombre();
-}
-
-async function cargarAvatarYNombre() {
-  try {
-    const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
-    const nombreUsuario = usuario.nombres || 'Usuario';
-    
-    const avatarGuardado = await window.storage?.get('avatar_usuario');
-    const temaGuardado = await window.storage?.get('tema_usuario');
-    
-    const avatarHTML = obtenerAvatarSVG(avatarGuardado?.value || 'default', '100%');
-    const temaNombre = obtenerNombreTema(temaGuardado?.value || 'azul');
-    
-    // Actualizar sidebar
-    const sidebarAvatar = document.getElementById('sidebar-avatar');
-    const sidebarUsername = document.getElementById('sidebar-username');
-    const themeName = document.getElementById('theme-name');
-    const themeIndicator = document.getElementById('theme-indicator');
-    
-    if (sidebarAvatar) sidebarAvatar.innerHTML = avatarHTML;
-    if (sidebarUsername) sidebarUsername.textContent = nombreUsuario;
-    if (themeName) themeName.textContent = temaNombre;
-    if (themeIndicator) {
-      const colorTema = obtenerColorTema(temaGuardado?.value || 'azul');
-      const icono = themeIndicator.querySelector('i');
-      if (icono) icono.style.color = colorTema;
-    }
-    
-    // Actualizar bienvenida
-    const welcomeAvatar = document.getElementById('welcome-avatar');
-    const welcomeUsername = document.getElementById('welcome-username');
-    
-    if (welcomeAvatar) welcomeAvatar.innerHTML = avatarHTML;
-    if (welcomeUsername) welcomeUsername.textContent = nombreUsuario;
-    
-  } catch (error) {
-    console.log('Error al cargar avatar:', error);
-  }
-}
-
-function obtenerNombreTema(temaId) {
-  const temas = {
-    'azul': 'Azul Clásico',
-    'verde': 'Verde Salud',
-    'morado': 'Morado Elegante',
-    'naranja': 'Naranja Cálido',
-    'rosa': 'Rosa Suave',
-    'oscuro': 'Modo Oscuro'
-  };
-  return temas[temaId] || 'Azul Clásico';
-}
-
-function obtenerColorTema(temaId) {
-  const colores = {
-    'azul': '#0d6efd',
-    'verde': '#10b981',
-    'morado': '#8b5cf6',
-    'naranja': '#f97316',
-    'rosa': '#ec4899',
-    'oscuro': '#3b82f6'
-  };
-  return colores[temaId] || '#0d6efd';
-}
-
-function irAPersonalizacion() {
-  const btnPersonalizacion = document.querySelector('.nav-btn[data-section="personalizacion"]');
-  if (btnPersonalizacion) {
-    btnPersonalizacion.click();
-  }
-}
-
-// Cargar avatar al iniciar
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    actualizarAvatarEnSistema();
-  }, 500);
 });
-
-
-
-

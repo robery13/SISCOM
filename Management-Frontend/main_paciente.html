@@ -58,7 +58,7 @@
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main">
 
-   <!-- SECCIÓN INICIO -->
+    <!-- SECCIÓN INICIO -->
 <section id="inicio" class="section">
   <!--  ENCABEZADO MEJORADO CON AVATAR -->
   <div class="welcome-header">
@@ -109,7 +109,40 @@
   <div class="row">
     <div class="col-md-8 mb-3">
       <div class="card">
-        <h5 class="card-title">Mis Medicamentos de Hoy</h5>
+        <h5 class="card-title">Resumen Diario de Medicamentos</h5>
+        <div id="resumenDiario" class="text-center">
+
+          <div class="row mb-3">
+            
+            <div class="col-4">
+              <div class="p-3 bg-success text-white rounded">
+                <i class="bi bi-check-circle-fill" style="font-size: 2rem;"></i>
+                <h4 class="mt-2" id="tomadosHoy">0</h4>
+                <small>Tomados</small>
+              </div>
+              
+            </div>
+            <div class="col-4">
+              <div class="p-3 bg-warning text-white rounded">
+                <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                <h4 class="mt-2" id="pendientesHoy">0</h4>
+                <small>Pendientes</small>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-3 bg-info text-white rounded">
+                <i class="bi bi-graph-up" style="font-size: 2rem;"></i>
+                <h4 class="mt-2" id="cumplimientoDiario">0%</h4>
+                <small>Cumplimiento</small>
+              </div>
+            </div>
+          </div>
+          <p class="text-muted">Resumen actualizado automáticamente cada día</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h5 class="card-title">Medicamentos Pendientes Hoy</h5>
         <div id="listaMedicamentosHoy" class="list-group list-group-flush">
           <div class="list-group-item text-center text-muted">
             Cargando medicamentos...
@@ -154,6 +187,7 @@
     </div>
   </div>
 </section>
+
 
       <!-- SECCIÓN RECETAS MÉDICAS -->
       <section id="recetas" class="section d-none">
