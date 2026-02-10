@@ -286,6 +286,11 @@ async function verificarAlertasStock() {
     });
 
     mostrarAlertasStock(alertas);
+
+    // Mostrar notificación automática como toast si hay alertas
+    if (alertas.length > 0) {
+      mostrarToast(`Hay ${alertas.length} medicamento(s) con stock bajo. Revisa las alertas.`, 'warning');
+    }
   } catch (error) {
     console.error('Error al verificar stock:', error);
     mostrarAlertasStock([]);
@@ -1444,6 +1449,42 @@ function mostrarAlertasStock(alertas) {
   // Cargar usuarios al iniciar
   cargarUsuarios();
 })();
+
+// ===============================
+// TOASTS PARA NOTIFICACIONES
+// ===============================
+function mostrarToast(mensaje, tipo = 'info') {
+  const toastContainer = document.getElementById('toast-container');
+  if (!toastContainer) {
+    console.error('Contenedor de toasts no encontrado');
+    return;
+  }
+
+  const toastId = 'toast-' + Date.now();
+  const toastHTML = `
+    <div id="${toastId}" class="toast align-items-center text-bg-${tipo} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">${escapeHtml(mensaje)}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  `;
+
+  toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+
+  const toastElement = document.getElementById(toastId);
+  const toast = new bootstrap.Toast(toastElement, {
+    autohide: true,
+    delay: 5000
+  });
+
+  toast.show();
+
+  // Remover el toast del DOM después de ocultarse
+  toastElement.addEventListener('hidden.bs.toast', () => {
+    toastElement.remove();
+  });
+}
 
 // ===============================
 // UTILIDAD

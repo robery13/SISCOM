@@ -227,6 +227,8 @@
     <p class="muted">Registra stock, consume dosis y recibe alertas de bajo inventario.</p>
   </div>
 
+
+  <!-- No Historia HU-36 - Como cuidador, quiero recibir alertas cuando un medicamento esté por agotarse para solicitar reposición a tiempo. -->
   <!-- ALERTAS DE STOCK BAJO -->
   <div class="card mb-4">
     <div class="card-header">
@@ -239,6 +241,11 @@
       <div id="alertasStock" class="list-group">
         <!-- Se poblará dinámicamente con JavaScript -->
         <div class="list-group-item text-center text-muted">No hay alertas de stock bajo</div>
+      </div>
+      <div class="mt-3">
+        <button id="sugerirPedidoBtn" class="btn btn-primary">
+          <i class="bi bi-cart-plus me-2"></i> Sugerir pedido a farmacia
+        </button>
       </div>
     </div>
   </div>
@@ -616,6 +623,38 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (userRoleElement) {
         userRoleElement.textContent = `Rol: ${userRole}`;
+      }
+    });
+  </script>
+
+  <!-- Script para el botón Sugerir pedido a farmacia -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const sugerirPedidoBtn = document.getElementById('sugerirPedidoBtn');
+      const navBtns = document.querySelectorAll('.nav-btn');
+      const sections = document.querySelectorAll('.section');
+
+      if (sugerirPedidoBtn) {
+        sugerirPedidoBtn.addEventListener('click', () => {
+          const sectionId = 'pedidos';
+
+          // Ocultar todas las secciones
+          sections.forEach(sec => sec.classList.add('d-none'));
+
+          // Remover clase active de todos los botones
+          navBtns.forEach(b => b.classList.remove('active'));
+
+          // Mostrar sección seleccionada y activar botón
+          const targetSection = document.getElementById(sectionId);
+          if (targetSection) {
+            targetSection.classList.remove('d-none');
+            // Activar el botón de navegación correspondiente
+            const navBtn = document.querySelector(`.nav-btn[data-section="${sectionId}"]`);
+            if (navBtn) {
+              navBtn.classList.add('active');
+            }
+          }
+        });
       }
     });
   </script>
