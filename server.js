@@ -1270,7 +1270,52 @@ app.get('/historialEmergencias/:id_usuario', (req, res) => {
     res.json(results);
   });
 });
+// ============================================
+// RUTAS DE HORARIOS MEDICAMENTOS
+// ============================================
 
+app.get('/horariosMedicamentos/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = 'SELECT * FROM horarios_medicamentos WHERE id_usuario = ? ORDER BY hora ASC';
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al cargar horarios:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar horarios' });
+    }
+    res.json(results);
+  });
+});
+
+app.post('/horariosMedicamentos', (req, res) => {
+  const { id_usuario, id_medicamento, hora, dias_semana, activo } = req.body;
+
+  if (!id_usuario || !id_medicamento || !hora) {
+    return res.status(400).json({ mensaje: 'Campos incompletos' });
+  }
+
+  const sql = 'INSERT INTO horarios_medicamentos (id_usuario, id_medicamento, hora, dias_semana, activo) VALUES (?, ?, ?, ?, ?)';
+  db.query(sql, [id_usuario, id_medicamento, hora, dias_semana || null, activo !== undefined ? activo : 1], (err, result) => {
+    if (err) {
+      console.error('Error al guardar horario:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar horario' });
+    }
+    res.json({ mensaje: 'Horario guardado correctamente', id: result.insertId });
+  });
+});
+
+app.delete('/horariosMedicamentos/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = 'DELETE FROM horarios_medicamentos WHERE id_usuario = ?';
+  db.query(sql, [id_usuario], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar horarios:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar horarios' });
+    }
+    res.json({ mensaje: 'Horarios eliminados correctamente' });
+  });
+});
 // ============================================
 // RUTA DE PRUEBA
 // ============================================
