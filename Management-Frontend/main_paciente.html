@@ -108,6 +108,39 @@
 
   <div class="row">
     <div class="col-md-8 mb-3">
+      <!-- RESUMEN DIARIO DE MEDICAMENTOS -->
+      <div class="card">
+        <h5 class="card-title"><i class="bi bi-calendar-day"></i> Resumen Diario de Medicamentos</h5>
+        <div id="resumenDiario" class="text-center">
+          <div class="row">
+            <div class="col-4">
+              <div class="p-3 bg-success text-white rounded">
+                <i class="bi bi-check-circle-fill" style="font-size: 2rem;"></i>
+                <h4 id="tomadosHoy">0</h4>
+                <small>Tomados</small>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-3 bg-warning text-white rounded">
+                <i class="bi bi-clock-fill" style="font-size: 2rem;"></i>
+                <h4 id="pendientesHoy">0</h4>
+                <small>Pendientes</small>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="p-3 bg-info text-white rounded">
+                <i class="bi bi-graph-up" style="font-size: 2rem;"></i>
+                <h4 id="porcentajeDiario">0%</h4>
+                <small>Cumplimiento del Día</small>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <small class="text-muted">Estado actualizado automáticamente al iniciar un nuevo día</small>
+          </div>
+        </div>
+      </div>
+
       <div class="card">
         <h5 class="card-title">Mis Medicamentos de Hoy</h5>
         <div id="listaMedicamentosHoy" class="list-group list-group-flush">
