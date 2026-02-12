@@ -331,6 +331,7 @@ async function cargarEstadisticasInicio() {
     if (statPuntos) statPuntos.textContent = recompensas.puntos_totales || 0;
     if (statCumplimiento) statCumplimiento.textContent = (recompensas.porcentaje_cumplimiento || 0) + '%';
 
+    await cargarResumenDiario();
     await cargarMedicamentosHoy();
     await cargarTomasRegistradasHoy();
     await cargarProximaCita();
@@ -547,13 +548,13 @@ async function confirmarTomaMedicamento(id_receta, nombre_medicamento) {
     'Confirmar toma de medicamento',
     'Confirmas que tomaste ' + nombre_medicamento + '?'
   );
-  
+
   if (!confirmado) return;
-  
+
   const idUsuario = getUsuarioId();
   const horaActual = new Date().toTimeString().slice(0, 8);
   const fechaActual = new Date().toISOString().slice(0, 10);
-  
+
   try {
     const response = await fetch(`${API_URL}/registrarTomaMedicamento`, {
       method: 'POST',
@@ -566,18 +567,21 @@ async function confirmarTomaMedicamento(id_receta, nombre_medicamento) {
         fecha_toma: fechaActual
       })
     });
-    
+
     if (!response.ok) {
       throw new Error('Error en la respuesta del servidor');
     }
-    
+
     const data = await response.json();
-    
+
     mostrarNotificacion('Medicamento registrado. Ganaste ' + data.puntos_ganados + ' puntos', 'success');
-    
+
     await cargarEstadisticasInicio();
     await cargarRecompensas();
-    
+
+    // Mostrar mensaje motivacional por cada toma
+    await mostrarMensajePorToma();
+
   } catch (error) {
     console.error('Error completo:', error);
     mostrarNotificacion('Error al registrar la toma del medicamento', 'error');
@@ -2607,6 +2611,256 @@ function reiniciarPersonalizacion() {
   document.querySelector('[data-tema="azul"]')?.click();
   
   mostrarNotificacion('Configuración reiniciada', 'success');
+}
+
+// ===============================
+// CARGAR RESUMEN DIARIO DE MEDICAMENTOS
+// ===============================
+async function cargarResumenDiario() {
+  const idUsuario = getUsuarioId();
+
+  try {
+    // Obtener medicamentos activos
+    const medicamentosRes = await fetch(`${API_URL}/recetas/${idUsuario}`);
+    const medicamentos = await medicamentosRes.json();
+
+    // Obtener tomas del día actual
+    const tomasRes = await fetch(`${API_URL}/tomasHoy/${idUsuario}`);
+    const tomas = await tomasRes.json();
+
+    // Calcular medicamentos tomados (total de tomas registradas)
+    const tomados = tomas.length;
+
+    // Calcular pendientes (máximo 0 para evitar negativos)
+    const pendientes = Math.max(0, medicamentos.length - tomados);
+
+    // Calcular porcentaje de cumplimiento del día (máximo 100%)
+    const porcentaje = medicamentos.length > 0 ? Math.min(100, Math.round((tomados / medicamentos.length) * 100)) : 0;
+
+    // Actualizar elementos HTML
+    const tomadosHoyEl = document.getElementById('tomadosHoy');
+    const pendientesHoyEl = document.getElementById('pendientesHoy');
+    const porcentajeDiarioEl = document.getElementById('porcentajeDiario');
+
+    if (tomadosHoyEl) tomadosHoyEl.textContent = tomados;
+    if (pendientesHoyEl) pendientesHoyEl.textContent = pendientes;
+    if (porcentajeDiarioEl) porcentajeDiarioEl.textContent = porcentaje + '%';
+
+  } catch (error) {
+    console.error('Error al cargar resumen diario:', error);
+  }
+}
+
+// ============================================
+// MOSTRAR MENSAJE MOTIVACIONAL AL TOMAR MEDICAMENTO
+// ============================================
+async function mostrarMensajePorToma() {
+  try {
+    // Mostrar mensaje motivacional cada vez que se toma un medicamento
+    await mostrarMensajeMotivacional();
+  } catch (error) {
+    console.error('Error al mostrar mensaje motivacional:', error);
+  }
+}
+
+// ============================================
+// MOSTRAR MENSAJE MOTIVACIONAL
+// ============================================
+async function mostrarMensajeMotivacional() {
+  const mensajes = [
+    {
+      titulo: "¡Felicitaciones! 🎉",
+      mensaje: "Has completado exitosamente todos tus medicamentos del día. ¡Eres increíble manteniendo tu salud!",
+      icono: "trophy-fill",
+      color: "#10b981"
+    },
+    {
+      titulo: "¡Excelente Trabajo! ⭐",
+      mensaje: "Tu compromiso con tu salud es admirable. Has tomado todos tus medicamentos correctamente hoy.",
+      icono: "star-fill",
+      color: "#f59e0b"
+    },
+    {
+      titulo: "¡Campeón de la Salud! 🏆",
+      mensaje: "Has demostrado una disciplina excepcional completando tu tratamiento diario. ¡Sigue así!",
+      icono: "award-fill",
+      color: "#3b82f6"
+    },
+    {
+      titulo: "¡Bravo! 👏",
+      mensaje: "Tu dedicación a cuidar tu salud es inspiradora. Has completado perfectamente tu rutina de medicamentos.",
+      icono: "hand-thumbs-up-fill",
+      color: "#8b5cf6"
+    },
+    {
+      titulo: "¡Eres un Ejemplo! 💪",
+      mensaje: "Has establecido un nuevo estándar de cuidado personal. ¡Felicitaciones por completar todos tus medicamentos!",
+      icono: "lightning-charge-fill",
+      color: "#ef4444"
+    }
+  ];
+
+  // Seleccionar mensaje aleatorio
+  const mensajeAleatorio = mensajes[Math.floor(Math.random() * mensajes.length)];
+
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.3s ease-out;
+    `;
+
+    modal.innerHTML = `
+      <div style="background: white; padding: 2.5rem; border-radius: 1.5rem; max-width: 500px; width: 90%; box-shadow: 0 25px 80px rgba(0,0,0,0.4); animation: scaleIn 0.4s ease-out; text-align: center;">
+        <div style="margin-bottom: 2rem;">
+          <div style="background: linear-gradient(135deg, ${mensajeAleatorio.color} 0%, ${mensajeAleatorio.color}dd 100%); width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 1.5rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(${mensajeAleatorio.color.slice(1)}, 0.4); animation: pulse 2s infinite;">
+            <i class="bi bi-${mensajeAleatorio.icono}" style="font-size: 4rem; color: white;"></i>
+          </div>
+          <h2 style="color: #1e3a8a; margin: 0 0 1rem 0; font-size: 1.75rem; font-weight: 700;">
+            ${mensajeAleatorio.titulo}
+          </h2>
+          <p style="color: #64748b; margin: 0; font-size: 1.1rem; line-height: 1.6;">
+            ${mensajeAleatorio.mensaje}
+          </p>
+        </div>
+
+        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 1.5rem; border-radius: 1rem; margin-bottom: 2rem; border-left: 5px solid ${mensajeAleatorio.color};">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <i class="bi bi-heart-fill" style="font-size: 2rem; color: ${mensajeAleatorio.color};"></i>
+            <div style="text-align: left;">
+              <h5 style="margin: 0 0 0.5rem 0; color: #166534; font-weight: 600;">
+                ¡Tu salud te lo agradece!
+              </h5>
+              <p style="margin: 0; color: #166534; font-size: 0.95rem;">
+                Cada dosis cuenta para tu bienestar. ¡Mantén este ritmo!
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+          <button class="btn btn-success" id="btnAceptarMotivacional" style="min-width: 200px; padding: 0.75rem 2rem; font-size: 1.1rem; font-weight: 600;">
+            <i class="bi bi-check-circle-fill"></i> ¡Gracias!
+          </button>
+        </div>
+
+        <p style="text-align: center; margin: 1.5rem 0 0 0; color: #94a3b8; font-size: 0.875rem;">
+          <i class="bi bi-heart"></i> ¡Cada toma cuenta para tu bienestar!
+        </p>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById('btnAceptarMotivacional').addEventListener('click', () => {
+      modal.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => {
+        modal.remove();
+        resolve(true);
+      }, 300);
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => {
+          modal.remove();
+          resolve(true);
+        }, 300);
+      }
+    });
+  });
+}
+
+// ============================================
+// MOSTRAR MENSAJE DE CITA AGENDADA
+// ============================================
+async function mostrarMensajeCitaAgendada(motivo) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.3s ease-out;
+    `;
+
+    modal.innerHTML = `
+      <div style="background: white; padding: 2.5rem; border-radius: 1.5rem; max-width: 500px; width: 90%; box-shadow: 0 25px 80px rgba(0,0,0,0.4); animation: scaleIn 0.4s ease-out; text-align: center;">
+        <div style="margin-bottom: 2rem;">
+          <div style="background: linear-gradient(135deg, #0d6efd 0%, #0d6efddd 100%); width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 1.5rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(13, 110, 253, 0.4); animation: bounce 1s ease-out;">
+            <i class="bi bi-calendar-check-fill" style="font-size: 4rem; color: white;"></i>
+          </div>
+          <h2 style="color: #1e3a8a; margin: 0 0 1rem 0; font-size: 1.75rem; font-weight: 700;">
+            ¡Cita Agendada! 📅
+          </h2>
+          <p style="color: #64748b; margin: 0; font-size: 1.1rem; line-height: 1.6;">
+            Tu cita médica ha sido programada exitosamente. Te recordaremos cuando llegue el momento.
+          </p>
+        </div>
+
+        <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 1.5rem; border-radius: 1rem; margin-bottom: 2rem; border-left: 5px solid #0d6efd;">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <i class="bi bi-clipboard-check" style="font-size: 2rem; color: #0d6efd;"></i>
+            <div style="text-align: left;">
+              <h5 style="margin: 0 0 0.5rem 0; color: #1e40af; font-weight: 600;">
+                ${motivo}
+              </h5>
+              <p style="margin: 0; color: #1e40af; font-size: 0.95rem;">
+                Recibirás un recordatorio antes de tu cita
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+          <button class="btn btn-primary" id="btnAceptarCita" style="min-width: 200px; padding: 0.75rem 2rem; font-size: 1.1rem; font-weight: 600;">
+            <i class="bi bi-check-circle-fill"></i> ¡Entendido!
+          </button>
+        </div>
+
+        <p style="text-align: center; margin: 1.5rem 0 0 0; color: #94a3b8; font-size: 0.875rem;">
+          <i class="bi bi-bell"></i> Te notificaremos 5 minutos antes de tu cita
+        </p>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById('btnAceptarCita').addEventListener('click', () => {
+      modal.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => {
+        modal.remove();
+        resolve(true);
+      }, 300);
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => {
+          modal.remove();
+          resolve(true);
+        }, 300);
+      }
+    });
+  });
 }
 
 // ============================================
