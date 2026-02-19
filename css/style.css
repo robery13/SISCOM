@@ -1,0 +1,119 @@
+/* =========================================
+   ESTILOS DEL FORMULARIO Y LAYOUT
+   ========================================= */
+body {
+  background-color: #f8f9fc;
+  font-family: 'Poppins', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar {
+  width: 180px;
+  background-color: #fff;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.sidebar h4 {
+  font-weight: 700;
+  color: #111;
+  text-align: center;
+}
+
+.main-content {
+  margin-left: 200px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.form-card {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  width: 480px;
+  min-height: 560px;
+  margin: 0 auto;
+  padding: 35px;
+}
+
+.form-card h5 {
+  font-weight: 600;
+  margin-bottom: 25px;
+}
+
+.btn-save {
+  background-color: #7b47ff;
+  color: #fff;
+  font-weight: 500;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.btn-save:hover {
+  background-color: #6a3fd1;
+}
+
+.btn-contact {
+  background-color: #ff6243;
+  color: #fff;
+  font-weight: 500;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.btn-contact:hover {
+  background-color: #e3563c;
+}
+
+/* === Estilo para las notificaciones === */
+#toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+}
+
+.toast {
+  background: #333;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  font-size: 15px;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.success {
+  background-color: #28a745;
+}
+
+.toast.error {
+  background-color: #dc3545;
+}
+
+.toast.warning {
+  background-color: #ffc107;
+  color: #333;
+}
+
