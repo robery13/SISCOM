@@ -93,8 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
           formLogin.reset();
           // Almacenar información del usuario en localStorage
           if (data.usuario) {
-            localStorage.setItem('userName', data.usuario.nombres + ' ' + data.usuario.apellidos);
-            localStorage.setItem('userRole', data.usuario.rol);
+            localStorage.setItem('usuario', JSON.stringify(data.usuario));
           }
 
           // Redirigir según el rol del usuario

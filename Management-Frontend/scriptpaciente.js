@@ -8,6 +8,14 @@ function getUsuarioId() {
   return usuario.id || 1;
 }
 
+// Verificar si el usuario está logueado
+document.addEventListener("DOMContentLoaded", () => {
+  const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+  if (!usuario || !usuario.id) {
+    window.location.href = "../index.html";
+  }
+});
+
 // ============================================
 // SISTEMA DE MODALES  NOTIFICACIONES
 // ============================================
@@ -702,6 +710,7 @@ function mostrarModalReceta() {
   document.getElementById('modalNombre').focus();
 
   document.getElementById('btnGuardarReceta').addEventListener('click', async () => {
+    // No Historia HU-24 - Como paciente, quiero subir mis recetas médicas para facilitar el pedido.
     const nombre = document.getElementById('modalNombre').value.trim();
     const dosis = document.getElementById('modalDosis').value.trim();
     const frecuencia = document.getElementById('modalFrecuencia').value.trim();
@@ -2142,7 +2151,7 @@ function generarTemas() {
   ];
 
   return temas.map(tema => `
-    <div class="tema-item" data-tema="${tema.id}" onclick="seleccionarTema('${tema.id}', ${JSON.stringify(tema.colores).replace(/"/g, '&quot;')})">
+    <div class="tema-item" data-tema="${tema.id}" onclick='seleccionarTema("${tema.id}", ${JSON.stringify(tema.colores)})'>
       <div class="d-flex justify-content-between align-items-center">
         <h6 class="mb-0">${tema.nombre}</h6>
         <span class="badge bg-primary d-none tema-badge-${tema.id}">Seleccionado</span>
@@ -2153,6 +2162,7 @@ function generarTemas() {
     </div>
   `).join('');
 }
+
 
 let avatarActual = 'default';
 let temaActual = 'azul';
@@ -2204,17 +2214,30 @@ function aplicarTema(colores) {
   }
 }
 
+function aplicarTemaPorId(temaId) {
+  const temasColores = {
+    'azul': ['#0d6efd', '#1e3a8a', '#3b82f6', '#dbeafe'],
+    'verde': ['#10b981', '#065f46', '#34d399', '#d1fae5'],
+    'morado': ['#8b5cf6', '#5b21b6', '#a78bfa', '#ede9fe'],
+    'naranja': ['#f97316', '#c2410c', '#fb923c', '#fed7aa'],
+    'rosa': ['#ec4899', '#be185d', '#f472b6', '#fce7f3'],
+    'oscuro': ['#3b82f6', '#1e293b', '#60a5fa', '#0f172a']
+  };
+  
+  const colores = temasColores[temaId];
+  if (colores) {
+    aplicarTema(colores);
+  }
+}
+
 async function guardarPersonalizacion() {
+
   try {
-    await window.storage?.set('avatar_usuario', avatarActual);
-    await window.storage?.set('tema_usuario', temaActual);
+    localStorage.setItem('avatar_usuario', avatarActual);
+    localStorage.setItem('tema_usuario', temaActual);
     
-    const temaData = document.querySelector(`[data-tema="${temaActual}"]`);
-    if (temaData) {
-      const coloresStr = temaData.getAttribute('onclick').match(/\[(.*?)\]/)[1];
-      const colores = coloresStr.split(',').map(c => c.trim().replace(/['"]/g, ''));
-      aplicarTema(colores);
-    }
+    // Aplicar el tema usando el ID guardado
+    aplicarTemaPorId(temaActual);
     
     // IMPORTANTE: Actualizar inmediatamente después de guardar
     setTimeout(() => {
@@ -2228,24 +2251,26 @@ async function guardarPersonalizacion() {
   }
 }
 
+
 async function cargarPreferenciasGuardadas() {
   try {
-    const avatarGuardado = await window.storage?.get('avatar_usuario');
-    const temaGuardado = await window.storage?.get('tema_usuario');
+    const avatarGuardado = localStorage.getItem('avatar_usuario');
+    const temaGuardado = localStorage.getItem('tema_usuario');
     
-    if (avatarGuardado?.value) {
-      const avatarElement = document.querySelector(`[data-avatar="${avatarGuardado.value}"]`);
+    if (avatarGuardado) {
+      const avatarElement = document.querySelector(`[data-avatar="${avatarGuardado}"]`);
       if (avatarElement) {
         avatarElement.click();
       }
     }
     
-    if (temaGuardado?.value) {
-      const temaElement = document.querySelector(`[data-tema="${temaGuardado.value}"]`);
+    if (temaGuardado) {
+      const temaElement = document.querySelector(`[data-tema="${temaGuardado}"]`);
       if (temaElement) {
         temaElement.click();
       }
     }
+
   } catch (error) {
     console.log('No hay preferencias guardadas');
   }
@@ -2273,11 +2298,11 @@ async function cargarAvatarYNombre() {
     const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
     const nombreUsuario = usuario.nombres || 'Usuario';
     
-    const avatarGuardado = await window.storage?.get('avatar_usuario');
-    const temaGuardado = await window.storage?.get('tema_usuario');
+    const avatarGuardado = localStorage.getItem('avatar_usuario');
+    const temaGuardado = localStorage.getItem('tema_usuario');
     
-    const avatarHTML = obtenerAvatarSVG(avatarGuardado?.value || 'default', '100%');
-    const temaNombre = obtenerNombreTema(temaGuardado?.value || 'azul');
+    const avatarHTML = obtenerAvatarSVG(avatarGuardado || 'default', '100%');
+    const temaNombre = obtenerNombreTema(temaGuardado || 'azul');
     
     // Actualizar sidebar
     const sidebarAvatar = document.getElementById('sidebar-avatar');
@@ -2289,7 +2314,7 @@ async function cargarAvatarYNombre() {
     if (sidebarUsername) sidebarUsername.textContent = nombreUsuario;
     if (themeName) themeName.textContent = temaNombre;
     if (themeIndicator) {
-      const colorTema = obtenerColorTema(temaGuardado?.value || 'azul');
+      const colorTema = obtenerColorTema(temaGuardado || 'azul');
       const icono = themeIndicator.querySelector('i');
       if (icono) icono.style.color = colorTema;
     }
@@ -2305,6 +2330,7 @@ async function cargarAvatarYNombre() {
     console.log('Error al cargar avatar:', error);
   }
 }
+
 
 function obtenerNombreTema(temaId) {
   const temas = {
@@ -2337,13 +2363,14 @@ function irAPersonalizacion() {
   }
 }
 
-// Cargar avatar al iniciar
+// Cargar avatar y tema al iniciar - aplicar inmediatamente
 document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    actualizarAvatarEnSistema();
-  }, 500);
+  // Aplicar tema guardado inmediatamente
+  const temaGuardado = localStorage.getItem('tema_usuario');
+  if (temaGuardado) {
+    aplicarTemaPorId(temaGuardado);
+  }
+  
+  // Actualizar avatar y nombre
+  actualizarAvatarEnSistema();
 });
-
-
-
-

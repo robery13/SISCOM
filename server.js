@@ -26,8 +26,32 @@ db.connect(err => {
     console.error('Error al conectar a MySQL:', err);
   } else {
     console.log('Conexión a MySQL exitosa');
+    
+    // Crear tabla tomas_medicas si no existe
+    const createTableSql = `
+      CREATE TABLE IF NOT EXISTS tomas_medicas (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        id_usuario INT NOT NULL,
+        id_receta INT NOT NULL,
+        nombre_medicamento VARCHAR(255) NOT NULL,
+        hora_toma TIME NOT NULL,
+        fecha_toma DATETIME NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_tomas_usuario (id_usuario),
+        INDEX idx_tomas_fecha (fecha_toma),
+        INDEX idx_tomas_receta (id_receta)
+      )
+    `;
+    db.query(createTableSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla tomas_medicas:', err);
+      } else {
+        console.log('Tabla tomas_medicas verificada/creada correctamente');
+      }
+    });
   }
 });
+
 
 // Puntero de guardado de medicamentos que ejecute el codigo
 app.post('/guardarMedicamento', (req, res) => {
@@ -835,6 +859,73 @@ app.delete('/usuarios/:id', (req, res) => {
   db.query(sql, [id], (err, result) => {
     if (err) return res.status(500).json({ mensaje: 'Error al eliminar usuario' });
     res.json({ mensaje: 'Usuario eliminado' });
+  });
+});
+
+// ============================================
+// RUTAS DE TOMAS MEDICAS
+// ============================================
+
+app.post('/registrarTomaMedicamento', (req, res) => {
+  const { id_usuario, id_receta, nombre_medicamento, hora_toma, fecha_toma } = req.body;
+
+  if (!id_usuario || !id_receta || !nombre_medicamento || !hora_toma || !fecha_toma) {
+    return res.status(400).json({ mensaje: 'Campos incompletos' });
+  }
+
+  const sql = 'INSERT INTO tomas_medicas (id_usuario, id_receta, nombre_medicamento, hora_toma, fecha_toma) VALUES (?, ?, ?, ?, ?)';
+  db.query(sql, [id_usuario, id_receta, nombre_medicamento, hora_toma, fecha_toma], (err, result) => {
+    if (err) {
+      console.error('Error al guardar toma:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar' });
+    }
+    res.json({ mensaje: 'Toma registrada', puntos_ganados: 10 });
+  });
+});
+
+app.get('/tomasHoy/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = 'SELECT * FROM tomas_medicas WHERE id_usuario = ? AND fecha_toma = CURDATE() ORDER BY hora_toma';
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al cargar tomas:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar' });
+    }
+    res.json(results);
+  });
+});
+
+app.get('/tomas/:id_usuario/:fecha', (req, res) => {
+  const { id_usuario, fecha } = req.params;
+  
+  console.log(`Consultando tomas - Usuario: ${id_usuario}, Fecha: ${fecha}`);
+
+  // Usar rango de fechas para compatibilidad con DATETIME/TIMESTAMP
+  const sql = 'SELECT * FROM tomas_medicas WHERE id_usuario = ? AND fecha_toma >= ? AND fecha_toma < DATE_ADD(?, INTERVAL 1 DAY) ORDER BY hora_toma';
+  db.query(sql, [id_usuario, fecha, fecha], (err, results) => {
+    if (err) {
+      console.error('Error SQL al cargar tomas:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar', error: err.message, sql: sql });
+    }
+    console.log(`Tomas encontradas: ${results.length}`);
+    res.json(results);
+  });
+});
+
+
+
+
+// ============================================
+// RUTAS DE USUARIOS POR ROL
+// ============================================
+
+app.get('/usuarios/rol/:rol', (req, res) => {
+  const { rol } = req.params;
+  const sql = 'SELECT id, nombres, apellidos FROM usuarios WHERE rol = ?';
+  db.query(sql, [rol], (err, results) => {
+    if (err) return res.status(500).json({ mensaje: 'Error al cargar usuarios' });
+    res.json(results);
   });
 });
 

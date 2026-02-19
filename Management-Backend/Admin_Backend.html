@@ -361,15 +361,17 @@
               <table class="table table-hover table-striped mb-0" id="tablaUsuarios">
                 <thead class="table-dark">
                   <tr>
+                    <th class="fw-bold"><i class="bi bi-hash me-2"></i>Id</th>
                     <th class="fw-bold"><i class="bi bi-person me-2"></i>Nombres</th>
                     <th class="fw-bold"><i class="bi bi-person me-2"></i>Apellidos</th>
                     <th class="fw-bold"><i class="bi bi-card-text me-2"></i>Identidad</th>
                     <th class="fw-bold"><i class="bi bi-telephone me-2"></i>Teléfono</th>
                     <th class="fw-bold"><i class="bi bi-envelope me-2"></i>Email</th>
-                    <th class="fw-bold"><i class="bi bi-key me-2"></i>Password</th>
                     <th class="fw-bold"><i class="bi bi-shield me-2"></i>Rol</th>
                     <th class="fw-bold text-center"><i class="bi bi-gear me-2"></i>Acciones</th>
                   </tr>
+
+
                 </thead>
                 <tbody></tbody>
               </table>
@@ -626,9 +628,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const userNameElement = document.getElementById('userName');
       const userRoleElement = document.getElementById('userRole');
 
-      // Obtener datos del usuario desde localStorage (asumiendo que se guardan al iniciar sesión)
-      const userName = localStorage.getItem('userName') || 'Usuario Desconocido';
-      const userRole = localStorage.getItem('userRole') || 'Rol Desconocido';
+      // Obtener datos del usuario desde localStorage (almacenado como objeto 'usuario' al iniciar sesión)
+      const usuarioData = localStorage.getItem('usuario');
+      let userName = 'Usuario Desconocido';
+      let userRole = 'Rol Desconocido';
+
+      if (usuarioData) {
+        try {
+          const usuario = JSON.parse(usuarioData);
+          // Combinar nombres y apellidos para mostrar el nombre completo
+          const nombres = usuario.nombres || '';
+          const apellidos = usuario.apellidos || '';
+          userName = (nombres + ' ' + apellidos).trim() || 'Usuario Desconocido';
+          userRole = usuario.rol || 'Rol Desconocido';
+        } catch (e) {
+          console.error('Error al parsear datos del usuario:', e);
+        }
+      }
 
       // Actualizar los elementos en la interfaz
       if (userNameElement) {
@@ -639,6 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   </script>
+
 
   <!-- Script para búsqueda de usuarios -->
   <script>

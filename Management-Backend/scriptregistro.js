@@ -1361,12 +1361,12 @@ function mostrarAlertasStock(alertas) {
     usuarios.forEach(user => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
+        <td><code class="text-muted">${user.id}</code></td>
         <td class="fw-semibold">${escapeHtml(user.nombres)}</td>
         <td class="fw-semibold">${escapeHtml(user.apellidos)}</td>
         <td><code class="text-muted">${escapeHtml(user.identidad)}</code></td>
         <td>${escapeHtml(user.telefono)}</td>
         <td>${escapeHtml(user.email)}</td>
-        <td><code class="text-danger font-monospace">${escapeHtml(user.password)}</code></td>
         <td><span class="badge bg-${getRolBadgeClass(user.rol)}">${escapeHtml(user.rol)}</span></td>
         <td class="text-center">
           <div class="btn-group" role="group">
@@ -1381,6 +1381,8 @@ function mostrarAlertasStock(alertas) {
       `;
       tablaUsuarios.appendChild(tr);
     });
+
+
   }
 
   function getRolBadgeClass(rol) {
@@ -1490,10 +1492,7 @@ function mostrarToast(mensaje, tipo = 'info') {
 // UTILIDAD
 // ===============================
 function escapeHtml(str){
-  return String(str || "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
+  const div = document.createElement('div');
+  div.textContent = String(str || "");
+  return div.innerHTML;
 }

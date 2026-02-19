@@ -30,7 +30,8 @@
 
         <button class="nav-btn active" data-section="medicamentos"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
         <button class="nav-btn" data-section="recetas"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
-        <button class="nav-btn" data-section="checklist"><i class="bi bi-check2-square"></i> <span>Checklist</span></button>
+        <button class="nav-btn" data-section="historial-tomas"><i class="bi bi-clock-history"></i> <span>Historial Tomas</span></button>
+
         <button class="nav-btn" data-section="Ficha"><i class="bi bi-file-person"></i> <span>Ficha</span></button>
         <button class="nav-btn" data-section="inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
         <button class="nav-btn" data-section="pedidos"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
@@ -150,11 +151,13 @@
         </div>
       </section>
 
-   <!-- CHECKLIST -->
-      <section id="checklist" class="section d-none">
+      <!-- HISTORIAL TOMAS -->
+
+      <section id="historial-tomas" class="section d-none">
+        <!-- No Historia HU-37 - Como cuidador, quiero consultar el historial diario de tomas para evaluar el cumplimiento del tratamiento. -->
         <div class="section-header">
-          <h2><i class="bi bi-check2-square me-2"></i> Checklist de Medicamentos</h2>
-          <p class="muted">Confirma la toma de medicamentos diaria con registro de auditoría.</p>
+          <h2><i class="bi bi-clock-history me-2"></i> Historial Diario de Tomas</h2>
+          <p class="muted">Consulta el historial de tomas de medicamentos para evaluar el cumplimiento del tratamiento.</p>
         </div>
 
         <div class="card form-card mb-4">
@@ -162,64 +165,37 @@
 
           <div class="row g-3 align-items-end">
             <div class="col-md-4">
-              <label class="form-label">Paciente ID / Nombre</label>
-              <input id="patientInput" class="form-control" placeholder="Ej: 1 - Juan Pérez" value="1 - Paciente Demo">
+              <label class="form-label">Paciente</label>
+              <select id="pacienteHistorial" class="form-select">
+                <option value="">Selecciona un paciente</option>
+              </select>
             </div>
             <div class="col-md-4">
               <label class="form-label">Fecha</label>
-              <input id="dateInput" type="date" class="form-control">
+              <input id="fechaHistorial" type="date" class="form-control">
             </div>
             <div class="col-md-4 d-grid">
-              <button id="loadBtn" class="btn btn-primary">
-                <i class="bi bi-download me-2"></i> Cargar Datos
+              <button id="cargarHistorialBtn" class="btn btn-primary">
+                <i class="bi bi-search me-2"></i> Consultar Historial
               </button>
             </div>
           </div>
-
-          <div class="mt-3 d-flex gap-2 flex-wrap">
-            <button id="addSampleBtn" class="btn btn-outline-secondary btn-sm">
-              <i class="bi bi-plus-circle me-1"></i> Cargar Medicamentos Ejemplo
-            </button>
-            <button id="clearDayBtn" class="btn btn-outline-danger btn-sm">
-              <i class="bi bi-trash me-1"></i> Limpiar Día
-            </button>
-            <button id="exportCsvBtn" class="btn btn-outline-success btn-sm ms-auto">
-              <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar CSV
-            </button>
-          </div>
-
-          <div id="statusMsg" class="alert alert-info mt-3 d-none"></div>
         </div>
 
-        <div class="row">
-          <div class="col-lg-8 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-clipboard-check me-2"></i> Lista de Medicamentos del Día
-              </div>
-              <div class="card-body p-0">
-                <div id="medList" class="list-group list-group-flush">
-                  <div class="text-center text-muted p-4">Selecciona paciente y fecha, luego presiona "Cargar Datos"</div>
-                </div>
-              </div>
-            </div>
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-list-check me-2"></i> Historial de Tomas del Día</h5>
           </div>
-
-          <div class="col-lg-4 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-clock-history me-2"></i> Registro de Auditoría
-              </div>
-              <div class="card-body">
-                <p class="small text-muted mb-2">Últimas acciones del día:</p>
-                <ul id="auditList" class="list-unstyled small">
-                  <li class="text-muted">Sin acciones registradas hoy.</li>
-                </ul>
+          <div class="card-body">
+            <div id="historialTomasContainer">
+              <div class="text-center text-muted p-4">
+                Selecciona un paciente y una fecha para ver el historial de tomas
               </div>
             </div>
           </div>
         </div>
       </section>
+
   <!-- INVENTARIO -->
 <section id="inventario" class="section d-none">
   <div class="section-header">
@@ -613,9 +589,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const userNameElement = document.getElementById('userName');
       const userRoleElement = document.getElementById('userRole');
 
-      // Obtener datos del usuario desde localStorage (asumiendo que se guardan al iniciar sesión)
-      const userName = localStorage.getItem('userName') || 'Usuario Desconocido';
-      const userRole = localStorage.getItem('userRole') || 'Rol Desconocido';
+      // Obtener datos del usuario desde localStorage (almacenado como objeto 'usuario' al iniciar sesión)
+      const usuarioData = localStorage.getItem('usuario');
+      let userName = 'Usuario Desconocido';
+      let userRole = 'Rol Desconocido';
+
+      if (usuarioData) {
+        try {
+          const usuario = JSON.parse(usuarioData);
+          // Combinar nombres y apellidos para mostrar el nombre completo
+          const nombres = usuario.nombres || '';
+          const apellidos = usuario.apellidos || '';
+          userName = (nombres + ' ' + apellidos).trim() || 'Usuario Desconocido';
+          userRole = usuario.rol || 'Rol Desconocido';
+        } catch (e) {
+          console.error('Error al parsear datos del usuario:', e);
+        }
+      }
 
       // Actualizar los elementos en la interfaz
       if (userNameElement) {
@@ -626,6 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   </script>
+
 
   <!-- Script para el botón Sugerir pedido a farmacia -->
   <script>
@@ -658,5 +649,170 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   </script>
+
+  <!-- Script para Historial de Tomas -->
+  <script>
+    // No Historia HU-37 - Como cuidador, quiero consultar el historial diario de tomas para evaluar el cumplimiento del tratamiento.
+    document.addEventListener('DOMContentLoaded', () => {
+      const pacienteSelect = document.getElementById('pacienteHistorial');
+      const fechaInput = document.getElementById('fechaHistorial');
+      const cargarBtn = document.getElementById('cargarHistorialBtn');
+      const container = document.getElementById('historialTomasContainer');
+
+      // Verificar que los elementos existan
+      if (!pacienteSelect || !fechaInput || !cargarBtn || !container) {
+        console.error('Error: No se encontraron todos los elementos del DOM para Historial Tomas');
+        return;
+      }
+
+      // Cargar pacientes al mostrar la sección
+      const historialBtn = document.querySelector('.nav-btn[data-section="historial-tomas"]');
+      if (historialBtn) {
+        historialBtn.addEventListener('click', () => {
+          console.log('Cargando pacientes para historial...');
+          cargarPacientes();
+        });
+      }
+
+      async function cargarPacientes() {
+        try {
+          console.log('Obteniendo pacientes de http://localhost:3000/usuarios/rol/usuario');
+          const response = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          
+          if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+          }
+          
+          const pacientes = await response.json();
+          console.log('Pacientes obtenidos:', pacientes.length);
+
+          pacienteSelect.innerHTML = '<option value="">Selecciona un paciente</option>';
+          pacientes.forEach(paciente => {
+            const option = document.createElement('option');
+            option.value = paciente.id;
+            option.textContent = `${paciente.nombres} ${paciente.apellidos}`;
+            pacienteSelect.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error al cargar pacientes:', error);
+          pacienteSelect.innerHTML = '<option value="">Error al cargar pacientes</option>';
+        }
+      }
+
+      cargarBtn.addEventListener('click', async () => {
+        const pacienteId = pacienteSelect.value;
+        const fecha = fechaInput.value;
+
+        console.log('Consultando historial - Paciente:', pacienteId, 'Fecha:', fecha);
+
+        if (!pacienteId || !fecha) {
+          alert('Por favor selecciona un paciente y una fecha');
+          return;
+        }
+
+        // Mostrar indicador de carga
+        container.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2">Cargando historial...</p></div>';
+
+        try {
+          // Obtener tomas del día
+          console.log(`Consultando tomas: http://localhost:3000/tomas/${pacienteId}/${fecha}`);
+          const tomasResponse = await fetch(`http://localhost:3000/tomas/${pacienteId}/${fecha}`);
+          
+          if (!tomasResponse.ok) {
+            throw new Error(`Error al cargar tomas: ${tomasResponse.status}`);
+          }
+          
+          const tomas = await tomasResponse.json();
+          console.log('Tomas obtenidas:', tomas.length);
+
+          // Obtener recetas del paciente
+          console.log(`Consultando recetas: http://localhost:3000/recetas/${pacienteId}`);
+          const recetasResponse = await fetch(`http://localhost:3000/recetas/${pacienteId}`);
+          
+          if (!recetasResponse.ok) {
+            throw new Error(`Error al cargar recetas: ${recetasResponse.status}`);
+          }
+          
+          const recetas = await recetasResponse.json();
+          console.log('Recetas obtenidas:', recetas.length);
+
+          // Mostrar el historial
+          mostrarHistorial(tomas, recetas, fecha);
+        } catch (error) {
+          console.error('Error al cargar historial:', error);
+          container.innerHTML = `<div class="alert alert-danger">Error al cargar el historial: ${error.message}</div>`;
+        }
+      });
+
+      function mostrarHistorial(tomas, recetas, fecha) {
+        if (recetas.length === 0) {
+          container.innerHTML = '<div class="alert alert-info">El paciente no tiene medicamentos registrados</div>';
+          return;
+        }
+
+        let html = `
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Medicamento</th>
+                  <th>Dosis</th>
+                  <th>Frecuencia</th>
+                  <th>Hora Esperada</th>
+                  <th>Hora Toma</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        let tomasTomadas = 0;
+        let totalEsperadas = 0;
+
+        recetas.forEach(receta => {
+          // Para simplificar, asumimos que cada receta tiene una toma por día
+          // En un sistema real, se debería calcular basado en la frecuencia
+          totalEsperadas++;
+
+          const tomaRealizada = tomas.find(t => t.id_receta === receta.id);
+          const horaToma = tomaRealizada ? tomaRealizada.hora_toma : 'No tomado';
+          const estado = tomaRealizada ? '<span class="badge bg-success">Tomado</span>' : '<span class="badge bg-danger">Omisión</span>';
+
+          if (tomaRealizada) tomasTomadas++;
+
+          html += `
+            <tr>
+              <td>${receta.nombre_medicamento}</td>
+              <td>${receta.dosis}</td>
+              <td>${receta.frecuencia}</td>
+              <td>Según frecuencia</td>
+              <td>${horaToma}</td>
+              <td>${estado}</td>
+            </tr>
+          `;
+        });
+
+        const porcentaje = totalEsperadas > 0 ? Math.round((tomasTomadas / totalEsperadas) * 100) : 0;
+
+        html += `
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-3">
+            <h6>Resumen del Día (${fecha})</h6>
+            <p>Medicamentos tomados: ${tomasTomadas} de ${totalEsperadas}</p>
+            <div class="progress">
+              <div class="progress-bar" role="progressbar" style="width: ${porcentaje}%">${porcentaje}%</div>
+            </div>
+            <small class="text-muted">Cumplimiento: ${porcentaje}%</small>
+          </div>
+        `;
+
+        container.innerHTML = html;
+      }
+    });
+  </script>
+
+
 </body>
 </html>
