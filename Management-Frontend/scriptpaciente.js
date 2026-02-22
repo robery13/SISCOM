@@ -1,20 +1,371 @@
 // ============================================
-// CONFIGURACIÓN DE LA API
+// CONFIGURACIÓN DE LA API Y SEGURIDAD
 // ============================================
 const API_URL = 'http://localhost:3000';
 
+// Configuración de sesión
+const SESSION_CONFIG = {
+  timeout: 30 * 60 * 1000, // 30 minutos de inactividad
+  warningTime: 2 * 60 * 1000, // Advertencia 2 minutos antes
+  checkInterval: 30 * 1000, // Verificar cada 30 segundos
+  rememberMeDuration: 7 * 24 * 60 * 60 * 1000 // 7 días si "Recordarme" está activo
+};
+
+// Variables de control de sesión
+let sessionTimer = null;
+let warningTimer = null;
+let countdownInterval = null;
+let lastActivity = Date.now();
+let isWarningShown = false;
+
 function getUsuarioId() {
   const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
-  return usuario.id || 1;
+  return usuario.id || null;
 }
 
-// Verificar si el usuario está logueado
-document.addEventListener("DOMContentLoaded", () => {
-  const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
-  if (!usuario || !usuario.id) {
-    window.location.href = "../index.html";
+function getAuthToken() {
+  return localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+}
+
+function isRememberMeActive() {
+  return localStorage.getItem('remember_me') === 'true';
+}
+
+// ============================================
+// SISTEMA DE GESTIÓN DE SESIÓN SEGURA
+// ============================================
+
+// Verificar autenticación al cargar la página
+document.addEventListener("DOMContentLoaded", async () => {
+  // Mostrar loading overlay
+  const loadingOverlay = document.getElementById('authLoadingOverlay');
+  if (loadingOverlay) {
+    loadingOverlay.classList.remove('d-none');
+    loadingOverlay.classList.add('d-flex');
+  }
+
+  try {
+    // Verificar si hay token de autenticación
+    const token = getAuthToken();
+    const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+
+    if (!token || !usuario || !usuario.id) {
+      throw new Error('No hay sesión activa');
+    }
+
+    // Verificar token con el servidor
+    const response = await fetch(`${API_URL}/verificar-sesion`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ userId: usuario.id })
+    });
+
+    if (!response.ok) {
+      throw new Error('Sesión inválida o expirada');
+    }
+
+    const data = await response.json();
+    
+    if (!data.ok) {
+      throw new Error(data.message || 'Error de autenticación');
+    }
+
+    // Token válido, iniciar sistema de sesión
+    iniciarSistemaSesion();
+    
+    // Ocultar loading overlay
+    if (loadingOverlay) {
+      loadingOverlay.classList.remove('d-flex');
+      loadingOverlay.classList.add('d-none');
+    }
+
+  } catch (error) {
+    console.error('Error de autenticación:', error);
+    
+    // Limpiar datos de sesión
+    limpiarDatosSesion();
+    
+    // Mostrar error y redirigir
+    mostrarErrorAutenticacion('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+    
+    setTimeout(() => {
+      window.location.href = "../index.html";
+    }, 3000);
   }
 });
+
+function limpiarDatosSesion() {
+  localStorage.removeItem('usuario');
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('remember_me');
+  localStorage.removeItem('session_start');
+  sessionStorage.removeItem('auth_token');
+}
+
+function mostrarErrorAutenticacion(mensaje) {
+  const toast = document.getElementById('authErrorToast');
+  const messageSpan = document.getElementById('authErrorMessage');
+  
+  if (messageSpan) {
+    messageSpan.textContent = mensaje;
+  }
+  
+  if (toast) {
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+  } else {
+    // Fallback si no existe el toast
+    alert(mensaje);
+  }
+}
+
+function iniciarSistemaSesion() {
+  // Registrar actividad del usuario
+  registrarActividadUsuario();
+  
+  // Iniciar monitoreo de sesión
+  iniciarMonitoreoSesion();
+  
+  // Configurar renovación automática si es necesario
+  if (isRememberMeActive()) {
+    iniciarRenovacionAutomatica();
+  }
+}
+
+function registrarActividadUsuario() {
+  // Eventos que indican actividad del usuario
+  const eventosActividad = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click', 'mousemove'];
+  
+  eventosActividad.forEach(evento => {
+    document.addEventListener(evento, actualizarUltimaActividad, { passive: true });
+  });
+}
+
+function actualizarUltimaActividad() {
+  lastActivity = Date.now();
+  
+  // Si se estaba mostrando la advertencia, cerrarla
+  if (isWarningShown) {
+    cerrarAdvertenciaSesion();
+  }
+}
+
+function iniciarMonitoreoSesion() {
+  // Limpiar timers existentes
+  if (sessionTimer) clearInterval(sessionTimer);
+  if (warningTimer) clearTimeout(warningTimer);
+  
+  const duracionSesion = isRememberMeActive() ? SESSION_CONFIG.rememberMeDuration : SESSION_CONFIG.timeout;
+  
+  // Timer para verificar inactividad
+  sessionTimer = setInterval(() => {
+    const tiempoInactivo = Date.now() - lastActivity;
+    const tiempoRestante = duracionSesion - tiempoInactivo;
+    
+    if (tiempoRestante <= 0) {
+      // Sesión expirada
+      cerrarSesionPorExpiracion();
+    } else if (tiempoRestante <= SESSION_CONFIG.warningTime && !isWarningShown) {
+      // Mostrar advertencia
+      mostrarAdvertenciaSesion(tiempoRestante);
+    }
+  }, SESSION_CONFIG.checkInterval);
+}
+
+function mostrarAdvertenciaSesion(tiempoRestanteMs) {
+  isWarningShown = true;
+  
+  const modal = document.getElementById('sessionWarningModal');
+  const countdownSpan = document.getElementById('sessionCountdown');
+  
+  if (!modal) return;
+  
+  // Mostrar modal
+  const bsModal = new bootstrap.Modal(modal);
+  bsModal.show();
+  
+  // Iniciar countdown
+  let segundosRestantes = Math.ceil(tiempoRestanteMs / 1000);
+  
+  if (countdownInterval) clearInterval(countdownInterval);
+  
+  countdownInterval = setInterval(() => {
+    segundosRestantes--;
+    
+    if (segundosRestantes <= 0) {
+      clearInterval(countdownInterval);
+      cerrarSesionPorExpiracion();
+      return;
+    }
+    
+    const minutos = Math.floor(segundosRestantes / 60);
+    const segundos = segundosRestantes % 60;
+    
+    if (countdownSpan) {
+      countdownSpan.textContent = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
+    }
+  }, 1000);
+  
+  // Configurar botones
+  const extendBtn = document.getElementById('extendSessionBtn');
+  const logoutBtn = document.getElementById('logoutNowBtn');
+  
+  if (extendBtn) {
+    extendBtn.onclick = () => {
+      extenderSesion();
+      bsModal.hide();
+    };
+  }
+  
+  if (logoutBtn) {
+    logoutBtn.onclick = () => {
+      bsModal.hide();
+      cerrarSesion();
+    };
+  }
+  
+  // Cerrar modal al hacer clic fuera
+  modal.addEventListener('hidden.bs.modal', () => {
+    if (isWarningShown) {
+      // Si se cerró sin extender, verificar si aún hay tiempo
+      const tiempoInactivo = Date.now() - lastActivity;
+      const duracionSesion = isRememberMeActive() ? SESSION_CONFIG.rememberMeDuration : SESSION_CONFIG.timeout;
+      
+      if (tiempoInactivo >= duracionSesion - SESSION_CONFIG.warningTime) {
+        cerrarSesionPorExpiracion();
+      }
+    }
+  });
+}
+
+function cerrarAdvertenciaSesion() {
+  isWarningShown = false;
+  
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+  
+  const modal = document.getElementById('sessionWarningModal');
+  if (modal) {
+    const bsModal = bootstrap.Modal.getInstance(modal);
+    if (bsModal) {
+      bsModal.hide();
+    }
+  }
+}
+
+function extenderSesion() {
+  isWarningShown = false;
+  lastActivity = Date.now();
+  
+  // Renovar token en el servidor
+  renovarToken().then(nuevoToken => {
+    if (nuevoToken) {
+      // Guardar nuevo token
+      if (isRememberMeActive()) {
+        localStorage.setItem('auth_token', nuevoToken);
+      } else {
+        sessionStorage.setItem('auth_token', nuevoToken);
+      }
+      
+      mostrarNotificacion('Sesión extendida exitosamente', 'success');
+    }
+  }).catch(error => {
+    console.error('Error al extender sesión:', error);
+    mostrarNotificacion('Error al extender la sesión', 'error');
+  });
+}
+
+async function renovarToken() {
+  try {
+    const token = getAuthToken();
+    const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+    
+    const response = await fetch(`${API_URL}/renovar-token`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ userId: usuario.id })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error al renovar token');
+    }
+    
+    const data = await response.json();
+    return data.token;
+    
+  } catch (error) {
+    console.error('Error al renovar token:', error);
+    return null;
+  }
+}
+
+function iniciarRenovacionAutomatica() {
+  // Renovar token cada 6 horas si "Recordarme" está activo
+  setInterval(() => {
+    renovarToken().then(nuevoToken => {
+      if (nuevoToken) {
+        localStorage.setItem('auth_token', nuevoToken);
+        console.log('Token renovado automáticamente');
+      }
+    });
+  }, 6 * 60 * 60 * 1000); // Cada 6 horas
+}
+
+function cerrarSesionPorExpiracion() {
+  limpiarDatosSesion();
+  
+  // Limpiar timers
+  if (sessionTimer) clearInterval(sessionTimer);
+  if (warningTimer) clearTimeout(warningTimer);
+  if (countdownInterval) clearInterval(countdownInterval);
+  
+  mostrarErrorAutenticacion('Tu sesión ha expirado por inactividad. Por seguridad, debes iniciar sesión nuevamente.');
+  
+  setTimeout(() => {
+    window.location.href = "../index.html?expired=1";
+  }, 3000);
+}
+
+async function cerrarSesion() {
+  try {
+    const token = getAuthToken();
+    
+    // Notificar al servidor sobre el cierre de sesión
+    if (token) {
+      await fetch(`${API_URL}/logout`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error al cerrar sesión en servidor:', error);
+  } finally {
+    limpiarDatosSesion();
+    
+    // Limpiar timers
+    if (sessionTimer) clearInterval(sessionTimer);
+    if (warningTimer) clearTimeout(warningTimer);
+    if (countdownInterval) clearInterval(countdownInterval);
+    
+    mostrarNotificacion('Sesión cerrada exitosamente', 'success');
+    
+    setTimeout(() => {
+      window.location.href = "../index.html";
+    }, 1000);
+  }
+}
+
 
 // ============================================
 // SISTEMA DE MODALES  NOTIFICACIONES
@@ -275,9 +626,13 @@ document.addEventListener("DOMContentLoaded", () => {
           cargarContactosEmergencia();
           setTimeout(() => cargarHistorialEmergencias(), 300);
         }
+        if (sectionId === 'horarios') {
+          cargarMedicamentosParaHorarios();
+        }
         if (sectionId === 'inicio') {
           cargarEstadisticasInicio();
         }
+
       }
     });
   });
@@ -1574,39 +1929,95 @@ function iniciarSistemaNotificacionesMedicamentos() {
   intervalosNotificaciones.forEach(intervalo => clearInterval(intervalo));
   intervalosNotificaciones = [];
   
-  // Cargar medicamentos y configurar notificaciones
-  cargarYConfigurarNotificaciones();
+  // Cargar horarios personalizados y configurar notificaciones
+  cargarYConfigurarNotificacionesPersonalizadas();
   
   // Recargar cada hora por si hay cambios
   setInterval(() => {
-    cargarYConfigurarNotificaciones();
+    cargarYConfigurarNotificacionesPersonalizadas();
   }, 3600000); // Cada hora
 }
 
-async function cargarYConfigurarNotificaciones() {
+async function cargarYConfigurarNotificacionesPersonalizadas() {
   const idUsuario = getUsuarioId();
   
   try {
-    const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
+    // Intentar cargar horarios personalizados primero
+    const response = await fetch(`${API_URL}/horarios-usuario/${idUsuario}`);
     
     if (!response.ok) {
-      throw new Error('Error al cargar medicamentos');
+      throw new Error('Error al cargar horarios personalizados');
     }
     
-    const recetas = await response.json();
+    const horarios = await response.json();
     
-    console.log('Recetas cargadas para notificaciones:', recetas);
+    console.log('Horarios personalizados cargados:', horarios);
     
-    recetas.forEach(receta => {
-      configurarNotificacionMedicamento(receta);
-    });
+    if (horarios.length > 0) {
+      // Usar horarios personalizados
+      horarios.forEach(horario => {
+        configurarNotificacionMedicamentoPersonalizado(horario);
+      });
+    } else {
+      // Fallback: usar frecuencias genéricas de recetas
+      console.log('No hay horarios personalizados, usando frecuencias genéricas');
+      const recetasResponse = await fetch(`${API_URL}/recetas/${idUsuario}`);
+      const recetas = await recetasResponse.json();
+      recetas.forEach(receta => {
+        configurarNotificacionMedicamentoGenerico(receta);
+      });
+    }
     
   } catch (error) {
-    console.error('Error al cargar medicamentos para notificaciones:', error);
+    console.error('Error al cargar horarios para notificaciones:', error);
   }
 }
 
-function configurarNotificacionMedicamento(receta) {
+function configurarNotificacionMedicamentoPersonalizado(horario) {
+  // Verificar si las notificaciones están activas para este medicamento
+  if (horario.notificaciones_activas === false) {
+    console.log(`Notificaciones desactivadas para ${horario.nombre_medicamento}`);
+    return;
+  }
+
+  const horaParts = horario.hora.split(':');
+  const hora = parseInt(horaParts[0]);
+  const minutos = parseInt(horaParts[1]);
+  
+  const ahora = new Date();
+  const horaNotificacion = new Date();
+  horaNotificacion.setHours(hora, minutos, 0, 0);
+  
+  // Ajustar minutos de anticipación
+  const minutosAnticipacion = horario.minutos_anticipacion || 15;
+  horaNotificacion.setMinutes(horaNotificacion.getMinutes() - minutosAnticipacion);
+  
+  // Si la hora ya pasó hoy, programar para mañana
+  if (horaNotificacion <= ahora) {
+    horaNotificacion.setDate(horaNotificacion.getDate() + 1);
+  }
+  
+  const msHastaNotificacion = horaNotificacion - ahora;
+  
+  console.log(`Programando notificación para ${horario.nombre_medicamento} a las ${horario.hora} (en ${Math.round(msHastaNotificacion/1000/60)} minutos)`);
+  
+  // Programar notificación única
+  const timeoutId = setTimeout(() => {
+    mostrarNotificacionMedicamento({
+      id: horario.id_receta,
+      nombre_medicamento: horario.nombre_medicamento,
+      dosis: horario.dosis,
+      hora: horario.hora
+    });
+    
+    // Reprogramar para el siguiente día
+    configurarNotificacionMedicamentoPersonalizado(horario);
+  }, msHastaNotificacion);
+  
+  intervalosNotificaciones.push(timeoutId);
+}
+
+function configurarNotificacionMedicamentoGenerico(receta) {
   // Extraer frecuencia en minutos
   const frecuenciaMinutos = extraerFrecuenciaMinutos(receta.frecuencia);
   
@@ -1615,7 +2026,7 @@ function configurarNotificacionMedicamento(receta) {
     return;
   }
   
-  console.log(`Configurando notificación para ${receta.nombre_medicamento} cada ${frecuenciaMinutos} minutos`);
+  console.log(`Configurando notificación genérica para ${receta.nedicamento} cada ${frecuenciaMinutos} minutos`);
   
   // Crear intervalo para este medicamento
   const intervalo = setInterval(() => {
@@ -1623,10 +2034,13 @@ function configurarNotificacionMedicamento(receta) {
   }, frecuenciaMinutos * 60 * 1000);
   
   intervalosNotificaciones.push(intervalo);
-  
-  // Mostrar primera notificación inmediatamente (opcional)
-  // setTimeout(() => mostrarNotificacionMedicamento(receta), 5000);
 }
+
+// Función para compatibilidad hacia atrás
+function configurarNotificacionMedicamento(receta) {
+  configurarNotificacionMedicamentoGenerico(receta);
+}
+
 
 function extraerFrecuenciaMinutos(frecuenciaTexto) {
   if (!frecuenciaTexto) return null;
@@ -2292,6 +2706,436 @@ function reiniciarPersonalizacion() {
 function actualizarAvatarEnSistema() {
   cargarAvatarYNombre();
 }
+
+// ============================================
+// SISTEMA DE CONFIGURACIÓN DE HORARIOS DE MEDICAMENTOS
+// ============================================
+
+let recetaActualHorarios = null;
+let horariosTemporales = [];
+
+// Cargar medicamentos para la sección de horarios
+async function cargarMedicamentosParaHorarios() {
+  const idUsuario = getUsuarioId();
+  const listaContainer = document.getElementById('listaMedicamentosHorarios');
+  
+  console.log('Cargando medicamentos para horarios. Usuario ID:', idUsuario);
+  
+  if (!listaContainer) {
+    console.error('No se encontró el contenedor listaMedicamentosHorarios');
+    return;
+  }
+  
+  if (!idUsuario) {
+    console.error('No se encontró ID de usuario');
+    listaContainer.innerHTML = '<div class="list-group-item text-center text-danger">Error: No se identificó al usuario</div>';
+    return;
+  }
+  
+  listaContainer.innerHTML = '<div class="list-group-item text-center"><div class="spinner-border spinner-border-sm text-primary me-2"></div> Cargando medicamentos...</div>';
+  
+  try {
+    console.log('Fetching recetas from:', `${API_URL}/recetas/${idUsuario}`);
+    const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
+    
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+    }
+    
+    const recetas = await response.json();
+    console.log('Recetas recibidas:', recetas);
+    
+    listaContainer.innerHTML = '';
+    
+    if (!recetas || recetas.length === 0) {
+      listaContainer.innerHTML = `
+        <div class="list-group-item text-center text-muted py-4">
+          <i class="bi bi-capsule" style="font-size: 2rem;"></i>
+          <p class="mt-2 mb-0">No tienes medicamentos registrados</p>
+          <small class="text-muted">Agrega medicamentos en la sección de Recetas Médicas</small>
+        </div>
+      `;
+      return;
+    }
+    
+    // Cargar horarios para cada medicamento
+    for (const receta of recetas) {
+      try {
+        console.log(`Cargando horarios para receta ${receta.id}:`, receta.nombre_medicamento);
+        const horariosResponse = await fetch(`${API_URL}/horarios/${receta.id}?id_usuario=${idUsuario}`);
+        
+        if (!horariosResponse.ok) {
+          console.warn(`Error al cargar horarios para receta ${receta.id}:`, horariosResponse.status);
+        }
+        
+        const horariosData = await horariosResponse.json();
+        console.log(`Horarios para ${receta.nombre_medicamento}:`, horariosData);
+        
+        const tieneHorarios = horariosData.horarios && horariosData.horarios.length > 0;
+        const horariosTexto = tieneHorarios 
+          ? horariosData.horarios.map(h => h.hora.substring(0, 5)).join(', ')
+          : '<span class="text-warning"><i class="bi bi-exclamation-circle"></i> Sin horarios configurados</span>';
+        
+        const div = document.createElement('div');
+        div.className = 'list-group-item';
+        div.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <i class="bi bi-capsule ${tieneHorarios ? 'text-success' : 'text-muted'} me-2"></i>
+              <strong>${receta.nombre_medicamento}</strong>
+              <br>
+              <small class="text-muted">${receta.dosis} - ${receta.frecuencia}</small>
+              <br>
+              <small class="${tieneHorarios ? 'text-primary' : 'text-warning'}">
+                <i class="bi bi-clock"></i> ${horariosTexto}
+              </small>
+            </div>
+            <button class="btn btn-sm ${tieneHorarios ? 'btn-outline-primary' : 'btn-primary'}" onclick="configurarHorariosMedicamento(${receta.id}, '${receta.nombre_medicamento}', '${receta.dosis}')">
+              <i class="bi bi-gear-fill"></i> ${tieneHorarios ? 'Editar' : 'Configurar'}
+            </button>
+          </div>
+        `;
+        listaContainer.appendChild(div);
+      } catch (recetaError) {
+        console.error(`Error al procesar receta ${receta.id}:`, recetaError);
+        // Mostrar el medicamento sin información de horarios
+        const div = document.createElement('div');
+        div.className = 'list-group-item';
+        div.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <i class="bi bi-capsule text-muted me-2"></i>
+              <strong>${receta.nombre_medicamento}</strong>
+              <br>
+              <small class="text-muted">${receta.dosis} - ${receta.frecuencia}</small>
+              <br>
+              <small class="text-danger"><i class="bi bi-exclamation-triangle"></i> Error al cargar horarios</small>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="configurarHorariosMedicamento(${receta.id}, '${receta.nombre_medicamento}', '${receta.dosis}')">
+              <i class="bi bi-gear-fill"></i> Configurar
+            </button>
+          </div>
+        `;
+        listaContainer.appendChild(div);
+      }
+    }
+    
+  } catch (error) {
+    console.error('Error al cargar medicamentos para horarios:', error);
+    listaContainer.innerHTML = `
+      <div class="list-group-item text-center text-danger py-4">
+        <i class="bi bi-exclamation-triangle-fill" style="font-size: 2rem;"></i>
+        <p class="mt-2 mb-0">Error al cargar medicamentos</p>
+        <small class="text-muted">${error.message}</small>
+        <br>
+        <button class="btn btn-sm btn-outline-primary mt-2" onclick="cargarMedicamentosParaHorarios()">
+          <i class="bi bi-arrow-clockwise"></i> Reintentar
+        </button>
+      </div>
+    `;
+  }
+}
+
+
+// Abrir modal para configurar horarios de un medicamento
+async function configurarHorariosMedicamento(idReceta, nombreMedicamento, dosis) {
+  recetaActualHorarios = { id: idReceta, nombre: nombreMedicamento, dosis: dosis };
+  horariosTemporales = [];
+  
+  // Actualizar información en el modal
+  document.getElementById('nombreMedicamentoHorario').textContent = nombreMedicamento;
+  document.getElementById('dosisMedicamentoHorario').textContent = dosis;
+  
+  // Cargar horarios existentes
+  const idUsuario = getUsuarioId();
+  try {
+    const response = await fetch(`${API_URL}/horarios/${idReceta}?id_usuario=${idUsuario}`);
+    const data = await response.json();
+    
+    // Limpiar contenedor
+    const contenedor = document.getElementById('contenedorHorarios');
+    contenedor.innerHTML = '';
+    
+    // Agregar horarios existentes
+    if (data.horarios && data.horarios.length > 0) {
+      data.horarios.forEach(h => {
+        agregarCampoHorario(h.hora.substring(0, 5));
+      });
+    } else {
+      // Agregar campo vacío por defecto
+      agregarCampoHorario();
+    }
+    
+    // Configurar opciones
+    if (data.configuracion) {
+      document.getElementById('minutosAnticipacion').value = data.configuracion.minutos_anticipacion || 15;
+      document.getElementById('notificacionesActivas').checked = data.configuracion.notificaciones_activas !== false;
+      document.getElementById('notasHorario').value = data.configuracion.notas || '';
+      
+      // Configurar días de la semana
+      const diasSemana = data.configuracion.dias_semana || ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+      ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'].forEach(dia => {
+        const checkbox = document.getElementById(`dia-${dia}`);
+        if (checkbox) {
+          checkbox.checked = diasSemana.includes(dia);
+        }
+      });
+    }
+    
+    // Ocultar alerta de conflictos
+    document.getElementById('alertaConflictos').classList.add('d-none');
+    
+  } catch (error) {
+    console.error('Error al cargar horarios:', error);
+    agregarCampoHorario(); // Agregar campo vacío en caso de error
+  }
+  
+  // Mostrar modal
+  const modal = new bootstrap.Modal(document.getElementById('modalHorarios'));
+  modal.show();
+}
+
+// Agregar campo de horario al modal
+function agregarCampoHorario(horaInicial = '') {
+  const contenedor = document.getElementById('contenedorHorarios');
+  const id = `horario-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  const div = document.createElement('div');
+  div.className = 'input-group mb-2 horario-item';
+  div.id = id;
+  div.innerHTML = `
+    <span class="input-group-text"><i class="bi bi-clock"></i></span>
+    <input type="time" class="form-control horario-input" value="${horaInicial}" required>
+    <button type="button" class="btn btn-outline-danger" onclick="eliminarCampoHorario('${id}')">
+      <i class="bi bi-trash"></i>
+    </button>
+  `;
+  
+  contenedor.appendChild(div);
+  
+  // Validar conflictos cuando cambie el valor
+  const input = div.querySelector('.horario-input');
+  input.addEventListener('change', validarConflictosHorariosTemporales);
+}
+
+// Eliminar campo de horario
+function eliminarCampoHorario(id) {
+  const elemento = document.getElementById(id);
+  if (elemento) {
+    elemento.remove();
+    validarConflictosHorariosTemporales();
+  }
+}
+
+// Validar conflictos entre horarios temporales
+async function validarConflictosHorariosTemporales() {
+  const inputs = document.querySelectorAll('.horario-input');
+  const horarios = Array.from(inputs).map(input => input.value).filter(v => v !== '');
+  
+  if (horarios.length === 0) return;
+  
+  const idUsuario = getUsuarioId();
+  
+  try {
+    const response = await fetch(`${API_URL}/validar-conflictos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_usuario: idUsuario,
+        horarios_propuestos: horarios,
+        id_receta_excluir: recetaActualHorarios?.id
+      })
+    });
+    
+    const data = await response.json();
+    const alerta = document.getElementById('alertaConflictos');
+    const lista = document.getElementById('listaConflictos');
+    
+    if (data.tiene_conflictos) {
+      alerta.classList.remove('d-none');
+      lista.innerHTML = data.conflictos.map(c => `
+        <li>
+          <strong>${c.hora_propuesta}</strong> está muy cerca de 
+          <strong>${c.hora_existente}</strong> (${c.medicamento_existente}) - 
+          Diferencia: ${c.diferencia_minutos} minutos
+        </li>
+      `).join('');
+    } else {
+      alerta.classList.add('d-none');
+    }
+    
+  } catch (error) {
+    console.error('Error al validar conflictos:', error);
+  }
+}
+
+// Guardar configuración de horarios
+async function guardarConfiguracionHorarios() {
+  if (!recetaActualHorarios) {
+    console.error('Error: No hay receta seleccionada');
+    mostrarNotificacion('Error: No se ha seleccionado un medicamento', 'error');
+    return;
+  }
+  
+  const inputs = document.querySelectorAll('.horario-input');
+  const horarios = Array.from(inputs).map(input => input.value).filter(v => v !== '');
+  
+  console.log('Horarios a guardar:', horarios);
+  
+  if (horarios.length === 0) {
+    mostrarNotificacion('Debe agregar al menos un horario', 'warning');
+    return;
+  }
+  
+  // Obtener días seleccionados
+  const diasSemana = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
+    .filter(dia => document.getElementById(`dia-${dia}`)?.checked);
+  
+  console.log('Días seleccionados:', diasSemana);
+  
+  if (diasSemana.length === 0) {
+    mostrarNotificacion('Debe seleccionar al menos un día de la semana', 'warning');
+    return;
+  }
+  
+  const configuracion = {
+    notificaciones_activas: document.getElementById('notificacionesActivas').checked,
+    minutos_anticipacion: parseInt(document.getElementById('minutosAnticipacion').value),
+    dias_semana: diasSemana,
+    notas: document.getElementById('notasHorario').value
+  };
+  
+  const idUsuario = getUsuarioId();
+  
+  console.log('Guardando horarios:', {
+    id_receta: recetaActualHorarios.id,
+    id_usuario: idUsuario,
+    horarios: horarios,
+    configuracion: configuracion
+  });
+  
+  try {
+    const response = await fetch(`${API_URL}/horarios`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_receta: recetaActualHorarios.id,
+        id_usuario: idUsuario,
+        horarios: horarios,
+        configuracion: configuracion
+      })
+    });
+    
+    console.log('Respuesta del servidor:', response.status, response.statusText);
+    
+    const data = await response.json();
+    console.log('Datos de respuesta:', data);
+    
+    if (response.ok) {
+      mostrarNotificacion('Horarios guardados correctamente', 'success');
+      
+      // Cerrar modal
+      const modalEl = document.getElementById('modalHorarios');
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      modal.hide();
+      
+      // Recargar lista
+      cargarMedicamentosParaHorarios();
+      
+      // Reiniciar sistema de notificaciones para usar nuevos horarios
+      iniciarSistemaNotificacionesMedicamentos();
+    } else {
+      console.error('Error del servidor:', data);
+      mostrarNotificacion(data.mensaje || data.error || `Error al guardar horarios (${response.status})`, 'error');
+    }
+    
+  } catch (error) {
+    console.error('Error al guardar horarios:', error);
+    mostrarNotificacion('Error de conexión al guardar horarios. Verifique que el servidor esté corriendo.', 'error');
+  }
+}
+
+
+// Modificar función de cargar medicamentos para mostrar indicadores de horarios configurados
+async function cargarMedicamentosHoyConHorarios() {
+  const idUsuario = getUsuarioId();
+  
+  try {
+    const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
+    
+    if (!response.ok) {
+      throw new Error('Error al cargar medicamentos');
+    }
+    
+    const recetas = await response.json();
+    
+    const listaMedicamentos = document.getElementById('listaMedicamentosHoy');
+    if (!listaMedicamentos) return;
+    
+    listaMedicamentos.innerHTML = '';
+    
+    if (recetas.length === 0) {
+      listaMedicamentos.innerHTML = `
+        <div class="list-group-item text-center text-muted">
+          No tienes medicamentos registrados
+        </div>
+      `;
+      return;
+    }
+    
+    // Cargar horarios para cada medicamento
+    for (const receta of recetas) {
+      const horariosResponse = await fetch(`${API_URL}/horarios/${receta.id}?id_usuario=${idUsuario}`);
+      const horariosData = await horariosResponse.json();
+      
+      const tieneHorarios = horariosData.horarios && horariosData.horarios.length > 0;
+      const horariosTexto = tieneHorarios 
+        ? horariosData.horarios.map(h => h.hora.substring(0, 5)).join(', ')
+        : `<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> Sin horarios</span>`;
+      
+      const div = document.createElement('div');
+      div.className = 'list-group-item';
+      div.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-capsule text-primary me-2"></i>
+            <strong>${receta.nombre_medicamento}</strong>
+            <br>
+            <small class="text-muted">Dosis: ${receta.dosis} - ${receta.frecuencia}</small>
+            <br>
+            <small class="${tieneHorarios ? 'text-success' : 'text-warning'}">
+              <i class="bi bi-clock"></i> Horarios: ${horariosTexto}
+            </small>
+          </div>
+          <div>
+            ${!tieneHorarios ? `<button class="btn btn-sm btn-warning me-1" onclick="configurarHorariosMedicamento(${receta.id}, '${receta.nombre_medicamento}', '${receta.dosis}')">
+              <i class="bi bi-gear-fill"></i> Configurar
+            </button>` : ''}
+            <button class="btn btn-sm btn-success" onclick="confirmarTomaMedicamento(${receta.id}, '${receta.nombre_medicamento}')">
+              <i class="bi bi-check-circle"></i> Ya tomé
+            </button>
+          </div>
+        </div>
+      `;
+      listaMedicamentos.appendChild(div);
+    }
+  } catch (error) {
+    console.error('Error al cargar medicamentos:', error);
+    const listaMedicamentos = document.getElementById('listaMedicamentosHoy');
+    if (listaMedicamentos) {
+      listaMedicamentos.innerHTML = `
+        <div class="list-group-item text-center text-danger">
+          Error al cargar medicamentos
+        </div>
+      `;
+    }
+  }
+}
+
+// Sobrescribir la función original para usar la nueva versión con horarios
+const cargarMedicamentosHoyOriginal = cargarMedicamentosHoy;
+cargarMedicamentosHoy = cargarMedicamentosHoyConHorarios;
+
 
 async function cargarAvatarYNombre() {
   try {

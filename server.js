@@ -82,15 +82,13 @@ app.post('/guardarMedicamento', (req, res) => {
 
 // Verificar correo y contraseña al iniciar sesión
 app.post('/login', (req, res) => {
-  const { email, password } = req.body; // ✅ cambia 'correo' por 'email'
+  const { email, password, rememberMe } = req.body;
   
-
   // Consulta SQL para buscar el usuario por email
   const sql = 'SELECT * FROM usuarios WHERE email = ?';
 
   db.query(sql, [email], (err, results) => {
     if (err) {
-      //console.error('Error al consultar la base de datos:', err);
       return res.status(500).json({ mensaje: 'Error interno del servidor' });
     }
 
@@ -106,14 +104,108 @@ app.post('/login', (req, res) => {
       return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos' });
     }
 
+    // Generar token de autenticación
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresIn = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 30 * 60 * 1000; // 7 días o 30 minutos
+    const expiresAt = Date.now() + expiresIn;
+    
+    // Guardar token en memoria
+    authTokens[token] = {
+      userId: usuario.id,
+      email: usuario.email,
+      expires: expiresAt,
+      rememberMe: rememberMe || false
+    };
+
     // Si todo está correcto
     res.status(200).json({
       ok: true,
       mensaje: 'Inicio de sesión exitoso',
-      usuario
+      usuario,
+      token
     });
   });
 });
+
+// Verificar sesión
+app.post('/verificar-sesion', (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ ok: false, mensaje: 'Token no proporcionado' });
+  }
+
+  const session = authTokens[token];
+  
+  if (!session) {
+    return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
+  }
+
+  if (Date.now() > session.expires) {
+    delete authTokens[token];
+    return res.status(401).json({ ok: false, mensaje: 'Sesión expirada' });
+  }
+
+  res.json({ 
+    ok: true, 
+    mensaje: 'Sesión válida',
+    userId: session.userId,
+    expiresIn: session.expires - Date.now()
+  });
+});
+
+// Renovar token
+app.post('/renovar-token', (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const oldToken = authHeader && authHeader.split(' ')[1];
+
+  if (!oldToken) {
+    return res.status(401).json({ ok: false, mensaje: 'Token no proporcionado' });
+  }
+
+  const session = authTokens[oldToken];
+  
+  if (!session) {
+    return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
+  }
+
+  // Generar nuevo token
+  const newToken = crypto.randomBytes(32).toString('hex');
+  const expiresIn = session.rememberMe ? 7 * 24 * 60 * 60 * 1000 : 30 * 60 * 1000;
+  const expiresAt = Date.now() + expiresIn;
+  
+  // Guardar nuevo token
+  authTokens[newToken] = {
+    userId: session.userId,
+    email: session.email,
+    expires: expiresAt,
+    rememberMe: session.rememberMe
+  };
+
+  // Eliminar token antiguo
+  delete authTokens[oldToken];
+
+  res.json({
+    ok: true,
+    mensaje: 'Token renovado correctamente',
+    token: newToken,
+    expiresAt: expiresAt
+  });
+});
+
+// Logout
+app.post('/logout', (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (token && authTokens[token]) {
+    delete authTokens[token];
+  }
+
+  res.json({ ok: true, mensaje: 'Sesión cerrada correctamente' });
+});
+
 
 
 
@@ -192,12 +284,8 @@ db.query(sql, [nombres, apellidos, identidad, telefono, email, password, rol], (
 
 
 
-//esto siempre al final sino todo hace KABOOOM *le da un infarto*
-app.listen(3000, () => {
-  //console.log('Servidor corriendo en http://localhost:3000');
-});
-
 // itream parte 
+
 
 //script formularios
 
@@ -296,7 +384,9 @@ app.get('/inventario', (req, res) => {
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 
-let tokens = {}; // en memoria; si prefieres, puedes usar una tabla "tokens"
+let tokens = {}; // tokens de recuperación de contraseña
+let authTokens = {}; // tokens de autenticación de sesión
+
 
 // 1️⃣ Enviar token
 app.post("/enviar-token", (req, res) => {
@@ -912,6 +1002,405 @@ app.get('/tomas/:id_usuario/:fecha', (req, res) => {
     res.json(results);
   });
 });
+
+// ============================================
+// RUTAS DE HORARIOS PERSONALIZADOS DE MEDICAMENTOS
+// ============================================
+
+// Función auxiliar para parsear días de la semana (soporta JSON o texto separado por comas)
+function parseDiasSemana(diasSemanaRaw) {
+  if (!diasSemanaRaw) {
+    return ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+  }
+  
+  // Si es un string que empieza con [, es JSON
+  if (typeof diasSemanaRaw === 'string' && diasSemanaRaw.trim().startsWith('[')) {
+    try {
+      return JSON.parse(diasSemanaRaw);
+    } catch (e) {
+      console.warn('Error al parsear JSON de dias_semana:', e);
+      return diasSemanaRaw.split(',').map(d => d.trim()).filter(d => d);
+    }
+  }
+  
+  // Si es string separado por comas
+  if (typeof diasSemanaRaw === 'string') {
+    return diasSemanaRaw.split(',').map(d => d.trim()).filter(d => d);
+  }
+  
+  // Si ya es un array
+  if (Array.isArray(diasSemanaRaw)) {
+    return diasSemanaRaw;
+  }
+  
+  return ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+}
+
+// Obtener horarios de un medicamento específico
+
+app.get('/horarios/:id_receta', (req, res) => {
+  const { id_receta } = req.params;
+  const { id_usuario } = req.query;
+
+  if (!id_usuario) {
+    return res.status(400).json({ mensaje: 'id_usuario es requerido' });
+  }
+
+  const sql = `
+    SELECT h.*, c.notificaciones_activas, c.minutos_anticipacion, c.dias_semana, c.notas
+    FROM horarios_medicamentos h
+    LEFT JOIN configuracion_horarios c ON h.id_receta = c.id_receta AND h.id_usuario = c.id_usuario
+    WHERE h.id_receta = ? AND h.id_usuario = ? AND h.activo = TRUE
+    ORDER BY h.hora
+  `;
+  
+  db.query(sql, [id_receta, id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al cargar horarios:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar horarios', error: err.message });
+    }
+    
+    // Si no hay configuración, devolver estructura vacía
+    if (results.length === 0) {
+      return res.json({
+        horarios: [],
+        configuracion: {
+          notificaciones_activas: true,
+          minutos_anticipacion: 15,
+          dias_semana: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'],
+          notas: null
+        }
+      });
+    }
+
+    // Extraer configuración del primer resultado
+    const configuracion = {
+      notificaciones_activas: results[0].notificaciones_activas !== null ? results[0].notificaciones_activas : true,
+      minutos_anticipacion: results[0].minutos_anticipacion || 15,
+      dias_semana: parseDiasSemana(results[0].dias_semana),
+      notas: results[0].notas
+    };
+
+
+    // Limpiar campos de configuración de los horarios
+    const horarios = results.map(h => ({
+      id: h.id,
+      id_receta: h.id_receta,
+      id_usuario: h.id_usuario,
+      hora: h.hora,
+      activo: h.activo,
+      created_at: h.created_at
+    }));
+
+    res.json({
+      horarios: horarios,
+      configuracion: configuracion
+    });
+  });
+});
+
+// Guardar nuevos horarios para un medicamento
+app.post('/horarios', (req, res) => {
+  const { id_receta, id_usuario, horarios, configuracion } = req.body;
+
+  console.log('=== POST /horarios ===');
+  console.log('Body recibido:', JSON.stringify(req.body, null, 2));
+
+  if (!id_receta || !id_usuario || !horarios || !Array.isArray(horarios)) {
+    console.log('Error: Datos incompletos', { id_receta, id_usuario, horarios });
+    return res.status(400).json({ mensaje: 'Datos incompletos. Se requiere id_receta, id_usuario y horarios (array)' });
+  }
+
+  // Validar que los horarios no estén vacíos
+  if (horarios.length === 0) {
+    console.log('Error: Horarios vacíos');
+    return res.status(400).json({ mensaje: 'Debe proporcionar al menos un horario' });
+  }
+
+  // Validar formato de horarios
+  for (const hora of horarios) {
+    if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/.test(hora)) {
+      console.log('Error: Formato de hora inválido:', hora);
+      return res.status(400).json({ mensaje: `Formato de hora inválido: ${hora}. Use HH:MM o HH:MM:SS` });
+    }
+  }
+
+  console.log('Validaciones pasadas. Iniciando transacción...');
+
+  // Iniciar transacción
+  db.beginTransaction(err => {
+    if (err) {
+      console.error('Error al iniciar transacción:', err);
+      return res.status(500).json({ mensaje: 'Error al iniciar transacción', error: err.message });
+    }
+
+    console.log('Transacción iniciada. Desactivando horarios existentes...');
+
+    // 1. Desactivar horarios existentes
+    const sqlDesactivar = 'UPDATE horarios_medicamentos SET activo = FALSE WHERE id_receta = ? AND id_usuario = ?';
+    console.log('Ejecutando SQL desactivar:', sqlDesactivar);
+    console.log('Valores:', [id_receta, id_usuario]);
+    db.query(sqlDesactivar, [id_receta, id_usuario], (err, result) => {
+      if (err) {
+        console.error('Error al desactivar horarios:', err);
+        console.error('SQL:', sqlDesactivar);
+        console.error('Valores:', [id_receta, id_usuario]);
+        return db.rollback(() => {
+          res.status(500).json({ mensaje: 'Error al desactivar horarios anteriores', error: err.message, sql: sqlDesactivar });
+        });
+      }
+      console.log('Horarios desactivados:', result.affectedRows);
+
+
+      console.log('Horarios desactivados. Insertando nuevos horarios...');
+
+      // 2. Insertar nuevos horarios
+      const sqlInsertar = 'INSERT INTO horarios_medicamentos (id_receta, id_usuario, hora, activo) VALUES ?';
+      const valores = horarios.map(hora => [id_receta, id_usuario, hora, true]);
+      
+      console.log('Valores a insertar:', valores);
+
+      db.query(sqlInsertar, [valores], (err, result) => {
+        if (err) {
+          console.error('Error al insertar horarios:', err);
+          return db.rollback(() => {
+            res.status(500).json({ mensaje: 'Error al guardar horarios', error: err.message });
+          });
+        }
+
+        console.log('Horarios insertados:', result.affectedRows);
+
+        // 3. Guardar configuración
+        const sqlConfig = `
+          INSERT INTO configuracion_horarios 
+          (id_usuario, id_receta, notificaciones_activas, minutos_anticipacion, dias_semana, notas) 
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+          notificaciones_activas = VALUES(notificaciones_activas),
+          minutos_anticipacion = VALUES(minutos_anticipacion),
+          dias_semana = VALUES(dias_semana),
+          notas = VALUES(notas),
+          updated_at = CURRENT_TIMESTAMP
+        `;
+        
+        const diasSemana = configuracion?.dias_semana ? JSON.stringify(configuracion.dias_semana) : JSON.stringify(['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']);
+        
+        console.log('Guardando configuración:', {
+          id_usuario,
+          id_receta,
+          notificaciones_activas: configuracion?.notificaciones_activas !== false,
+          minutos_anticipacion: configuracion?.minutos_anticipacion || 15,
+          dias_semana: diasSemana,
+          notas: configuracion?.notas || null
+        });
+
+        db.query(sqlConfig, [
+          id_usuario, 
+          id_receta, 
+          configuracion?.notificaciones_activas !== false,
+          configuracion?.minutos_anticipacion || 15,
+          diasSemana,
+          configuracion?.notas || null
+        ], (err) => {
+          if (err) {
+            console.error('Error al guardar configuración:', err);
+            return db.rollback(() => {
+              res.status(500).json({ mensaje: 'Error al guardar configuración', error: err.message });
+            });
+          }
+
+          console.log('Configuración guardada. Confirmando transacción...');
+
+          // Confirmar transacción
+          db.commit(err => {
+            if (err) {
+              console.error('Error al confirmar transacción:', err);
+              return db.rollback(() => {
+                res.status(500).json({ mensaje: 'Error al confirmar transacción', error: err.message });
+              });
+            }
+
+            console.log('=== Transacción completada exitosamente ===');
+
+            res.json({ 
+              mensaje: 'Horarios guardados correctamente',
+              horarios_guardados: horarios.length,
+              id_receta: id_receta
+            });
+          });
+        });
+      });
+    });
+  });
+});
+
+
+// Actualizar un horario específico
+app.put('/horarios/:id', (req, res) => {
+  const { id } = req.params;
+  const { hora, activo } = req.body;
+
+  if (!hora && activo === undefined) {
+    return res.status(400).json({ mensaje: 'Debe proporcionar al menos un campo para actualizar (hora o activo)' });
+  }
+
+  const campos = [];
+  const valores = [];
+
+  if (hora) {
+    if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/.test(hora)) {
+      return res.status(400).json({ mensaje: 'Formato de hora inválido. Use HH:MM o HH:MM:SS' });
+    }
+    campos.push('hora = ?');
+    valores.push(hora);
+  }
+
+  if (activo !== undefined) {
+    campos.push('activo = ?');
+    valores.push(activo);
+  }
+
+  valores.push(id);
+
+  const sql = `UPDATE horarios_medicamentos SET ${campos.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+  
+  db.query(sql, valores, (err, result) => {
+    if (err) {
+      console.error('Error al actualizar horario:', err);
+      return res.status(500).json({ mensaje: 'Error al actualizar horario', error: err.message });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Horario no encontrado' });
+    }
+
+    res.json({ mensaje: 'Horario actualizado correctamente' });
+  });
+});
+
+// Eliminar un horario específico
+app.delete('/horarios/:id', (req, res) => {
+  const { id } = req.params;
+
+  const sql = 'DELETE FROM horarios_medicamentos WHERE id = ?';
+  
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar horario:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar horario', error: err.message });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Horario no encontrado' });
+    }
+
+    res.json({ mensaje: 'Horario eliminado correctamente' });
+  });
+});
+
+// Validar conflictos entre horarios de medicamentos
+app.post('/validar-conflictos', (req, res) => {
+  const { id_usuario, horarios_propuestos, id_receta_excluir } = req.body;
+
+  if (!id_usuario || !horarios_propuestos || !Array.isArray(horarios_propuestos)) {
+    return res.status(400).json({ mensaje: 'Datos incompletos. Se requiere id_usuario y horarios_propuestos' });
+  }
+
+  // Obtener todos los horarios activos del usuario, excluyendo la receta actual si se está editando
+  let sql = `
+    SELECT h.id, h.id_receta, h.hora, r.nombre_medicamento
+    FROM horarios_medicamentos h
+    JOIN recetas_medicas r ON h.id_receta = r.id
+    WHERE h.id_usuario = ? AND h.activo = TRUE
+  `;
+  
+  const params = [id_usuario];
+  
+  if (id_receta_excluir) {
+    sql += ' AND h.id_receta != ?';
+    params.push(id_receta_excluir);
+  }
+
+  db.query(sql, params, (err, horariosExistentes) => {
+    if (err) {
+      console.error('Error al validar conflictos:', err);
+      return res.status(500).json({ mensaje: 'Error al validar conflictos', error: err.message });
+    }
+
+    const conflictos = [];
+    const margenMinutos = 30; // Margen mínimo entre medicamentos
+
+    for (const propuesto of horarios_propuestos) {
+      const horaPropuesta = new Date(`2000-01-01T${propuesto}`);
+      const horaPropuestaMinutos = horaPropuesta.getHours() * 60 + horaPropuesta.getMinutes();
+
+      for (const existente of horariosExistentes) {
+        const horaExistente = new Date(`2000-01-01T${existente.hora}`);
+        const horaExistenteMinutos = horaExistente.getHours() * 60 + horaExistente.getMinutes();
+
+        const diferencia = Math.abs(horaPropuestaMinutos - horaExistenteMinutos);
+        
+        // Detectar conflicto si la diferencia es menor al margen
+        if (diferencia < margenMinutos) {
+          conflictos.push({
+            hora_propuesta: propuesto,
+            hora_existente: existente.hora,
+            medicamento_existente: existente.nombre_medicamento,
+            id_receta_existente: existente.id_receta,
+            diferencia_minutos: diferencia,
+            tipo: diferencia === 0 ? 'mismo_horario' : 'muy_cercano'
+          });
+        }
+      }
+    }
+
+    res.json({
+      tiene_conflictos: conflictos.length > 0,
+      conflictos: conflictos,
+      margen_minutos: margenMinutos,
+      total_horarios_existentes: horariosExistentes.length
+    });
+  });
+});
+
+// Obtener todos los horarios de un usuario (para notificaciones)
+app.get('/horarios-usuario/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = `
+    SELECT 
+      h.id,
+      h.id_receta,
+      h.hora,
+      r.nombre_medicamento,
+      r.dosis,
+      c.notificaciones_activas,
+      c.minutos_anticipacion,
+      c.dias_semana
+    FROM horarios_medicamentos h
+    JOIN recetas_medicas r ON h.id_receta = r.id
+    LEFT JOIN configuracion_horarios c ON h.id_receta = c.id_receta AND h.id_usuario = c.id_usuario
+    WHERE h.id_usuario = ? AND h.activo = TRUE
+    ORDER BY h.hora
+  `;
+  
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al cargar horarios del usuario:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar horarios', error: err.message });
+    }
+
+    // Procesar resultados para incluir días de la semana como array
+    const horariosProcesados = results.map(h => ({
+      ...h,
+      dias_semana: parseDiasSemana(h.dias_semana)
+    }));
+
+
+    res.json(horariosProcesados);
+  });
+});
+
 
 
 

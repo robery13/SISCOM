@@ -58,9 +58,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const correo = document.getElementById("emailLogin").value.trim();
       const contra = document.getElementById("passwordLogin").value.trim();
+      const rememberMe = document.getElementById("rememberMe")?.checked || false;
 
-      if (!correo || !contra) {
-        showToast("Por favor, complete todos los campos.", "warning");
+      // Validación de campos
+      if (!correo) {
+        showToast("Por favor, ingresa tu correo electrónico.", "warning");
+        document.getElementById("emailLogin")?.focus();
+        return;
+      }
+
+      if (!contra) {
+        showToast("Por favor, ingresa tu contraseña.", "warning");
+        document.getElementById("passwordLogin")?.focus();
+        return;
+      }
+
+      // Validación de formato de correo
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(correo)) {
+        showToast("Por favor, ingresa un correo electrónico válido.", "warning");
+        document.getElementById("emailLogin")?.focus();
         return;
       }
 
@@ -69,72 +86,117 @@ document.addEventListener("DOMContentLoaded", () => {
         btnLogin.disabled = true;
         btnLogin.style.opacity = "0.6";
         btnLogin.style.cursor = "not-allowed";
+        btnLogin.textContent = "Verificando...";
       }
 
       try {
         const respuesta = await fetch("http://localhost:3000/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: correo, password: contra })
+          body: JSON.stringify({ email: correo, password: contra, rememberMe: rememberMe })
         });
 
         const data = await respuesta.json();
 
         if (respuesta.ok && data.ok) {
-          showToast("Inicio de sesión exitoso!", "success");
-          setTimeout(() => {
-            if (btnLogin) {
-              btnLogin.disabled = false;
-              btnLogin.style.opacity = "1";
-              btnLogin.style.cursor = "pointer";
-            }
-          }, 2100);
-
-          formLogin.reset();
-          // Almacenar información del usuario en localStorage
+          showToast("¡Inicio de sesión exitoso! Redirigiendo...", "success");
+          
+          // Almacenar información del usuario
           if (data.usuario) {
             localStorage.setItem('usuario', JSON.stringify(data.usuario));
           }
 
-          // Redirigir según el rol del usuario
-          if (data.usuario && data.usuario.rol) {
-            const rol = data.usuario.rol.toLowerCase(); // Para manejar mayúsculas/minúsculas
-            if (rol === 'usuario') {
-              window.location.href = "../Management-Frontend/main_paciente.html";
-            } else if (rol === 'empleado') {
-              window.location.href = "../Management-Backend/cuidador_backend.html";
-            } else if (rol === 'administrador') {
-              window.location.href = "../Management-Backend/Admin_Backend.html";
+          // Almacenar token de autenticación
+          if (data.token) {
+            if (rememberMe) {
+              // Si "Recordarme" está activo, guardar en localStorage (persistente)
+              localStorage.setItem('auth_token', data.token);
+              localStorage.setItem('remember_me', 'true');
+              localStorage.setItem('session_start', Date.now().toString());
             } else {
-              showToast("Rol de usuario no reconocido.", "error");
+              // Si no, guardar en sessionStorage (se borra al cerrar navegador)
+              sessionStorage.setItem('auth_token', data.token);
+              localStorage.setItem('remember_me', 'false');
             }
-          } else {
-            showToast("Error al obtener información del usuario.", "error");
           }
+
+          // Redirigir según el rol del usuario después de un breve delay
+          setTimeout(() => {
+            if (data.usuario && data.usuario.rol) {
+              const rol = data.usuario.rol.toLowerCase();
+              if (rol === 'usuario') {
+                window.location.href = "../Management-Frontend/main_paciente.html";
+              } else if (rol === 'empleado') {
+                window.location.href = "../Management-Backend/cuidador_backend.html";
+              } else if (rol === 'administrador') {
+                window.location.href = "../Management-Backend/Admin_Backend.html";
+              } else {
+                showToast("Rol de usuario no reconocido.", "error");
+                if (btnLogin) {
+                  btnLogin.disabled = false;
+                  btnLogin.style.opacity = "1";
+                  btnLogin.style.cursor = "pointer";
+                  btnLogin.textContent = "Entrar";
+                }
+              }
+            } else {
+              showToast("Error al obtener información del usuario.", "error");
+              if (btnLogin) {
+                btnLogin.disabled = false;
+                btnLogin.style.opacity = "1";
+                btnLogin.style.cursor = "pointer";
+                btnLogin.textContent = "Entrar";
+              }
+            }
+          }, 1500);
+
         } else {
-          showToast(data.message || "Correo o contraseña incorrectos.", "error");
+          // Manejo específico de errores de autenticación
+          let errorMessage = data.message || "Correo o contraseña incorrectos.";
+          
+          if (respuesta.status === 401) {
+            errorMessage = "Credenciales inválidas. Verifica tu correo y contraseña.";
+          } else if (respuesta.status === 403) {
+            errorMessage = "Cuenta bloqueada. Contacta al administrador.";
+          } else if (respuesta.status === 429) {
+            errorMessage = "Demasiados intentos. Por favor, espera unos minutos.";
+          }
+          
+          showToast(errorMessage, "error");
+          
+          // Restaurar botón
           setTimeout(() => {
             if (btnLogin) {
               btnLogin.disabled = false;
               btnLogin.style.opacity = "1";
               btnLogin.style.cursor = "pointer";
+              btnLogin.textContent = "Entrar";
             }
           }, 2100);
         }
       } catch (error) {
-        // console.error("Error al conectar con el servidor:", error);
-        showToast("No se pudo conectar con el servidor.", "warning");
+        console.error("Error al conectar con el servidor:", error);
+        
+        let errorMsg = "No se pudo conectar con el servidor.";
+        if (error.name === 'TypeError') {
+          errorMsg = "Error de conexión. Verifica tu internet o que el servidor esté activo.";
+        }
+        
+        showToast(errorMsg, "warning");
+        
         setTimeout(() => {
           if (btnLogin) {
             btnLogin.disabled = false;
             btnLogin.style.opacity = "1";
             btnLogin.style.cursor = "pointer";
+            btnLogin.textContent = "Entrar";
           }
         }, 2100);
       }
     });
   }
 });
+
 
 // ================== RECUPERAR CONTRASEÑA ==================
 const API_URL = "http://localhost:3000";

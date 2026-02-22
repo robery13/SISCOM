@@ -50,8 +50,10 @@
     <button class="nav-btn" data-section="agenda"><i class="bi bi-calendar-check"></i> <span>Agenda Médica</span></button>
     <button class="nav-btn" data-section="recompensas"><i class="bi bi-trophy"></i> <span>Recompensas</span></button>
     <button class="nav-btn" data-section="emergencia"><i class="bi bi-mic-fill"></i> <span>Emergencia</span></button>
+    <button class="nav-btn" data-section="horarios"><i class="bi bi-clock-fill"></i> <span>Mis Horarios</span></button>
     <button class="nav-btn" data-section="personalizacion"><i class="bi bi-palette-fill"></i> <span>Personalización</span></button>
     <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
+
   </nav>
 </aside>
     <!-- CONTENIDO PRINCIPAL -->
@@ -511,6 +513,41 @@
           </div>
         </div>
       </section>
+<!-- SECCIÓN CONFIGURACIÓN DE HORARIOS -->
+<section id="horarios" class="section d-none">
+  <div class="section-header">
+    <h2><i class="bi bi-clock-fill"></i> Configuración de Horarios</h2>
+    <p class="muted">Personaliza los horarios exactos de tus medicamentos</p>
+  </div>
+
+  <div class="card">
+    <h5 class="card-title">Mis Medicamentos con Horarios Personalizados</h5>
+    <div id="listaMedicamentosHorarios" class="list-group list-group-flush">
+      <div class="list-group-item text-center text-muted">
+        Cargando medicamentos...
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <h5 class="card-title"><i class="bi bi-info-circle"></i> Información</h5>
+    <div class="alert alert-info">
+      <i class="bi bi-lightbulb"></i> <strong>Consejo:</strong> Configura horarios específicos para cada medicamento según tu rutina diaria. El sistema te alertará sobre posibles conflictos entre horarios muy cercanos.
+    </div>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item">
+        <i class="bi bi-check-circle-fill text-success"></i> Puedes establecer múltiples horarios por medicamento
+      </li>
+      <li class="list-group-item">
+        <i class="bi bi-bell-fill text-warning"></i> Recibirás notificaciones personalizadas
+      </li>
+      <li class="list-group-item">
+        <i class="bi bi-shield-check text-primary"></i> Validación automática de conflictos
+      </li>
+    </ul>
+  </div>
+</section>
+
 <!-- SECCIÓN PERSONALIZACIÓN -->
 <section id="personalizacion" class="section d-none">
   <div class="section-header">
@@ -522,13 +559,154 @@
     <div id="personalizacion-container"></div>
   </div>
 </section>
+
     </main>
   </div>
+
+  <!-- Modal de Advertencia de Sesión -->
+  <div class="modal fade" id="sessionWarningModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-warning">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Sesión por expirar</h5>
+        </div>
+        <div class="modal-body text-center">
+          <i class="bi bi-clock-history text-warning" style="font-size: 3rem;"></i>
+          <p class="mt-3 mb-2">Tu sesión está a punto de expirar por inactividad.</p>
+          <p class="text-muted small">Tiempo restante: <span id="sessionCountdown" class="fw-bold text-danger">02:00</span></p>
+        </div>
+        <div class="modal-footer justify-content-center">
+          <button type="button" class="btn btn-primary" id="extendSessionBtn">
+            <i class="bi bi-arrow-clockwise"></i> Extender sesión
+          </button>
+          <button type="button" class="btn btn-outline-secondary" id="logoutNowBtn">
+            <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de Error de Autenticación -->
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11000;">
+    <div id="authErrorToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <i class="bi bi-shield-exclamation me-2"></i>
+          <span id="authErrorMessage">Error de autenticación</span>
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="authLoadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-white d-none justify-content-center align-items-center" style="z-index: 12000;">
+    <div class="text-center">
+      <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Verificando sesión...</span>
+      </div>
+      <p class="mt-3 text-muted">Verificando tu sesión...</p>
+    </div>
+  </div>
+
+  <!-- Modal de Configuración de Horarios -->
+  <div class="modal fade" id="modalHorarios" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title"><i class="bi bi-clock-fill"></i> Configurar Horarios</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <h6 id="nombreMedicamentoHorario" class="fw-bold text-primary">Medicamento</h6>
+            <p class="text-muted mb-0" id="dosisMedicamentoHorario">Dosis</p>
+          </div>
+          
+          <div class="alert alert-warning d-none" id="alertaConflictos">
+            <i class="bi bi-exclamation-triangle-fill"></i> <strong>Conflictos detectados:</strong>
+            <ul id="listaConflictos" class="mb-0 mt-2"></ul>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Horarios de toma:</label>
+            <div id="contenedorHorarios" class="mb-2">
+              <!-- Los horarios se agregarán dinámicamente -->
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarCampoHorario()">
+              <i class="bi bi-plus-circle"></i> Agregar horario
+            </button>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Minutos de anticipación para notificación</label>
+              <select class="form-select" id="minutosAnticipacion">
+                <option value="5">5 minutos antes</option>
+                <option value="10">10 minutos antes</option>
+                <option value="15" selected>15 minutos antes</option>
+                <option value="30">30 minutos antes</option>
+                <option value="60">1 hora antes</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <div class="form-check form-switch mt-4">
+                <input class="form-check-input" type="checkbox" id="notificacionesActivas" checked>
+                <label class="form-check-label" for="notificacionesActivas">
+                  Notificaciones activas
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Días de la semana:</label>
+            <div class="btn-group w-100 flex-wrap" role="group">
+              <input type="checkbox" class="btn-check" id="dia-lunes" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-lunes">Lun</label>
+
+              <input type="checkbox" class="btn-check" id="dia-martes" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-martes">Mar</label>
+
+              <input type="checkbox" class="btn-check" id="dia-miercoles" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-miercoles">Mié</label>
+
+              <input type="checkbox" class="btn-check" id="dia-jueves" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-jueves">Jue</label>
+
+              <input type="checkbox" class="btn-check" id="dia-viernes" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-viernes">Vie</label>
+
+              <input type="checkbox" class="btn-check" id="dia-sabado" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-sabado">Sáb</label>
+
+              <input type="checkbox" class="btn-check" id="dia-domingo" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-domingo">Dom</label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Notas adicionales:</label>
+            <textarea class="form-control" id="notasHorario" rows="2" placeholder="Ej: Tomar con comida, evitar en ayunas..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btnGuardarHorarios" onclick="guardarConfiguracionHorarios()">
+            <i class="bi bi-save"></i> Guardar Horarios
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Script propio -->
   <script src="scriptpaciente.js"></script>
+
   
   <!-- Scripts adicionales para cargar historiales -->
   <script>
