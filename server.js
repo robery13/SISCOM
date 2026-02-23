@@ -206,6 +206,70 @@ app.post('/logout', (req, res) => {
   res.json({ ok: true, mensaje: 'Sesión cerrada correctamente' });
 });
 
+// ============================================
+// MIDDLEWARE DE VERIFICACIÓN DE ROLES
+// ============================================
+
+/**
+ * Middleware para verificar si el usuario tiene un rol permitido
+ * @param {string[]} rolesPermitidos - Array de roles permitidos
+ */
+function verificarRol(rolesPermitidos) {
+  return (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ ok: false, mensaje: 'Token no proporcionado' });
+    }
+
+    const session = authTokens[token];
+    
+    if (!session) {
+      return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
+    }
+
+    if (Date.now() > session.expires) {
+      delete authTokens[token];
+      return res.status(401).json({ ok: false, mensaje: 'Sesión expirada' });
+    }
+
+    // Obtener el usuario de la base de datos para verificar su rol actual
+    const sql = 'SELECT rol FROM usuarios WHERE id = ?';
+    db.query(sql, [session.userId], (err, results) => {
+      if (err) {
+        console.error('Error al verificar rol:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al verificar permisos' });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
+      }
+
+      const userRol = results[0].rol;
+
+      if (!rolesPermitidos.includes(userRol)) {
+        return res.status(403).json({ 
+          ok: false, 
+          mensaje: 'Acceso denegado. No tienes permisos para realizar esta acción.',
+          rolRequerido: rolesPermitidos,
+          rolActual: userRol
+        });
+      }
+
+      // Guardar información del usuario en la request para uso posterior
+      req.user = {
+        id: session.userId,
+        email: session.email,
+        rol: userRol
+      };
+
+      next();
+    });
+  };
+}
+
+
 
 
 
@@ -256,8 +320,9 @@ app.post("/registrar", (req, res) => {
 
 
 
-// Registro de usuario con rol
-app.post("/registraradm", (req, res) => {
+// Registro de usuario con rol - Solo administrador
+app.post("/registraradm", verificarRol(['administrador']), (req, res) => {
+
   const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
 
   // Validación básica
@@ -546,17 +611,18 @@ app.delete('/eliminarCita/:id', (req, res) => {
   });
 });
 
-app.delete('/eliminarTodasCitas', (req, res) => {
+// Eliminar todas las citas - Solo administrador
+app.delete('/eliminarTodasCitas', verificarRol(['administrador']), (req, res) => {
   const sql = 'DELETE FROM citas';
   
   db.query(sql, (err, result) => {
     if (err) {
-     // console.error('Error al eliminar todas las citas:', err);
       return res.status(500).json({ mensaje: 'Error al eliminar las citas.' });
     }
     res.status(200).json({ mensaje: 'Todas las citas eliminadas correctamente.' });
   });
 });
+
 
 // ============================================
 // RUTAS DE CHECKLIST
@@ -815,17 +881,18 @@ app.delete('/eliminarPedido/:id', (req, res) => {
   });
 });
 
-app.delete('/eliminarTodosPedidos', (req, res) => {
+// Eliminar todos los pedidos - Solo administrador
+app.delete('/eliminarTodosPedidos', verificarRol(['administrador']), (req, res) => {
   const sql = 'DELETE FROM pedidos_farmacia';
   
   db.query(sql, (err, result) => {
     if (err) {
-     // console.error('Error al eliminar todos los pedidos:', err);
       return res.status(500).json({ mensaje: 'Error al eliminar los pedidos' });
     }
     res.json({ mensaje: 'Todos los pedidos eliminados correctamente' });
   });
 });
+
 
 // ============================================
 // RUTAS DE RECETAS MÉDICAS
@@ -875,10 +942,11 @@ app.delete('/recetas/:id', (req, res) => {
 });
 
 // ============================================
-// RUTAS DE USUARIOS
+// RUTAS DE USUARIOS (PROTEGIDAS - SOLO ADMINISTRADOR)
 // ============================================
 
-app.get('/usuarios', (req, res) => {
+// Obtener todos los usuarios - Solo administrador
+app.get('/usuarios', verificarRol(['administrador']), (req, res) => {
   const sql = 'SELECT * FROM usuarios';
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar usuarios' });
@@ -886,9 +954,12 @@ app.get('/usuarios', (req, res) => {
   });
 });
 
-app.put('/usuarios/:id', (req, res) => {
+
+// Actualizar usuario - Solo administrador
+app.put('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
   const { id } = req.params;
   const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
+
 
   // Validación básica
   if (!nombres || !apellidos || !identidad || !telefono || !email || !password || !rol) {
@@ -943,14 +1014,22 @@ app.put('/usuarios/:id', (req, res) => {
   });
 });
 
-app.delete('/usuarios/:id', (req, res) => {
+// Eliminar usuario - Solo administrador
+app.delete('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
   const { id } = req.params;
+  
+  // Evitar que un administrador se elimine a sí mismo
+  if (parseInt(id) === req.user.id) {
+    return res.status(400).json({ mensaje: 'No puedes eliminar tu propio usuario' });
+  }
+  
   const sql = 'DELETE FROM usuarios WHERE id = ?';
   db.query(sql, [id], (err, result) => {
     if (err) return res.status(500).json({ mensaje: 'Error al eliminar usuario' });
     res.json({ mensaje: 'Usuario eliminado' });
   });
 });
+
 
 // ============================================
 // RUTAS DE TOMAS MEDICAS

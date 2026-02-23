@@ -707,8 +707,73 @@
   <!-- Script propio -->
   <script src="scriptpaciente.js"></script>
 
-  
+  <!-- Script para preservar sección y scroll -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const navBtns = document.querySelectorAll('.nav-btn');
+      const sections = document.querySelectorAll('.section');
+      const mainContent = document.querySelector('.main');
+
+      // Función para guardar sección activa en localStorage
+      function guardarSeccionActiva(sectionId) {
+        localStorage.setItem('mainPaciente_section', sectionId);
+      }
+
+      // Función para restaurar sección desde localStorage
+      function restaurarSeccion() {
+        const savedSection = localStorage.getItem('mainPaciente_section');
+        if (savedSection) {
+          const targetBtn = document.querySelector(`[data-section="${savedSection}"]`);
+          const targetSection = document.getElementById(savedSection);
+          
+          if (targetBtn && targetSection) {
+            // Ocultar todas las secciones
+            sections.forEach(sec => sec.classList.add('d-none'));
+            navBtns.forEach(b => b.classList.remove('active'));
+            
+            // Mostrar sección guardada
+            targetSection.classList.remove('d-none');
+            targetBtn.classList.add('active');
+            return true;
+          }
+        }
+        return false;
+      }
+
+      // Restaurar sección guardada al cargar
+      restaurarSeccion();
+
+      // Agregar event listeners a los botones de navegación para guardar sección
+      navBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sectionId = btn.getAttribute('data-section');
+          if (sectionId) {
+            guardarSeccionActiva(sectionId);
+          }
+        });
+      });
+
+      // Restaurar posición de scroll después de que el contenido se haya cargado
+      const savedScroll = localStorage.getItem('mainPaciente_scroll');
+      if (savedScroll && mainContent) {
+        // Usar setTimeout para esperar a que el contenido se renderice
+        setTimeout(() => {
+          mainContent.scrollTop = parseInt(savedScroll);
+        }, 100);
+      }
+
+      
+      // Guardar posición de scroll antes de salir
+      window.addEventListener('beforeunload', () => {
+        if (mainContent) {
+          localStorage.setItem('mainPaciente_scroll', mainContent.scrollTop);
+        }
+      });
+    });
+  </script>
+
   <!-- Scripts adicionales para cargar historiales -->
+
   <script>
     // Cargar historial al entrar a la sección de recetas
     document.querySelector('.nav-btn[data-section="recetas"]')?.addEventListener('click', () => {

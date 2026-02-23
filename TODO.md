@@ -1,38 +1,49 @@
-# TODO: Implementación de Horarios Personalizados de Medicamentos
+No Historia	HU-40	Nombre de historia	Validación de roles de usuario
 
-## Fase 1: Esquema de Base de Datos ✅
-- [x] Crear tabla `horarios_medicamentos` para almacenar horarios específicos
-- [x] Crear tabla `configuracion_horarios` para preferencias del paciente
+Como sistema, quiero validar el rol del usuario para mostrar únicamente las funciones permitidas según su perfil.
+Tareas:
+✓ Restringir accesos por rol
+✓ Mostrar menús dinámicos
+✓ Validar permisos en backend
+
+********************************************************************************************
+
+# TODO - Validación de Roles en Admin_Backend
+
+## Tareas Completadas ✅
+
+### 1. Admin_Backend.html - Validación de Acceso Frontend ✅
+- [x] Agregar script de validación de rol al inicio del body
+- [x] Redireccionar a login si el rol no es 'administrador' o 'empleado'
+- [x] Mostrar mensaje de "Acceso Denegado" antes de redireccionar
+
+### 2. Admin_Backend.html - Menús Dinámicos por Rol ✅
+- [x] Agregar atributos data-role a botones del menú
+- [x] Crear función JavaScript para filtrar menús según rol
+- [x] Ocultar "Gestión de Usuarios" para rol 'empleado'
+- [x] Mostrar todos los menús para rol 'administrador'
+
+## Tareas Pendientes ⏳
+
+### 3. server.js - Validación de Permisos en Backend ⏳
+- [ ] Crear middleware verificarRol()
+- [ ] Proteger endpoints de gestión de usuarios (solo administrador)
+- [ ] Proteger endpoints de eliminación masiva (solo administrador)
+- [ ] Agregar verificación de token a todas las rutas sensibles
+
+### 4. Testing y Verificación ⏳
+- [ ] Probar acceso con rol 'administrador' - debe funcionar todo
+- [ ] Probar acceso con rol 'empleado' - debe ocultar Gestión de Usuarios
+- [ ] Probar acceso con rol 'usuario'/'paciente' - debe redireccionar
+- [ ] Verificar que backend rechace peticiones sin permisos
+
+## Roles del Sistema:
+- **administrador**: Acceso total a todas las funciones
+- **empleado**: Acceso limitado (sin Gestión de Usuarios)
+- **usuario/paciente**: Sin acceso al panel de administración
 
 
-## Fase 2: API Backend (server.js) ✅
-- [x] Agregar endpoint GET `/horarios/:id_receta`
-- [x] Agregar endpoint POST `/horarios`
-- [x] Agregar endpoint PUT `/horarios/:id`
-- [x] Agregar endpoint DELETE `/horarios/:id`
-- [x] Agregar endpoint POST `/validar-conflictos`
-- [x] Agregar endpoint GET `/horarios-usuario/:id_usuario`
-
-
-## Fase 3: Frontend UI (main_paciente.html) ✅
-- [x] Agregar sección "Configuración de Horarios" en navegación
-- [x] Crear modal para configurar horarios de medicamentos
-- [x] Agregar selector de múltiples horarios con time picker
-- [x] Agregar indicadores visuales de conflictos
-- [x] Agregar botones de Guardar/Cancelar
-
-
-## Fase 4: Lógica JavaScript (scriptpaciente.js) ✅
-- [x] Crear función `configurarHorariosMedicamento()`
-- [x] Crear función `validarConflictosHorarios()`
-- [x] Crear función `guardarConfiguracionHorarios()`
-- [x] Crear función `cargarHorariosMedicamento()`
-- [x] Modificar `configurarNotificacionMedicamento()` para usar horarios personalizados
-- [x] Agregar indicadores visuales en lista de medicamentos
-
-
-## Fase 5: Integración y Pruebas
-- [ ] Integrar con lista de medicamentos existente
-- [ ] Probar sistema de notificaciones actualizado
-- [ ] Validar detección de conflictos
-- [ ] Verificar guardado en base de datos
+## Roles del Sistema:
+- **administrador**: Acceso total a todas las funciones
+- **empleado**: Acceso limitado (sin Gestión de Usuarios)
+- **usuario/paciente**: Sin acceso al panel de administración

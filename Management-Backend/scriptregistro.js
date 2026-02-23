@@ -1334,14 +1334,56 @@ function mostrarAlertasStock(alertas) {
   }
 
   async function cargarUsuarios() {
+    const tablaUsuarios = document.querySelector('#tablaUsuarios tbody');
+    const noUsuarios = document.getElementById('noUsuarios');
+    
+    // Mostrar indicador de carga
+    if (tablaUsuarios) {
+      tablaUsuarios.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2 text-muted">Cargando usuarios...</p></td></tr>';
+    }
+    if (noUsuarios) {
+      noUsuarios.classList.add('d-none');
+    }
+
     try {
-      const respuesta = await fetch('http://localhost:3000/usuarios');
+      // Obtener token de autenticación del localStorage
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      let headers = {};
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const respuesta = await fetch('http://localhost:3000/usuarios', {
+        headers: headers
+      });
+
+      
+      if (!respuesta.ok) {
+        if (respuesta.status === 401) {
+          throw new Error('No autorizado. Por favor inicie sesión nuevamente.');
+        } else if (respuesta.status === 403) {
+          throw new Error('Acceso denegado. No tiene permisos para ver usuarios.');
+        } else {
+          throw new Error(`Error del servidor: ${respuesta.status}`);
+        }
+      }
+      
       const data = await respuesta.json();
       renderUsuarios(data);
     } catch (err) {
       console.error('Error al cargar usuarios:', err);
+      if (tablaUsuarios) {
+        const mensajeError = err.message.includes('No autorizado') || err.message.includes('Acceso denegado') 
+          ? err.message 
+          : 'Error al cargar usuarios. Verifique la conexión con el servidor.';
+        
+        tablaUsuarios.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle-fill display-4 mb-3"></i><p>${mensajeError}</p><button class="btn btn-outline-primary btn-sm" onclick="cargarUsuarios()">Reintentar</button></td></tr>`;
+      }
     }
   }
+
+
 
   function renderUsuarios(usuarios) {
     const tablaUsuarios = document.querySelector('#tablaUsuarios tbody');
@@ -1397,7 +1439,22 @@ function mostrarAlertasStock(alertas) {
 
   window.editarUsuario = async function(id) {
     try {
-      const respuesta = await fetch('http://localhost:3000/usuarios');
+      // Obtener token de autenticación
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      let headers = {};
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const respuesta = await fetch('http://localhost:3000/usuarios', {
+        headers: headers
+      });
+      
+      if (!respuesta.ok) {
+        throw new Error(`Error ${respuesta.status}: No se pudieron cargar los usuarios`);
+      }
+      
       const usuarios = await respuesta.json();
       const user = usuarios.find(u => u.id === id);
 
@@ -1414,15 +1471,26 @@ function mostrarAlertasStock(alertas) {
       }
     } catch (error) {
       console.error('Error al cargar usuario para editar:', error);
+      alert('Error al cargar datos del usuario: ' + error.message);
     }
   };
+
 
   window.eliminarUsuario = async function(id) {
     if (!confirm('¿Está seguro de que desea eliminar este usuario?')) return;
 
     try {
+      // Obtener token de autenticación
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      let headers = {};
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const resp = await fetch(`http://localhost:3000/usuarios/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: headers
       });
 
       const resultado = await resp.json();
@@ -1430,13 +1498,14 @@ function mostrarAlertasStock(alertas) {
         alert(resultado.mensaje || 'Usuario eliminado correctamente.');
         cargarUsuarios();
       } else {
-        alert('Error: ' + resultado.mensaje);
+        alert('Error: ' + (resultado.mensaje || `Error ${resp.status}`));
       }
     } catch (error) {
       console.error('Error al eliminar usuario:', error);
       alert('No se pudo conectar con el servidor.');
     }
   };
+
 
   function limpiarFormUsuario() {
     document.getElementById('nombresUsuario').value = '';
@@ -1450,7 +1519,21 @@ function mostrarAlertasStock(alertas) {
 
   // Cargar usuarios al iniciar
   cargarUsuarios();
+
+  // Recargar usuarios cuando se navega a la sección de usuarios
+  document.addEventListener('DOMContentLoaded', () => {
+    const btnUsuarios = document.querySelector('[data-section="usuarios"]');
+    if (btnUsuarios) {
+      btnUsuarios.addEventListener('click', () => {
+        // Pequeño delay para esperar que la sección se muestre
+        setTimeout(() => {
+          cargarUsuarios();
+        }, 100);
+      });
+    }
+  });
 })();
+
 
 // ===============================
 // TOASTS PARA NOTIFICACIONES

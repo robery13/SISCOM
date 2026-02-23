@@ -15,7 +15,60 @@
 
 </head>
 <body>
+  <!-- VALIDACIÓN DE ROL - Solo administrador y empleado pueden acceder -->
+  <script>
+    (function() {
+      const usuarioData = localStorage.getItem('usuario');
+      let rol = '';
+      
+      if (usuarioData) {
+        try {
+          const usuario = JSON.parse(usuarioData);
+          rol = usuario.rol || '';
+        } catch (e) {
+          console.error('Error al parsear datos del usuario:', e);
+        }
+      }
+      
+      // Roles permitidos para acceder a Admin_Backend
+      const rolesPermitidos = ['administrador', 'empleado'];
+      
+      if (!rolesPermitidos.includes(rol)) {
+        // Mostrar mensaje de acceso denegado
+        document.body.innerHTML = `
+          <div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8f9fa; font-family: Arial, sans-serif;">
+            <div style="text-align: center; padding: 40px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px;">
+              <i class="bi bi-shield-exclamation" style="font-size: 64px; color: #dc3545;"></i>
+              <h1 style="color: #dc3545; margin: 20px 0;">Acceso Denegado</h1>
+              <p style="color: #6c757d; font-size: 16px; margin-bottom: 20px;">
+                No tienes permisos para acceder al panel de administración.
+              </p>
+              <p style="color: #6c757d; font-size: 14px; margin-bottom: 30px;">
+                Tu rol actual: <strong>${rol || 'Sin rol'}</strong><br>
+                Roles requeridos: Administrador o Empleado
+              </p>
+              <button onclick="window.location.href='../index.html'" style="padding: 12px 30px; background: #0d6efd; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                Volver al Inicio
+              </button>
+            </div>
+          </div>
+        `;
+        
+        // Redireccionar después de 5 segundos
+        setTimeout(() => {
+          window.location.href = '../index.html';
+        }, 5000);
+        
+        return false;
+      }
+      
+      // Guardar el rol en una variable global para usar en menús dinámicos
+      window.userRole = rol;
+    })();
+  </script>
+
   <div class="app">
+
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
@@ -26,16 +79,17 @@
         <div class="user-role" id="userRole"></div>
       </div>
 
-      <nav class="nav-menu">
+      <nav class="nav-menu" id="navMenu">
         
-        <button class="nav-btn active" data-section="medicamentos"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
-        <button class="nav-btn" data-section="recetas"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
-        <button class="nav-btn" data-section="Ficha"><i class="bi bi-file-person"></i> <span>Ficha</span></button>
-        <button class="nav-btn" data-section="inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
-        <button class="nav-btn" data-section="pedidos"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
-        <button class="nav-btn" data-section="usuarios"><i class="bi bi-people"></i> <span>Gestión de Usuarios</span></button>
-        <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
+        <button class="nav-btn active" data-section="medicamentos" data-role="administrador,empleado"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
+        <button class="nav-btn" data-section="recetas" data-role="administrador,empleado"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
+        <button class="nav-btn" data-section="Ficha" data-role="administrador,empleado"><i class="bi bi-file-person"></i> <span>Ficha</span></button>
+        <button class="nav-btn" data-section="inventario" data-role="administrador,empleado"><i class="bi bi-box"></i> <span>Inventario</span></button>
+        <button class="nav-btn" data-section="pedidos" data-role="administrador,empleado"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
+        <button class="nav-btn" data-section="usuarios" data-role="administrador"><i class="bi bi-people"></i> <span>Gestión de Usuarios</span></button>
+        <button class="nav-btn" id="cerrarSesionBtn" data-role="administrador,empleado"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
       </nav>
+
     </aside>
 
     <!-- CONTENIDO PRINCIPAL -->
@@ -595,36 +649,206 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
   
-  <!-- Script para navegación -->
+  <!-- Script para navegación y menús dinámicos por rol -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const navBtns = document.querySelectorAll('.nav-btn');
       const sections = document.querySelectorAll('.section');
+      const userRole = window.userRole || '';
+
+      // Filtrar menús según el rol del usuario
+      function filtrarMenusPorRol() {
+        navBtns.forEach(btn => {
+          const allowedRoles = btn.getAttribute('data-role');
+          if (allowedRoles) {
+            const roles = allowedRoles.split(',');
+            if (!roles.includes(userRole)) {
+              btn.style.display = 'none';
+            } else {
+              btn.style.display = '';
+            }
+          }
+        });
+      }
+
+      // Ejecutar filtrado de menús
+      filtrarMenusPorRol();
+
+      // Función para guardar sección activa en localStorage
+
+      function guardarSeccionActiva(sectionId) {
+        localStorage.setItem('adminBackend_section', sectionId);
+      }
+
+      // Función para restaurar sección desde localStorage
+      function restaurarSeccion() {
+        const savedSection = localStorage.getItem('adminBackend_section');
+        if (savedSection) {
+          const targetBtn = document.querySelector(`[data-section="${savedSection}"]`);
+          const targetSection = document.getElementById(savedSection);
+          
+          if (targetBtn && targetSection) {
+            // Verificar si el botón está visible (por permisos de rol)
+            if (targetBtn.style.display !== 'none') {
+              // Ocultar todas las secciones
+              sections.forEach(sec => sec.classList.add('d-none'));
+              navBtns.forEach(b => b.classList.remove('active'));
+              
+              // Mostrar sección guardada
+              targetSection.classList.remove('d-none');
+              targetBtn.classList.add('active');
+              
+              // Disparar evento personalizado para que otros scripts sepan que la sección cambió
+              const event = new CustomEvent('sectionRestored', { detail: { sectionId: savedSection } });
+              document.dispatchEvent(event);
+              
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
+
+      // Restaurar sección guardada al cargar (antes de la verificación de empleado)
+      const seccionRestaurada = restaurarSeccion();
+
+      // Si el usuario es empleado y la sección activa es "usuarios", redirigir a medicamentos
+      // Solo si no se restauró una sección válida previamente
+      if (userRole === 'empleado' && !seccionRestaurada) {
+        const usuariosSection = document.getElementById('usuarios');
+        const medicamentosSection = document.getElementById('medicamentos');
+        if (usuariosSection && !usuariosSection.classList.contains('d-none')) {
+          usuariosSection.classList.add('d-none');
+          if (medicamentosSection) {
+            medicamentosSection.classList.remove('d-none');
+            // Actualizar botón activo
+            navBtns.forEach(b => b.classList.remove('active'));
+            const medBtn = document.querySelector('[data-section="medicamentos"]');
+            if (medBtn) medBtn.classList.add('active');
+          }
+        }
+      }
 
       navBtns.forEach(btn => {
+
         btn.addEventListener('click', () => {
           const sectionId = btn.getAttribute('data-section');
 
           // Ocultar todas las secciones
           sections.forEach(sec => sec.classList.add('d-none'));
 
-          // Remover clase active de todos los botonesvt
+          // Remover clase active de todos los botones
           navBtns.forEach(b => b.classList.remove('active'));
 
-          // Mostrar sección seleccionada y activar botónes
+          // Mostrar sección seleccionada y activar botón
           const targetSection = document.getElementById(sectionId);
           if (targetSection) {
             targetSection.classList.remove('d-none');
             btn.classList.add('active');
+            // Guardar sección en localStorage
+            guardarSeccionActiva(sectionId);
           }
         });
       });
     });
   </script>
 
+
+
+  <!-- Script para recargar datos después de restaurar sección -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Escuchar el evento de sección restaurada para recargar datos
+      document.addEventListener('sectionRestored', (e) => {
+        const sectionId = e.detail.sectionId;
+        console.log('Sección restaurada:', sectionId);
+        
+        // Recargar datos según la sección con múltiples intentos
+        setTimeout(() => {
+          // Intentar llamar funciones de carga específicas si existen
+          const funcionesCarga = {
+            'medicamentos': 'cargarMedicamentos',
+            'recetas': 'cargarCitas',
+            'inventario': 'cargarInventario',
+            'pedidos': 'cargarPedidos',
+            'usuarios': 'cargarUsuarios',
+            'Ficha': 'cargarFicha'
+          };
+          
+          const funcionNombre = funcionesCarga[sectionId];
+          if (funcionNombre && typeof window[funcionNombre] === 'function') {
+            console.log('Llamando función de carga:', funcionNombre);
+            window[funcionNombre]();
+          } else {
+            // Si no hay función específica, intentar cargar todas
+            console.log('Intentando cargar todas las funciones disponibles');
+            Object.values(funcionesCarga).forEach(fn => {
+              if (typeof window[fn] === 'function') {
+                try {
+                  window[fn]();
+                } catch (err) {
+                  console.log('Error al llamar', fn, err);
+                }
+              }
+            });
+          }
+          
+          // Forzar actualización de la UI con múltiples métodos
+          const seccionActiva = document.getElementById(sectionId);
+          if (seccionActiva) {
+            // Forzar reflow del navegador
+            seccionActiva.style.display = 'none';
+            void seccionActiva.offsetHeight;
+            seccionActiva.style.display = '';
+            
+            // Disparar evento de resize para forzar recálculo de layouts
+            window.dispatchEvent(new Event('resize'));
+            
+            // Forzar actualización de tablas si existen
+            const tablas = seccionActiva.querySelectorAll('table');
+            tablas.forEach(tabla => {
+              // Trigger update en DataTables si está disponible
+              if (typeof $ !== 'undefined' && $(tabla).DataTable) {
+                $(tabla).DataTable().columns.adjust();
+              }
+            });
+          }
+        }, 150);
+      });
+    });
+  </script>
+
+
+  <!-- Script para preservar posición de scroll -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const mainContent = document.querySelector('.main');
+      
+      // Restaurar posición de scroll después de que el contenido se haya cargado
+      const savedScroll = localStorage.getItem('adminBackend_scroll');
+      if (savedScroll && mainContent) {
+        // Usar setTimeout para esperar a que el contenido se renderice completamente
+        setTimeout(() => {
+          mainContent.scrollTop = parseInt(savedScroll);
+        }, 300);
+      }
+      
+      // Guardar posición de scroll antes de salir
+      window.addEventListener('beforeunload', () => {
+        if (mainContent) {
+          localStorage.setItem('adminBackend_scroll', mainContent.scrollTop);
+        }
+      });
+    });
+  </script>
+
+
+
   <!-- Script para mostrar información del usuario -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+
       const userNameElement = document.getElementById('userName');
       const userRoleElement = document.getElementById('userRole');
 
