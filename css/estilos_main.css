@@ -486,3 +486,82 @@
     transform: translateX(100%);
   }
 }
+
+/* ======== REQUISITOS DE CONTRASEÑA ======== */
+.password-requisitos {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px 15px;
+  margin-bottom: 15px;
+  font-size: 0.85em;
+}
+
+.requisitos-titulo {
+  margin: 0 0 8px 0;
+  color: #495057;
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+.requisitos-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.requisito-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+  color: #dc3545;
+  transition: color 0.3s ease;
+}
+
+.requisito-item:last-child {
+  margin-bottom: 0;
+}
+
+.requisito-item.cumplido {
+  color: #28a745;
+}
+
+.requisito-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  font-size: 0.9em;
+  font-weight: bold;
+}
+
+.requisito-texto {
+  flex: 1;
+}
+
+/* ======== MENSAJE DE COINCIDENCIA DE CONTRASEÑAS ======== */
+.password-match-message {
+  margin-bottom: 15px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-weight: 500;
+  text-align: center;
+  display: none;
+}
+
+.password-match-message.coincide {
+  display: block;
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.password-match-message.no-coincide {
+  display: block;
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}

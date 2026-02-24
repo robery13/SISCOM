@@ -3,8 +3,10 @@ require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
@@ -87,7 +89,8 @@ app.post('/login', (req, res) => {
   // Consulta SQL para buscar el usuario por email
   const sql = 'SELECT * FROM usuarios WHERE email = ?';
 
-  db.query(sql, [email], (err, results) => {
+  db.query(sql, [email], async (err, results) => {
+
     if (err) {
       return res.status(500).json({ mensaje: 'Error interno del servidor' });
     }
@@ -99,10 +102,12 @@ app.post('/login', (req, res) => {
 
     const usuario = results[0];
 
-    // Comparar contraseñas (por ahora sin hash)
-    if (password !== usuario.password) {
+    // Comparar contraseñas usando bcrypt
+    const passwordValida = await bcrypt.compare(password, usuario.password);
+    if (!passwordValida) {
       return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos' });
     }
+
 
     // Generar token de autenticación
     const token = crypto.randomBytes(32).toString('hex');
@@ -279,7 +284,8 @@ app.post("/registrar", (req, res) => {
 
   // Verificar si el correo o identidad ya existen
   const verificarSql = "SELECT * FROM usuarios WHERE email = ? OR identidad = ?";
-  db.query(verificarSql, [email, identidad], (err, resultados) => {
+  db.query(verificarSql, [email, identidad], async (err, resultados) => {
+
     if (err) {
       //console.error("Error al verificar duplicados:", err);
       return res.json({ ok: false, mensaje: "Error al verificar datos" });
@@ -299,13 +305,17 @@ app.post("/registrar", (req, res) => {
       }
     }
 
-    // Si no hay duplicados, insertar el nuevo usuario
+    // Si no hay duplicados, hashear la contraseña e insertar el nuevo usuario
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    
     const sql = `
       INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
 
-    db.query(sql, [nombres, apellidos, identidad, telefono, email, password], (err, result) => {
+    db.query(sql, [nombres, apellidos, identidad, telefono, email, hashedPassword], (err, result) => {
+
       if (err) {
         //console.error("Error al registrar usuario:", err); 
         return res.json({ ok: false, mensaje: "Error al registrar usuario" });
@@ -321,7 +331,7 @@ app.post("/registrar", (req, res) => {
 
 
 // Registro de usuario con rol - Solo administrador
-app.post("/registraradm", verificarRol(['administrador']), (req, res) => {
+app.post("/registraradm", verificarRol(['administrador']), async (req, res) => {
 
   const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
 
@@ -330,13 +340,19 @@ app.post("/registraradm", verificarRol(['administrador']), (req, res) => {
     return res.status(400).json({ error: "Todos los campos son obligatorios." });
   }
 
+  // Hashear la contraseña antes de insertar
+  const saltRounds = 10;
+  const hashedPassword = await bcrypt.hash(password, saltRounds);
+
   // SQL para insertar el usuario
   const sql = `
     INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password, rol)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
 
-db.query(sql, [nombres, apellidos, identidad, telefono, email, password, rol], (err, result) => {
+db.query(sql, [nombres, apellidos, identidad, telefono, email, hashedPassword, rol], (err, result) => {
+
+
   if (err) {
     //console.error("Error SQL completo:", err); // <-- imprime todo
     return res.status(500).json({ error: "Error al registrar usuario en la base de datos.", detalle: err.message });
@@ -356,19 +372,22 @@ db.query(sql, [nombres, apellidos, identidad, telefono, email, password, rol], (
 
 //  RUTA 2: GUARDAR EN Registro_medicamentos
 app.post('/Registro_medicamentos', (req, res) => {
-  const { nombre, dosis, frecuencia_horas, hora } = req.body;
+  const { nombre, dosis, frecuencia_horas, hora, paciente_id, estado, fecha_inicio, fecha_fin, notas } = req.body;
 
-  if (!nombre || !dosis || !frecuencia_horas || !hora) {
-    return res.status(400).json({ mensaje: ' Campos incompletos' });
+  if (!nombre || !dosis || !frecuencia_horas || !hora || !paciente_id) {
+    return res.status(400).json({ mensaje: 'Campos incompletos. Se requiere nombre, dosis, frecuencia, hora y paciente' });
   }
 
-  const sql = 'INSERT INTO Registro_medicamentos (nombre, dosis, frecuencia_horas, hora) VALUES (?, ?, ?, ?)';
-  db.query(sql, [nombre, dosis, frecuencia_horas, hora], (err, result) => {
+  const sql = `INSERT INTO Registro_medicamentos 
+    (nombre, dosis, frecuencia_horas, hora, paciente_id, estado, fecha_inicio, fecha_fin, notas) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  
+  db.query(sql, [nombre, dosis, frecuencia_horas, hora, paciente_id, estado || 'activo', fecha_inicio || null, fecha_fin || null, notas || null], (err, result) => {
     if (err) {
-      //console.error(' Error al guardar en Registro_medicamentos:', err);
-      return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
+      console.error('Error al guardar en Registro_medicamentos:', err);
+      return res.status(500).json({ mensaje: 'Error al guardar en la base de datos', error: err.message });
     }
-    res.json({ mensaje: ' Medicamento registrado correctamente en Registro_medicamentos' });
+    res.json({ mensaje: 'Medicamento registrado correctamente', id: result.insertId });
   });
 });
 
@@ -380,6 +399,54 @@ app.get('/Registro_medicamentos', (req, res) => {
     res.json(results);
   });
 });
+
+// Actualizar medicamento
+app.put('/Registro_medicamentos/:id', (req, res) => {
+  const { id } = req.params;
+  const { nombre, dosis, frecuencia_horas, hora, paciente_id, estado, fecha_inicio, fecha_fin, notas } = req.body;
+
+  if (!nombre || !dosis || !frecuencia_horas || !hora || !paciente_id) {
+    return res.status(400).json({ mensaje: 'Campos incompletos. Se requiere nombre, dosis, frecuencia, hora y paciente' });
+  }
+
+  const sql = `UPDATE Registro_medicamentos 
+    SET nombre = ?, dosis = ?, frecuencia_horas = ?, hora = ?, paciente_id = ?, estado = ?, fecha_inicio = ?, fecha_fin = ?, notas = ? 
+    WHERE id = ?`;
+  
+  db.query(sql, [nombre, dosis, frecuencia_horas, hora, paciente_id, estado || 'activo', fecha_inicio || null, fecha_fin || null, notas || null, id], (err, result) => {
+    if (err) {
+      console.error('Error al actualizar medicamento:', err);
+      return res.status(500).json({ mensaje: 'Error al actualizar en la base de datos', error: err.message });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
+    }
+    
+    res.json({ mensaje: 'Medicamento actualizado correctamente' });
+  });
+});
+
+// Eliminar medicamento
+app.delete('/Registro_medicamentos/:id', (req, res) => {
+  const { id } = req.params;
+
+  const sql = 'DELETE FROM Registro_medicamentos WHERE id = ?';
+  
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar medicamento:', err);
+      return res.status(500).json({ mensaje: 'Error al eliminar de la base de datos', error: err.message });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
+    }
+    
+    res.json({ mensaje: 'Medicamento eliminado correctamente' });
+  });
+});
+
 
 
 //  RUTA 3: GUARDAR EN inventario
@@ -509,13 +576,18 @@ app.post("/verificar-token", (req, res) => {
 });
 
 // 3️⃣ Actualizar contraseña
-app.post("/actualizar-password", (req, res) => {
+app.post("/actualizar-password", async (req, res) => {
   const { correo, nuevaPassword } = req.body;
   if (!correo || !nuevaPassword)
     return res.json({ ok: false, message: "Datos incompletos" });
 
+  // Hashear la nueva contraseña
+  const saltRounds = 10;
+  const hashedPassword = await bcrypt.hash(nuevaPassword, saltRounds);
+
   const sql = "UPDATE usuarios SET password = ? WHERE email = ?";
-  db.query(sql, [nuevaPassword, correo], (err, result) => {
+  db.query(sql, [hashedPassword, correo], (err, result) => {
+
     if (err) return res.json({ ok: false, message: "Error al actualizar" });
     delete tokens[correo]; // limpiar token
     res.json({ ok: true, message: "Contraseña actualizada correctamente" });
@@ -569,22 +641,121 @@ app.post('/guardarFichaMedica', (req, res) => {
 // ============================================
 
 app.post('/guardarCita', (req, res) => {
-  const { id_paciente, fecha_hora, motivo, anticipacion_min } = req.body;
+  const { 
+    id_paciente, 
+    fecha_hora, 
+    motivo, 
+    anticipacion_min,
+    doctor,
+    especialidad,
+    ubicacion,
+    estado,
+    notas
+  } = req.body;
 
   if (!id_paciente || !fecha_hora || !motivo) {
-    return res.status(400).json({ mensaje: 'Campos incompletos.' });
+    return res.status(400).json({ mensaje: 'Campos incompletos. Se requiere paciente, fecha/hora y motivo.' });
   }
 
-  const sql = `INSERT INTO citas (id_paciente, fecha_hora, motivo, anticipacion_min) VALUES (?, ?, ?, ?)`;
+  const sql = `INSERT INTO citas (
+    id_paciente, 
+    fecha_hora, 
+    motivo, 
+    anticipacion_min,
+    doctor,
+    especialidad,
+    ubicacion,
+    estado,
+    notas
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-  db.query(sql, [id_paciente, fecha_hora, motivo, anticipacion_min], (err, result) => {
+  db.query(sql, [
+    id_paciente, 
+    fecha_hora, 
+    motivo, 
+    anticipacion_min || 60,
+    doctor || null,
+    especialidad || null,
+    ubicacion || null,
+    estado || 'programada',
+    notas || null
+  ], (err, result) => {
     if (err) {
-     // console.error('Error al guardar cita:', err);
-      return res.status(500).json({ mensaje: 'Error al guardar la cita en la base de datos.' });
+      console.error('=== ERROR AL GUARDAR CITA ===');
+      console.error('Error SQL:', err);
+      console.error('Código de error:', err.code);
+      console.error('Mensaje de error:', err.message);
+      console.error('SQL State:', err.sqlState);
+      console.error('Datos recibidos:', { id_paciente, fecha_hora, motivo, anticipacion_min, doctor, especialidad, ubicacion, estado, notas });
+      console.error('=============================');
+      return res.status(500).json({ 
+        mensaje: 'Error al guardar la cita en la base de datos.', 
+        error: err.message,
+        code: err.code,
+        sqlState: err.sqlState
+      });
     }
-    res.status(200).json({ mensaje: 'Cita registrada correctamente.' });
+    res.status(200).json({ mensaje: 'Cita registrada correctamente.', id: result.insertId });
+  });
+
+});
+
+// Actualizar cita existente
+app.put('/actualizarCita/:id', (req, res) => {
+  const { id } = req.params;
+  const { 
+    id_paciente, 
+    fecha_hora, 
+    motivo, 
+    anticipacion_min,
+    doctor,
+    especialidad,
+    ubicacion,
+    estado,
+    notas
+  } = req.body;
+
+  if (!id_paciente || !fecha_hora || !motivo) {
+    return res.status(400).json({ mensaje: 'Campos incompletos. Se requiere paciente, fecha/hora y motivo.' });
+  }
+
+  const sql = `UPDATE citas SET 
+    id_paciente = ?,
+    fecha_hora = ?,
+    motivo = ?,
+    anticipacion_min = ?,
+    doctor = ?,
+    especialidad = ?,
+    ubicacion = ?,
+    estado = ?,
+    notas = ?
+  WHERE id_cita = ?`;
+
+  db.query(sql, [
+    id_paciente, 
+    fecha_hora, 
+    motivo, 
+    anticipacion_min || 60,
+    doctor || null,
+    especialidad || null,
+    ubicacion || null,
+    estado || 'programada',
+    notas || null,
+    id
+  ], (err, result) => {
+    if (err) {
+      console.error('Error al actualizar cita:', err);
+      return res.status(500).json({ mensaje: 'Error al actualizar la cita en la base de datos.', error: err.message });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Cita no encontrada.' });
+    }
+    
+    res.status(200).json({ mensaje: 'Cita actualizada correctamente.' });
   });
 });
+
 
 app.get('/obtenerCitas', (req, res) => {
   const sql = 'SELECT * FROM citas ORDER BY fecha_hora ASC';
@@ -600,16 +771,31 @@ app.get('/obtenerCitas', (req, res) => {
 
 app.delete('/eliminarCita/:id', (req, res) => {
   const { id } = req.params;
-  const sql = 'DELETE FROM citas WHERE id = ?';
+  console.log('=== DELETE /eliminarCita ===');
+  console.log('ID recibido:', id);
+  
+  const sql = 'DELETE FROM citas WHERE id_cita = ?';
+  console.log('SQL:', sql);
+  console.log('Valores:', [id]);
   
   db.query(sql, [id], (err, result) => {
     if (err) {
-      console.error('Error al eliminar cita:', err);
-      return res.status(500).json({ mensaje: 'Error al eliminar la cita.' });
+      console.error('Error SQL al eliminar cita:', err);
+      console.error('Código de error:', err.code);
+      console.error('Mensaje de error:', err.message);
+      return res.status(500).json({ 
+        mensaje: 'Error al eliminar la cita.', 
+        error: err.message,
+        code: err.code 
+      });
     }
+    console.log('Resultado de la eliminación:', result);
+    console.log('Filas afectadas:', result.affectedRows);
     res.status(200).json({ mensaje: 'Cita eliminada correctamente.' });
   });
 });
+
+
 
 // Eliminar todas las citas - Solo administrador
 app.delete('/eliminarTodasCitas', verificarRol(['administrador']), (req, res) => {
@@ -917,16 +1103,28 @@ app.post('/recetas', (req, res) => {
 
 app.get('/recetas/:id_usuario', (req, res) => {
   const { id_usuario } = req.params;
+  
+  console.log('=== GET /recetas/:id_usuario ===');
+  console.log('ID Usuario recibido:', id_usuario);
 
   const sql = 'SELECT * FROM recetas_medicas WHERE id_usuario = ? ORDER BY fecha_subida DESC';
+  console.log('SQL Query:', sql);
+  console.log('Parámetros:', [id_usuario]);
+  
   db.query(sql, [id_usuario], (err, results) => {
     if (err) {
       console.error('Error al cargar recetas:', err);
       return res.status(500).json({ mensaje: 'Error al cargar recetas' });
     }
+    
+    console.log('Resultados encontrados:', results.length);
+    console.log('Recetas:', JSON.stringify(results, null, 2));
+    console.log('================================');
+    
     res.json(results);
   });
 });
+
 
 app.delete('/recetas/:id', (req, res) => {
   const { id } = req.params;
@@ -956,7 +1154,7 @@ app.get('/usuarios', verificarRol(['administrador']), (req, res) => {
 
 
 // Actualizar usuario - Solo administrador
-app.put('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
+app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
   const { id } = req.params;
   const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
 
@@ -968,7 +1166,8 @@ app.put('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
 
   // Verificar si el correo o identidad ya existen en otro usuario
   const verificarSql = "SELECT * FROM usuarios WHERE (email = ? OR identidad = ?) AND id != ?";
-  db.query(verificarSql, [email, identidad, id], (err, resultados) => {
+  db.query(verificarSql, [email, identidad, id], async (err, resultados) => {
+
     if (err) {
       console.error('Error al verificar duplicados:', err);
       return res.status(500).json({ mensaje: 'Error al verificar datos duplicados' });
@@ -988,9 +1187,13 @@ app.put('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
       }
     }
 
-    // Si no hay duplicados, actualizar el usuario
+    // Si no hay duplicados, hashear la contraseña y actualizar el usuario
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    
     const sql = 'UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ?, email = ?, password = ?, rol = ? WHERE id = ?';
-    db.query(sql, [nombres, apellidos, identidad, telefono, email, password, rol, id], (err, result) => {
+    db.query(sql, [nombres, apellidos, identidad, telefono, email, hashedPassword, rol, id], (err, result) => {
+
       if (err) {
         console.error('Error al actualizar usuario:', err);
         // Proporcionar mensaje más específico según el tipo de error
@@ -1505,9 +1708,167 @@ app.get('/test', (req, res) => {
 });
 
 // ============================================
+// RUTA DE MIGRACIÓN - Actualizar tabla citas
+// ============================================
+app.get('/migrar-citas', (req, res) => {
+  // Primero verificar qué columnas existen
+  const checkColumnsSql = `
+    SELECT COLUMN_NAME 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'citas'
+  `;
+  
+  db.query(checkColumnsSql, (err, existingColumns) => {
+    if (err) {
+      console.error('Error al verificar columnas existentes:', err);
+      return res.status(500).json({ 
+        mensaje: 'Error al verificar estructura de la tabla', 
+        error: err.message 
+      });
+    }
+
+    const existingColumnNames = existingColumns.map(col => col.COLUMN_NAME);
+    console.log('Columnas existentes:', existingColumnNames);
+
+    // Definir las columnas que necesitamos agregar
+    const columnsToAdd = [
+      { name: 'doctor', sql: `ALTER TABLE citas ADD COLUMN doctor VARCHAR(255) NULL AFTER anticipacion_min` },
+      { name: 'especialidad', sql: `ALTER TABLE citas ADD COLUMN especialidad VARCHAR(255) NULL AFTER doctor` },
+      { name: 'ubicacion', sql: `ALTER TABLE citas ADD COLUMN ubicacion VARCHAR(255) NULL AFTER especialidad` },
+      { name: 'estado', sql: `ALTER TABLE citas ADD COLUMN estado VARCHAR(50) NULL DEFAULT 'programada' AFTER ubicacion` },
+      { name: 'notas', sql: `ALTER TABLE citas ADD COLUMN notas TEXT NULL AFTER estado` }
+    ].filter(col => !existingColumnNames.includes(col.name));
+
+    if (columnsToAdd.length === 0) {
+      return res.json({ 
+        mensaje: '✅ Todas las columnas ya existen en la tabla citas',
+        columnas_agregadas: 0,
+        nota: 'No se requiere ninguna migración'
+      });
+    }
+
+    console.log(`Agregando ${columnsToAdd.length} columnas faltantes...`);
+
+    let completed = 0;
+    let errors = [];
+    let added = [];
+
+    columnsToAdd.forEach((column) => {
+      db.query(column.sql, (err, result) => {
+        completed++;
+        
+        if (err) {
+          console.error(`Error al agregar columna ${column.name}:`, err.message);
+          errors.push({ columna: column.name, error: err.message });
+        } else {
+          console.log(`✅ Columna '${column.name}' agregada correctamente`);
+          added.push(column.name);
+        }
+
+        // Cuando todas las consultas terminen
+        if (completed === columnsToAdd.length) {
+          if (errors.length === 0) {
+            res.json({ 
+              mensaje: '✅ Migración completada exitosamente', 
+              columnas_agregadas: added.length,
+              columnas: added,
+              nota: 'La tabla citas ahora tiene todas las columnas necesarias'
+            });
+          } else {
+            res.status(500).json({ 
+              mensaje: '⚠️ Migración completada con algunos errores', 
+              columnas_agregadas: added.length,
+              columnas: added,
+              errores: errors,
+              nota: 'Algunas columnas no pudieron ser agregadas'
+            });
+          }
+        }
+      });
+    });
+  });
+});
+
+
+// ============================================
+// RUTA PARA ELIMINAR FOREIGN KEY CONSTRAINT
+// ============================================
+app.get('/fix-citas-foreign-key', (req, res) => {
+  // Obtener información sobre las foreign keys de la tabla citas
+  const getFkSql = `
+    SELECT CONSTRAINT_NAME 
+    FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
+    WHERE TABLE_SCHEMA = DATABASE() 
+    AND TABLE_NAME = 'citas' 
+    AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+  `;
+  
+  db.query(getFkSql, (err, constraints) => {
+    if (err) {
+      console.error('Error al obtener foreign keys:', err);
+      return res.status(500).json({ 
+        mensaje: 'Error al verificar restricciones', 
+        error: err.message 
+      });
+    }
+
+    if (constraints.length === 0) {
+      return res.json({ 
+        mensaje: '✅ No hay foreign key constraints que eliminar',
+        nota: 'La tabla citas ya permite guardar citas sin validación de paciente'
+      });
+    }
+
+    console.log('Foreign keys encontradas:', constraints.map(c => c.CONSTRAINT_NAME));
+
+    let completed = 0;
+    let errors = [];
+    let removed = [];
+
+    constraints.forEach((constraint) => {
+      const dropSql = `ALTER TABLE citas DROP FOREIGN KEY ${constraint.CONSTRAINT_NAME}`;
+      
+      db.query(dropSql, (err, result) => {
+        completed++;
+        
+        if (err) {
+          console.error(`Error al eliminar constraint ${constraint.CONSTRAINT_NAME}:`, err.message);
+          errors.push({ constraint: constraint.CONSTRAINT_NAME, error: err.message });
+        } else {
+          console.log(`✅ Foreign key '${constraint.CONSTRAINT_NAME}' eliminada correctamente`);
+          removed.push(constraint.CONSTRAINT_NAME);
+        }
+
+        // Cuando todas las consultas terminen
+        if (completed === constraints.length) {
+          if (errors.length === 0) {
+            res.json({ 
+              mensaje: '✅ Restricciones eliminadas exitosamente', 
+              constraints_eliminadas: removed.length,
+              constraints: removed,
+              nota: 'Ahora puedes guardar citas sin necesidad de que el paciente exista previamente'
+            });
+          } else {
+            res.status(500).json({ 
+              mensaje: '⚠️ Algunas restricciones no pudieron eliminarse', 
+              constraints_eliminadas: removed.length,
+              constraints: removed,
+              errores: errors,
+              nota: 'Revisa los errores para más detalles'
+            });
+          }
+        }
+      });
+    });
+  });
+});
+
+// ============================================
 // INICIAR SERVIDOR
 // ============================================
+
 app.listen(3000, () => {
+
   console.log('Servidor corriendo en http://localhost:3000');
   console.log('CORS habilitado para todas las solicitudes');
 });

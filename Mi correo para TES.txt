@@ -1,0 +1,10 @@
+ADMINISTRADOR:
+
+test@ejemplo.com
+Test123!@#
+
+
+EMPLEADO:
+
+atesemple@gmail.com
+Test123!@#

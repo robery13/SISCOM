@@ -118,8 +118,9 @@ function mostrarErrorAutenticacion(mensaje) {
     bsToast.show();
   } else {
     // Fallback si no existe el toast
-    alert(mensaje);
+    mostrarNotificacion(mensaje, 'error');
   }
+
 }
 
 function iniciarSistemaSesion() {
@@ -950,51 +951,99 @@ async function confirmarTomaMedicamento(id_receta, nombre_medicamento) {
 async function cargarRecetas() {
   const idUsuario = getUsuarioId();
   
+  console.log('Cargando recetas para usuario:', idUsuario);
+  
   try {
     const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
     
     if (!response.ok) {
-      throw new Error('Error al cargar recetas');
+      throw new Error(`Error al cargar recetas: ${response.status} ${response.statusText}`);
     }
     
     const recetas = await response.json();
     
-    const tbody = document.querySelector('#recetas table tbody');
-    if (!tbody) return;
+    console.log('Recetas recibidas del servidor:', recetas);
+    console.log('Cantidad de recetas:', recetas.length);
+    
+    const tbody = document.getElementById('tablaRecetasBody');
+    if (!tbody) {
+      console.error('No se encontró el elemento tablaRecetasBody');
+      return;
+    }
     
     tbody.innerHTML = '';
     
-    if (recetas.length === 0) {
+    if (!Array.isArray(recetas) || recetas.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay recetas registradas</td></tr>';
       return;
     }
     
-    recetas.forEach(receta => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${new Date(receta.fecha_subida).toLocaleDateString()}</td>
-        <td><strong>${receta.nombre_medicamento}</strong></td>
-        <td>${receta.dosis}</td>
-        <td>${receta.frecuencia}</td>
-        <td>
-          <button class="btn btn-sm btn-success me-1" onclick="confirmarTomaMedicamento(${receta.id}, '${receta.nombre_medicamento}')">
-            <i class="bi bi-check-circle"></i> Ya tome
-          </button>
-          <button class="btn btn-sm btn-info me-1" onclick="verReceta(${receta.id})">
-            <i class="bi bi-eye"></i>
-          </button>
-          <button class="btn btn-sm btn-danger" onclick="eliminarReceta(${receta.id})">
-            <i class="bi bi-trash"></i>
-          </button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
+    // Usar for loop en lugar de forEach para mejor control
+    for (let i = 0; i < recetas.length; i++) {
+      const receta = recetas[i];
+      console.log(`Procesando receta ${i + 1}/${recetas.length}:`, receta);
+      
+      try {
+        // Validar que la receta tenga los campos necesarios
+        if (!receta || typeof receta !== 'object') {
+          console.warn(`Receta ${i} inválida:`, receta);
+          continue;
+        }
+        
+        const tr = document.createElement('tr');
+        
+        // Manejar fecha de forma segura
+        let fechaFormateada = 'Fecha no disponible';
+        if (receta.fecha_subida) {
+          try {
+            fechaFormateada = new Date(receta.fecha_subida).toLocaleDateString();
+          } catch (e) {
+            fechaFormateada = receta.fecha_subida;
+          }
+        }
+        
+        // Escapar comillas simples en el nombre del medicamento para evitar problemas en el onclick
+        const nombreMedicamentoEscapado = (receta.nombre_medicamento || 'Sin nombre').replace(/'/g, "\\'");
+        
+        tr.innerHTML = `
+          <td>${fechaFormateada}</td>
+          <td><strong>${receta.nombre_medicamento || 'Sin nombre'}</strong></td>
+          <td>${receta.dosis || 'Sin dosis'}</td>
+          <td>${receta.frecuencia || 'Sin frecuencia'}</td>
+          <td>
+            <button class="btn btn-sm btn-success me-1" onclick="confirmarTomaMedicamento(${receta.id}, '${nombreMedicamentoEscapado}')">
+              <i class="bi bi-check-circle"></i> Ya tome
+            </button>
+            <button class="btn btn-sm btn-info me-1" onclick="verReceta(${receta.id})">
+              <i class="bi bi-eye"></i>
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="eliminarReceta(${receta.id})">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        `;
+        
+        tbody.appendChild(tr);
+        console.log(`Receta ${i + 1} agregada correctamente a la tabla`);
+        
+      } catch (recetaError) {
+        console.error(`Error al procesar receta ${i}:`, recetaError, receta);
+      }
+    }
+    
+    console.log(`Total de filas en la tabla: ${tbody.children.length}`);
+    
   } catch (error) {
     console.error('Error al cargar recetas:', error);
+    const tbody = document.getElementById('tablaRecetasBody');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error al cargar recetas. Intente nuevamente.</td></tr>';
+    }
     mostrarNotificacion('Error al cargar recetas', 'error');
   }
 }
+
+
 
 document.addEventListener('DOMContentLoaded', () => {
   const btnCargarReceta = document.querySelector('#recetas .btn-primary');

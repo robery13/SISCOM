@@ -185,28 +185,12 @@
                   <th>Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="tablaRecetasBody">
                 <tr>
-                  <td>15/11/2024</td>
-                  <td>Ibuprofeno</td>
-                  <td>400mg</td>
-                  <td>Cada 8 horas</td>
-                  <td>
-                    <button class="btn btn-sm btn-info"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>20/11/2024</td>
-                  <td>Losartán</td>
-                  <td>50mg</td>
-                  <td>Cada 12 horas</td>
-                  <td>
-                    <button class="btn btn-sm btn-info"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
-                  </td>
+                  <td colspan="5" class="text-center text-muted">Cargando recetas...</td>
                 </tr>
               </tbody>
+
             </table>
           </div>
         </div>
@@ -734,11 +718,83 @@
             // Mostrar sección guardada
             targetSection.classList.remove('d-none');
             targetBtn.classList.add('active');
+            
+            // Cargar datos específicos de la sección restaurada
+            setTimeout(() => {
+              console.log(`Restaurando sección: ${savedSection}`);
+              
+              // Sección INICIO
+              if (savedSection === 'inicio') {
+                if (typeof cargarEstadisticasInicio === 'function') cargarEstadisticasInicio();
+                if (typeof cargarMedicamentosHoy === 'function') cargarMedicamentosHoy();
+                if (typeof cargarTomasRegistradasHoy === 'function') cargarTomasRegistradasHoy();
+                if (typeof cargarProximaCita === 'function') cargarProximaCita();
+                if (typeof cargarUltimoLogro === 'function') cargarUltimoLogro();
+              }
+              
+              // Sección RECETAS
+              if (savedSection === 'recetas') {
+                if (typeof cargarRecetas === 'function') {
+                  console.log('Cargando recetas...');
+                  cargarRecetas();
+                }
+                if (typeof cargarHistorialMedicacion === 'function') {
+                  console.log('Cargando historial de medicación...');
+                  cargarHistorialMedicacion();
+                }
+              }
+              
+              // Sección AGENDA
+              if (savedSection === 'agenda' && typeof cargarCitas === 'function') {
+                console.log('Cargando citas...');
+                cargarCitas();
+              }
+              
+              // Sección RECOMPENSAS
+              if (savedSection === 'recompensas' && typeof cargarRecompensas === 'function') {
+                console.log('Cargando recompensas...');
+                cargarRecompensas();
+              }
+              
+              // Sección EMERGENCIA
+              if (savedSection === 'emergencia') {
+                if (typeof cargarContactosEmergencia === 'function') {
+                  console.log('Cargando contactos de emergencia...');
+                  cargarContactosEmergencia();
+                }
+                if (typeof cargarHistorialEmergencias === 'function') {
+                  console.log('Cargando historial de emergencias...');
+                  cargarHistorialEmergencias();
+                }
+              }
+              
+              // Sección HORARIOS
+              if (savedSection === 'horarios') {
+                if (typeof cargarMedicamentosParaHorarios === 'function') {
+                  console.log('Cargando medicamentos para horarios...');
+                  cargarMedicamentosParaHorarios();
+                }
+                if (typeof cargarYConfigurarNotificacionesPersonalizadas === 'function') {
+                  console.log('Cargando notificaciones personalizadas...');
+                  cargarYConfigurarNotificacionesPersonalizadas();
+                }
+              }
+              
+              // Sección PERSONALIZACIÓN
+              if (savedSection === 'personalizacion' && typeof cargarPersonalizacion === 'function') {
+                console.log('Cargando personalización...');
+                cargarPersonalizacion();
+              }
+            }, 100);
+
+
+            
             return true;
           }
         }
         return false;
       }
+
 
       // Restaurar sección guardada al cargar
       restaurarSeccion();

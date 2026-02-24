@@ -1,0 +1,40 @@
+TAREAS DE MEJORA - SECCIÓN CITAS MÉDICAS
+================================================
+
+FECHA: 2025-01-28
+ARCHIVO: Management-Backend/cuidador_backend.html
+
+MEJORAS IMPLEMENTADAS:
+---------------------
+
+[✓] 1. Crear archivo de tareas (TODO_Citas_Medicas.txt)
+
+[✓] 2. Mejorar Formulario de Nueva Cita:
+    [✓] Agregar dropdown para seleccionar paciente (cargar desde API)
+    [✓] Agregar campo para nombre del doctor
+    [✓] Agregar campo para especialidad médica
+    [✓] Agregar campo para ubicación/clínica
+    [✓] Agregar campo para notas adicionales
+    [✓] Mantener: fecha, hora, motivo, anticipación
+
+[✓] 3. Mejorar Lista de Citas:
+    [✓] Agregar badges de estado con colores (Programada, Completada, Cancelada)
+    [✓] Agregar botón de editar para cada cita
+    [✓] Agregar botón de eliminar individual
+    [✓] Agregar filtros: por paciente, por estado, por rango de fechas
+    [✓] Mejorar el diseño visual de cada item de cita
+
+[✓] 4. Mejorar Panel de Resumen:
+    [✓] Mostrar estadísticas: citas programadas, completadas, canceladas
+    [✓] Mostrar próxima cita más cercana
+    [✓] Mostrar citas de la semana actual
+    [✓] Mantener botón de borrar todas
+
+[✓] 5. Funcionalidades Adicionales:
+    [✓] Cambiar estado de cita (completar/cancelar)
+    [✓] Indicador visual de citas próximas (menos de 24h)
+    [✓] Mejorar estado vacío con icono y mensaje amigable
+
+[✓] 6. Actualizar TODO.md principal del proyecto
+
+ESTADO: Completado - 2025-01-28

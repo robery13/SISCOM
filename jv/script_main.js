@@ -47,6 +47,84 @@ window.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".toggle-password").forEach(icon => icon.style.display = "none");
 });
 
+// ================== VALIDACIÓN DE CONTRASEÑA ==================
+
+// Validar requisitos de contraseña en tiempo real
+function validarPasswordEnTiempo() {
+  const password = document.getElementById("passwordRegistro").value;
+  
+  // Requisitos
+  const tieneLongitud = password.length >= 8;
+  const tieneMayuscula = /[A-Z]/.test(password);
+  const tieneMinuscula = /[a-z]/.test(password);
+  const tieneNumero = /[0-9]/.test(password);
+  const tieneEspecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+  
+  // Actualizar UI para cada requisito
+  actualizarRequisitoUI("req-longitud", tieneLongitud);
+  actualizarRequisitoUI("req-mayuscula", tieneMayuscula);
+  actualizarRequisitoUI("req-minuscula", tieneMinuscula);
+  actualizarRequisitoUI("req-numero", tieneNumero);
+  actualizarRequisitoUI("req-especial", tieneEspecial);
+  
+  // Validar coincidencia si ya hay algo en confirmar
+  const confirmar = document.getElementById("confirmarPassword").value;
+  if (confirmar.length > 0) {
+    validarCoincidenciaPassword();
+  }
+}
+
+// Actualizar el estado visual de un requisito
+function actualizarRequisitoUI(id, cumplido) {
+  const elemento = document.getElementById(id);
+  if (!elemento) return;
+  
+  const icono = elemento.querySelector(".requisito-icono");
+  
+  if (cumplido) {
+    elemento.classList.add("cumplido");
+    icono.textContent = "✓";
+  } else {
+    elemento.classList.remove("cumplido");
+    icono.textContent = "✗";
+  }
+}
+
+// Validar coincidencia de contraseñas
+function validarCoincidenciaPassword() {
+  const password = document.getElementById("passwordRegistro").value;
+  const confirmar = document.getElementById("confirmarPassword").value;
+  const mensajeDiv = document.getElementById("passwordMatchMessage");
+  
+  if (confirmar.length === 0) {
+    mensajeDiv.style.display = "none";
+    mensajeDiv.className = "password-match-message";
+    return;
+  }
+  
+  if (password === confirmar) {
+    mensajeDiv.textContent = "✓ Las contraseñas coinciden";
+    mensajeDiv.className = "password-match-message coincide";
+  } else {
+    mensajeDiv.textContent = "✗ Las contraseñas no coinciden";
+    mensajeDiv.className = "password-match-message no-coincide";
+  }
+}
+
+// Verificar si todos los requisitos de contraseña se cumplen
+function passwordEsValida() {
+  const password = document.getElementById("passwordRegistro").value;
+  
+  const tieneLongitud = password.length >= 8;
+  const tieneMayuscula = /[A-Z]/.test(password);
+  const tieneMinuscula = /[a-z]/.test(password);
+  const tieneNumero = /[0-9]/.test(password);
+  const tieneEspecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+  
+  return tieneLongitud && tieneMayuscula && tieneMinuscula && tieneNumero && tieneEspecial;
+}
+
+
 // ================== LOGIN ==================
 document.addEventListener("DOMContentLoaded", () => {
   const formLogin = document.getElementById("formLogin");
@@ -361,6 +439,13 @@ if (formRegistro) {
     const password = document.getElementById("passwordRegistro").value.trim();
     const confirmarPassword = document.getElementById("confirmarPassword").value.trim();
 
+    // Validar que todos los requisitos de contraseña se cumplan
+    if (!passwordEsValida()) {
+      showToast("La contraseña no cumple con todos los requisitos de seguridad", "warning");
+      document.getElementById("passwordRegistro").focus();
+      return;
+    }
+
     if (password !== confirmarPassword) {
       showToast("Las contraseñas no coinciden", "warning");
       return;
@@ -377,6 +462,12 @@ if (formRegistro) {
       if (res.ok && data.ok) {
         showToast("Registro exitoso", "success");
         formRegistro.reset();
+        // Resetear validación visual de contraseña
+        document.querySelectorAll(".requisito-item").forEach(item => {
+          item.classList.remove("cumplido");
+          item.querySelector(".requisito-icono").textContent = "✗";
+        });
+        document.getElementById("passwordMatchMessage").style.display = "none";
       } else {  
         showToast(data.message || "Error en el registro", "error");
       }

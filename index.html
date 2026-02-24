@@ -133,7 +133,7 @@
         <input type="email" id="emailRegistro" placeholder="Correo electrónico" required>
 
         <div class="password-container">
-          <input type="password" id="passwordRegistro" placeholder="Contraseña" required>
+          <input type="password" id="passwordRegistro" placeholder="Contraseña" required oninput="validarPasswordEnTiempo()">
           <span class="toggle-password" onclick="togglePassword('passwordRegistro', this)">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
@@ -142,8 +142,35 @@
           </span>
         </div>
 
+        <!-- Requisitos de contraseña -->
+        <div id="passwordRequisitos" class="password-requisitos">
+          <p class="requisitos-titulo">La contraseña debe cumplir con:</p>
+          <ul class="requisitos-lista">
+            <li id="req-longitud" class="requisito-item">
+              <span class="requisito-icono">✗</span>
+              <span class="requisito-texto">Mínimo 8 caracteres</span>
+            </li>
+            <li id="req-mayuscula" class="requisito-item">
+              <span class="requisito-icono">✗</span>
+              <span class="requisito-texto">Al menos una letra mayúscula</span>
+            </li>
+            <li id="req-minuscula" class="requisito-item">
+              <span class="requisito-icono">✗</span>
+              <span class="requisito-texto">Al menos una letra minúscula</span>
+            </li>
+            <li id="req-numero" class="requisito-item">
+              <span class="requisito-icono">✗</span>
+              <span class="requisito-texto">Al menos un número</span>
+            </li>
+            <li id="req-especial" class="requisito-item">
+              <span class="requisito-icono">✗</span>
+              <span class="requisito-texto">Al menos un carácter especial (!@#$%^&*)</span>
+            </li>
+          </ul>
+        </div>
+
         <div class="password-container">
-          <input type="password" id="confirmarPassword" placeholder="Confirmar contraseña" required>
+          <input type="password" id="confirmarPassword" placeholder="Confirmar contraseña" required oninput="validarCoincidenciaPassword()">
           <span class="toggle-password" onclick="togglePassword('confirmarPassword', this)">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
@@ -152,7 +179,10 @@
           </span>
         </div>
 
-        <button type="submit" class="btn btn-azul">Registrarse</button>
+        <!-- Mensaje de coincidencia de contraseñas -->
+        <div id="passwordMatchMessage" class="password-match-message"></div>
+
+        <button type="submit" class="btn btn-azul" id="btnRegistrarse">Registrarse</button>
       </form>
     </div>
   </div>

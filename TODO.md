@@ -1,49 +1,39 @@
-No Historia	HU-40	Nombre de historia	Validación de roles de usuario
+# Plan de Concordancia - Admin_Backend.html y cuidador_backend.html
 
-Como sistema, quiero validar el rol del usuario para mostrar únicamente las funciones permitidas según su perfil.
-Tareas:
-✓ Restringir accesos por rol
-✓ Mostrar menús dinámicos
-✓ Validar permisos en backend
+## Objetivo
+Estandarizar las secciones de Medicamentos y Citas Médicas en ambos archivos para que tengan la misma estructura y funcionalidades.
 
-********************************************************************************************
+## Tareas
 
-# TODO - Validación de Roles en Admin_Backend
+### 1. Admin_Backend.html - Sección Medicamentos ✅
+- [x] Agregar icono `bi-capsule-pill` al título
+- [x] Actualizar descripción a versión completa
+- [x] Agregar barra de búsqueda y filtros (paciente, estado)
+- [x] Expandir tabla: agregar columnas Estado, Paciente, Próxima Toma, Acciones
+- [x] Agregar paginación
+- [x] Expandir modal con campos: Paciente, Estado, Fechas inicio/fin, Notas
 
-## Tareas Completadas ✅
+### 2. Admin_Backend.html - Sección Citas Médicas ✅
+- [x] Actualizar descripción a versión completa
+- [x] Agregar campo "Paciente" al formulario
+- [x] Agregar campos: Doctor, Especialidad, Ubicación
+- [x] Agregar campo "Estado" (programada, completada, cancelada)
+- [x] Agregar campo "Notas adicionales"
+- [x] Agregar sección de filtros (Paciente, Estado, Desde, Hasta)
+- [x] Mejorar lista con badges de estado y botones de acción
+- [x] Expandir resumen con contadores (Programadas, Completadas, Canceladas)
 
-### 1. Admin_Backend.html - Validación de Acceso Frontend ✅
-- [x] Agregar script de validación de rol al inicio del body
-- [x] Redireccionar a login si el rol no es 'administrador' o 'empleado'
-- [x] Mostrar mensaje de "Acceso Denegado" antes de redireccionar
+### 3. Verificación ✅
+- [x] Revisar consistencia visual
+- [x] Verificar funcionalidad de scripts
+- [x] Agregar JavaScript para Citas Médicas en Admin_Backend.html
 
-### 2. Admin_Backend.html - Menús Dinámicos por Rol ✅
-- [x] Agregar atributos data-role a botones del menú
-- [x] Crear función JavaScript para filtrar menús según rol
-- [x] Ocultar "Gestión de Usuarios" para rol 'empleado'
-- [x] Mostrar todos los menús para rol 'administrador'
+## Estado
+✅ COMPLETADO - Ambas secciones ahora tienen concordancia entre Admin_Backend.html y cuidador_backend.html
 
-## Tareas Pendientes ⏳
-
-### 3. server.js - Validación de Permisos en Backend ⏳
-- [ ] Crear middleware verificarRol()
-- [ ] Proteger endpoints de gestión de usuarios (solo administrador)
-- [ ] Proteger endpoints de eliminación masiva (solo administrador)
-- [ ] Agregar verificación de token a todas las rutas sensibles
-
-### 4. Testing y Verificación ⏳
-- [ ] Probar acceso con rol 'administrador' - debe funcionar todo
-- [ ] Probar acceso con rol 'empleado' - debe ocultar Gestión de Usuarios
-- [ ] Probar acceso con rol 'usuario'/'paciente' - debe redireccionar
-- [ ] Verificar que backend rechace peticiones sin permisos
-
-## Roles del Sistema:
-- **administrador**: Acceso total a todas las funciones
-- **empleado**: Acceso limitado (sin Gestión de Usuarios)
-- **usuario/paciente**: Sin acceso al panel de administración
-
-
-## Roles del Sistema:
-- **administrador**: Acceso total a todas las funciones
-- **empleado**: Acceso limitado (sin Gestión de Usuarios)
-- **usuario/paciente**: Sin acceso al panel de administración
+## Notas Finales
+- Sección Medicamentos: Estructura, filtros, paginación y modal avanzado implementados
+- Sección Citas Médicas: Formulario completo, filtros, resumen detallado y JavaScript funcional agregado
+- El mensaje "No hay citas registradas" es el estado inicial normal cuando no hay datos en la base de datos
+- **Corrección de autenticación**: Se agregó búsqueda de token en `sessionStorage` además de `localStorage`, permitiendo que administradores puedan eliminar todas las citas independientemente de la opción "Recordarme" al iniciar sesión
+- **Corrección endpoint `/guardarCita`**: Se actualizó el servidor para manejar todos los campos del formulario (doctor, especialidad, ubicacion, estado, notas) que antes causaban error al guardar citas
