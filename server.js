@@ -1096,6 +1096,136 @@ app.get('/estadisticas/comparar', (req, res) => {
   });
 });
 
+// ============================================
+// HU-42: REPORTE SEMANAL DE CUMPLIMIENTO
+// Calcula porcentaje de cumplimiento por día dentro de una semana seleccionada.
+// Fuentes: checklist_medicamentos (programados) y checklist_confirmaciones (tomados).
+// ============================================
+app.get('/reporte-semanal/:id', (req, res) => {
+  const { id } = req.params;
+  // fecha_inicio en formato YYYY-MM-DD (lunes de la semana deseada)
+  const { fecha_inicio } = req.query;
+
+  if (!fecha_inicio) {
+    return res.status(400).json({ mensaje: 'Debe proporcionar fecha_inicio (YYYY-MM-DD)' });
+  }
+
+  // Calcular fecha_fin = fecha_inicio + 6 días
+  const inicio = new Date(fecha_inicio + 'T00:00:00');
+  const fin = new Date(inicio);
+  fin.setDate(fin.getDate() + 6);
+  const fechaFin = fin.toISOString().slice(0, 10);
+
+  const queries = {
+    paciente: 'SELECT id_paciente, nombre_completo FROM paciente WHERE id_paciente = ?',
+    // Medicamentos programados por día en la semana
+    programados: `
+      SELECT fecha, medicamento_id, medicamento_nombre, dosis, horario
+      FROM checklist_medicamentos
+      WHERE paciente_id LIKE CONCAT(?, ' - %')
+        AND fecha BETWEEN ? AND ?
+      ORDER BY fecha, horario
+    `,
+    // Confirmaciones (tomados) por día en la semana
+    tomados: `
+      SELECT fecha, medicamento_id, medicamento_nombre, tomado, hora_toma
+      FROM checklist_confirmaciones
+      WHERE paciente_id LIKE CONCAT(?, ' - %')
+        AND fecha BETWEEN ? AND ?
+      ORDER BY fecha
+    `
+  };
+
+  const results = {};
+  let completed = 0;
+  const totalQ = 3;
+
+  // Paciente
+  db.query(queries.paciente, [id], (err, rows) => {
+    results.paciente = err ? null : (rows[0] || null);
+    if (++completed === totalQ) buildResponse();
+  });
+
+  // Programados
+  db.query(queries.programados, [id, fecha_inicio, fechaFin], (err, rows) => {
+    results.programados = err ? [] : rows;
+    if (++completed === totalQ) buildResponse();
+  });
+
+  // Tomados
+  db.query(queries.tomados, [id, fecha_inicio, fechaFin], (err, rows) => {
+    results.tomados = err ? [] : rows;
+    if (++completed === totalQ) buildResponse();
+  });
+
+  function buildResponse() {
+    if (!results.paciente) {
+      return res.status(404).json({ mensaje: 'Paciente no encontrado' });
+    }
+
+    // Construir desglose por día
+    const dias = [];
+    for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
+      const fechaStr = d.toISOString().slice(0, 10);
+      const progDia = results.programados.filter(p => {
+        const f = (p.fecha instanceof Date) ? p.fecha.toISOString().slice(0,10) : String(p.fecha).slice(0,10);
+        return f === fechaStr;
+      });
+      const tomDia = results.tomados.filter(t => {
+        const f = (t.fecha instanceof Date) ? t.fecha.toISOString().slice(0,10) : String(t.fecha).slice(0,10);
+        return f === fechaStr;
+      });
+
+      const totalProg = progDia.length;
+      const totalTom = tomDia.filter(t => t.tomado === 1).length;
+      const pct = totalProg > 0 ? Math.round((totalTom / totalProg) * 100) : null;
+
+      dias.push({
+        fecha: fechaStr,
+        programados: totalProg,
+        tomados: totalTom,
+        porcentaje: pct,
+        detalle: progDia.map(p => {
+          const tom = tomDia.find(t => t.medicamento_id === p.medicamento_id && t.tomado === 1);
+          return {
+            medicamento: p.medicamento_nombre,
+            dosis: p.dosis,
+            horario: p.horario,
+            tomado: !!tom,
+            hora_toma: tom ? tom.hora_toma : null
+          };
+        })
+      });
+    }
+
+    // Totales de la semana
+    const totalProgSemana = dias.reduce((s, d) => s + d.programados, 0);
+    const totalTomSemana = dias.reduce((s, d) => s + d.tomados, 0);
+    const pctSemana = totalProgSemana > 0 ? Math.round((totalTomSemana / totalProgSemana) * 100) : 0;
+
+    // Resumen textual automático
+    let nivel;
+    if (pctSemana >= 90) nivel = 'Excelente';
+    else if (pctSemana >= 75) nivel = 'Buena';
+    else if (pctSemana >= 50) nivel = 'Regular';
+    else nivel = 'Baja';
+
+    const resumen = `El paciente ${results.paciente.nombre_completo} cumplió el ${pctSemana}% de sus tomas esta semana (${totalTomSemana}/${totalProgSemana}). Adherencia: ${nivel}.`;
+
+    res.json({
+      paciente: results.paciente,
+      fecha_inicio,
+      fecha_fin: fechaFin,
+      total_programados: totalProgSemana,
+      total_tomados: totalTomSemana,
+      porcentaje: pctSemana,
+      nivel_adherencia: nivel,
+      resumen,
+      dias
+    });
+  }
+});
+
 // HU-27 / HU-26 / HU-32: Obtener lista de todos los pacientes (usado por selectores de Estadísticas, Panel y Checklist)
 app.get('/pacientes', (req, res) => {
   const sql = 'SELECT id_paciente, nombre_completo, fecha_nacimiento FROM paciente ORDER BY nombre_completo ASC';

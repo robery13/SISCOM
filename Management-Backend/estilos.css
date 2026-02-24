@@ -45,6 +45,20 @@ body{
 .nav-btn:hover{background:rgba(97,210,180,0.12)}
 .nav-btn.active{background:var(--accent);color:#fff;box-shadow:0 6px 18px rgba(97,210,180,0.12)}
 
+/* Submenú desplegable en sidebar */
+.nav-btn-parent{justify-content:space-between}
+.nav-btn-parent .submenu-arrow{transition:transform .25s ease;font-size:14px;margin-left:auto}
+.nav-btn-parent.open .submenu-arrow{transform:rotate(180deg)}
+.nav-btn-parent.open{background:rgba(97,210,180,0.08);color:var(--accent)}
+.nav-submenu{
+  display:none;flex-direction:column;gap:2px;padding-left:18px;
+  overflow:hidden;transition:all .25s ease;
+}
+.nav-submenu.show{display:flex}
+.nav-btn-sub{font-size:13px;padding:7px 10px 7px 14px;border-radius:8px;font-weight:500}
+.nav-btn-sub i{font-size:15px}
+.nav-btn-sub.active{background:var(--accent);color:#fff}
+
 /* MAIN */
 .main{flex:1;padding:28px}
 
@@ -464,9 +478,34 @@ body{
 }
 
 /* ====== HU-27: ESTADÍSTICAS DE SALUD POR PACIENTE ====== */
-/* Estilos para: detalle scroll, toolbar selectores/botones, multi-select comparación */
+
+/* Contenedor principal de estadísticas: mismo ancho que las cards */
+.est-wrapper {
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Cards dentro de estadísticas: se adaptan al grid, sin max-width propio */
+.est-wrapper .card {
+  max-width: 100%;
+  margin: 0;
+}
+
+/* Contenedores de gráficas con altura fija */
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 220px;
+}
+.chart-container-sm {
+  position: relative;
+  width: 100%;
+  height: 180px;
+}
+
 #estDetalle {
-  max-height: 280px;
+  max-height: 220px;
   overflow-y: auto;
 }
 .est-toolbar .form-select,
@@ -482,4 +521,26 @@ body{
 .est-toolbar .form-select {
   flex: 1 1 220px;
   min-width: 220px;
+}
+
+/* HU-42: Reporte semanal – badges de adherencia */
+.badge-adherencia {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.85em;
+}
+.badge-adherencia.excelente { background: #d1fae5; color: #065f46; }
+.badge-adherencia.buena     { background: #dbeafe; color: #1e40af; }
+.badge-adherencia.regular   { background: #fef3c7; color: #92400e; }
+.badge-adherencia.baja      { background: #fee2e2; color: #991b1b; }
+
+#rptDetalleMeds .dia-grupo {
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+  margin-bottom: 10px;
+}
+#rptDetalleMeds .dia-grupo h6 {
+  margin-bottom: 4px;
 }

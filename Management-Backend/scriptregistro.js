@@ -2,8 +2,13 @@
 // NAVEGACIÓN ENTRE SECCIONES
 // ===============================
 document.addEventListener("DOMContentLoaded", () => {
-  const navBtns = document.querySelectorAll(".nav-btn");
+  const navBtns = document.querySelectorAll(".nav-btn[data-section]");
   const sections = document.querySelectorAll(".section");
+
+  /* Submenú Estadísticas */
+  const btnEstadisticas = document.getElementById("btnEstadisticas");
+  const submenuEst = document.getElementById("submenuEstadisticas");
+  const estSubSections = ["est-individual", "est-comparar", "est-reporte"];
 
   function hideAllSections() {
     sections.forEach(s => s.classList.add("d-none"));
@@ -18,16 +23,44 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelector('.nav-btn[data-section="medicamentos"]')?.classList.add('active');
   }
 
+  /* Click en botones normales (no parent) */
   navBtns.forEach(btn => {
     btn.addEventListener("click", () => {
       const sectionId = btn.dataset.section;
       if (!sectionId) return;
       hideAllSections();
+
+      /* Si es sub-item de Estadísticas, resaltar padre */
+      if (estSubSections.includes(sectionId)) {
+        btnEstadisticas.classList.add("open");
+        submenuEst.classList.add("show");
+      } else {
+        /* Colapsar submenú al navegar a otra sección */
+        btnEstadisticas.classList.remove("open");
+        submenuEst.classList.remove("show");
+      }
+
       btn.classList.add("active");
       const s = document.getElementById(sectionId);
       if (s) s.classList.remove("d-none");
     });
   });
+
+  /* Toggle submenú al hacer click en "Estadísticas" padre */
+  if (btnEstadisticas) {
+    btnEstadisticas.addEventListener("click", () => {
+      const isOpen = btnEstadisticas.classList.toggle("open");
+      submenuEst.classList.toggle("show", isOpen);
+      /* Si se abre y ningún sub-item está activo, mostrar el primero */
+      if (isOpen) {
+        const anyActive = submenuEst.querySelector(".nav-btn-sub.active");
+        if (!anyActive) {
+          const first = submenuEst.querySelector('.nav-btn-sub[data-section="est-individual"]');
+          if (first) first.click();
+        }
+      }
+    });
+  }
 });
 
 // ===============================
@@ -1854,6 +1887,9 @@ function escapeHtml(str){
         opt2.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
         compararSelect.appendChild(opt2);
       });
+
+      // HU-42: También cargar pacientes en el selector del reporte semanal
+      cargarPacientesReporte(pacientes);
     } catch (err) {
       console.error("Error al cargar pacientes:", err);
     }
@@ -1913,6 +1949,7 @@ function escapeHtml(str){
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           plugins: {
             legend: { position: "bottom" },
             title: {
@@ -1941,6 +1978,7 @@ function escapeHtml(str){
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { position: "bottom" } }
         }
       });
@@ -1964,6 +2002,7 @@ function escapeHtml(str){
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           scales: {
             y: { beginAtZero: true, ticks: { stepSize: 1 } }
           },
@@ -2177,6 +2216,7 @@ function escapeHtml(str){
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           scales: {
             y: { beginAtZero: true, ticks: { stepSize: 1 } }
           },
@@ -2206,11 +2246,306 @@ function escapeHtml(str){
     Array.from(compararSelect.options).forEach(o => o.selected = false);
   });
 
-  // ---- Inicialización: cargar pacientes al abrir sección ----
-  const navBtns = document.querySelectorAll(".nav-btn");
-  navBtns.forEach(btn => {
+  // ===============================
+  // HU-42: REPORTE SEMANAL DE CUMPLIMIENTO
+  // Funciones: Generar reporte semanal, gráfico de barras diario,
+  //   gráfico donut resumen, tabla de desglose, detalle por medicamento,
+  //   exportar a PDF
+  // ===============================
+
+  const rptPacienteSelect = document.getElementById("rptPacienteSelect");
+  const rptSemanaInput = document.getElementById("rptSemanaInput");
+  const rptGenerarBtn = document.getElementById("rptGenerarBtn");
+  const rptExportarPdfBtn = document.getElementById("rptExportarPdfBtn");
+  const rptResultados = document.getElementById("rptResultados");
+
+  let chartReporteSemanal = null;
+  let chartReporteDonut = null;
+  let datosReporteSemanal = null;
+
+  // Helpers para semana
+  function getMondayFromDate(dateStr) {
+    // Dado un date string YYYY-MM-DD, retorna el lunes de esa semana
+    const d = new Date(dateStr + "T00:00:00");
+    const day = d.getDay() || 7; // domingo = 7
+    d.setDate(d.getDate() - day + 1);
+    return d;
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("es-HN", { weekday: "short", day: "numeric", month: "short" });
+  }
+
+  function getDayName(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("es-HN", { weekday: "long" });
+  }
+
+  // Setear fecha actual por defecto (el lunes de esta semana)
+  if (rptSemanaInput) {
+    const monday = getMondayFromDate(new Date().toISOString().slice(0, 10));
+    rptSemanaInput.value = monday.toISOString().slice(0, 10);
+  }
+
+  // Cargar pacientes en el select del reporte
+  function cargarPacientesReporte(pacientes) {
+    if (!rptPacienteSelect) return;
+    rptPacienteSelect.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
+    pacientes.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.id_paciente;
+      opt.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+      rptPacienteSelect.appendChild(opt);
+    });
+  }
+
+  // Generar reporte
+  if (rptGenerarBtn) {
+    rptGenerarBtn.addEventListener("click", async () => {
+      const idPac = rptPacienteSelect.value;
+      const fechaSeleccionada = rptSemanaInput.value;
+      if (!idPac || !fechaSeleccionada) {
+        alert("Seleccione un paciente y una fecha.");
+        return;
+      }
+
+      const monday = getMondayFromDate(fechaSeleccionada);
+      const fechaInicio = monday.toISOString().slice(0, 10);
+
+      try {
+        const resp = await fetch(`${API}/reporte-semanal/${idPac}?fecha_inicio=${fechaInicio}`);
+        if (!resp.ok) throw new Error("Error al obtener reporte");
+        const data = await resp.json();
+        datosReporteSemanal = data;
+
+        rptResultados.classList.remove("d-none");
+        rptExportarPdfBtn.disabled = false;
+
+        // Rango de fechas
+        document.getElementById("rptRangoFechas").textContent =
+          `${formatDate(data.fecha_inicio)} — ${formatDate(data.fecha_fin)}`;
+
+        // Resumen textual
+        document.getElementById("rptResumenTexto").innerHTML =
+          `${escapeHtml(data.resumen)} <span class="badge-adherencia ${data.nivel_adherencia.toLowerCase()}">${data.nivel_adherencia}</span>`;
+
+        // Tarjetas resumen
+        document.getElementById("rptPctSemanal").textContent = data.porcentaje + "%";
+        document.getElementById("rptTomados").textContent = data.total_tomados;
+        document.getElementById("rptProgramados").textContent = data.total_programados;
+        document.getElementById("rptNivel").textContent = data.nivel_adherencia;
+
+        const nivelIcon = document.getElementById("rptNivelIcon");
+        const colores = { Excelente: "text-success", Buena: "text-primary", Regular: "text-warning", Baja: "text-danger" };
+        nivelIcon.className = `bi bi-trophy fs-2 ${colores[data.nivel_adherencia] || "text-secondary"}`;
+
+        // Color de la tarjeta del porcentaje
+        const pctEl = document.getElementById("rptPctSemanal");
+        pctEl.className = "mt-2 mb-0";
+        if (data.porcentaje >= 90) pctEl.classList.add("text-success");
+        else if (data.porcentaje >= 75) pctEl.classList.add("text-primary");
+        else if (data.porcentaje >= 50) pctEl.classList.add("text-warning");
+        else pctEl.classList.add("text-danger");
+
+        // ---- Gráfico barras diario ----
+        if (chartReporteSemanal) chartReporteSemanal.destroy();
+        const ctxBar = document.getElementById("chartReporteSemanal").getContext("2d");
+
+        chartReporteSemanal = new Chart(ctxBar, {
+          type: "bar",
+          data: {
+            labels: data.dias.map(d => getDayName(d.fecha)),
+            datasets: [
+              {
+                label: "Programados",
+                data: data.dias.map(d => d.programados),
+                backgroundColor: "rgba(13, 110, 253, 0.3)",
+                borderColor: "#0d6efd",
+                borderWidth: 1
+              },
+              {
+                label: "Tomados",
+                data: data.dias.map(d => d.tomados),
+                backgroundColor: "rgba(25, 135, 84, 0.7)",
+                borderColor: "#198754",
+                borderWidth: 1
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            },
+            plugins: {
+              legend: { position: "top" },
+              title: { display: false }
+            }
+          }
+        });
+
+        // ---- Gráfico donut resumen ----
+        if (chartReporteDonut) chartReporteDonut.destroy();
+        const ctxDonut = document.getElementById("chartReporteDonut").getContext("2d");
+        const noTomados = data.total_programados - data.total_tomados;
+
+        chartReporteDonut = new Chart(ctxDonut, {
+          type: "doughnut",
+          data: {
+            labels: ["Tomados", "No tomados"],
+            datasets: [{
+              data: [data.total_tomados, noTomados < 0 ? 0 : noTomados],
+              backgroundColor: ["#198754", "#dc3545"],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "bottom" },
+              title: {
+                display: true,
+                text: `${data.porcentaje}% cumplimiento semanal`
+              }
+            }
+          }
+        });
+
+        // ---- Tabla desglose diario ----
+        const tbody = document.querySelector("#tablaReporteSemanal tbody");
+        tbody.innerHTML = "";
+        data.dias.forEach(dia => {
+          const tr = document.createElement("tr");
+          const pctTxt = dia.porcentaje !== null ? dia.porcentaje + "%" : "Sin datos";
+          let badgeClass = "bg-secondary";
+          if (dia.porcentaje !== null) {
+            if (dia.porcentaje >= 90) badgeClass = "bg-success";
+            else if (dia.porcentaje >= 75) badgeClass = "bg-primary";
+            else if (dia.porcentaje >= 50) badgeClass = "bg-warning text-dark";
+            else badgeClass = "bg-danger";
+          }
+          tr.innerHTML = `
+            <td>${getDayName(dia.fecha)}</td>
+            <td>${dia.fecha}</td>
+            <td>${dia.programados}</td>
+            <td>${dia.tomados}</td>
+            <td><span class="badge ${badgeClass}">${pctTxt}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // ---- Detalle por medicamento ----
+        const detDiv = document.getElementById("rptDetalleMeds");
+        let detHtml = "";
+        data.dias.forEach(dia => {
+          if (dia.detalle.length === 0) return;
+          detHtml += `<div class="dia-grupo">`;
+          detHtml += `<h6><strong>${getDayName(dia.fecha)}</strong> (${dia.fecha})</h6>`;
+          detHtml += `<ul class="list-unstyled mb-0">`;
+          dia.detalle.forEach(med => {
+            const icon = med.tomado
+              ? '<i class="bi bi-check-circle-fill text-success me-1"></i>'
+              : '<i class="bi bi-x-circle-fill text-danger me-1"></i>';
+            detHtml += `<li>${icon} ${escapeHtml(med.medicamento)} — ${escapeHtml(med.dosis || "")} (${med.horario || ""})</li>`;
+          });
+          detHtml += `</ul></div>`;
+        });
+        detDiv.innerHTML = detHtml || '<p class="text-muted">No hay datos para esta semana.</p>';
+
+      } catch (err) {
+        console.error("Error al generar reporte semanal:", err);
+        alert("Error al generar el reporte semanal.");
+      }
+    });
+  }
+
+  // ---- HU-42: Exportar PDF del reporte semanal ----
+  if (rptExportarPdfBtn) {
+    rptExportarPdfBtn.addEventListener("click", () => {
+      if (!datosReporteSemanal) return;
+      const d = datosReporteSemanal;
+
+      const diasNombres = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+      const ventana = window.open("", "_blank");
+      ventana.document.write(`
+        <html><head><title>Reporte Semanal - ${escapeHtml(d.paciente.nombre_completo)}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #333; font-size: 20px; }
+          h2 { font-size: 16px; margin-top: 18px; color: #555; }
+          table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+          th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 13px; }
+          th { background: #f5f5f5; }
+          .resumen { display: flex; gap: 20px; margin: 10px 0; }
+          .resumen div { text-align: center; padding: 10px; border: 1px solid #ddd; border-radius: 6px; flex: 1; }
+          .resumen h3 { margin: 0; font-size: 24px; }
+          .resumen small { color: #888; }
+          .tomado { color: #198754; font-weight: bold; }
+          .no-tomado { color: #dc3545; font-weight: bold; }
+          .alerta { background: #f8f9fa; border-left: 4px solid #0d6efd; padding: 10px 14px; margin: 12px 0; border-radius: 4px; }
+        </style></head><body>
+        <h1>Reporte Semanal de Cumplimiento</h1>
+        <p><strong>Paciente:</strong> ${escapeHtml(d.paciente.nombre_completo)}</p>
+        <p><strong>Semana:</strong> ${d.fecha_inicio} al ${d.fecha_fin}</p>
+        <p><strong>Fecha del reporte:</strong> ${new Date().toLocaleDateString("es-HN")}</p>
+
+        <div class="alerta">${escapeHtml(d.resumen)}</div>
+
+        <div class="resumen">
+          <div><h3>${d.porcentaje}%</h3><small>Cumplimiento</small></div>
+          <div><h3>${d.total_tomados}</h3><small>Tomados</small></div>
+          <div><h3>${d.total_programados}</h3><small>Programados</small></div>
+          <div><h3>${d.nivel_adherencia}</h3><small>Adherencia</small></div>
+        </div>
+
+        <h2>Desglose Diario</h2>
+        <table>
+          <tr><th>Día</th><th>Fecha</th><th>Programados</th><th>Tomados</th><th>Cumplimiento</th></tr>
+          ${d.dias.map(dia => {
+            const dayDate = new Date(dia.fecha + "T00:00:00");
+            const dayName = diasNombres[dayDate.getDay()];
+            const pct = dia.porcentaje !== null ? dia.porcentaje + "%" : "Sin datos";
+            return `<tr><td>${dayName}</td><td>${dia.fecha}</td><td>${dia.programados}</td><td>${dia.tomados}</td><td>${pct}</td></tr>`;
+          }).join("")}
+        </table>
+
+        <h2>Detalle por Medicamento</h2>
+        ${d.dias.map(dia => {
+          if (dia.detalle.length === 0) return "";
+          const dayDate = new Date(dia.fecha + "T00:00:00");
+          const dayName = diasNombres[dayDate.getDay()];
+          return `
+            <h3 style="font-size:14px;margin-top:12px;">${dayName} (${dia.fecha})</h3>
+            <table>
+              <tr><th>Medicamento</th><th>Dosis</th><th>Horario</th><th>Estado</th></tr>
+              ${dia.detalle.map(m => `
+                <tr>
+                  <td>${escapeHtml(m.medicamento)}</td>
+                  <td>${escapeHtml(m.dosis || "-")}</td>
+                  <td>${m.horario || "-"}</td>
+                  <td class="${m.tomado ? "tomado" : "no-tomado"}">${m.tomado ? "✓ Tomado" : "✗ No tomado"}</td>
+                </tr>
+              `).join("")}
+            </table>`;
+        }).join("")}
+
+        <script>window.onload = function(){ window.print(); }<\/script>
+        </body></html>
+      `);
+      ventana.document.close();
+    });
+  }
+
+  // ---- Inicialización: cargar pacientes al abrir cualquier sub-sección de estadísticas ----
+  const navBtnsEst = document.querySelectorAll(".nav-btn[data-section]");
+  const estSubs = ["est-individual", "est-comparar", "est-reporte"];
+  navBtnsEst.forEach(btn => {
     btn.addEventListener("click", () => {
-      if (btn.dataset.section === "estadisticas") {
+      if (estSubs.includes(btn.dataset.section)) {
         cargarPacientes();
       }
     });
