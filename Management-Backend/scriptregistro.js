@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const navBtns = document.querySelectorAll(".nav-btn[data-section]");
   const sections = document.querySelectorAll(".section");
 
+  /* Submenú Estadísticas */
   const btnEstadisticas = document.getElementById("btnEstadisticas");
   const submenuEst = document.getElementById("submenuEstadisticas");
   const estSubSections = ["est-individual", "est-comparar", "est-reporte"];
@@ -22,18 +23,22 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelector('.nav-btn[data-section="medicamentos"]')?.classList.add("active");
   }
 
+  /* Click en botones normales (no parent) */
   navBtns.forEach(btn => {
     btn.addEventListener("click", () => {
       const sectionId = btn.dataset.section;
       if (!sectionId) return;
       hideAllSections();
 
+      /* Si es sub-item de Estadísticas, resaltar padre */
       if (estSubSections.includes(sectionId)) {
         btnEstadisticas?.classList.add("open");
         submenuEst?.classList.add("show");
       } else {
+        /* Colapsar submenú al navegar a otra sección */
         btnEstadisticas?.classList.remove("open");
         submenuEst?.classList.remove("show");
+      }
       }
 
       btn.classList.add("active");
@@ -42,10 +47,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  /* Toggle submenú al hacer click en "Estadísticas" padre */
   if (btnEstadisticas) {
     btnEstadisticas.addEventListener("click", () => {
       const isOpen = btnEstadisticas.classList.toggle("open");
       submenuEst?.classList.toggle("show", isOpen);
+      /* Si se abre y ningún sub-item está activo, mostrar el primero */
       if (isOpen) {
         const anyActive = submenuEst?.querySelector(".nav-btn-sub.active");
         if (!anyActive) {
@@ -1353,3 +1360,722 @@ function escapeHtml(str) {
   div.textContent = String(str || "");
   return div.innerHTML;
 }
+=======
+
+// ===============================
+// ESTADÍSTICAS DE SALUD (HU-27)
+// Funciones: Gráficos (cumplimiento doughnut, citas pie, condiciones bar),
+//   tarjetas resumen, detalle del paciente, exportar CSV, exportar PDF,
+//   comparar entre pacientes (tabla + gráfico barras agrupadas), limpiar comparación
+// ===============================
+(function(){
+  const API = "http://localhost:3000";
+
+  // Referencias DOM
+  const pacienteSelect = document.getElementById("estPacienteSelect");
+  const cargarBtn = document.getElementById("estCargarBtn");
+  const exportCsvBtn = document.getElementById("estExportarCsvBtn");
+  const exportPdfBtn = document.getElementById("estExportarPdfBtn");
+  const resumenDiv = document.getElementById("estResumen");
+  const compararSelect = document.getElementById("estCompararSelect");
+  const compararBtn = document.getElementById("estCompararBtn");
+  const comparacionDiv = document.getElementById("estComparacion");
+
+  const limpiarCompBtn = document.getElementById("estLimpiarCompBtn");
+
+  if (!pacienteSelect) return; // Si la sección no existe, salir
+
+  // Instancias de gráficos para destruir/recrear
+  let chartCumplimiento = null;
+  let chartCitas = null;
+  let chartCondiciones = null;
+  let chartComparacion = null;
+  let datosActuales = null; // Para exportar
+
+  // ---- Cargar lista de pacientes ----
+  async function cargarPacientes() {
+    try {
+      const resp = await fetch(`${API}/pacientes`);
+      const pacientes = await resp.json();
+
+      pacienteSelect.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
+      compararSelect.innerHTML = '';
+
+      pacientes.forEach(p => {
+        const opt1 = document.createElement("option");
+        opt1.value = p.id_paciente;
+        opt1.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+        pacienteSelect.appendChild(opt1);
+
+        const opt2 = document.createElement("option");
+        opt2.value = p.id_paciente;
+        opt2.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+        compararSelect.appendChild(opt2);
+      });
+
+      // HU-42: También cargar pacientes en el selector del reporte semanal
+      cargarPacientesReporte(pacientes);
+    } catch (err) {
+      console.error("Error al cargar pacientes:", err);
+    }
+  }
+
+  // ---- Ver estadísticas de un paciente ----
+  cargarBtn.addEventListener("click", async () => {
+    const id = pacienteSelect.value;
+    if (!id) {
+      alert("Seleccione un paciente.");
+      return;
+    }
+
+    try {
+      const resp = await fetch(`${API}/estadisticas/paciente/${id}`);
+      const data = await resp.json();
+      datosActuales = data;
+
+      if (!data.paciente) {
+        alert("Paciente no encontrado.");
+        return;
+      }
+
+      // Mostrar resumen
+      resumenDiv.classList.remove("d-none");
+      exportCsvBtn.disabled = false;
+      exportPdfBtn.disabled = false;
+
+      // Tarjetas resumen
+      document.getElementById("estCumplimientoPct").textContent = data.cumplimiento.porcentaje + "%";
+      document.getElementById("estTotalMeds").textContent = data.medicamentos.length;
+      document.getElementById("estTotalCitas").textContent = data.citas.total;
+      document.getElementById("estTotalCondiciones").textContent = data.condiciones.length;
+
+      // Color de cumplimiento
+      const pctEl = document.getElementById("estCumplimientoPct");
+      pctEl.className = "mt-2 mb-0";
+      if (data.cumplimiento.porcentaje >= 80) pctEl.classList.add("text-success");
+      else if (data.cumplimiento.porcentaje >= 50) pctEl.classList.add("text-warning");
+      else pctEl.classList.add("text-danger");
+
+      // ---- Gráfico Cumplimiento (Doughnut) ----
+      if (chartCumplimiento) chartCumplimiento.destroy();
+      const ctxCump = document.getElementById("chartCumplimiento").getContext("2d");
+      const tomados = data.cumplimiento.total_tomados;
+      const noTomados = data.cumplimiento.total_programados - tomados;
+
+      chartCumplimiento = new Chart(ctxCump, {
+        type: "doughnut",
+        data: {
+          labels: ["Tomados", "No tomados"],
+          datasets: [{
+            data: [tomados, noTomados],
+            backgroundColor: ["#198754", "#dc3545"],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom" },
+            title: {
+              display: true,
+              text: `Cumplimiento: ${data.cumplimiento.porcentaje}% (${tomados}/${data.cumplimiento.total_programados})`
+            }
+          }
+        }
+      });
+
+      // ---- Gráfico Citas (Pie) ----
+      if (chartCitas) chartCitas.destroy();
+      const ctxCitas = document.getElementById("chartCitas").getContext("2d");
+      const estadosCitas = { programada: 0, cumplida: 0, cancelada: 0, vencida: 0 };
+      data.citas.detalle.forEach(c => { estadosCitas[c.estado] = c.total; });
+
+      chartCitas = new Chart(ctxCitas, {
+        type: "pie",
+        data: {
+          labels: ["Programadas", "Cumplidas", "Canceladas", "Vencidas"],
+          datasets: [{
+            data: [estadosCitas.programada, estadosCitas.cumplida, estadosCitas.cancelada, estadosCitas.vencida],
+            backgroundColor: ["#0d6efd", "#198754", "#dc3545", "#6c757d"],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom" } }
+        }
+      });
+
+      // ---- Gráfico Condiciones (Bar) ----
+      if (chartCondiciones) chartCondiciones.destroy();
+      const ctxCond = document.getElementById("chartCondiciones").getContext("2d");
+      const niveles = { Leve: 0, Moderada: 0, "Crítica": 0 };
+      data.condiciones.forEach(c => { if(niveles[c.nivel] !== undefined) niveles[c.nivel]++; });
+
+      chartCondiciones = new Chart(ctxCond, {
+        type: "bar",
+        data: {
+          labels: ["Leve", "Moderada", "Crítica"],
+          datasets: [{
+            label: "Condiciones médicas",
+            data: [niveles.Leve, niveles.Moderada, niveles["Crítica"]],
+            backgroundColor: ["#ffc107", "#fd7e14", "#dc3545"],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // ---- Detalle del paciente ----
+      const detDiv = document.getElementById("estDetalle");
+      let html = `<p><strong>Nombre:</strong> ${escapeHtml(data.paciente.nombre_completo)}</p>`;
+      html += `<p><strong>Fecha nacimiento:</strong> ${data.paciente.fecha_nacimiento || "N/A"}</p>`;
+
+      html += `<p class="mt-2 mb-1"><strong>Alergias:</strong></p><ul>`;
+      if (data.alergias.length === 0) html += "<li class='text-muted'>Ninguna registrada</li>";
+      else data.alergias.forEach(a => { html += `<li>${escapeHtml(a.nombre_alergia)}</li>`; });
+      html += "</ul>";
+
+      html += `<p class="mb-1"><strong>Condiciones:</strong></p><ul>`;
+      if (data.condiciones.length === 0) html += "<li class='text-muted'>Ninguna registrada</li>";
+      else data.condiciones.forEach(c => {
+        const badge = c.nivel === "Crítica" ? "bg-danger" : c.nivel === "Moderada" ? "bg-warning text-dark" : "bg-secondary";
+        html += `<li>${escapeHtml(c.nombre_condicion)} <span class="badge ${badge}">${c.nivel}</span></li>`;
+      });
+      html += "</ul>";
+
+      html += `<p class="mb-1"><strong>Medicamentos asignados:</strong></p><ul>`;
+      if (data.medicamentos.length === 0) html += "<li class='text-muted'>Ninguno registrado</li>";
+      else data.medicamentos.forEach(m => { html += `<li>${escapeHtml(m.nombre)} - ${escapeHtml(m.dosis)} (cada ${m.frecuencia}h)</li>`; });
+      html += "</ul>";
+
+      detDiv.innerHTML = html;
+
+    } catch (err) {
+      console.error("Error al cargar estadísticas:", err);
+      alert("Error al obtener estadísticas del paciente.");
+    }
+  });
+
+  // ---- Exportar CSV ----
+  exportCsvBtn.addEventListener("click", () => {
+    if (!datosActuales || !datosActuales.paciente) return;
+    const d = datosActuales;
+    let csv = "Estadísticas de Salud - " + d.paciente.nombre_completo + "\n\n";
+    csv += "Métrica,Valor\n";
+    csv += `Cumplimiento (%),${d.cumplimiento.porcentaje}\n`;
+    csv += `Medicamentos programados,${d.cumplimiento.total_programados}\n`;
+    csv += `Medicamentos tomados,${d.cumplimiento.total_tomados}\n`;
+    csv += `Total medicamentos asignados,${d.medicamentos.length}\n`;
+    csv += `Total citas,${d.citas.total}\n`;
+    csv += `Total condiciones,${d.condiciones.length}\n`;
+    csv += `Total alergias,${d.alergias.length}\n\n`;
+
+    csv += "Condiciones Médicas\nNombre,Nivel\n";
+    d.condiciones.forEach(c => { csv += `${c.nombre_condicion},${c.nivel}\n`; });
+    csv += "\nAlergias\nNombre\n";
+    d.alergias.forEach(a => { csv += `${a.nombre_alergia}\n`; });
+    csv += "\nMedicamentos\nNombre,Dosis,Frecuencia (h)\n";
+    d.medicamentos.forEach(m => { csv += `${m.nombre},${m.dosis},${m.frecuencia}\n`; });
+    csv += "\nCitas por Estado\nEstado,Total\n";
+    d.citas.detalle.forEach(c => { csv += `${c.estado},${c.total}\n`; });
+
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Estadisticas_${d.paciente.nombre_completo.replace(/\s+/g, "_")}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
+
+  // ---- Exportar PDF (usando impresión del navegador) ----
+  exportPdfBtn.addEventListener("click", () => {
+    if (!datosActuales || !datosActuales.paciente) return;
+    const d = datosActuales;
+
+    const ventana = window.open("", "_blank");
+    ventana.document.write(`
+      <html><head><title>Informe - ${escapeHtml(d.paciente.nombre_completo)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1 { color: #333; font-size: 20px; }
+        h2 { font-size: 16px; margin-top: 18px; color: #555; }
+        table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+        th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 13px; }
+        th { background: #f5f5f5; }
+        .badge-critica { color: #dc3545; font-weight: bold; }
+        .badge-moderada { color: #fd7e14; font-weight: bold; }
+        .badge-leve { color: #6c757d; }
+        .resumen { display: flex; gap: 20px; margin: 10px 0; }
+        .resumen div { text-align: center; padding: 10px; border: 1px solid #ddd; border-radius: 6px; flex: 1; }
+        .resumen h3 { margin: 0; font-size: 24px; }
+        .resumen small { color: #888; }
+      </style></head><body>
+      <h1>Informe de Salud: ${escapeHtml(d.paciente.nombre_completo)}</h1>
+      <p>Fecha de nacimiento: ${d.paciente.fecha_nacimiento || "N/A"}</p>
+      <p>Fecha del informe: ${new Date().toLocaleDateString("es-HN")}</p>
+
+      <div class="resumen">
+        <div><h3>${d.cumplimiento.porcentaje}%</h3><small>Cumplimiento</small></div>
+        <div><h3>${d.medicamentos.length}</h3><small>Medicamentos</small></div>
+        <div><h3>${d.citas.total}</h3><small>Citas</small></div>
+        <div><h3>${d.condiciones.length}</h3><small>Condiciones</small></div>
+      </div>
+
+      <h2>Condiciones Médicas</h2>
+      <table><tr><th>Condición</th><th>Nivel</th></tr>
+      ${d.condiciones.length === 0 ? '<tr><td colspan="2">Ninguna</td></tr>' : d.condiciones.map(c => `<tr><td>${escapeHtml(c.nombre_condicion)}</td><td class="badge-${c.nivel.toLowerCase()}">${c.nivel}</td></tr>`).join("")}
+      </table>
+
+      <h2>Alergias</h2>
+      <table><tr><th>Alergia</th></tr>
+      ${d.alergias.length === 0 ? '<tr><td>Ninguna</td></tr>' : d.alergias.map(a => `<tr><td>${escapeHtml(a.nombre_alergia)}</td></tr>`).join("")}
+      </table>
+
+      <h2>Medicamentos Asignados</h2>
+      <table><tr><th>Nombre</th><th>Dosis</th><th>Frecuencia (h)</th></tr>
+      ${d.medicamentos.length === 0 ? '<tr><td colspan="3">Ninguno</td></tr>' : d.medicamentos.map(m => `<tr><td>${escapeHtml(m.nombre)}</td><td>${escapeHtml(m.dosis)}</td><td>${m.frecuencia}</td></tr>`).join("")}
+      </table>
+
+      <h2>Citas Médicas</h2>
+      <table><tr><th>Estado</th><th>Total</th></tr>
+      ${d.citas.detalle.length === 0 ? '<tr><td colspan="2">Sin citas</td></tr>' : d.citas.detalle.map(c => `<tr><td>${c.estado}</td><td>${c.total}</td></tr>`).join("")}
+      </table>
+
+      <h2>Cumplimiento de Medicamentos (Checklist)</h2>
+      <table>
+        <tr><th>Programados</th><td>${d.cumplimiento.total_programados}</td></tr>
+        <tr><th>Tomados</th><td>${d.cumplimiento.total_tomados}</td></tr>
+        <tr><th>Porcentaje</th><td>${d.cumplimiento.porcentaje}%</td></tr>
+      </table>
+
+      <script>window.onload = function(){ window.print(); }<\/script>
+      </body></html>
+    `);
+    ventana.document.close();
+  });
+
+  // ---- Comparar entre pacientes ----
+  compararBtn.addEventListener("click", async () => {
+    const seleccionados = Array.from(compararSelect.selectedOptions).map(o => o.value);
+
+    if (seleccionados.length < 2) {
+      alert("Seleccione al menos 2 pacientes para comparar.");
+      return;
+    }
+
+    try {
+      const resp = await fetch(`${API}/estadisticas/comparar?ids=${seleccionados.join(",")}`);
+      const data = await resp.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        alert("No se encontraron datos para estos pacientes.");
+        return;
+      }
+
+      comparacionDiv.classList.remove("d-none");
+
+      // Tabla comparativa
+      const tbody = document.querySelector("#tablaComparacion tbody");
+      tbody.innerHTML = "";
+      data.forEach(p => {
+        const nivelBadge = p.nivel_max === "Crítica" ? "bg-danger" : p.nivel_max === "Moderada" ? "bg-warning text-dark" : "bg-secondary";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(p.nombre_completo)}</strong></td>
+          <td>${p.total_medicamentos}</td>
+          <td>${p.total_condiciones}</td>
+          <td>${p.total_alergias}</td>
+          <td>${p.total_citas}</td>
+          <td>${p.citas_cumplidas || 0}</td>
+          <td>${p.citas_canceladas || 0}</td>
+          <td><span class="badge ${nivelBadge}">${p.nivel_max || "N/A"}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Gráfico comparativo (barras agrupadas)
+      if (chartComparacion) chartComparacion.destroy();
+      const ctx = document.getElementById("chartComparacion").getContext("2d");
+
+      chartComparacion = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: data.map(p => p.nombre_completo),
+          datasets: [
+            {
+              label: "Medicamentos",
+              data: data.map(p => p.total_medicamentos),
+              backgroundColor: "#0d6efd"
+            },
+            {
+              label: "Condiciones",
+              data: data.map(p => p.total_condiciones),
+              backgroundColor: "#fd7e14"
+            },
+            {
+              label: "Alergias",
+              data: data.map(p => p.total_alergias),
+              backgroundColor: "#ffc107"
+            },
+            {
+              label: "Citas Total",
+              data: data.map(p => p.total_citas),
+              backgroundColor: "#198754"
+            },
+            {
+              label: "Citas Cumplidas",
+              data: data.map(p => p.citas_cumplidas || 0),
+              backgroundColor: "#20c997"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 } }
+          },
+          plugins: {
+            legend: { position: "top" },
+            title: { display: true, text: "Comparación entre Pacientes" }
+          }
+        }
+      });
+
+    } catch (err) {
+      console.error("Error al comparar:", err);
+      alert("Error al comparar pacientes.");
+    }
+  });
+
+  // ---- Limpiar comparación ----
+  limpiarCompBtn.addEventListener("click", () => {
+    // Ocultar resultados
+    comparacionDiv.classList.add("d-none");
+    // Limpiar tabla
+    const tbody = document.querySelector("#tablaComparacion tbody");
+    if (tbody) tbody.innerHTML = "";
+    // Destruir gráfico
+    if (chartComparacion) { chartComparacion.destroy(); chartComparacion = null; }
+    // Deseleccionar opciones
+    Array.from(compararSelect.options).forEach(o => o.selected = false);
+  });
+
+  // ===============================
+  // HU-42: REPORTE SEMANAL DE CUMPLIMIENTO
+  // Funciones: Generar reporte semanal, gráfico de barras diario,
+  //   gráfico donut resumen, tabla de desglose, detalle por medicamento,
+  //   exportar a PDF
+  // ===============================
+
+  const rptPacienteSelect = document.getElementById("rptPacienteSelect");
+  const rptSemanaInput = document.getElementById("rptSemanaInput");
+  const rptGenerarBtn = document.getElementById("rptGenerarBtn");
+  const rptExportarPdfBtn = document.getElementById("rptExportarPdfBtn");
+  const rptResultados = document.getElementById("rptResultados");
+
+  let chartReporteSemanal = null;
+  let chartReporteDonut = null;
+  let datosReporteSemanal = null;
+
+  // Helpers para semana
+  function getMondayFromDate(dateStr) {
+    // Dado un date string YYYY-MM-DD, retorna el lunes de esa semana
+    const d = new Date(dateStr + "T00:00:00");
+    const day = d.getDay() || 7; // domingo = 7
+    d.setDate(d.getDate() - day + 1);
+    return d;
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("es-HN", { weekday: "short", day: "numeric", month: "short" });
+  }
+
+  function getDayName(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("es-HN", { weekday: "long" });
+  }
+
+  // Setear fecha actual por defecto (el lunes de esta semana)
+  if (rptSemanaInput) {
+    const monday = getMondayFromDate(new Date().toISOString().slice(0, 10));
+    rptSemanaInput.value = monday.toISOString().slice(0, 10);
+  }
+
+  // Cargar pacientes en el select del reporte
+  function cargarPacientesReporte(pacientes) {
+    if (!rptPacienteSelect) return;
+    rptPacienteSelect.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
+    pacientes.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.id_paciente;
+      opt.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+      rptPacienteSelect.appendChild(opt);
+    });
+  }
+
+  // Generar reporte
+  if (rptGenerarBtn) {
+    rptGenerarBtn.addEventListener("click", async () => {
+      const idPac = rptPacienteSelect.value;
+      const fechaSeleccionada = rptSemanaInput.value;
+      if (!idPac || !fechaSeleccionada) {
+        alert("Seleccione un paciente y una fecha.");
+        return;
+      }
+
+      const monday = getMondayFromDate(fechaSeleccionada);
+      const fechaInicio = monday.toISOString().slice(0, 10);
+
+      try {
+        const resp = await fetch(`${API}/reporte-semanal/${idPac}?fecha_inicio=${fechaInicio}`);
+        if (!resp.ok) throw new Error("Error al obtener reporte");
+        const data = await resp.json();
+        datosReporteSemanal = data;
+
+        rptResultados.classList.remove("d-none");
+        rptExportarPdfBtn.disabled = false;
+
+        // Rango de fechas
+        document.getElementById("rptRangoFechas").textContent =
+          `${formatDate(data.fecha_inicio)} — ${formatDate(data.fecha_fin)}`;
+
+        // Resumen textual
+        document.getElementById("rptResumenTexto").innerHTML =
+          `${escapeHtml(data.resumen)} <span class="badge-adherencia ${data.nivel_adherencia.toLowerCase()}">${data.nivel_adherencia}</span>`;
+
+        // Tarjetas resumen
+        document.getElementById("rptPctSemanal").textContent = data.porcentaje + "%";
+        document.getElementById("rptTomados").textContent = data.total_tomados;
+        document.getElementById("rptProgramados").textContent = data.total_programados;
+        document.getElementById("rptNivel").textContent = data.nivel_adherencia;
+
+        const nivelIcon = document.getElementById("rptNivelIcon");
+        const colores = { Excelente: "text-success", Buena: "text-primary", Regular: "text-warning", Baja: "text-danger" };
+        nivelIcon.className = `bi bi-trophy fs-2 ${colores[data.nivel_adherencia] || "text-secondary"}`;
+
+        // Color de la tarjeta del porcentaje
+        const pctEl = document.getElementById("rptPctSemanal");
+        pctEl.className = "mt-2 mb-0";
+        if (data.porcentaje >= 90) pctEl.classList.add("text-success");
+        else if (data.porcentaje >= 75) pctEl.classList.add("text-primary");
+        else if (data.porcentaje >= 50) pctEl.classList.add("text-warning");
+        else pctEl.classList.add("text-danger");
+
+        // ---- Gráfico barras diario ----
+        if (chartReporteSemanal) chartReporteSemanal.destroy();
+        const ctxBar = document.getElementById("chartReporteSemanal").getContext("2d");
+
+        chartReporteSemanal = new Chart(ctxBar, {
+          type: "bar",
+          data: {
+            labels: data.dias.map(d => getDayName(d.fecha)),
+            datasets: [
+              {
+                label: "Programados",
+                data: data.dias.map(d => d.programados),
+                backgroundColor: "rgba(13, 110, 253, 0.3)",
+                borderColor: "#0d6efd",
+                borderWidth: 1
+              },
+              {
+                label: "Tomados",
+                data: data.dias.map(d => d.tomados),
+                backgroundColor: "rgba(25, 135, 84, 0.7)",
+                borderColor: "#198754",
+                borderWidth: 1
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            },
+            plugins: {
+              legend: { position: "top" },
+              title: { display: false }
+            }
+          }
+        });
+
+        // ---- Gráfico donut resumen ----
+        if (chartReporteDonut) chartReporteDonut.destroy();
+        const ctxDonut = document.getElementById("chartReporteDonut").getContext("2d");
+        const noTomados = data.total_programados - data.total_tomados;
+
+        chartReporteDonut = new Chart(ctxDonut, {
+          type: "doughnut",
+          data: {
+            labels: ["Tomados", "No tomados"],
+            datasets: [{
+              data: [data.total_tomados, noTomados < 0 ? 0 : noTomados],
+              backgroundColor: ["#198754", "#dc3545"],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "bottom" },
+              title: {
+                display: true,
+                text: `${data.porcentaje}% cumplimiento semanal`
+              }
+            }
+          }
+        });
+
+        // ---- Tabla desglose diario ----
+        const tbody = document.querySelector("#tablaReporteSemanal tbody");
+        tbody.innerHTML = "";
+        data.dias.forEach(dia => {
+          const tr = document.createElement("tr");
+          const pctTxt = dia.porcentaje !== null ? dia.porcentaje + "%" : "Sin datos";
+          let badgeClass = "bg-secondary";
+          if (dia.porcentaje !== null) {
+            if (dia.porcentaje >= 90) badgeClass = "bg-success";
+            else if (dia.porcentaje >= 75) badgeClass = "bg-primary";
+            else if (dia.porcentaje >= 50) badgeClass = "bg-warning text-dark";
+            else badgeClass = "bg-danger";
+          }
+          tr.innerHTML = `
+            <td>${getDayName(dia.fecha)}</td>
+            <td>${dia.fecha}</td>
+            <td>${dia.programados}</td>
+            <td>${dia.tomados}</td>
+            <td><span class="badge ${badgeClass}">${pctTxt}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // ---- Detalle por medicamento ----
+        const detDiv = document.getElementById("rptDetalleMeds");
+        let detHtml = "";
+        data.dias.forEach(dia => {
+          if (dia.detalle.length === 0) return;
+          detHtml += `<div class="dia-grupo">`;
+          detHtml += `<h6><strong>${getDayName(dia.fecha)}</strong> (${dia.fecha})</h6>`;
+          detHtml += `<ul class="list-unstyled mb-0">`;
+          dia.detalle.forEach(med => {
+            const icon = med.tomado
+              ? '<i class="bi bi-check-circle-fill text-success me-1"></i>'
+              : '<i class="bi bi-x-circle-fill text-danger me-1"></i>';
+            detHtml += `<li>${icon} ${escapeHtml(med.medicamento)} — ${escapeHtml(med.dosis || "")} (${med.horario || ""})</li>`;
+          });
+          detHtml += `</ul></div>`;
+        });
+        detDiv.innerHTML = detHtml || '<p class="text-muted">No hay datos para esta semana.</p>';
+
+      } catch (err) {
+        console.error("Error al generar reporte semanal:", err);
+        alert("Error al generar el reporte semanal.");
+      }
+    });
+  }
+
+  // ---- HU-42: Exportar PDF del reporte semanal ----
+  if (rptExportarPdfBtn) {
+    rptExportarPdfBtn.addEventListener("click", () => {
+      if (!datosReporteSemanal) return;
+      const d = datosReporteSemanal;
+
+      const diasNombres = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+      const ventana = window.open("", "_blank");
+      ventana.document.write(`
+        <html><head><title>Reporte Semanal - ${escapeHtml(d.paciente.nombre_completo)}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #333; font-size: 20px; }
+          h2 { font-size: 16px; margin-top: 18px; color: #555; }
+          table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+          th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 13px; }
+          th { background: #f5f5f5; }
+          .resumen { display: flex; gap: 20px; margin: 10px 0; }
+          .resumen div { text-align: center; padding: 10px; border: 1px solid #ddd; border-radius: 6px; flex: 1; }
+          .resumen h3 { margin: 0; font-size: 24px; }
+          .resumen small { color: #888; }
+          .tomado { color: #198754; font-weight: bold; }
+          .no-tomado { color: #dc3545; font-weight: bold; }
+          .alerta { background: #f8f9fa; border-left: 4px solid #0d6efd; padding: 10px 14px; margin: 12px 0; border-radius: 4px; }
+        </style></head><body>
+        <h1>Reporte Semanal de Cumplimiento</h1>
+        <p><strong>Paciente:</strong> ${escapeHtml(d.paciente.nombre_completo)}</p>
+        <p><strong>Semana:</strong> ${d.fecha_inicio} al ${d.fecha_fin}</p>
+        <p><strong>Fecha del reporte:</strong> ${new Date().toLocaleDateString("es-HN")}</p>
+
+        <div class="alerta">${escapeHtml(d.resumen)}</div>
+
+        <div class="resumen">
+          <div><h3>${d.porcentaje}%</h3><small>Cumplimiento</small></div>
+          <div><h3>${d.total_tomados}</h3><small>Tomados</small></div>
+          <div><h3>${d.total_programados}</h3><small>Programados</small></div>
+          <div><h3>${d.nivel_adherencia}</h3><small>Adherencia</small></div>
+        </div>
+
+        <h2>Desglose Diario</h2>
+        <table>
+          <tr><th>Día</th><th>Fecha</th><th>Programados</th><th>Tomados</th><th>Cumplimiento</th></tr>
+          ${d.dias.map(dia => {
+            const dayDate = new Date(dia.fecha + "T00:00:00");
+            const dayName = diasNombres[dayDate.getDay()];
+            const pct = dia.porcentaje !== null ? dia.porcentaje + "%" : "Sin datos";
+            return `<tr><td>${dayName}</td><td>${dia.fecha}</td><td>${dia.programados}</td><td>${dia.tomados}</td><td>${pct}</td></tr>`;
+          }).join("")}
+        </table>
+
+        <h2>Detalle por Medicamento</h2>
+        ${d.dias.map(dia => {
+          if (dia.detalle.length === 0) return "";
+          const dayDate = new Date(dia.fecha + "T00:00:00");
+          const dayName = diasNombres[dayDate.getDay()];
+          return `
+            <h3 style="font-size:14px;margin-top:12px;">${dayName} (${dia.fecha})</h3>
+            <table>
+              <tr><th>Medicamento</th><th>Dosis</th><th>Horario</th><th>Estado</th></tr>
+              ${dia.detalle.map(m => `
+                <tr>
+                  <td>${escapeHtml(m.medicamento)}</td>
+                  <td>${escapeHtml(m.dosis || "-")}</td>
+                  <td>${m.horario || "-"}</td>
+                  <td class="${m.tomado ? "tomado" : "no-tomado"}">${m.tomado ? "✓ Tomado" : "✗ No tomado"}</td>
+                </tr>
+              `).join("")}
+            </table>`;
+        }).join("")}
+
+        <script>window.onload = function(){ window.print(); }<\/script>
+        </body></html>
+      `);
+      ventana.document.close();
+    });
+  }
+
+  // ---- Inicialización: cargar pacientes al abrir cualquier sub-sección de estadísticas ----
+  const navBtnsEst = document.querySelectorAll(".nav-btn[data-section]");
+  const estSubs = ["est-individual", "est-comparar", "est-reporte"];
+  navBtnsEst.forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (estSubs.includes(btn.dataset.section)) {
+        cargarPacientes();
+      }
+    });
+  });
+
+  // También cargar al inicio por si ya está visible
+  cargarPacientes();
+})();

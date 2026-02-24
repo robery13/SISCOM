@@ -36,14 +36,13 @@
 
         <button class="nav-btn" data-section="Ficha"><i class="bi bi-file-person"></i> <span>Ficha</span></button>
         <button class="nav-btn" data-section="inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
-
+  <!-- HU-27: Botón Estadísticas de Salud con submenú -->
         <button class="nav-btn nav-btn-parent" id="btnEstadisticas"><i class="bi bi-bar-chart-line"></i> <span>Estadísticas</span> <i class="bi bi-chevron-down submenu-arrow"></i></button>
         <div class="nav-submenu" id="submenuEstadisticas">
           <button class="nav-btn nav-btn-sub" data-section="est-individual"><i class="bi bi-person-lines-fill"></i> <span>Individual</span></button>
           <button class="nav-btn nav-btn-sub" data-section="est-comparar"><i class="bi bi-people"></i> <span>Comparar</span></button>
           <button class="nav-btn nav-btn-sub" data-section="est-reporte"><i class="bi bi-calendar-week"></i> <span>Reporte Semanal</span></button>
         </div>
-
         <button class="nav-btn" data-section="pedidos"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
         <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
       </nav>
@@ -68,118 +67,6 @@
                 <option value="todas" selected>Todos</option>
                 <option value="critico">Críticos</option>
                 <option value="importante">Importantes</option>
-                <option value="normal">Normales</option>
-                <option value="leve">Leves</option>
-              </select>
-            </div>
-            <div class="col-lg-3 col-md-6">
-              <label for="panelEstado" class="form-label">Estado</label>
-              <select id="panelEstado" class="form-select">
-                <option value="todas" selected>Todas</option>
-                <option value="pendiente">Pendientes</option>
-                <option value="atendida">Atendidas</option>
-              </select>
-            </div>
-
-            <div class="col-lg-3 col-md-6">
-              <label for="panelDesde" class="form-label">Desde</label>
-              <input id="panelDesde" type="datetime-local" class="form-control">
-            </div>
-
-            <div class="col-lg-3 col-md-6">
-              <label for="panelHasta" class="form-label">Hasta</label>
-              <input id="panelHasta" type="datetime-local" class="form-control">
-            </div>
-          </div>
-
-          <div class="mt-3 d-flex gap-2 flex-wrap align-items-center">
-            <button id="panelAplicar" class="btn btn-primary btn-sm">
-              <i class="bi bi-search me-1"></i> Aplicar
-            </button>
-            <button id="panelLimpiar" class="btn btn-outline-secondary btn-sm">
-              <i class="bi bi-x-circle me-1"></i> Limpiar
-            </button>
-            <div id="panelMsg" class="ms-auto small text-muted"></div>
-          </div>
-        </div>
-
-        <div id="panelTabla" class="vstack gap-3 mb-4 panel-tabla"></div>
-
-        <div id="panelContenido" class="d-none"></div>
-      </section>
-
-      <section id="est-individual" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-person-lines-fill me-2"></i> Estadísticas Individual</h2>
-          <p class="muted">Consulta gráficos y porcentajes de cumplimiento por paciente.</p>
-        </div>
-
-        <div class="est-wrapper">
-
-        <div class="card mb-3">
-          <h5 class="card-title"><i class="bi bi-person-check me-2"></i> Seleccionar Paciente</h5>
-          <label for="estPacienteSelect" class="form-label">Paciente</label>
-          <div class="d-flex gap-2 align-items-stretch flex-wrap est-toolbar">
-            <select id="estPacienteSelect" class="form-select">
-              <option value="">-- Seleccione un paciente --</option>
-            </select>
-            <button id="estCargarBtn" class="btn btn-primary">
-              <i class="bi bi-search me-1"></i> Ver Estadísticas
-            </button>
-            <button id="estExportarCsvBtn" class="btn btn-outline-success" disabled>
-              <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar CSV
-            </button>
-            <button id="estExportarPdfBtn" class="btn btn-outline-danger" disabled>
-              <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
-            </button>
-          </div>
-        </div>
-
-        <div id="estResumen" class="d-none">
-          <div class="row g-3 mb-3">
-            <div class="col-md-3">
-              <div class="card text-center p-3">
-                <i class="bi bi-heart-pulse fs-2 text-danger"></i>
-                <h3 id="estCumplimientoPct" class="mt-2 mb-0">0%</h3>
-                <small class="text-muted">Cumplimiento</small>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card text-center p-3">
-                <i class="bi bi-capsule fs-2 text-primary"></i>
-                <h3 id="estTotalMeds" class="mt-2 mb-0">0</h3>
-                <small class="text-muted">Medicamentos</small>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card text-center p-3">
-                <i class="bi bi-calendar-check fs-2 text-success"></i>
-                <h3 id="estTotalCitas" class="mt-2 mb-0">0</h3>
-                <small class="text-muted">Citas Totales</small>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card text-center p-3">
-                <i class="bi bi-exclamation-triangle fs-2 text-warning"></i>
-                <h3 id="estTotalCondiciones" class="mt-2 mb-0">0</h3>
-                <small class="text-muted">Condiciones</small>
-              </div>
-            </div>
-          </div>
-
-          <div class="row g-3 mb-3">
-            <div class="col-lg-6">
-              <div class="card p-3 h-100">
-                <h6 class="card-title mb-2"><i class="bi bi-pie-chart me-2"></i> Cumplimiento de Medicamentos</h6>
-                <div class="chart-container-sm">
-                  <canvas id="chartCumplimiento"></canvas>
-                </div>
-              </div>
-            </div>
-            <div class="col-lg-6">
-              <div class="card p-3 h-100">
-                <h6 class="card-title mb-2"><i class="bi bi-pie-chart me-2"></i> Estado de Citas</h6>
-                <div class="chart-container-sm">
                   <canvas id="chartCitas"></canvas>
                 </div>
               </div>
@@ -239,292 +126,6 @@
           </div>
           <div class="card p-3 mb-3">
             <h6 class="card-title"><i class="bi bi-table me-2"></i> Tabla Comparativa</h6>
-            <div class="table-responsive">
-              <table class="table table-bordered table-hover" id="tablaComparacion">
-                <thead class="table-light">
-                  <tr>
-                    <th>Paciente</th>
-                    <th>Medicamentos</th>
-                    <th>Condiciones</th>
-                    <th>Alergias</th>
-                    <th>Citas Total</th>
-                    <th>Citas Cumplidas</th>
-                    <th>Citas Canceladas</th>
-                    <th>Nivel Máx.</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        </div>
-      </section>
-
-      <section id="est-reporte" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-calendar-week me-2"></i> Reporte Semanal de Cumplimiento</h2>
-          <p class="muted">Evalúa la adherencia al tratamiento semana a semana.</p>
-        </div>
-
-        <div class="est-wrapper">
-
-        <div class="card mb-3">
-          <h5 class="card-title"><i class="bi bi-calendar-week me-2"></i> Generar Reporte</h5>
-          <p class="text-muted small mb-3">Seleccione un paciente y una fecha para ver el reporte de adherencia al tratamiento.</p>
-
-          <div class="row g-2 align-items-end mb-3">
-            <div class="col-md-5">
-              <label for="rptPacienteSelect" class="form-label fw-semibold">Paciente</label>
-              <select id="rptPacienteSelect" class="form-select">
-                <option value="">-- Seleccione un paciente --</option>
-              </select>
-            </div>
-            <div class="col-md-3">
-              <label for="rptSemanaInput" class="form-label fw-semibold">Inicio de semana (lunes)</label>
-              <input type="date" id="rptSemanaInput" class="form-control">
-            </div>
-            <div class="col-md-4 d-flex gap-2">
-              <button id="rptGenerarBtn" class="btn btn-primary">
-                <i class="bi bi-bar-chart-steps me-1"></i> Generar
-              </button>
-              <button id="rptExportarPdfBtn" class="btn btn-outline-danger" disabled>
-                <i class="bi bi-file-earmark-pdf me-1"></i> Exportar
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div id="rptResultados" class="d-none">
-          <div id="rptResumenCard" class="card mb-3 p-3">
-            <div class="d-flex align-items-center gap-3 mb-2">
-              <i class="bi bi-clipboard2-pulse fs-3 text-primary"></i>
-              <div>
-                <h6 class="mb-0 fw-bold">Resumen de la Semana</h6>
-                <small id="rptRangoFechas" class="text-muted"></small>
-              </div>
-            </div>
-            <p id="rptResumenTexto" class="mb-0 mt-2"></p>
-          </div>
-
-          <div class="row g-3 mb-3">
-            <div class="col-md-3">
-              <div class="card text-center p-3">
-                <i class="bi bi-percent fs-2 text-primary"></i>
-                <h3 id="rptPctSemanal" class="mt-2 mb-0">0%</h3>
-                <small class="text-muted">Cumplimiento</small>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card text-center p-3">
-                <i class="bi bi-check2-circle fs-2 text-success"></i>
-                <h3 id="rptTomados" class="mt-2 mb-0">0</h3>
-                <small class="text-muted">Tomados</small>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card text-center p-3">
-                <i class="bi bi-list-check fs-2 text-info"></i>
-                <h3 id="rptProgramados" class="mt-2 mb-0">0</h3>
-                <small class="text-muted">Programados</small>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card text-center p-3">
-                <i class="bi bi-trophy fs-2" id="rptNivelIcon"></i>
-                <h3 id="rptNivel" class="mt-2 mb-0">-</h3>
-                <small class="text-muted">Adherencia</small>
-              </div>
-            </div>
-          </div>
-
-          <div class="row g-3 mb-3">
-            <div class="col-lg-7">
-              <div class="card p-3 h-100">
-                <h6 class="card-title mb-2"><i class="bi bi-bar-chart me-2"></i> Cumplimiento Diario</h6>
-                <div class="chart-container">
-                  <canvas id="chartReporteSemanal"></canvas>
-                </div>
-              </div>
-            </div>
-            <div class="col-lg-5">
-              <div class="card p-3 h-100">
-                <h6 class="card-title mb-2"><i class="bi bi-pie-chart me-2"></i> Resumen Semanal</h6>
-                <div class="chart-container">
-                  <canvas id="chartReporteDonut"></canvas>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="card p-3 mb-3">
-            <h6 class="card-title"><i class="bi bi-table me-2"></i> Desglose Diario</h6>
-            <div class="table-responsive">
-              <table class="table table-bordered table-hover table-sm" id="tablaReporteSemanal">
-                <thead class="table-light">
-                  <tr>
-                    <th>Día</th>
-                    <th>Fecha</th>
-                    <th>Programados</th>
-                    <th>Tomados</th>
-                    <th>Cumplimiento</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="card p-3 mb-3">
-            <h6 class="card-title"><i class="bi bi-capsule me-2"></i> Detalle por Medicamento</h6>
-            <div id="rptDetalleMeds" class="small"></div>
-          </div>
-        </div>
-
-        </div>
-      </section>
-
-      <!-- PANEL DE CONTROL -->
-
-
-      <!-- MEDICAMENTOS -->
-      <section id="medicamentos" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-capsule-pill me-2"></i> Administración de Medicamentos</h2>
-          <p class="muted">Gestiona medicamentos, asigna a pacientes y programa tratamientos con recordatorios.</p>
-        </div>
-
-        <!-- Barra de búsqueda y filtros -->
-        <div class="card mb-4">
-          <div class="card-body">
-            <div class="row g-3 align-items-end">
-              <div class="col-md-4">
-                <label class="form-label"><i class="bi bi-search me-1"></i> Buscar medicamento</label>
-                <input type="text" id="buscarMedicamento" class="form-control" placeholder="Nombre del medicamento...">
-              </div>
-              <div class="col-md-3">
-                <label class="form-label"><i class="bi bi-person me-1"></i> Filtrar por paciente</label>
-                <select id="filtroPaciente" class="form-select">
-                  <option value="">Todos los pacientes</option>
-                </select>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label"><i class="bi bi-filter-circle me-1"></i> Estado</label>
-                <select id="filtroEstado" class="form-select">
-                  <option value="">Todos</option>
-                  <option value="activo">Activos</option>
-                  <option value="inactivo">Inactivos</option>
-                </select>
-              </div>
-              <div class="col-md-2 d-grid">
-                <button id="limpiarFiltros" class="btn btn-outline-secondary">
-                  <i class="bi bi-x-circle me-1"></i> Limpiar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card table-card">
-          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <h5 class="card-title mb-0"><i class="bi bi-list-check me-2"></i> Medicamentos Programados</h5>
-            <button id="abrirModalMedicamento" class="btn btn-primary">
-              <i class="bi bi-plus-circle me-2"></i> Nuevo Medicamento
-            </button>
-          </div>
-          <div class="table-responsive">
-            <table class="table table-hover" id="tablaMedicamentos">
-              <thead class="table-light">
-                <tr>
-                  <th>Estado</th>
-                  <th>Nombre</th>
-                  <th>Dosis</th>
-                  <th>Paciente</th>
-                  <th>Frecuencia</th>
-                  <th>Próxima Toma</th>
-                  <th class="text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colspan="7" class="text-center text-muted py-4">
-                    <i class="bi bi-inbox display-4 d-block mb-2"></i>
-                    No hay medicamentos registrados. Haz clic en "Nuevo Medicamento" para comenzar.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <!-- Paginación -->
-          <div id="paginacionMedicamentos" class="d-flex justify-content-between align-items-center mt-3 d-none">
-            <small class="text-muted" id="infoPaginacion">Mostrando 0 de 0 medicamentos</small>
-            <div class="btn-group btn-group-sm">
-              <button id="btnAnterior" class="btn btn-outline-secondary" title="Anterior" aria-label="Anterior" disabled><i class="bi bi-chevron-left"></i></button>
-              <button id="btnSiguiente" class="btn btn-outline-secondary" title="Siguiente" aria-label="Siguiente" disabled><i class="bi bi-chevron-right"></i></button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-      <!-- CITAS MÉDICAS -->
-      <section id="recetas" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-calendar-check me-2"></i> Registro de Citas Médicas</h2>
-          <p class="muted">Gestiona citas médicas de pacientes, programa recordatorios y realiza seguimiento de atenciones.</p>
-        </div>
-
-        <!-- Formulario de Nueva Cita -->
-        <div class="card form-card mb-4">
-          <h5 class="card-title"><i class="bi bi-plus-circle me-2"></i> <span id="tituloFormCita">Nueva Cita Médica</span></h5>
-          
-          <form id="formCita" class="row g-3">
-            <input type="hidden" id="citaId">
-            
-            <!-- Fila 1: Paciente, Fecha, Hora -->
-            <div class="col-md-4">
-              <label for="pacienteCita" class="form-label"><i class="bi bi-person me-1"></i> Paciente *</label>
-              <select id="pacienteCita" class="form-select" required>
-                <option value="" selected disabled>Seleccione un paciente</option>
-              </select>
-            </div>
-
-            <div class="col-md-4">
-              <label for="fechaCita" class="form-label"><i class="bi bi-calendar me-1"></i> Fecha *</label>
-              <input type="date" id="fechaCita" class="form-control" required>
-            </div>
-
-            <div class="col-md-4">
-              <label for="horaCita" class="form-label"><i class="bi bi-clock me-1"></i> Hora *</label>
-              <input type="time" id="horaCita" class="form-control" required>
-            </div>
-
-            <!-- Fila 2: Doctor, Especialidad, Ubicación -->
-            <div class="col-md-4">
-              <label for="doctorCita" class="form-label"><i class="bi bi-person-badge me-1"></i> Doctor</label>
-              <input type="text" id="doctorCita" class="form-control" placeholder="Ej: Dr. Juan Pérez">
-            </div>
-
-            <div class="col-md-4">
-              <label for="especialidadCita" class="form-label"><i class="bi bi-hospital me-1"></i> Especialidad</label>
-              <input type="text" id="especialidadCita" class="form-control" placeholder="Ej: Cardiología">
-            </div>
-
-            <div class="col-md-4">
-              <label for="ubicacionCita" class="form-label"><i class="bi bi-geo-alt me-1"></i> Ubicación/Clínica</label>
-              <input type="text" id="ubicacionCita" class="form-control" placeholder="Ej: Hospital General">
-            </div>
-
-            <!-- Fila 3: Motivo, Estado, Notificación -->
-            <div class="col-md-5">
-              <label for="motivoCita" class="form-label"><i class="bi bi-clipboard-pulse me-1"></i> Motivo de la cita *</label>
-              <input type="text" id="motivoCita" class="form-control" placeholder="Ej: Consulta de control" required>
-            </div>
-
-            <div class="col-md-3">
-              <label for="estadoCita" class="form-label"><i class="bi bi-tag me-1"></i> Estado</label>
-              <select id="estadoCita" class="form-select">
                 <option value="programada" selected>Programada</option>
                 <option value="completada">Completada</option>
                 <option value="cancelada">Cancelada</option>
@@ -544,292 +145,6 @@
 
             <!-- Fila 4: Notas -->
             <div class="col-12">
-              <label for="notasCita" class="form-label"><i class="bi bi-sticky me-1"></i> Notas adicionales</label>
-              <textarea id="notasCita" class="form-control" rows="2" placeholder="Instrucciones especiales, preparación previa, etc."></textarea>
-            </div>
-
-            <!-- Botones -->
-            <div class="col-12 d-flex gap-2">
-              <button type="submit" class="btn btn-primary" id="btnGuardarCita">
-                <i class="bi bi-save me-2"></i> Guardar Cita
-              </button>
-              <button type="button" id="btnCancelarEdicion" class="btn btn-outline-secondary d-none">
-                <i class="bi bi-x-circle me-2"></i> Cancelar Edición
-              </button>
-              <button type="button" id="limpiarCitaBtn" class="btn btn-outline-secondary">
-                <i class="bi bi-eraser me-2"></i> Limpiar
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Filtros de Citas -->
-        <div class="card mb-4">
-          <div class="card-body">
-            <h6 class="card-subtitle mb-3 text-muted"><i class="bi bi-funnel me-2"></i> Filtros de Búsqueda</h6>
-            <div class="row g-3 align-items-end">
-              <div class="col-md-3">
-                <label class="form-label">Paciente</label>
-                <select id="filtroPacienteCita" class="form-select">
-                  <option value="">Todos los pacientes</option>
-                </select>
-              </div>
-              <div class="col-md-2">
-                <label class="form-label">Estado</label>
-                <select id="filtroEstadoCita" class="form-select">
-                  <option value="">Todos</option>
-                  <option value="programada">Programada</option>
-                  <option value="completada">Completada</option>
-                  <option value="cancelada">Cancelada</option>
-                </select>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label" for="filtroFechaDesde">Desde</label>
-                <input type="date" id="filtroFechaDesde" class="form-control" aria-label="Fecha desde">
-              </div>
-              <div class="col-md-3">
-                <label class="form-label" for="filtroFechaHasta">Hasta</label>
-                <input type="date" id="filtroFechaHasta" class="form-control" aria-label="Fecha hasta">
-              </div>
-              <div class="col-md-1 d-grid">
-                <button id="limpiarFiltrosCitas" class="btn btn-outline-secondary" title="Limpiar filtros" aria-label="Limpiar filtros">
-                  <i class="bi bi-x-lg"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Lista de Citas y Resumen -->
-        <div class="row">
-          <div class="col-lg-8 mb-4">
-            <div class="card">
-              <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-calendar3 me-2"></i> Lista de Citas</span>
-                <span id="contadorCitas" class="badge bg-secondary">0 citas</span>
-              </div>
-              <div class="card-body p-0">
-                <div id="listaCitas" class="list-group list-group-flush">
-                  <div class="text-center text-muted p-4">
-                    <i class="bi bi-calendar-x display-4 d-block mb-2"></i>
-                    No hay citas registradas. Crea una nueva cita usando el formulario.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-lg-4 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-graph-up me-2"></i> Resumen de Citas
-              </div>
-              <div class="card-body">
-                <div class="row text-center mb-3">
-                  <div class="col-4">
-                    <div class="p-2 bg-primary bg-opacity-10 rounded">
-                      <h4 id="totalProgramadas" class="mb-0 text-primary">0</h4>
-                      <small class="text-muted">Programadas</small>
-                    </div>
-                  </div>
-                  <div class="col-4">
-                    <div class="p-2 bg-success bg-opacity-10 rounded">
-                      <h4 id="totalCompletadas" class="mb-0 text-success">0</h4>
-                      <small class="text-muted">Completadas</small>
-                    </div>
-                  </div>
-                  <div class="col-4">
-                    <div class="p-2 bg-danger bg-opacity-10 rounded">
-                      <h4 id="totalCanceladas" class="mb-0 text-danger">0</h4>
-                      <small class="text-muted">Canceladas</small>
-                    </div>
-                  </div>
-                </div>
-                
-                <hr>
-                
-                <div class="mb-3">
-                  <small class="text-muted d-block mb-1"><i class="bi bi-clock me-1"></i> Próxima cita:</small>
-                  <p id="proximaCita" class="mb-0 fw-semibold">No hay citas programadas</p>
-                </div>
-                
-                <div class="mb-3">
-                  <small class="text-muted d-block mb-1"><i class="bi bi-calendar-week me-1"></i> Esta semana:</small>
-                  <p id="citasSemana" class="mb-0">0 citas</p>
-                </div>
-                
-                <button id="borrarTodasCitasBtn" class="btn btn-outline-danger btn-sm w-100">
-                  <i class="bi bi-trash me-2"></i> Borrar todas las citas
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-      <!-- HISTORIAL TOMAS -->
-
-      <section id="checklist" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-check2-square me-2"></i> Checklist de Medicamentos</h2>
-          <p class="muted">Confirma la toma de medicamentos diaria con registro de auditoría.</p>
-        </div>
-
-        <div class="card form-card mb-4">
-          <h5 class="card-title"><i class="bi bi-person-check me-2"></i> Seleccionar Paciente y Fecha</h5>
-
-          <div class="row g-3 align-items-end">
-            <div class="col-md-4">
-              <label class="form-label">Paciente ID / Nombre</label>
-              <select id="patientInput" class="form-select">
-                <option value="">-- Seleccione un paciente --</option>
-              </select>
-            </div>
-            <div class="col-md-4">
-              <label for="dateInput" class="form-label">Fecha</label>
-              <input id="dateInput" type="date" class="form-control">
-            </div>
-            <div class="col-md-4 d-grid">
-              <button id="loadBtn" class="btn btn-primary">
-                <i class="bi bi-download me-2"></i> Cargar Datos
-              </button>
-            </div>
-          </div>
-
-          <div class="mt-3 d-flex gap-2 flex-wrap">
-            <button id="addSampleBtn" class="btn btn-outline-secondary btn-sm">
-              <i class="bi bi-plus-circle me-1"></i> Cargar Medicamentos Ejemplo
-            </button>
-            <button id="clearDayBtn" class="btn btn-outline-danger btn-sm">
-              <i class="bi bi-trash me-1"></i> Limpiar Día
-            </button>
-            <button id="exportCsvBtn" class="btn btn-outline-success btn-sm ms-auto">
-              <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar CSV
-            </button>
-          </div>
-
-          <div id="statusMsg" class="alert alert-info mt-3 d-none"></div>
-        </div>
-
-        <div class="row checklist-row">
-          <div class="col-lg-8 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-clipboard-check me-2"></i> Lista de Medicamentos del Día
-              </div>
-              <div class="card-body p-0">
-                <div id="medList" class="list-group list-group-flush">
-                  <div class="text-center text-muted p-4">Selecciona paciente y fecha, luego presiona "Cargar Datos"</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-lg-4 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-clock-history me-2"></i> Registro de Auditoría
-              </div>
-              <div class="card-body">
-                <p class="small text-muted mb-2">Últimas acciones del día:</p>
-                <ul id="auditList" class="list-unstyled small">
-                  <li class="text-muted">Sin acciones registradas hoy.</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div class="modal fade" id="modalEliminarMed" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-              <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i> Eliminar Medicamento</h5>
-              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-              <p>¿Está seguro que desea eliminar el siguiente medicamento del tratamiento?</p>
-              <div class="alert alert-warning mb-3">
-                <strong id="elimMedNombre"></strong><br>
-                <small id="elimMedDetalle" class="text-muted"></small>
-              </div>
-              <p class="small text-muted mb-0"><i class="bi bi-info-circle me-1"></i> Esta acción eliminará el medicamento, cancelará sus recordatorios/confirmaciones y actualizará el inventario.</p>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-              <button type="button" class="btn btn-danger" id="confirmarEliminarMedBtn">
-                <i class="bi bi-trash me-1"></i> Sí, Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <section id="historial-tomas" class="section d-none">
-        <!-- No Historia HU-37 - Como cuidador, quiero consultar el historial diario de tomas para evaluar el cumplimiento del tratamiento. -->
-        <div class="section-header">
-          <h2><i class="bi bi-clock-history me-2"></i> Historial Diario de Tomas</h2>
-          <p class="muted">Consulta el historial de tomas de medicamentos para evaluar el cumplimiento del tratamiento.</p>
-        </div>
-
-        <div class="card form-card mb-4">
-          <h5 class="card-title"><i class="bi bi-person-check me-2"></i> Seleccionar Paciente y Fecha</h5>
-
-          <div class="row g-3 align-items-end">
-            <div class="col-md-4">
-              <label class="form-label">Paciente</label>
-              <select id="pacienteHistorial" class="form-select">
-                <option value="">Selecciona un paciente</option>
-              </select>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label" for="fechaHistorial">Fecha</label>
-              <input id="fechaHistorial" type="date" class="form-control" aria-label="Fecha historial">
-            </div>
-            <div class="col-md-4 d-grid">
-              <button id="cargarHistorialBtn" class="btn btn-primary">
-                <i class="bi bi-search me-2"></i> Consultar Historial
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <h5 class="card-title mb-0"><i class="bi bi-list-check me-2"></i> Historial de Tomas del Día</h5>
-          </div>
-          <div class="card-body">
-            <div id="historialTomasContainer">
-              <div class="text-center text-muted p-4">
-                Selecciona un paciente y una fecha para ver el historial de tomas
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-  <!-- INVENTARIO -->
-<section id="inventario" class="section d-none">
-  <div class="section-header">
-    <h2>Control de Inventario de Medicamentos</h2>
-    <p class="muted">Registra stock, consume dosis y recibe alertas de bajo inventario.</p>
-  </div>
-
-
-  <!-- No Historia HU-36 - Como cuidador, quiero recibir alertas cuando un medicamento esté por agotarse para solicitar reposición a tiempo. -->
-  <!-- ALERTAS DE STOCK BAJO -->
-  <div class="card mb-4">
-    <div class="card-header">
-      <h5 class="card-title mb-0">
-        <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Alertas de Stock Bajo
-      </h5>
-    </div>
-    <div class="card-body">
-      <p class="text-muted">Medicamentos que necesitan reposición</p>
-      <div id="alertasStock" class="list-group">
-        <!-- Se poblará dinámicamente con JavaScript -->
         <div class="list-group-item text-center text-muted">No hay alertas de stock bajo</div>
       </div>
       <div class="mt-3">
@@ -893,85 +208,92 @@
           <label for="selectMedicamento">Seleccionar Medicamento Existente</label>
           <select id="selectMedicamento" class="form-select">
             <option value="">Selecciona un medicamento</option>
-          </select>
-        </div>
-
-        <div class="form-row" id="inputNombreRow">
-          <label for="nombreInv">Nombre</label>
-          <input id="nombreInv" type="text" class="form-control" placeholder="Ej. Ibuprofeno">
-        </div>
-
-        <div class="form-row">
-          <label for="cantidadInv">Cantidad a Agregar (unidades)</label>
-          <input id="cantidadInv" type="number" class="form-control" min="1" placeholder="Ej. 30">
-        </div>
-
-        <div class="form-row" id="consumoRow">
-          <label for="consumoInv">Consumo por dosis</label>
-          <input id="consumoInv" type="number" class="form-control" min="1" placeholder="Ej. 1">
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button id="registrarBtn" class="btn btn-primary">
-          Guardar Medicamento
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-      <!-- FICHA MÉDICA -->
-      <section id="Ficha" class="section d-none">
-        <div class="card">
-          <h2>Ficha Médica del Paciente</h2>
-
-          <form id="formFicha">
-            <div class="form-row">
-              <label for="nombreFicha">Nombre completo</label>
-              <select id="nombreFicha" class="form-control" required>
-                <option value="">Selecciona un usuario</option>
-              </select>
-            </div>
-
-            <div class="form-row">
-              <label for="fechaNac">Fecha de nacimiento</label>
-              <input type="date" id="fechaNac" class="form-control" required>
-            </div>
-
-            <div class="form-row">
-              <label for="alergias">Registrar alergias</label>
-              <div class="input-group">
-                <input type="text" id="alergiasInput" class="form-control" placeholder="Ej: Penicilina, Mariscos...">
-                <button type="button" id="btnAgregarAlergia" class="btn btn-outline-secondary">Agregar</button>
+                <small id="rptRangoFechas" class="text-muted"></small>
               </div>
-              <ul id="listaAlergias" class="list-group mt-2"></ul>
             </div>
+            <p id="rptResumenTexto" class="mb-0 mt-2"></p>
+          </div>
 
-            <div class="form-row">
-              <label for="condiciones">Registrar condiciones</label>
-              <div class="input-group mb-2">
-                <input type="text" id="condicionesInput" class="form-control" placeholder="Ej: Diabetes, Hipertensión...">
-                <select id="nivelCondicion" class="form-select select-narrow">
-                  <option value="Leve">Leve</option>
-                  <option value="Moderada">Moderada</option>
-                  <option value="Crítica">Crítica</option>
-                </select>
-                <button type="button" id="btnAgregarCondicion" class="btn btn-outline-secondary">Agregar</button>
+          <!-- Tarjetas resumen -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-percent fs-2 text-primary"></i>
+                <h3 id="rptPctSemanal" class="mt-2 mb-0">0%</h3>
+                <small class="text-muted">Cumplimiento</small>
               </div>
-              <ul id="listaCondiciones" class="list-group"></ul>
             </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-check2-circle fs-2 text-success"></i>
+                <h3 id="rptTomados" class="mt-2 mb-0">0</h3>
+                <small class="text-muted">Tomados</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-list-check fs-2 text-info"></i>
+                <h3 id="rptProgramados" class="mt-2 mb-0">0</h3>
+                <small class="text-muted">Programados</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-trophy fs-2" id="rptNivelIcon"></i>
+                <h3 id="rptNivel" class="mt-2 mb-0">-</h3>
+                <small class="text-muted">Adherencia</small>
+              </div>
+            </div>
+          </div>
 
-            <div id="alertaCritica" class="alerta-critica oculto">
-              Atención: el paciente presenta condiciones o alergias críticas.
+          <!-- Gráfico barras por día -->
+          <div class="row g-3 mb-3">
+            <div class="col-lg-7">
+              <div class="card p-3 h-100">
+                <h6 class="card-title mb-2"><i class="bi bi-bar-chart me-2"></i> Cumplimiento Diario</h6>
+                <div class="chart-container">
+                  <canvas id="chartReporteSemanal"></canvas>
+                </div>
+              </div>
             </div>
+            <div class="col-lg-5">
+              <div class="card p-3 h-100">
+                <h6 class="card-title mb-2"><i class="bi bi-pie-chart me-2"></i> Resumen Semanal</h6>
+                <div class="chart-container">
+                  <canvas id="chartReporteDonut"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
 
-            <div class="d-flex gap-2 mt-4">
-              <button type="button" id="btnGuardar" class="btn btn-primary">Guardar Ficha</button>
-              <button type="button" id="btnLimpiar" class="btn btn-danger">Limpiar</button>
+          <!-- Tabla desglose diario -->
+          <div class="card p-3 mb-3">
+            <h6 class="card-title"><i class="bi bi-table me-2"></i> Desglose Diario</h6>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover table-sm" id="tablaReporteSemanal">
+                <thead class="table-light">
+                  <tr>
+                    <th>Día</th>
+                    <th>Fecha</th>
+                    <th>Programados</th>
+                    <th>Tomados</th>
+                    <th>Cumplimiento</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
             </div>
-          </form>
+          </div>
+
+          <!-- Detalle por medicamento expandible -->
+          <div class="card p-3 mb-3">
+            <h6 class="card-title"><i class="bi bi-capsule me-2"></i> Detalle por Medicamento</h6>
+            <div id="rptDetalleMeds" class="small"></div>
+          </div>
         </div>
+        <!-- /HU-42 -->
+
+        </div><!-- /.est-wrapper -->
       </section>
 
       <!-- PEDIDOS FARMACIA -->
