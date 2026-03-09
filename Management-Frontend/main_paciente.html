@@ -15,7 +15,7 @@
 <body>
 
   <!-- Botón para abrir menú en móvil -->
-<button class="menu-toggle" id="menuToggle">
+<button class="menu-toggle" id="menuToggle" title="Abrir menú" aria-label="Abrir menú">
   <i class="bi bi-list"></i>
 </button>
 
@@ -78,28 +78,28 @@
     <div class="row">
       <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-primary text-white rounded text-center">
-          <i class="bi bi-prescription2" style="font-size: 2.5rem;"></i>
+          <i class="bi bi-prescription2 icon-2-5"></i>
           <h3 class="mt-2" id="stat-recetas">0</h3>
           <p class="mb-0">Recetas Activas</p>
         </div>
       </div>
       <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-success text-white rounded text-center">
-          <i class="bi bi-calendar-check" style="font-size: 2.5rem;"></i>
+          <i class="bi bi-calendar-check icon-2-5"></i>
           <h3 class="mt-2" id="stat-citas">0</h3>
           <p class="mb-0">Citas Próximas</p>
         </div>
       </div>
       <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-warning text-white rounded text-center">
-          <i class="bi bi-star-fill" style="font-size: 2.5rem;"></i>
+          <i class="bi bi-star-fill icon-2-5"></i>
           <h3 class="mt-2" id="stat-puntos">0</h3>
           <p class="mb-0">Puntos</p>
         </div>
       </div>
       <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-info text-white rounded text-center">
-          <i class="bi bi-graph-up" style="font-size: 2.5rem;"></i>
+          <i class="bi bi-graph-up icon-2-5"></i>
           <h3 class="mt-2" id="stat-cumplimiento">0%</h3>
           <p class="mb-0">Cumplimiento</p>
         </div>
@@ -147,7 +147,7 @@
       <div class="card mt-3">
         <h5 class="card-title">Logro Reciente</h5>
         <div id="logroReciente" class="text-center">
-          <i class="bi bi-trophy-fill text-warning" style="font-size: 3rem;"></i>
+          <i class="bi bi-trophy-fill text-warning icon-3"></i>
           <p class="mt-2 mb-0"><strong>Sigue así</strong></p>
           <small class="text-muted">Completa tus medicamentos</small>
         </div>
@@ -166,8 +166,8 @@
         <div class="card">
           <h5 class="card-title">Subir Nueva Receta</h5>
           <div class="mb-3">
-            <label class="form-label">Selecciona o escanea tu receta</label>
-            <input type="file" class="form-control" accept="image/*,.pdf" id="recetaInput">
+            <label class="form-label" for="recetaInput">Selecciona o escanea tu receta</label>
+            <input type="file" class="form-control" accept="image/*,.pdf" id="recetaInput" aria-label="Seleccionar receta">
           </div>
           <button class="btn btn-primary w-100 w-md-auto"><i class="bi bi-upload"></i> Cargar Receta</button>
         </div>
@@ -221,12 +221,12 @@
           <form id="citaForm">
             <div class="row">
               <div class="col-md-6 mb-3">
-                <label class="form-label">Fecha</label>
-                <input type="date" class="form-control" required>
+                <label class="form-label" for="citaFecha">Fecha</label>
+                <input type="date" id="citaFecha" class="form-control" required aria-label="Fecha de cita">
               </div>
               <div class="col-md-6 mb-3">
-                <label class="form-label">Hora</label>
-                <input type="time" class="form-control" required>
+                <label class="form-label" for="citaHora">Hora</label>
+                <input type="time" id="citaHora" class="form-control" required aria-label="Hora de cita">
               </div>
             </div>
             <div class="mb-3">
@@ -336,21 +336,21 @@
           <div class="row text-center mb-4">
             <div class="col-md-4">
               <div class="p-3 bg-light rounded">
-                <i class="bi bi-star-fill text-warning" style="font-size: 2rem;"></i>
+                <i class="bi bi-star-fill text-warning icon-2"></i>
                 <h3 class="mt-2">350</h3>
                 <small class="text-muted">Puntos totales</small>
               </div>
             </div>
             <div class="col-md-4">
               <div class="p-3 bg-light rounded">
-                <i class="bi bi-award-fill text-primary" style="font-size: 2rem;"></i>
+                <i class="bi bi-award-fill text-primary icon-2"></i>
                 <h3 class="mt-2">5</h3>
                 <small class="text-muted">Medallas</small>
               </div>
             </div>
             <div class="col-md-4">
               <div class="p-3 bg-light rounded">
-                <i class="bi bi-graph-up text-success" style="font-size: 2rem;"></i>
+                <i class="bi bi-graph-up text-success icon-2"></i>
                 <h3 class="mt-2">85%</h3>
                 <small class="text-muted">Cumplimiento</small>
               </div>
@@ -359,8 +359,8 @@
 
           <div class="mb-3">
             <label class="mb-2">Progreso a siguiente nivel</label>
-            <div class="progress" style="height: 25px;">
-              <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: 70%">70%</div>
+            <div class="progress progress-tall">
+              <div class="progress-bar progress-bar-striped progress-bar-animated bg-success progress-70">70%</div>
             </div>
             <small class="text-muted">150 puntos más para nivel 4</small>
           </div>
@@ -370,17 +370,17 @@
           <h5 class="card-title">Medallas Obtenidas</h5>
           <div class="row">
             <div class="col-md-4 text-center mb-3">
-              <i class="bi bi-calendar-check-fill text-success" style="font-size: 3rem;"></i>
+              <i class="bi bi-calendar-check-fill text-success icon-3"></i>
               <p class="mt-2 mb-0"><strong>Semana Perfecta</strong></p>
               <small class="text-muted">7 días consecutivos</small>
             </div>
             <div class="col-md-4 text-center mb-3">
-              <i class="bi bi-clock-history text-info" style="font-size: 3rem;"></i>
+              <i class="bi bi-clock-history text-info icon-3"></i>
               <p class="mt-2 mb-0"><strong>Puntual</strong></p>
               <small class="text-muted">Siempre a tiempo</small>
             </div>
             <div class="col-md-4 text-center mb-3">
-              <i class="bi bi-fire text-danger" style="font-size: 3rem;"></i>
+              <i class="bi bi-fire text-danger icon-3"></i>
               <p class="mt-2 mb-0"><strong>Racha de 30</strong></p>
               <small class="text-muted">30 días seguidos</small>
             </div>
@@ -555,7 +555,7 @@
           <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Sesión por expirar</h5>
         </div>
         <div class="modal-body text-center">
-          <i class="bi bi-clock-history text-warning" style="font-size: 3rem;"></i>
+          <i class="bi bi-clock-history text-warning icon-3"></i>
           <p class="mt-3 mb-2">Tu sesión está a punto de expirar por inactividad.</p>
           <p class="text-muted small">Tiempo restante: <span id="sessionCountdown" class="fw-bold text-danger">02:00</span></p>
         </div>
@@ -572,7 +572,7 @@
   </div>
 
   <!-- Toast de Error de Autenticación -->
-  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11000;">
+  <div class="toast-container position-fixed top-0 end-0 p-3 toast-container-layer">
     <div id="authErrorToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body">
@@ -585,9 +585,9 @@
   </div>
 
   <!-- Loading Overlay -->
-  <div id="authLoadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-white d-none justify-content-center align-items-center" style="z-index: 12000;">
+  <div id="authLoadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-white d-none justify-content-center align-items-center auth-loading-layer">
     <div class="text-center">
-      <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+      <div class="spinner-border text-primary spinner-lg" role="status">
         <span class="visually-hidden">Verificando sesión...</span>
       </div>
       <p class="mt-3 text-muted">Verificando tu sesión...</p>

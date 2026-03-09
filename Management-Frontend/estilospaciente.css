@@ -116,6 +116,17 @@ body {
   color: #1e3a8a;
 }
 
+.icon-2 { font-size: 2rem; }
+.icon-2-5 { font-size: 2.5rem; }
+.icon-3 { font-size: 3rem; }
+
+.progress-tall { height: 25px; }
+.progress-70 { width: 70%; }
+
+.toast-container-layer { z-index: 11000; }
+.auth-loading-layer { z-index: 12000; }
+.spinner-lg { width: 3rem; height: 3rem; }
+
 .d-none {
   display: none !important;
 }
@@ -393,7 +404,6 @@ body {
   /* Tablas responsive */
   .table-responsive {
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   .table {
@@ -751,6 +761,7 @@ body {
    ============================================ */
 
 .modal-backdrop-custom {
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 
@@ -840,8 +851,8 @@ body {
 }
 
 .notification-modal-backdrop {
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 /* Animación de entrada para el modal de medicamento */

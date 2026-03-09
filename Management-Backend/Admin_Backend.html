@@ -37,18 +37,18 @@
       if (!rolesPermitidos.includes(rol)) {
         // Mostrar mensaje de acceso denegado
         document.body.innerHTML = `
-          <div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8f9fa; font-family: Arial, sans-serif;">
-            <div style="text-align: center; padding: 40px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px;">
-              <i class="bi bi-shield-exclamation" style="font-size: 64px; color: #dc3545;"></i>
-              <h1 style="color: #dc3545; margin: 20px 0;">Acceso Denegado</h1>
-              <p style="color: #6c757d; font-size: 16px; margin-bottom: 20px;">
+          <div class="access-denied-overlay">
+            <div class="access-denied-card">
+              <i class="bi bi-shield-exclamation access-denied-icon"></i>
+              <h1 class="access-denied-title">Acceso Denegado</h1>
+              <p class="access-denied-text">
                 No tienes permisos para acceder al panel de administración.
               </p>
-              <p style="color: #6c757d; font-size: 14px; margin-bottom: 30px;">
+              <p class="access-denied-subtext">
                 Tu rol actual: <strong>${rol || 'Sin rol'}</strong><br>
                 Roles requeridos: Administrador o Empleado
               </p>
-              <button onclick="window.location.href='../index.html'" style="padding: 12px 30px; background: #0d6efd; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
+              <button class="access-denied-btn" onclick="window.location.href='../index.html'">
                 Volver al Inicio
               </button>
             </div>
@@ -171,8 +171,8 @@
           <div id="paginacionMedicamentos" class="d-flex justify-content-between align-items-center mt-3 d-none">
             <small class="text-muted" id="infoPaginacion">Mostrando 0 de 0 medicamentos</small>
             <div class="btn-group btn-group-sm">
-              <button id="btnAnterior" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i></button>
-              <button id="btnSiguiente" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-right"></i></button>
+              <button id="btnAnterior" class="btn btn-outline-secondary" title="Anterior" aria-label="Anterior" disabled><i class="bi bi-chevron-left"></i></button>
+              <button id="btnSiguiente" class="btn btn-outline-secondary" title="Siguiente" aria-label="Siguiente" disabled><i class="bi bi-chevron-right"></i></button>
             </div>
           </div>
         </div>
@@ -295,12 +295,12 @@
                 </select>
               </div>
               <div class="col-md-3">
-                <label class="form-label">Desde</label>
-                <input type="date" id="filtroFechaDesde" class="form-control">
+                <label class="form-label" for="filtroFechaDesde">Desde</label>
+                <input type="date" id="filtroFechaDesde" class="form-control" aria-label="Fecha desde">
               </div>
               <div class="col-md-3">
-                <label class="form-label">Hasta</label>
-                <input type="date" id="filtroFechaHasta" class="form-control">
+                <label class="form-label" for="filtroFechaHasta">Hasta</label>
+                <input type="date" id="filtroFechaHasta" class="form-control" aria-label="Fecha hasta">
               </div>
               <div class="col-md-1 d-grid">
                 <button id="limpiarFiltrosCitas" class="btn btn-outline-secondary" title="Limpiar filtros">
@@ -439,7 +439,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i> Gestionar Inventario</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
 
       <div class="modal-body">
@@ -452,7 +452,7 @@
           </div>
         </div>
 
-        <div class="form-row" id="selectMedicamentoRow" style="display: none;">
+        <div class="form-row is-hidden" id="selectMedicamentoRow">
           <label for="selectMedicamento">Seleccionar Medicamento Existente</label>
           <select id="selectMedicamento" class="form-select">
             <option value="">Selecciona un medicamento</option>
@@ -513,7 +513,7 @@
               <label for="condiciones">Registrar condiciones</label>
               <div class="input-group mb-2">
                 <input type="text" id="condicionesInput" class="form-control" placeholder="Ej: Diabetes, Hipertensión...">
-                <select id="nivelCondicion" class="form-select" style="max-width: 150px;">
+                <select id="nivelCondicion" class="form-select select-narrow">
                   <option value="Leve">Leve</option>
                   <option value="Moderada">Moderada</option>
                   <option value="Crítica">Crítica</option>
@@ -623,7 +623,7 @@
       <div class="modal-content">
         <div class="modal-header bg-primary text-white">
           <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i> <span id="modalTitle">Registrar Medicamento</span></h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="const modalEl = document.getElementById('modalMedicamento'); const modalInstance = bootstrap.Modal.getInstance(modalEl); if(modalInstance) modalInstance.hide();"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar" onclick="const modalEl = document.getElementById('modalMedicamento'); const modalInstance = bootstrap.Modal.getInstance(modalEl); if(modalInstance) modalInstance.hide();"></button>
         </div>
         <div class="modal-body">
           <input type="hidden" id="medicamentoId">
@@ -728,7 +728,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Crear pedido a farmacia</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
         <div class="modal-body">
           <form id="orderForm">
@@ -787,7 +787,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Detalle del pedido</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
         <div class="modal-body" id="detailBody"></div>
       </div>
@@ -800,7 +800,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i> Gestionar Usuario</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
         <div class="modal-body">
           <form id="formUsuario" class="row g-3">
@@ -828,7 +828,7 @@
               <label for="passwordUsuario" class="form-label">Contraseña</label>
               <div class="password-container position-relative">
                 <input type="password" id="passwordUsuario" class="form-control" oninput="validarPasswordUsuarioEnTiempo(); toggleEyeVisibility(this)">
-                <span class="toggle-password position-absolute end-0 top-50 translate-middle-y me-3" onclick="togglePassword('passwordUsuario', this)" style="cursor: pointer; display: none;">
+                <span class="toggle-password position-absolute end-0 top-50 translate-middle-y me-3 toggle-password-control is-hidden" onclick="togglePassword('passwordUsuario', this)">
                   <i class="bi bi-eye"></i>
                 </span>
               </div>
@@ -836,9 +836,9 @@
                 Al crear usuario, la contraseña es obligatoria. Al editar, déjela vacía para mantener la actual.
               </div>
               <!-- Requisitos de contraseña -->
-              <div id="passwordRequisitosUsuario" class="password-requisitos mt-2" style="display: none;">
-                <p class="requisitos-titulo mb-1" style="font-size: 0.85rem; color: #666;">La contraseña debe cumplir con:</p>
-                <ul class="list-unstyled mb-0" style="font-size: 0.8rem;">
+              <div id="passwordRequisitosUsuario" class="password-requisitos mt-2 is-hidden">
+                <p class="requisitos-titulo mb-1 requisitos-title-small">La contraseña debe cumplir con:</p>
+                <ul class="list-unstyled mb-0 requisitos-list-small">
                   <li id="req-longitud-usuario" class="requisito-item text-danger">
                     <span class="requisito-icono">✗</span>
                     <span class="requisito-texto">Mínimo 8 caracteres</span>
@@ -884,7 +884,7 @@
   </div>
 
  <!-- Contenedor para los toasts -->
-<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;"></div>
+<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3 toast-container-layer"></div>
 
  
   <!-- Bootstrap JS -->

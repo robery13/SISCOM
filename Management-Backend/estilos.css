@@ -58,6 +58,43 @@ body{
 .nav-btn-sub i{font-size:15px}
 .nav-btn-sub.active{background:var(--accent);color:#fff}
 
+.is-hidden{display:none !important}
+.select-narrow{max-width:150px}
+.toggle-password-control{cursor:pointer}
+.requisitos-title-small{font-size:0.85rem;color:#666}
+.requisitos-list-small{font-size:0.8rem}
+.toast-container-layer{z-index:1055}
+
+.access-denied-overlay{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  background:#f8f9fa;
+  font-family:Arial, sans-serif;
+}
+.access-denied-card{
+  text-align:center;
+  padding:40px;
+  background:#fff;
+  border-radius:10px;
+  box-shadow:0 4px 6px rgba(0,0,0,0.1);
+  max-width:500px;
+}
+.access-denied-icon{font-size:64px;color:#dc3545}
+.access-denied-title{color:#dc3545;margin:20px 0}
+.access-denied-text{color:#6c757d;font-size:16px;margin-bottom:20px}
+.access-denied-subtext{color:#6c757d;font-size:14px;margin-bottom:30px}
+.access-denied-btn{
+  padding:12px 30px;
+  background:#0d6efd;
+  color:#fff;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+  font-size:16px;
+}
+
 /* MAIN */
 .main{flex:1;padding:28px}
 
