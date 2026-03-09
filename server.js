@@ -111,10 +111,20 @@ app.post('/login', (req, res) => {
 
     const usuario = results[0];
 
-    // Comparar contraseñas usando bcrypt
-    const passwordValida = await bcrypt.compare(password, usuario.password);
+    // Comparar contraseñas usando bcrypt (con migración si la clave está en texto plano)
+    let passwordValida = await bcrypt.compare(password, usuario.password);
     if (!passwordValida) {
-      return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos' });
+      if (usuario.password === password) {
+        passwordValida = true;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        db.query('UPDATE usuarios SET password = ? WHERE id = ?', [hashedPassword, usuario.id], (updateErr) => {
+          if (updateErr) {
+            console.error('Error al migrar contraseña:', updateErr);
+          }
+        });
+      } else {
+        return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos' });
+      }
     }
 
 

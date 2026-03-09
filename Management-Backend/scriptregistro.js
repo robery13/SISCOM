@@ -39,8 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
         btnEstadisticas?.classList.remove("open");
         submenuEst?.classList.remove("show");
       }
-      }
-
       btn.classList.add("active");
       const s = document.getElementById(sectionId);
       if (s) s.classList.remove("d-none");
@@ -1360,7 +1358,6 @@ function escapeHtml(str) {
   div.textContent = String(str || "");
   return div.innerHTML;
 }
-=======
 
 // ===============================
 // ESTADÍSTICAS DE SALUD (HU-27)
