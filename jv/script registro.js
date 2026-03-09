@@ -39,24 +39,24 @@ document.getElementById('guardarBtn').addEventListener('click', function () {
   }, tiempoRestante);
 });
 
-// Función para mostrar notificación en pantalla
+// Función para mostrar notificación en pantalla (toast + notificación del navegador si hay permiso)
 function mostrarNotificacion(nombre, dosis) {
   if (Notification.permission === "granted") {
     new Notification("Recordatorio de Medicamento", {
       body: `Es hora de tomar ${nombre} (${dosis})`,
       icon: "https://cdn-icons-png.flaticon.com/512/2966/2966483.png"
     });
-  } else {
-
-     showToast(`Es hora de tomar "${nombre}" registrado. Se le recordará cada ${dosis} horas.`);
-    alert(`Es hora de tomar ${nombre} (${dosis}).`);
+    return;
   }
+
+  showToast(`Es hora de tomar ${nombre} (${dosis})`, "info");
 }
 
 // Pedir permiso para notificaciones del navegador
 if (Notification.permission !== "granted") {
   Notification.requestPermission();
 }
+
 
 
 
