@@ -4,6 +4,184 @@
   --primary: #0d6efd;
   --accent: #0d6efd;
   --sidebar-width: 260px;
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --text-color: #1e3a8a;
+  --muted: #64748b;
+  --border-color: rgba(0,0,0,0.1);
+  --sidebar-bg: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --shadow: rgba(0,0,0,0.1);
+}
+
+/* ====== MODO OSCURO ====== */
+:root.dark-mode {
+  --bg: #121212;
+  --card: #1e1e1e;
+  --text-color: #e0e0e0;
+  --muted: #a0a0a0;
+  --border-color: rgba(255,255,255,0.1);
+  --sidebar-bg: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  --input-bg: #2a2a2a;
+  --input-border: #404040;
+  --shadow: rgba(0,0,0,0.3);
+}
+
+/* Estilos globales para modo oscuro */
+:root.dark-mode body {
+  background: var(--bg);
+  color: var(--text-color);
+}
+
+:root.dark-mode .card {
+  background: var(--card);
+  box-shadow: 0 1px 3px var(--shadow);
+}
+
+:root.dark-mode .sidebar {
+  background: var(--sidebar-bg);
+}
+
+:root.dark-mode .section-header h2 {
+  color: white;
+}
+
+:root.dark-mode .muted {
+  color: var(--muted);
+}
+
+:root.dark-mode .card-title {
+  color: var(--text-color);
+}
+
+:root.dark-mode .form-control,
+:root.dark-mode .form-select {
+  background: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--text-color);
+}
+
+:root.dark-mode .table thead {
+  background: var(--input-bg);
+}
+
+:root.dark-mode .table td,
+:root.dark-mode .table th {
+  border-color: var(--border-color);
+}
+
+:root.dark-mode .user-profile {
+  background: rgba(255,255,255,0.05);
+}
+
+:root.dark-mode .welcome-header {
+  background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
+}
+
+:root.dark-mode input::placeholder,
+:root.dark-mode textarea::placeholder {
+  color: var(--muted);
+}
+
+:root.dark-mode .btn-emergencia-sos {
+  background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
+}
+
+:root.dark-mode .bg-primary,
+:root.dark-mode .bg-success,
+:root.dark-mode .bg-warning,
+:root.dark-mode .bg-info,
+:root.dark-mode .bg-danger {
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%) !important;
+}
+
+/* ====== BOTÓN TOGGLE MODO OSCURO ====== */
+.dark-mode-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.dark-mode-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+:root.dark-mode .dark-mode-toggle {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+/* ====== ELEMENTOS ADICIONALES MODO OSCURO ====== */
+:root.dark-mode .modal-content {
+  background: var(--card);
+  color: var(--text-color);
+}
+
+:root.dark-mode .modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+:root.dark-mode .list-group-item {
+  background: var(--card);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+:root.dark-mode .alert-info {
+  background: #1e3a5f;
+  color: #a5d8ff;
+}
+
+:root.dark-mode .alert-warning {
+  background: #5c4a1f;
+  color: #ffe066;
+}
+
+:root.dark-mode .alert-danger {
+  background: #5c1a1a;
+  color: #ffc9c9;
+}
+
+:root.dark-mode .progress {
+  background: var(--input-bg);
+}
+
+:root.dark-mode .btn-close {
+  filter: invert(1);
+}
+
+:root.dark-mode .nav-btn {
+  color: rgba(255,255,255,0.8);
+}
+
+:root.dark-mode .nav-btn:hover,
+:root.dark-mode .nav-btn.active {
+  background: rgba(255,255,255,0.15);
+  color: white;
+}
+
+:root.dark-mode .form-select optgroup {
+  color: var(--text-color);
+}
+
+:root.dark-mode .form-select option {
+  background: var(--card);
+  color: var(--text-color);
 }
 
 * { 

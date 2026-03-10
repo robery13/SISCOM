@@ -15,6 +15,11 @@
 
 </head>
 <body>
+  <!-- Botón toggle modo oscuro -->
+  <button class="dark-mode-toggle" id="darkModeToggle" title="Cambiar modo oscuro">
+    <i class="bi bi-moon-fill" id="darkModeIcon"></i>
+  </button>
+
   <div class="app">
 
     <!-- SIDEBAR -->
@@ -1635,8 +1640,41 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = html;
       }
     });
-  </script>
+</script>
 
+  <!-- Script para Modo Oscuro -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const toggleBtn = document.getElementById('darkModeToggle');
+      const darkModeIcon = document.getElementById('darkModeIcon');
+      
+      // Verificar preferencia guardada
+      const savedDarkMode = localStorage.getItem('cuidadorBackend_darkMode');
+      if (savedDarkMode === 'enabled') {
+        document.documentElement.classList.add('dark-mode');
+        darkModeIcon.classList.remove('bi-moon-fill');
+        darkModeIcon.classList.add('bi-sun-fill');
+      }
+      
+      // Toggle functionality
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+          const isDarkMode = document.documentElement.classList.toggle('dark-mode');
+          
+          // Actualizar icono
+          if (isDarkMode) {
+            darkModeIcon.classList.remove('bi-moon-fill');
+            darkModeIcon.classList.add('bi-sun-fill');
+            localStorage.setItem('cuidadorBackend_darkMode', 'enabled');
+          } else {
+            darkModeIcon.classList.remove('bi-sun-fill');
+            darkModeIcon.classList.add('bi-moon-fill');
+            localStorage.setItem('cuidadorBackend_darkMode', 'disabled');
+          }
+        });
+      }
+    });
+  </script>
 
 </body>
 </html>

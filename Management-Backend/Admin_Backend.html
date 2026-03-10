@@ -16,6 +16,11 @@
   
 </head>
 <body>
+  <!-- Botón toggle modo oscuro -->
+  <button class="dark-mode-toggle" id="darkModeToggle" title="Cambiar modo oscuro">
+    <i class="bi bi-moon-fill" id="darkModeIcon"></i>
+  </button>
+
   <!-- VALIDACIÓN DE ROL - Solo administrador y empleado pueden acceder -->
   <script>
     (function() {
@@ -1746,6 +1751,40 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!document.getElementById('recetas').classList.contains('d-none')) {
         cargarPacientesCitas();
         cargarCitas();
+      }
+    });
+  </script>
+
+  <!-- Script para Modo Oscuro -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const toggleBtn = document.getElementById('darkModeToggle');
+      const darkModeIcon = document.getElementById('darkModeIcon');
+      
+      // Verificar preferencia guardada
+      const savedDarkMode = localStorage.getItem('adminBackend_darkMode');
+      if (savedDarkMode === 'enabled') {
+        document.documentElement.classList.add('dark-mode');
+        darkModeIcon.classList.remove('bi-moon-fill');
+        darkModeIcon.classList.add('bi-sun-fill');
+      }
+      
+      // Toggle functionality
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+          const isDarkMode = document.documentElement.classList.toggle('dark-mode');
+          
+          // Actualizar icono
+          if (isDarkMode) {
+            darkModeIcon.classList.remove('bi-moon-fill');
+            darkModeIcon.classList.add('bi-sun-fill');
+            localStorage.setItem('adminBackend_darkMode', 'enabled');
+          } else {
+            darkModeIcon.classList.remove('bi-sun-fill');
+            darkModeIcon.classList.add('bi-moon-fill');
+            localStorage.setItem('adminBackend_darkMode', 'disabled');
+          }
+        });
       }
     });
   </script>
