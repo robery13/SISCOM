@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS tomas_medicas (
   nombre_medicamento VARCHAR(255) NOT NULL,
   hora_toma TIME NOT NULL,
   fecha_toma DATETIME NOT NULL,
+  estado VARCHAR(20) NOT NULL DEFAULT 'tomada',
+  motivo_omision TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -1162,3 +1162,64 @@ body {
 .sugerencia-pedido strong {
   color: #1e40af;
 }
+
+/* ============================================
+   AJUSTES RESPONSIVE EXTRA (FRONTEND PACIENTE)
+   ============================================ */
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.main {
+  overflow-x: hidden;
+}
+
+@media (max-width: 992px) {
+  .card {
+    padding: 1rem;
+  }
+
+  .table th,
+  .table td {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 576px) {
+  .welcome-header {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .welcome-title {
+    font-size: 1.25rem;
+  }
+
+  .welcome-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .card {
+    border-radius: 0.75rem;
+    padding: 0.85rem;
+  }
+
+  .btn-emergencia-sos {
+    width: 170px;
+    height: 170px;
+  }
+
+  .sos-icon {
+    font-size: 2.7rem;
+  }
+
+  .sos-text {
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+  }
+}

@@ -4,6 +4,33 @@
 document.addEventListener("DOMContentLoaded", () => {
   const navBtns = document.querySelectorAll(".nav-btn");
   const sections = document.querySelectorAll(".section");
+  const sidebar = document.getElementById("sidebar");
+  const menuToggle = document.getElementById("menuToggle");
+  const overlay = document.getElementById("overlay");
+
+  function cerrarMenuMovil() {
+    if (sidebar) sidebar.classList.remove("active");
+    if (overlay) overlay.classList.remove("active");
+    document.body.classList.remove("menu-open");
+  }
+
+  if (menuToggle) {
+    menuToggle.addEventListener("click", () => {
+      if (sidebar) sidebar.classList.toggle("active");
+      if (overlay) overlay.classList.toggle("active");
+      document.body.classList.toggle("menu-open");
+    });
+  }
+
+  if (overlay) {
+    overlay.addEventListener("click", cerrarMenuMovil);
+  }
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 992) {
+      cerrarMenuMovil();
+    }
+  });
 
   function hideAllSections() {
     sections.forEach(s => s.classList.add("d-none"));
@@ -26,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.classList.add("active");
       const s = document.getElementById(sectionId);
       if (s) s.classList.remove("d-none");
+      if (window.innerWidth <= 992) cerrarMenuMovil();
     });
   });
 });
@@ -1043,6 +1071,11 @@ function mostrarToast(mensaje, tipo = 'info') {
 (function(){
   const tablaUsuarios = document.querySelector("#tablaUsuarios tbody");
   const noUsuariosDiv = document.getElementById("noUsuarios");
+  const searchUsuariosInput = document.getElementById("searchUsuarios");
+  const paginacionUsuarios = document.getElementById("paginacionUsuarios");
+  const infoPaginacionUsuarios = document.getElementById("infoPaginacionUsuarios");
+  const btnAnteriorUsuarios = document.getElementById("btnAnteriorUsuarios");
+  const btnSiguienteUsuarios = document.getElementById("btnSiguienteUsuarios");
   const abrirModalUsuarioBtn = document.getElementById("abrirModalUsuario");
   const modalUsuario = document.getElementById("modalUsuario");
   const formUsuario = document.getElementById("formUsuario");
@@ -1058,6 +1091,9 @@ function mostrarToast(mensaje, tipo = 'info') {
   const rolUsuario = document.getElementById("rolUsuario");
   
   let usuariosData = [];
+  let usuariosFiltrados = [];
+  let paginaActualUsuarios = 1;
+  const USUARIOS_POR_PAGINA = 6;
   let editingUserId = null;
 
   // Cargar usuarios desde el servidor
@@ -1087,6 +1123,8 @@ function mostrarToast(mensaje, tipo = 'info') {
       }
       
       usuariosData = await respuesta.json();
+      usuariosFiltrados = [...usuariosData];
+      paginaActualUsuarios = 1;
       renderUsuarios();
     } catch (error) {
       console.error("Error al cargar usuarios:", error);
@@ -1100,14 +1138,21 @@ function mostrarToast(mensaje, tipo = 'info') {
     
     tablaUsuarios.innerHTML = "";
     
-    if (usuariosData.length === 0) {
+    if (usuariosFiltrados.length === 0) {
       if (noUsuariosDiv) noUsuariosDiv.classList.remove("d-none");
+      if (paginacionUsuarios) paginacionUsuarios.classList.add("d-none");
       return;
     }
     
     if (noUsuariosDiv) noUsuariosDiv.classList.add("d-none");
-    
-    usuariosData.forEach((u) => {
+
+    const totalPaginas = Math.max(1, Math.ceil(usuariosFiltrados.length / USUARIOS_POR_PAGINA));
+    if (paginaActualUsuarios > totalPaginas) paginaActualUsuarios = totalPaginas;
+    const inicio = (paginaActualUsuarios - 1) * USUARIOS_POR_PAGINA;
+    const fin = inicio + USUARIOS_POR_PAGINA;
+    const usuariosPagina = usuariosFiltrados.slice(inicio, fin);
+
+    usuariosPagina.forEach((u) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${u.id}</td>
@@ -1130,6 +1175,43 @@ function mostrarToast(mensaje, tipo = 'info') {
       `;
       tablaUsuarios.appendChild(tr);
     });
+
+    if (paginacionUsuarios) {
+      paginacionUsuarios.classList.remove("d-none");
+    }
+    if (infoPaginacionUsuarios) {
+      const inicioVisual = usuariosFiltrados.length ? inicio + 1 : 0;
+      const finVisual = Math.min(fin, usuariosFiltrados.length);
+      infoPaginacionUsuarios.textContent = `Mostrando ${inicioVisual}-${finVisual} de ${usuariosFiltrados.length} usuarios`;
+    }
+    if (btnAnteriorUsuarios) {
+      btnAnteriorUsuarios.disabled = paginaActualUsuarios <= 1;
+    }
+    if (btnSiguienteUsuarios) {
+      btnSiguienteUsuarios.disabled = paginaActualUsuarios >= totalPaginas;
+    }
+  }
+
+  function aplicarFiltroUsuarios() {
+    const texto = (searchUsuariosInput?.value || "").trim().toLowerCase();
+    if (!texto) {
+      usuariosFiltrados = [...usuariosData];
+    } else {
+      usuariosFiltrados = usuariosData.filter((u) => {
+        const campos = [
+          u.id,
+          u.nombres,
+          u.apellidos,
+          u.identidad,
+          u.telefono,
+          u.email,
+          u.rol
+        ];
+        return campos.some((c) => String(c || "").toLowerCase().includes(texto));
+      });
+    }
+    paginaActualUsuarios = 1;
+    renderUsuarios();
   }
 
   // Obtener color de badge según rol
@@ -1304,6 +1386,27 @@ function mostrarToast(mensaje, tipo = 'info') {
   
   if (guardarUsuarioBtn) {
     guardarUsuarioBtn.addEventListener("click", guardarUsuario);
+  }
+
+  if (searchUsuariosInput) {
+    searchUsuariosInput.addEventListener("input", aplicarFiltroUsuarios);
+  }
+  if (btnAnteriorUsuarios) {
+    btnAnteriorUsuarios.addEventListener("click", () => {
+      if (paginaActualUsuarios > 1) {
+        paginaActualUsuarios--;
+        renderUsuarios();
+      }
+    });
+  }
+  if (btnSiguienteUsuarios) {
+    btnSiguienteUsuarios.addEventListener("click", () => {
+      const totalPaginas = Math.ceil(usuariosFiltrados.length / USUARIOS_POR_PAGINA);
+      if (paginaActualUsuarios < totalPaginas) {
+        paginaActualUsuarios++;
+        renderUsuarios();
+      }
+    });
   }
 
   // Cargar usuarios cuando se muestre la sección

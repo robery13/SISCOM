@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -68,11 +68,19 @@
     })();
   </script>
 
+  <!-- Botón para abrir menú en móvil -->
+  <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
+    <i class="bi bi-list"></i>
+  </button>
+
+  <!-- Overlay para cerrar menú -->
+  <div class="overlay" id="overlay"></div>
+
   <div class="app">
 
 
     <!-- SIDEBAR -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="brand">SISCOM</div>
 
       <div class="user-info" id="userInfo">
@@ -84,7 +92,7 @@
         
         <button class="nav-btn active" data-section="medicamentos" data-role="administrador,empleado"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
         <button class="nav-btn" data-section="recetas" data-role="administrador,empleado"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
-        <button class="nav-btn" data-section="Ficha" data-role="administrador,empleado"><i class="bi bi-file-person"></i> <span>Ficha</span></button>
+        <button class="nav-btn" data-section="Ficha" data-role="administrador,empleado"><i class="bi bi-clipboard2-check"></i> <span>Verificaci&oacute;n de medicamentos</span></button>
         <button class="nav-btn" data-section="inventario" data-role="administrador,empleado"><i class="bi bi-box"></i> <span>Inventario</span></button>
         <button class="nav-btn" data-section="pedidos" data-role="administrador,empleado"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
         <button class="nav-btn" data-section="usuarios" data-role="administrador"><i class="bi bi-people"></i> <span>Gestión de Usuarios</span></button>
@@ -485,53 +493,52 @@
   </div>
 </div>
       <!-- FICHA MÉDICA -->
-      <section id="Ficha" class="section d-none">
+            <section id="Ficha" class="section d-none">
         <div class="card">
-          <h2>Ficha Médica del Paciente</h2>
+          <div class="section-header text-start mb-3">
+            <h2><i class="bi bi-clipboard2-check me-2"></i> Verificación de medicamentos</h2>
+            <p class="muted mb-0">Consulta si el paciente ya tomó cada medicamento en una fecha específica.</p>
+          </div>
 
-          <form id="formFicha">
-            <div class="form-row">
-              <label for="nombreFicha">Nombre completo</label>
-              <input type="text" id="nombreFicha" class="form-control" placeholder="Ej: Juan Pérez" required>
+          <div class="row g-3 align-items-end mb-3">
+            <div class="col-md-4">
+              <label for="fechaVerificacionMedicamentos" class="form-label">Fecha</label>
+              <input type="date" id="fechaVerificacionMedicamentos" class="form-control">
             </div>
+            <div class="col-md-5">
+              <label for="pacienteVerificacionMedicamentos" class="form-label">Paciente</label>
+              <select id="pacienteVerificacionMedicamentos" class="form-select">
+                <option value="">Todos los pacientes</option>
+              </select>
+            </div>
+            <div class="col-md-3 d-grid">
+              <button type="button" id="cargarVerificacionMedicamentosBtn" class="btn btn-primary">
+                <i class="bi bi-search me-1"></i> Consultar
+              </button>
+            </div>
+          </div>
 
-            <div class="form-row">
-              <label for="fechaNac">Fecha de nacimiento</label>
-              <input type="date" id="fechaNac" class="form-control" required>
-            </div>
+          <div class="table-responsive">
+            <table class="table table-hover" id="tablaVerificacionMedicamentos">
+              <thead class="table-light">
+                <tr>
+                  <th>Fecha</th>
+                  <th>Paciente</th>
+                  <th>Medicamento</th>
+                  <th>Dosis</th>
+                  <th>Frecuencia</th>
+                  <th>Cumplimiento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="6" class="text-center text-muted py-4">Selecciona filtros y presiona "Consultar".</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-            <div class="form-row">
-              <label for="alergias">Registrar alergias</label>
-              <div class="input-group">
-                <input type="text" id="alergiasInput" class="form-control" placeholder="Ej: Penicilina, Mariscos...">
-                <button type="button" id="btnAgregarAlergia" class="btn btn-outline-secondary">Agregar</button>
-              </div>
-              <ul id="listaAlergias" class="list-group mt-2"></ul>
-            </div>
-
-            <div class="form-row">
-              <label for="condiciones">Registrar condiciones</label>
-              <div class="input-group mb-2">
-                <input type="text" id="condicionesInput" class="form-control" placeholder="Ej: Diabetes, Hipertensión...">
-                <select id="nivelCondicion" class="form-select" style="max-width: 150px;">
-                  <option value="Leve">Leve</option>
-                  <option value="Moderada">Moderada</option>
-                  <option value="Crítica">Crítica</option>
-                </select>
-                <button type="button" id="btnAgregarCondicion" class="btn btn-outline-secondary">Agregar</button>
-              </div>
-              <ul id="listaCondiciones" class="list-group"></ul>
-            </div>
-
-            <div id="alertaCritica" class="alerta-critica oculto">
-              Atención: el paciente presenta condiciones o alergias críticas.
-            </div>
-
-            <div class="d-flex gap-2 mt-4">
-              <button type="button" id="btnGuardar" class="btn btn-primary">Guardar Ficha</button>
-              <button type="button" id="btnLimpiar" class="btn btn-danger">Limpiar</button>
-            </div>
-          </form>
+          <div id="resumenVerificacionMedicamentos" class="mt-2 text-muted"></div>
         </div>
       </section>
 
@@ -584,6 +591,13 @@
           </div>
           <div class="mb-3">
             <input type="text" id="searchUsuarios" class="form-control" placeholder="Buscar usuarios...">
+          </div>
+          <div id="paginacionUsuarios" class="d-flex justify-content-between align-items-center mb-3 d-none">
+            <small class="text-muted" id="infoPaginacionUsuarios">Mostrando 0 de 0 usuarios</small>
+            <div class="btn-group btn-group-sm">
+              <button id="btnAnteriorUsuarios" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i></button>
+              <button id="btnSiguienteUsuarios" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-right"></i></button>
+            </div>
           </div>
           <div class="card-body p-0">
             <div class="table-responsive">
@@ -1019,6 +1033,9 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             // Guardar sección en localStorage
             guardarSeccionActiva(sectionId);
+            if (sectionId === 'Ficha' && window.cargarVerificacionMedicamentos) {
+              window.cargarVerificacionMedicamentos();
+            }
           }
         });
       });
@@ -1044,7 +1061,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'inventario': 'cargarInventario',
             'pedidos': 'cargarPedidos',
             'usuarios': 'cargarUsuarios',
-            'Ficha': 'cargarFicha'
+            'Ficha': 'cargarVerificacionMedicamentos'
           };
           
           const funcionNombre = funcionesCarga[sectionId];
@@ -1237,42 +1254,8 @@ document.addEventListener('DOMContentLoaded', () => {
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const searchInput = document.getElementById('searchUsuarios');
-
-      const tableBody = document.querySelector('#tablaUsuarios tbody');
-      const noUsuariosDiv = document.getElementById('noUsuarios');
-
-      if (searchInput && tableBody) {
-        searchInput.addEventListener('input', () => {
-          const searchValue = searchInput.value.toLowerCase();
-          const rows = tableBody.querySelectorAll('tr');
-          let visibleRows = 0;
-
-          rows.forEach(row => {
-            const cells = row.querySelectorAll('td');
-            let match = false;
-
-            cells.forEach(cell => {
-              if (cell.textContent.toLowerCase().includes(searchValue)) {
-                match = true;
-              }
-            });
-
-            if (match) {
-              row.style.display = '';
-              visibleRows++;
-            } else {
-              row.style.display = 'none';
-            }
-          });
-
-          // Mostrar/ocultar mensaje de no usuarios
-          if (visibleRows === 0 && rows.length > 0) {
-            noUsuariosDiv.classList.remove('d-none');
-          } else {
-            noUsuariosDiv.classList.add('d-none');
-          }
-        });
-      }
+      if (!searchInput) return;
+      // El filtrado y paginación se gestionan en scriptregistro.js.
     });
   </script>
 
@@ -1749,5 +1732,137 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   </script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const fechaInput = document.getElementById('fechaVerificacionMedicamentos');
+      const pacienteSelect = document.getElementById('pacienteVerificacionMedicamentos');
+      const cargarBtn = document.getElementById('cargarVerificacionMedicamentosBtn');
+      const tablaBody = document.querySelector('#tablaVerificacionMedicamentos tbody');
+      const resumen = document.getElementById('resumenVerificacionMedicamentos');
+
+      if (!fechaInput || !pacienteSelect || !cargarBtn || !tablaBody || !resumen) return;
+
+      function hoyISO() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+
+      function fechaLegible(fechaIso) {
+        const [y, m, d] = fechaIso.split('-');
+        return `${d}/${m}/${y}`;
+      }
+
+      async function cargarPacientesVerificacion() {
+        try {
+          const resp = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          if (!resp.ok) throw new Error('No se pudieron cargar pacientes');
+          const pacientes = await resp.json();
+
+          pacienteSelect.innerHTML = '<option value="">Todos los pacientes</option>';
+          pacientes.forEach((p) => {
+            const option = document.createElement('option');
+            option.value = String(p.id);
+            option.textContent = `${p.nombres} ${p.apellidos}`;
+            pacienteSelect.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error al cargar pacientes de verificacion:', error);
+        }
+      }
+
+      async function construirFilasVerificacion() {
+        const fecha = fechaInput.value;
+        const pacienteIdFiltro = pacienteSelect.value;
+
+        if (!fecha) {
+          alert('Selecciona una fecha para consultar la verificacion.');
+          return;
+        }
+
+        tablaBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Cargando verificacion...</td></tr>';
+        resumen.textContent = '';
+
+        try {
+          const pacientesResp = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          if (!pacientesResp.ok) throw new Error('No se pudieron cargar pacientes');
+          const pacientes = await pacientesResp.json();
+
+          const pacientesFiltrados = pacienteIdFiltro
+            ? pacientes.filter((p) => String(p.id) === String(pacienteIdFiltro))
+            : pacientes;
+
+          const filas = [];
+
+          for (const paciente of pacientesFiltrados) {
+            const [recetasResp, tomasResp] = await Promise.all([
+              fetch(`http://localhost:3000/recetas/${paciente.id}`),
+              fetch(`http://localhost:3000/tomas/${paciente.id}/${fecha}`)
+            ]);
+
+            if (!recetasResp.ok || !tomasResp.ok) {
+              throw new Error(`No se pudieron cargar datos para ${paciente.nombres} ${paciente.apellidos}`);
+            }
+
+            const recetas = await recetasResp.json();
+            const tomas = await tomasResp.json();
+
+            recetas.forEach((receta) => {
+              const eventosReceta = tomas.filter((t) => t.id_receta === receta.id);
+              const ultimoEvento = eventosReceta.length ? eventosReceta[eventosReceta.length - 1] : null;
+              const cumplio = !!(ultimoEvento && ultimoEvento.estado !== 'no_tomada');
+
+              filas.push({
+                fecha,
+                paciente: `${paciente.nombres} ${paciente.apellidos}`,
+                medicamento: receta.nombre_medicamento || 'N/A',
+                dosis: receta.dosis || 'N/A',
+                frecuencia: receta.frecuencia || 'N/A',
+                cumplio
+              });
+            });
+          }
+
+          if (!filas.length) {
+            tablaBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No hay medicamentos para mostrar en la fecha seleccionada.</td></tr>';
+            resumen.textContent = 'Sin resultados para los filtros seleccionados.';
+            return;
+          }
+
+          tablaBody.innerHTML = filas.map((fila) => `
+            <tr>
+              <td>${fechaLegible(fila.fecha)}</td>
+              <td>${fila.paciente}</td>
+              <td>${fila.medicamento}</td>
+              <td>${fila.dosis}</td>
+              <td>${fila.frecuencia}</td>
+              <td>
+                <span class="badge ${fila.cumplio ? 'bg-success' : 'bg-danger'}">${fila.cumplio ? 'SI' : 'NO'}</span>
+              </td>
+            </tr>
+          `).join('');
+
+          const total = filas.length;
+          const cumplidas = filas.filter((f) => f.cumplio).length;
+          const porcentaje = total > 0 ? Math.round((cumplidas / total) * 100) : 0;
+          resumen.innerHTML = `<strong>Resumen:</strong> ${cumplidas} de ${total} medicamentos cumplidos (${porcentaje}%).`;
+        } catch (error) {
+          console.error('Error al construir verificacion de medicamentos:', error);
+          tablaBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">Error al cargar datos: ${error.message}</td></tr>`;
+          resumen.textContent = '';
+        }
+      }
+
+      window.cargarVerificacionMedicamentos = construirFilasVerificacion;
+
+      fechaInput.value = fechaInput.value || hoyISO();
+      cargarBtn.addEventListener('click', construirFilasVerificacion);
+      cargarPacientesVerificacion();
+    });
+  </script>
 </body>
 </html>
+

@@ -454,3 +454,157 @@ body{
     transform: translateX(100%);
   }
 }
+
+/* ============================================
+   RESPONSIVE GLOBAL (ADMIN + CUIDADOR)
+   ============================================ */
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.menu-toggle {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 1200;
+  background: #1e3a8a;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1100;
+}
+
+.overlay.active {
+  display: block;
+}
+
+@media (max-width: 1200px) {
+  .main {
+    padding: 1.25rem;
+  }
+
+  .card {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 992px) {
+  .menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    left: 0;
+    top: 0;
+    width: min(84vw, 320px) !important;
+    height: 100vh;
+    transform: translateX(-105%);
+    transition: transform 0.28s ease;
+    z-index: 1150;
+    display: flex !important;
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+  }
+
+  .main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 64px 14px 18px !important;
+  }
+
+  body.menu-open {
+    overflow: hidden;
+  }
+
+  .section-header {
+    text-align: left;
+    margin-bottom: 14px;
+  }
+
+  .table th,
+  .table td {
+    white-space: nowrap;
+    font-size: 0.92rem;
+  }
+
+  .form-actions {
+    justify-content: stretch;
+  }
+
+  .form-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding-inline: 10px !important;
+  }
+
+  .card {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .section-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .btn,
+  .btn-sm {
+    min-height: 42px;
+  }
+
+  .modal-dialog {
+    margin: 0.5rem;
+  }
+
+  #toast-container {
+    left: 10px;
+    right: 10px;
+    top: 10px;
+  }
+
+  #toast-container .toast {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 576px) {
+  .brand {
+    font-size: 1.35rem;
+    padding: 1rem;
+  }
+
+  .nav-btn {
+    font-size: 0.95rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .table th,
+  .table td {
+    font-size: 0.84rem;
+    padding: 0.5rem;
+  }
+}
