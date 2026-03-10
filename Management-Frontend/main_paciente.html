@@ -107,6 +107,34 @@
     </div>
   </div>
 
+  <!-- HU-44: Resumen Diario de Medicamentos -->
+  <div class="card">
+    <h5 class="card-title"><i class="bi bi-calendar-check"></i> Resumen Diario de Medicamentos</h5>
+    <div class="row text-center">
+      <div class="col-4">
+        <div class="p-3 bg-success text-white rounded">
+          <i class="bi bi-check-circle-fill" style="font-size: 1.5rem;"></i>
+          <h4 class="mt-2" id="contador-tomados">0</h4>
+          <p class="mb-0 small">Tomados</p>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="p-3 bg-warning text-white rounded">
+          <i class="bi bi-clock-fill" style="font-size: 1.5rem;"></i>
+          <h4 class="mt-2" id="contador-pendientes">0</h4>
+          <p class="mb-0 small">Pendientes</p>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="p-3 bg-info text-white rounded">
+          <i class="bi bi-graph-up-arrow" style="font-size: 1.5rem;"></i>
+          <h4 class="mt-2" id="contador-cumplimiento">0%</h4>
+          <p class="mb-0 small">Cumplimiento</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="row">
     <div class="col-md-8 mb-3">
       <div class="card">
@@ -296,30 +324,11 @@
 
         <div class="card">
           <h5 class="card-title">Próximas Citas</h5>
-          <div class="alert alert-info">
-            <i class="bi bi-bell"></i> Tienes 2 citas próximas esta semana
+          <div id="alertaCitasProximas" class="alert alert-info d-none">
+            <i class="bi bi-bell"></i> Tienes citas próximas esta semana
           </div>
-          <div class="list-group">
-            <div class="list-group-item">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="mb-1">Consulta General</h6>
-                  <small class="text-muted"><i class="bi bi-calendar3"></i> 05/12/2024 - 10:00 AM</small><br>
-                  <small class="text-muted"><i class="bi bi-person"></i> Dr. Juan Pérez</small>
-                </div>
-                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i> Cancelar</button>
-              </div>
-            </div>
-            <div class="list-group-item">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="mb-1">Cardiología - Control</h6>
-                  <small class="text-muted"><i class="bi bi-calendar3"></i> 07/12/2024 - 3:00 PM</small><br>
-                  <small class="text-muted"><i class="bi bi-person"></i> Dra. María López</small>
-                </div>
-                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i> Cancelar</button>
-              </div>
-            </div>
+          <div class="list-group" id="listaCitasProximas">
+            <!-- Las citas se cargan dinámicamente con la función cargarCitas() -->
           </div>
         </div>
       </section>

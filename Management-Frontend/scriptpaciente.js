@@ -1293,17 +1293,36 @@ async function cargarCitas() {
     const response = await fetch(`${API_URL}/citas/${idUsuario}`);
     const citas = await response.json();
     
-    const listGroup = document.querySelector('#agenda .list-group');
+    // Usar el nuevo ID del contenedor
+    const listGroup = document.getElementById('listaCitasProximas');
+    const alertaCitas = document.getElementById('alertaCitasProximas');
     if (!listGroup) return;
     
     listGroup.innerHTML = '';
     
     const citasProximas = citas.filter(c => new Date(c.fecha_hora) > new Date());
     
+    // Mostrar/ocultar alerta según cantidad de citas
+    if (alertaCitas) {
+      if (citasProximas.length > 0) {
+        alertaCitas.classList.remove('d-none');
+        if (citasProximas.length === 1) {
+          alertaCitas.innerHTML = '<i class="bi bi-bell"></i> Tienes 1 cita próxima esta semana';
+        } else {
+          alertaCitas.innerHTML = `<i class="bi bi-bell"></i> Tienes ${citasProximas.length} citas próximas esta semana`;
+        }
+      } else {
+        alertaCitas.classList.add('d-none');
+      }
+    }
+    
     if (citasProximas.length === 0) {
-      listGroup.innerHTML = '<div class="list-group-item">No hay citas proximas</div>';
+      listGroup.innerHTML = '<div class="list-group-item text-center text-muted">No hay citas próximas</div>';
       return;
     }
+    
+    // Ordenar por fecha más próxima
+    citasProximas.sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
     
     citasProximas.forEach(cita => {
       const fecha = new Date(cita.fecha_hora);
@@ -1329,6 +1348,65 @@ async function cargarCitas() {
 
 // ====================================================================
 // ====================================================================
+
+// ============================================
+// MENSAJES MOTIVACIONALES PARA CITAS
+// ============================================
+const mensajesMotivacionalesCitas = [
+  "¡Excelente decisión! Cuidar tu salud siempre es una prioridad 💙",
+  "¡Muy bien! Un paso más hacia una vida más saludable.",
+  "Tu bienestar es lo primero. ¡Gracias por cuidar de ti!",
+  "¡Perfecto! Recuerda que prevenir es mejor que curar.",
+  "Cada cita médica es una inversión en tu salud.",
+  "¡Buen trabajo! Estás cuidando lo más importante: tu salud."
+];
+
+// Función para mostrar mensaje motivacional aleatorio al agendar cita
+function mostrarMensajeMotivacionalCita() {
+  const indiceAleatorio = Math.floor(Math.random() * mensajesMotivacionalesCitas.length);
+  const mensaje = mensajesMotivacionalesCitas[indiceAleatorio];
+  
+  // Usar el mismo estilo de notificación verde que ya existe
+  mostrarNotificacion(mensaje, 'success');
+}
+
+// Función para actualizar la tarjeta de Próxima Cita en el dashboard
+function actualizarProximaCitaEnDashboard(cita) {
+  const proximaCitaDiv = document.getElementById('proximaCita');
+  if (!proximaCitaDiv) return;
+  
+  const fecha = new Date(cita.fecha_hora);
+  const fechaFormateada = fecha.toLocaleDateString('es-ES');
+  const horaFormateada = fecha.toLocaleTimeString('es-ES', { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+  
+  proximaCitaDiv.innerHTML = `
+    <i class="bi bi-calendar-event text-primary" style="font-size: 2rem;"></i>
+    <p class="mt-2 mb-1"><strong>${cita.motivo}</strong></p>
+    <small class="text-muted">${fechaFormateada} - ${horaFormateada}</small>
+  `;
+}
+
+// Función para recargar la Próxima Cita desde el servidor
+async function recargarProximaCitaEnDashboard() {
+  const idUsuario = getUsuarioId();
+  
+  try {
+    const response = await fetch(`${API_URL}/citas/${idUsuario}`);
+    const citas = await response.json();
+    
+    const citasProximas = citas.filter(c => new Date(c.fecha_hora) > new Date())
+                               .sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
+    
+    if (citasProximas.length > 0) {
+      actualizarProximaCitaEnDashboard(citasProximas[0]);
+    }
+  } catch (error) {
+    console.error('Error al recargar próxima cita:', error);
+  }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   const citaForm = document.getElementById('citaForm');
@@ -1368,9 +1446,21 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const data = await response.json();
         mostrarNotificacion(data.mensaje, 'success');
+        
+        // ✅ NUEVO: Mostrar mensaje motivacional aleatorio
+        mostrarMensajeMotivacionalCita();
+        
+        // ✅ PROBLEMA 1 Y 2: Actualizar lista de citas y Próxima Cita en dashboard
+        // Recargar la lista de citas en la sección de agenda
+        cargarCitas();
+        
+        // Recargar la Próxima Cita en el dashboard (Inicio)
+        recargarProximaCitaEnDashboard();
+        
+        // También actualizar las estadísticas del inicio
+        cargarEstadisticasInicio();
+        
         citaForm.reset(); // Limpiar formulario
-        cargarCitas(); // Recargar lista de citas
-        cargarEstadisticasInicio(); // Actualizar estadísticas
       } catch (error) {
         console.error('Error:', error);
         mostrarNotificacion('Error al guardar la cita', 'error');
@@ -3267,3 +3357,342 @@ document.addEventListener("DOMContentLoaded", () => {
   // Actualizar avatar y nombre
   actualizarAvatarEnSistema();
 });
+
+// ============================================
+// HU-43: MENSAJE MOTIVACIONAL POR CUMPLIMIENTO
+// ============================================
+
+const mensajesMotivacionales = [
+  {
+    titulo: "¡Buen trabajo!",
+    mensaje: "Has cumplido con tu medicamento de hoy. Sigue cuidando tu salud."
+  },
+  {
+    titulo: "¡Excelente!",
+    mensaje: "Estás cumpliendo tu tratamiento. Tu cuerpo te lo agradecerá."
+  },
+  {
+    titulo: "¡Muy bien!",
+    mensaje: "Cada dosis cuenta para tu salud. ¡Sigue así!"
+  },
+  {
+    titulo: "¡Fantástico!",
+    mensaje: "Has tomado tu medicamento. Tu compromiso con la salud es admirable."
+  },
+  {
+    titulo: "¡Sigue así!",
+    mensaje: "Tu salud te lo agradecerá. Estás en el camino correcto."
+  },
+  {
+    titulo: "¡Perfecto!",
+    mensaje: "Otro paso hacia tu bienestar. ¡Continúa así!"
+  }
+];
+
+function mostrarMensajeMotivacional() {
+  // Seleccionar un mensaje aleatorio
+  const indiceAleatorio = Math.floor(Math.random() * mensajesMotivacionales.length);
+  const mensajeSeleccionado = mensajesMotivacionales[indiceAleatorio];
+  
+  // Crear el modal
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    animation: fadeIn 0.3s ease-out;
+  `;
+  
+  modal.innerHTML = `
+    <div style="background: white; padding: 2rem; border-radius: 1rem; max-width: 450px; width: 90%; box-shadow: 0 15px 40px rgba(0,0,0,0.3); animation: scaleIn 0.3s ease-out; text-align: center;">
+      <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 1.5rem; display: flex; align-items: center; justify-content: center;">
+        <i class="bi bi-emoji-smile-fill" style="font-size: 3rem; color: white;"></i>
+      </div>
+      <h3 style="color: #10b981; margin: 0 0 1rem 0; font-size: 1.5rem; font-weight: 700;">
+        ${mensajeSeleccionado.titulo}
+      </h3>
+      <p style="color: #64748b; margin: 0 0 1.5rem 0; font-size: 1rem; line-height: 1.5;">
+        ${mensajeSeleccionado.mensaje}
+      </p>
+      <button class="btn btn-success" id="btnAceptarMensaje" style="min-width: 150px; font-weight: 600;">
+        <i class="bi bi-check-circle-fill"></i> Aceptar
+      </button>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById('btnAceptarMensaje').addEventListener('click', () => {
+    modal.style.animation = 'fadeOut 0.3s ease-out';
+    setTimeout(() => modal.remove(), 300);
+  });
+  
+  // Cerrar al hacer clic fuera
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => modal.remove(), 300);
+    }
+  });
+}
+
+// ============================================
+// HU-44: RESUMEN DIARIO DE MEDICAMENTOS
+// ============================================
+
+// Variables para el resumen diario
+let resumenDiario = {
+  tomados: 0,
+  pendientes: 0,
+  total: 0,
+  fecha: new Date().toISOString().slice(0, 10),
+  medicamentosTomados: [] // IDs de medicamentos ya tomados
+};
+
+function obtenerStorageKey() {
+  const idUsuario = getUsuarioId();
+  return `resumen_diario_${idUsuario}`;
+}
+
+function cargarResumenDiario() {
+  const storageKey = obtenerStorageKey();
+  const datosGuardados = localStorage.getItem(storageKey);
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+  
+  if (datosGuardados) {
+    const datos = JSON.parse(datosGuardados);
+    
+    // Verificar si es un nuevo día
+    if (datos.fecha === fechaHoy) {
+      resumenDiario = datos;
+    } else {
+      // Nuevo día, reiniciar contadores
+      reiniciarResumenDiario();
+    }
+  } else {
+    // No hay datos guardados, inicializar
+    reiniciarResumenDiario();
+  }
+  
+  // Cargar el total de medicamentos del día
+  cargarTotalMedicamentosDia();
+}
+
+function reiniciarResumenDiario() {
+  resumenDiario = {
+    tomados: 0,
+    pendientes: 0,
+    total: 0,
+    fecha: new Date().toISOString().slice(0, 10),
+    medicamentosTomados: []
+  };
+  guardarResumenDiario();
+}
+
+function guardarResumenDiario() {
+  const storageKey = obtenerStorageKey();
+  localStorage.setItem(storageKey, JSON.stringify(resumenDiario));
+}
+
+async function cargarTotalMedicamentosDia() {
+  const idUsuario = getUsuarioId();
+  
+  try {
+    const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
+    const recetas = await response.json();
+    
+    const total = Array.isArray(recetas) ? recetas.length : 0;
+    resumenDiario.total = total;
+    
+    // Calcular pendientes
+    resumenDiario.pendientes = total - resumenDiario.tomados;
+    
+    // Actualizar la interfaz
+    actualizarInterfazResumenDiario();
+    guardarResumenDiario();
+    
+  } catch (error) {
+    console.error('Error al cargar total de medicamentos:', error);
+    // Si hay error, intentar usar valor guardado
+    actualizarInterfazResumenDiario();
+  }
+}
+
+function actualizarInterfazResumenDiario() {
+  const contadorTomados = document.getElementById('contador-tomados');
+  const contadorPendientes = document.getElementById('contador-pendientes');
+  const contadorCumplimiento = document.getElementById('contador-cumplimiento');
+  
+  if (contadorTomados) {
+    contadorTomados.textContent = resumenDiario.tomados;
+  }
+  
+  if (contadorPendientes) {
+    contadorPendientes.textContent = Math.max(0, resumenDiario.pendientes);
+  }
+  
+  if (contadorCumplimiento) {
+    let cumplimiento = 0;
+    if (resumenDiario.total > 0) {
+      cumplimiento = Math.round((resumenDiario.tomados / resumenDiario.total) * 100);
+    }
+    contadorCumplimiento.textContent = cumplimiento + '%';
+  }
+}
+
+function actualizarResumenDiario(idMedicamento) {
+  // Incrementar tomados
+  resumenDiario.tomados++;
+  
+  // Decrementar pendientes
+  if (resumenDiario.pendientes > 0) {
+    resumenDiario.pendientes--;
+  }
+  
+  // Agregar ID del medicamento a la lista de tomados
+  if (idMedicamento) {
+    resumenDiario.medicamentosTomados.push(idMedicamento);
+  }
+  
+  // Guardar y actualizar interfaz
+  guardarResumenDiario();
+  actualizarInterfazResumenDiario();
+}
+
+// Función para verificar si un medicamento ya fue tomado hoy
+function verificarMedicamentoTomado(idMedicamento) {
+  return resumenDiario.medicamentosTomados.includes(idMedicamento);
+}
+
+// Función para marcar botón como tomado
+function marcarBotonTomado(boton) {
+  boton.classList.remove('btn-success');
+  boton.classList.add('btn-secondary');
+  boton.disabled = true;
+  boton.innerHTML = '<i class="bi bi-check-circle-fill"></i> ✓ Tomado';
+}
+
+// ============================================
+// MODIFICAR CONFIRMAR TOMA PARA HU-43 Y HU-44
+// ============================================
+
+// Guardar la función original
+const confirmarTomaMedicamentoOriginal = confirmarTomaMedicamento;
+
+// Sobrescribir la función
+async function confirmarTomaMedicamento(id_receta, nombre_medicamento) {
+  // Verificar si ya fue tomado
+  if (verificarMedicamentoTomado(id_receta)) {
+    mostrarNotificacion('Este medicamento ya fue registrado hoy', 'warning');
+    return;
+  }
+  
+  const confirmado = await mostrarConfirmacion(
+    'Confirmar toma de medicamento',
+    'Confirmas que tomaste ' + nombre_medicamento + '?'
+  );
+  
+  if (!confirmado) return;
+  
+  const idUsuario = getUsuarioId();
+  const horaActual = new Date().toTimeString().slice(0, 8);
+  const fechaActual = new Date().toISOString().slice(0, 10);
+  
+  try {
+    const response = await fetch(`${API_URL}/registrarTomaMedicamento`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_usuario: idUsuario,
+        id_receta: id_receta,
+        nombre_medicamento: nombre_medicamento,
+        hora_toma: horaActual,
+        fecha_toma: fechaActual
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error en la respuesta del servidor');
+    }
+    
+    const data = await response.json();
+    
+    // HU-44: Actualizar contadores del resumen diario
+    actualizarResumenDiario(id_receta);
+    
+    // HU-43: Mostrar mensaje motivacional
+    mostrarMensajeMotivacional();
+    
+    // Mostrar notificación de puntos
+    mostrarNotificacion('Medicamento registrado. Ganaste ' + data.puntos_ganados + ' puntos', 'success');
+    
+    // Actualizar interfaz
+    await cargarEstadisticasInicio();
+    await cargarRecompensas();
+    await cargarTomasRegistradasHoy();
+    
+    // Actualizar botones en la lista de medicamentos
+    actualizarBotonesMedicamentos();
+    
+  } catch (error) {
+    console.error('Error completo:', error);
+    mostrarNotificacion('Error al registrar la toma del medicamento', 'error');
+  }
+}
+
+// Actualizar todos los botones de medicamentos según el estado
+function actualizarBotonesMedicamentos() {
+  // Actualizar botones en "Mis Medicamentos de Hoy"
+  const listaMedicamentos = document.getElementById('listaMedicamentosHoy');
+  if (listaMedicamentos) {
+    const botones = listaMedicamentos.querySelectorAll('.btn-success');
+    botones.forEach(boton => {
+      // Extraer ID del medicamento del onclick
+      const onclickAttr = boton.getAttribute('onclick');
+      if (onclickAttr) {
+        const match = onclickAttr.match(/confirmarTomaMedicamento\((\d+)/);
+        if (match) {
+          const idMed = parseInt(match[1]);
+          if (verificarMedicamentoTomado(idMed)) {
+            marcarBotonTomado(boton);
+          }
+        }
+      }
+    });
+  }
+}
+
+// ============================================
+// INICIALIZACIÓN DEL RESUMEN DIARIO
+// ============================================
+
+document.addEventListener("DOMContentLoaded", () => {
+  // Cargar resumen diario al iniciar
+  cargarResumenDiario();
+  
+  // Verificar si es un nuevo día cada vez que se carga la página
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+  if (resumenDiario.fecha !== fechaHoy) {
+    cargarResumenDiario();
+  }
+  
+  // Verificar reinicio de contadores cada minuto
+  setInterval(() => {
+    const fechaActual = new Date().toISOString().slice(0, 10);
+    if (resumenDiario.fecha !== fechaActual) {
+      console.log('Nuevo día detectado, reiniciando contadores...');
+      cargarResumenDiario();
+    }
+  }, 60000); // Cada minuto
+});
+
+// ============================================
+// FIN HU-43 Y HU-44
+// ============================================
