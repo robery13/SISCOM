@@ -15,7 +15,7 @@
 <body>
 
   <!-- Botón para abrir menú en móvil -->
-<button class="menu-toggle" id="menuToggle">
+<button class="menu-toggle" id="menuToggle" title="Abrir menú" aria-label="Abrir menú">
   <i class="bi bi-list"></i>
 </button>
 
@@ -50,8 +50,10 @@
     <button class="nav-btn" data-section="agenda"><i class="bi bi-calendar-check"></i> <span>Agenda Médica</span></button>
     <button class="nav-btn" data-section="recompensas"><i class="bi bi-trophy"></i> <span>Recompensas</span></button>
     <button class="nav-btn" data-section="emergencia"><i class="bi bi-mic-fill"></i> <span>Emergencia</span></button>
+    <button class="nav-btn" data-section="horarios"><i class="bi bi-clock-fill"></i> <span>Mis Horarios</span></button>
     <button class="nav-btn" data-section="personalizacion"><i class="bi bi-palette-fill"></i> <span>Personalización</span></button>
     <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
+
   </nav>
 </aside>
     <!-- CONTENIDO PRINCIPAL -->
@@ -76,28 +78,28 @@
     <div class="row">
       <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-primary text-white rounded text-center">
-          <i class="bi bi-prescription2" style="font-size: 2.5rem;"></i>
+          <i class="bi bi-prescription2 icon-2-5"></i>
           <h3 class="mt-2" id="stat-recetas">0</h3>
           <p class="mb-0">Recetas Activas</p>
         </div>
       </div>
       <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-success text-white rounded text-center">
-          <i class="bi bi-calendar-check" style="font-size: 2.5rem;"></i>
+          <i class="bi bi-calendar-check icon-2-5"></i>
           <h3 class="mt-2" id="stat-citas">0</h3>
           <p class="mb-0">Citas Próximas</p>
         </div>
       </div>
       <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-warning text-white rounded text-center">
-          <i class="bi bi-star-fill" style="font-size: 2.5rem;"></i>
+          <i class="bi bi-star-fill icon-2-5"></i>
           <h3 class="mt-2" id="stat-puntos">0</h3>
           <p class="mb-0">Puntos</p>
         </div>
       </div>
       <div class="col-md-3 col-6 mb-3">
         <div class="p-4 bg-info text-white rounded text-center">
-          <i class="bi bi-graph-up" style="font-size: 2.5rem;"></i>
+          <i class="bi bi-graph-up icon-2-5"></i>
           <h3 class="mt-2" id="stat-cumplimiento">0%</h3>
           <p class="mb-0">Cumplimiento</p>
         </div>
@@ -145,7 +147,7 @@
       <div class="card mt-3">
         <h5 class="card-title">Logro Reciente</h5>
         <div id="logroReciente" class="text-center">
-          <i class="bi bi-trophy-fill text-warning" style="font-size: 3rem;"></i>
+          <i class="bi bi-trophy-fill text-warning icon-3"></i>
           <p class="mt-2 mb-0"><strong>Sigue así</strong></p>
           <small class="text-muted">Completa tus medicamentos</small>
         </div>
@@ -164,8 +166,8 @@
         <div class="card">
           <h5 class="card-title">Subir Nueva Receta</h5>
           <div class="mb-3">
-            <label class="form-label">Selecciona o escanea tu receta</label>
-            <input type="file" class="form-control" accept="image/*,.pdf" id="recetaInput">
+            <label class="form-label" for="recetaInput">Selecciona o escanea tu receta</label>
+            <input type="file" class="form-control" accept="image/*,.pdf" id="recetaInput" aria-label="Seleccionar receta">
           </div>
           <button class="btn btn-primary w-100 w-md-auto"><i class="bi bi-upload"></i> Cargar Receta</button>
         </div>
@@ -183,28 +185,12 @@
                   <th>Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="tablaRecetasBody">
                 <tr>
-                  <td>15/11/2024</td>
-                  <td>Ibuprofeno</td>
-                  <td>400mg</td>
-                  <td>Cada 8 horas</td>
-                  <td>
-                    <button class="btn btn-sm btn-info"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>20/11/2024</td>
-                  <td>Losartán</td>
-                  <td>50mg</td>
-                  <td>Cada 12 horas</td>
-                  <td>
-                    <button class="btn btn-sm btn-info"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
-                  </td>
+                  <td colspan="5" class="text-center text-muted">Cargando recetas...</td>
                 </tr>
               </tbody>
+
             </table>
           </div>
         </div>
@@ -235,12 +221,12 @@
           <form id="citaForm">
             <div class="row">
               <div class="col-md-6 mb-3">
-                <label class="form-label">Fecha</label>
-                <input type="date" class="form-control" required>
+                <label class="form-label" for="citaFecha">Fecha</label>
+                <input type="date" id="citaFecha" class="form-control" required aria-label="Fecha de cita">
               </div>
               <div class="col-md-6 mb-3">
-                <label class="form-label">Hora</label>
-                <input type="time" class="form-control" required>
+                <label class="form-label" for="citaHora">Hora</label>
+                <input type="time" id="citaHora" class="form-control" required aria-label="Hora de cita">
               </div>
             </div>
             <div class="mb-3">
@@ -350,21 +336,21 @@
           <div class="row text-center mb-4">
             <div class="col-md-4">
               <div class="p-3 bg-light rounded">
-                <i class="bi bi-star-fill text-warning" style="font-size: 2rem;"></i>
+                <i class="bi bi-star-fill text-warning icon-2"></i>
                 <h3 class="mt-2">350</h3>
                 <small class="text-muted">Puntos totales</small>
               </div>
             </div>
             <div class="col-md-4">
               <div class="p-3 bg-light rounded">
-                <i class="bi bi-award-fill text-primary" style="font-size: 2rem;"></i>
+                <i class="bi bi-award-fill text-primary icon-2"></i>
                 <h3 class="mt-2">5</h3>
                 <small class="text-muted">Medallas</small>
               </div>
             </div>
             <div class="col-md-4">
               <div class="p-3 bg-light rounded">
-                <i class="bi bi-graph-up text-success" style="font-size: 2rem;"></i>
+                <i class="bi bi-graph-up text-success icon-2"></i>
                 <h3 class="mt-2">85%</h3>
                 <small class="text-muted">Cumplimiento</small>
               </div>
@@ -373,8 +359,8 @@
 
           <div class="mb-3">
             <label class="mb-2">Progreso a siguiente nivel</label>
-            <div class="progress" style="height: 25px;">
-              <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: 70%">70%</div>
+            <div class="progress progress-tall">
+              <div class="progress-bar progress-bar-striped progress-bar-animated bg-success progress-70">70%</div>
             </div>
             <small class="text-muted">150 puntos más para nivel 4</small>
           </div>
@@ -384,17 +370,17 @@
           <h5 class="card-title">Medallas Obtenidas</h5>
           <div class="row">
             <div class="col-md-4 text-center mb-3">
-              <i class="bi bi-calendar-check-fill text-success" style="font-size: 3rem;"></i>
+              <i class="bi bi-calendar-check-fill text-success icon-3"></i>
               <p class="mt-2 mb-0"><strong>Semana Perfecta</strong></p>
               <small class="text-muted">7 días consecutivos</small>
             </div>
             <div class="col-md-4 text-center mb-3">
-              <i class="bi bi-clock-history text-info" style="font-size: 3rem;"></i>
+              <i class="bi bi-clock-history text-info icon-3"></i>
               <p class="mt-2 mb-0"><strong>Puntual</strong></p>
               <small class="text-muted">Siempre a tiempo</small>
             </div>
             <div class="col-md-4 text-center mb-3">
-              <i class="bi bi-fire text-danger" style="font-size: 3rem;"></i>
+              <i class="bi bi-fire text-danger icon-3"></i>
               <p class="mt-2 mb-0"><strong>Racha de 30</strong></p>
               <small class="text-muted">30 días seguidos</small>
             </div>
@@ -511,6 +497,41 @@
           </div>
         </div>
       </section>
+<!-- SECCIÓN CONFIGURACIÓN DE HORARIOS -->
+<section id="horarios" class="section d-none">
+  <div class="section-header">
+    <h2><i class="bi bi-clock-fill"></i> Configuración de Horarios</h2>
+    <p class="muted">Personaliza los horarios exactos de tus medicamentos</p>
+  </div>
+
+  <div class="card">
+    <h5 class="card-title">Mis Medicamentos con Horarios Personalizados</h5>
+    <div id="listaMedicamentosHorarios" class="list-group list-group-flush">
+      <div class="list-group-item text-center text-muted">
+        Cargando medicamentos...
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <h5 class="card-title"><i class="bi bi-info-circle"></i> Información</h5>
+    <div class="alert alert-info">
+      <i class="bi bi-lightbulb"></i> <strong>Consejo:</strong> Configura horarios específicos para cada medicamento según tu rutina diaria. El sistema te alertará sobre posibles conflictos entre horarios muy cercanos.
+    </div>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item">
+        <i class="bi bi-check-circle-fill text-success"></i> Puedes establecer múltiples horarios por medicamento
+      </li>
+      <li class="list-group-item">
+        <i class="bi bi-bell-fill text-warning"></i> Recibirás notificaciones personalizadas
+      </li>
+      <li class="list-group-item">
+        <i class="bi bi-shield-check text-primary"></i> Validación automática de conflictos
+      </li>
+    </ul>
+  </div>
+</section>
+
 <!-- SECCIÓN PERSONALIZACIÓN -->
 <section id="personalizacion" class="section d-none">
   <div class="section-header">
@@ -522,15 +543,293 @@
     <div id="personalizacion-container"></div>
   </div>
 </section>
+
     </main>
   </div>
+
+  <!-- Modal de Advertencia de Sesión -->
+  <div class="modal fade" id="sessionWarningModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-warning">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Sesión por expirar</h5>
+        </div>
+        <div class="modal-body text-center">
+          <i class="bi bi-clock-history text-warning icon-3"></i>
+          <p class="mt-3 mb-2">Tu sesión está a punto de expirar por inactividad.</p>
+          <p class="text-muted small">Tiempo restante: <span id="sessionCountdown" class="fw-bold text-danger">02:00</span></p>
+        </div>
+        <div class="modal-footer justify-content-center">
+          <button type="button" class="btn btn-primary" id="extendSessionBtn">
+            <i class="bi bi-arrow-clockwise"></i> Extender sesión
+          </button>
+          <button type="button" class="btn btn-outline-secondary" id="logoutNowBtn">
+            <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de Error de Autenticación -->
+  <div class="toast-container position-fixed top-0 end-0 p-3 toast-container-layer">
+    <div id="authErrorToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          <i class="bi bi-shield-exclamation me-2"></i>
+          <span id="authErrorMessage">Error de autenticación</span>
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="authLoadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-white d-none justify-content-center align-items-center auth-loading-layer">
+    <div class="text-center">
+      <div class="spinner-border text-primary spinner-lg" role="status">
+        <span class="visually-hidden">Verificando sesión...</span>
+      </div>
+      <p class="mt-3 text-muted">Verificando tu sesión...</p>
+    </div>
+  </div>
+
+  <!-- Modal de Configuración de Horarios -->
+  <div class="modal fade" id="modalHorarios" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title"><i class="bi bi-clock-fill"></i> Configurar Horarios</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <h6 id="nombreMedicamentoHorario" class="fw-bold text-primary">Medicamento</h6>
+            <p class="text-muted mb-0" id="dosisMedicamentoHorario">Dosis</p>
+          </div>
+          
+          <div class="alert alert-warning d-none" id="alertaConflictos">
+            <i class="bi bi-exclamation-triangle-fill"></i> <strong>Conflictos detectados:</strong>
+            <ul id="listaConflictos" class="mb-0 mt-2"></ul>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Horarios de toma:</label>
+            <div id="contenedorHorarios" class="mb-2">
+              <!-- Los horarios se agregarán dinámicamente -->
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarCampoHorario()">
+              <i class="bi bi-plus-circle"></i> Agregar horario
+            </button>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Minutos de anticipación para notificación</label>
+              <select class="form-select" id="minutosAnticipacion">
+                <option value="5">5 minutos antes</option>
+                <option value="10">10 minutos antes</option>
+                <option value="15" selected>15 minutos antes</option>
+                <option value="30">30 minutos antes</option>
+                <option value="60">1 hora antes</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <div class="form-check form-switch mt-4">
+                <input class="form-check-input" type="checkbox" id="notificacionesActivas" checked>
+                <label class="form-check-label" for="notificacionesActivas">
+                  Notificaciones activas
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Días de la semana:</label>
+            <div class="btn-group w-100 flex-wrap" role="group">
+              <input type="checkbox" class="btn-check" id="dia-lunes" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-lunes">Lun</label>
+
+              <input type="checkbox" class="btn-check" id="dia-martes" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-martes">Mar</label>
+
+              <input type="checkbox" class="btn-check" id="dia-miercoles" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-miercoles">Mié</label>
+
+              <input type="checkbox" class="btn-check" id="dia-jueves" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-jueves">Jue</label>
+
+              <input type="checkbox" class="btn-check" id="dia-viernes" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-viernes">Vie</label>
+
+              <input type="checkbox" class="btn-check" id="dia-sabado" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-sabado">Sáb</label>
+
+              <input type="checkbox" class="btn-check" id="dia-domingo" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="dia-domingo">Dom</label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Notas adicionales:</label>
+            <textarea class="form-control" id="notasHorario" rows="2" placeholder="Ej: Tomar con comida, evitar en ayunas..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btnGuardarHorarios" onclick="guardarConfiguracionHorarios()">
+            <i class="bi bi-save"></i> Guardar Horarios
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Script propio -->
   <script src="scriptpaciente.js"></script>
-  
+
+  <!-- Script para preservar sección y scroll -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const navBtns = document.querySelectorAll('.nav-btn');
+      const sections = document.querySelectorAll('.section');
+      const mainContent = document.querySelector('.main');
+
+      // Función para guardar sección activa en localStorage
+      function guardarSeccionActiva(sectionId) {
+        localStorage.setItem('mainPaciente_section', sectionId);
+      }
+
+      // Función para restaurar sección desde localStorage
+      function restaurarSeccion() {
+        const savedSection = localStorage.getItem('mainPaciente_section');
+        if (savedSection) {
+          const targetBtn = document.querySelector(`[data-section="${savedSection}"]`);
+          const targetSection = document.getElementById(savedSection);
+          
+          if (targetBtn && targetSection) {
+            // Ocultar todas las secciones
+            sections.forEach(sec => sec.classList.add('d-none'));
+            navBtns.forEach(b => b.classList.remove('active'));
+            
+            // Mostrar sección guardada
+            targetSection.classList.remove('d-none');
+            targetBtn.classList.add('active');
+            
+            // Cargar datos específicos de la sección restaurada
+            setTimeout(() => {
+              console.log(`Restaurando sección: ${savedSection}`);
+              
+              // Sección INICIO
+              if (savedSection === 'inicio') {
+                if (typeof cargarEstadisticasInicio === 'function') cargarEstadisticasInicio();
+                if (typeof cargarMedicamentosHoy === 'function') cargarMedicamentosHoy();
+                if (typeof cargarTomasRegistradasHoy === 'function') cargarTomasRegistradasHoy();
+                if (typeof cargarProximaCita === 'function') cargarProximaCita();
+                if (typeof cargarUltimoLogro === 'function') cargarUltimoLogro();
+              }
+              
+              // Sección RECETAS
+              if (savedSection === 'recetas') {
+                if (typeof cargarRecetas === 'function') {
+                  console.log('Cargando recetas...');
+                  cargarRecetas();
+                }
+                if (typeof cargarHistorialMedicacion === 'function') {
+                  console.log('Cargando historial de medicación...');
+                  cargarHistorialMedicacion();
+                }
+              }
+              
+              // Sección AGENDA
+              if (savedSection === 'agenda' && typeof cargarCitas === 'function') {
+                console.log('Cargando citas...');
+                cargarCitas();
+              }
+              
+              // Sección RECOMPENSAS
+              if (savedSection === 'recompensas' && typeof cargarRecompensas === 'function') {
+                console.log('Cargando recompensas...');
+                cargarRecompensas();
+              }
+              
+              // Sección EMERGENCIA
+              if (savedSection === 'emergencia') {
+                if (typeof cargarContactosEmergencia === 'function') {
+                  console.log('Cargando contactos de emergencia...');
+                  cargarContactosEmergencia();
+                }
+                if (typeof cargarHistorialEmergencias === 'function') {
+                  console.log('Cargando historial de emergencias...');
+                  cargarHistorialEmergencias();
+                }
+              }
+              
+              // Sección HORARIOS
+              if (savedSection === 'horarios') {
+                if (typeof cargarMedicamentosParaHorarios === 'function') {
+                  console.log('Cargando medicamentos para horarios...');
+                  cargarMedicamentosParaHorarios();
+                }
+                if (typeof cargarYConfigurarNotificacionesPersonalizadas === 'function') {
+                  console.log('Cargando notificaciones personalizadas...');
+                  cargarYConfigurarNotificacionesPersonalizadas();
+                }
+              }
+              
+              // Sección PERSONALIZACIÓN
+              if (savedSection === 'personalizacion' && typeof cargarPersonalizacion === 'function') {
+                console.log('Cargando personalización...');
+                cargarPersonalizacion();
+              }
+            }, 100);
+
+
+            
+            return true;
+          }
+        }
+        return false;
+      }
+
+
+      // Restaurar sección guardada al cargar
+      restaurarSeccion();
+
+      // Agregar event listeners a los botones de navegación para guardar sección
+      navBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sectionId = btn.getAttribute('data-section');
+          if (sectionId) {
+            guardarSeccionActiva(sectionId);
+          }
+        });
+      });
+
+      // Restaurar posición de scroll después de que el contenido se haya cargado
+      const savedScroll = localStorage.getItem('mainPaciente_scroll');
+      if (savedScroll && mainContent) {
+        // Usar setTimeout para esperar a que el contenido se renderice
+        setTimeout(() => {
+          mainContent.scrollTop = parseInt(savedScroll);
+        }, 100);
+      }
+
+      
+      // Guardar posición de scroll antes de salir
+      window.addEventListener('beforeunload', () => {
+        if (mainContent) {
+          localStorage.setItem('mainPaciente_scroll', mainContent.scrollTop);
+        }
+      });
+    });
+  </script>
+
   <!-- Scripts adicionales para cargar historiales -->
+
   <script>
     // Cargar historial al entrar a la sección de recetas
     document.querySelector('.nav-btn[data-section="recetas"]')?.addEventListener('click', () => {

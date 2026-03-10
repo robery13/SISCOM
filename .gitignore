@@ -2,10 +2,12 @@
 tokens.json
 Archivos DB.rar
 Archivos DB/
-node_modules/
+Archivos DB/Conexion DB.txt
 
 # Variantes por si cambias nombre o hay espacios diferentes
 Archivos DB
 Archivos DB/**
+
+node_modules/
 node_modules
 node_modules/**

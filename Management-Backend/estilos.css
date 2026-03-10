@@ -16,7 +16,6 @@ body{
   background:var(--bg);
   color:#222;
 }
-/* HU-26: Panel consolidado de pacientes - animación hover en tarjetas */
 #panel .card {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
@@ -59,6 +58,42 @@ body{
 .nav-btn-sub i{font-size:15px}
 .nav-btn-sub.active{background:var(--accent);color:#fff}
 
+.is-hidden{display:none !important}
+.select-narrow{max-width:150px}
+.toggle-password-control{cursor:pointer}
+.requisitos-title-small{font-size:0.85rem;color:#666}
+.requisitos-list-small{font-size:0.8rem}
+.toast-container-layer{z-index:1055}
+
+.access-denied-overlay{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  background:#f8f9fa;
+  font-family:Arial, sans-serif;
+}
+.access-denied-card{
+  text-align:center;
+  padding:40px;
+  background:#fff;
+  border-radius:10px;
+  box-shadow:0 4px 6px rgba(0,0,0,0.1);
+  max-width:500px;
+}
+.access-denied-icon{font-size:64px;color:#dc3545}
+.access-denied-title{color:#dc3545;margin:20px 0}
+.access-denied-text{color:#6c757d;font-size:16px;margin-bottom:20px}
+.access-denied-subtext{color:#6c757d;font-size:14px;margin-bottom:30px}
+.access-denied-btn{
+  padding:12px 30px;
+  background:#0d6efd;
+  color:#fff;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+  font-size:16px;
+}
 /* MAIN */
 .main{flex:1;padding:28px}
 
@@ -69,8 +104,9 @@ body{
 
 /* CARDS */
 .card{background:var(--card);border-radius:14px;padding:18px;box-shadow:0 6px 18px rgba(15,15,15,0.04);margin:14px auto;max-width:900px}
-.form-card{max-width:900px;width:100%}
-/* HU-32: Contenedor de filas del checklist (alineación con card superior) */
+.form-card{max-width:900px}
+
+/* Contenedor de filas del checklist (alineacion con card superior) */
 .checklist-row{max-width:900px;margin:0 auto;width:100%}
 .checklist-row .card{max-width:100%;margin:0}
 .card-title{font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
@@ -95,7 +131,7 @@ body{
 .table th,.table td{padding:10px;border-top:1px solid rgba(0,0,0,0.04);vertical-align:middle}
 .alerta-baja{color:#ff3b3b;font-weight:700}
 
-/* HU-26: Panel pacientes - tabla de alertas */
+/* Panel pacientes - tabla de alertas */
 .panel-tabla{max-width:900px;margin:0 auto;width:100%}
 .panel-tabla .card{width:100%;margin:14px 0;max-width:900px}
 
@@ -476,7 +512,6 @@ body{
     transform: translateX(100%);
   }
 }
-
 /* ====== HU-27: ESTADÍSTICAS DE SALUD POR PACIENTE ====== */
 
 /* Contenedor principal de estadísticas: mismo ancho que las cards */

@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const medicamentos = document.getElementById("medicamentos");
   if (medicamentos) {
     medicamentos.classList.remove("d-none");
-    document.querySelector('.nav-btn[data-section="medicamentos"]')?.classList.add('active');
+    document.querySelector('.nav-btn[data-section="medicamentos"]')?.classList.add("active");
   }
 
   /* Click en botones normales (no parent) */
@@ -32,14 +32,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
       /* Si es sub-item de Estadísticas, resaltar padre */
       if (estSubSections.includes(sectionId)) {
-        btnEstadisticas.classList.add("open");
-        submenuEst.classList.add("show");
+        btnEstadisticas?.classList.add("open");
+        submenuEst?.classList.add("show");
       } else {
         /* Colapsar submenú al navegar a otra sección */
-        btnEstadisticas.classList.remove("open");
-        submenuEst.classList.remove("show");
+        btnEstadisticas?.classList.remove("open");
+        submenuEst?.classList.remove("show");
       }
-
       btn.classList.add("active");
       const s = document.getElementById(sectionId);
       if (s) s.classList.remove("d-none");
@@ -50,12 +49,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnEstadisticas) {
     btnEstadisticas.addEventListener("click", () => {
       const isOpen = btnEstadisticas.classList.toggle("open");
-      submenuEst.classList.toggle("show", isOpen);
+      submenuEst?.classList.toggle("show", isOpen);
       /* Si se abre y ningún sub-item está activo, mostrar el primero */
       if (isOpen) {
-        const anyActive = submenuEst.querySelector(".nav-btn-sub.active");
+        const anyActive = submenuEst?.querySelector(".nav-btn-sub.active");
         if (!anyActive) {
-          const first = submenuEst.querySelector('.nav-btn-sub[data-section="est-individual"]');
+          const first = submenuEst?.querySelector('.nav-btn-sub[data-section="est-individual"]');
           if (first) first.click();
         }
       }
@@ -76,75 +75,426 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ===============================
-// REGISTRO DE MEDICAMENTOS
+// REGISTRO DE MEDICAMENTOS MEJORADO
 // ===============================
 (function(){
   const guardarBtn = document.getElementById("guardarBtn");
+  const guardarYOtroBtn = document.getElementById("guardarYOtroBtn");
   const tablaMedicamentos = document.querySelector("#tablaMedicamentos tbody");
+  const modalMedicamento = document.getElementById("modalMedicamento");
+  const modalTitle = document.getElementById("modalTitle");
+  
+  // Campos del formulario
+  const medicamentoId = document.getElementById("medicamentoId");
+  const pacienteSelect = document.getElementById("pacienteMedicamento");
+  const estadoSelect = document.getElementById("estadoMedicamento");
+  const nombreInput = document.getElementById("nombre");
+  const dosisInput = document.getElementById("dosis");
+  const frecuenciaSelect = document.getElementById("frecuencia");
+  const horaInput = document.getElementById("hora");
+  const fechaInicioInput = document.getElementById("fechaInicio");
+  const fechaFinInput = document.getElementById("fechaFin");
+  const notasInput = document.getElementById("notasMedicamento");
+  
+  // Filtros
+  const buscarInput = document.getElementById("buscarMedicamento");
+  const filtroPaciente = document.getElementById("filtroPaciente");
+  const filtroEstado = document.getElementById("filtroEstado");
+  const limpiarFiltrosBtn = document.getElementById("limpiarFiltros");
+  
+  let medicamentosData = [];
+  let pacientesData = [];
+  let editingId = null;
 
-  if (guardarBtn) {
-    guardarBtn.addEventListener("click", async () => {
-      const nombre = document.getElementById("nombre").value.trim();
-      const dosis = document.getElementById("dosis").value.trim();
-      const frecuencia = parseInt(document.getElementById("frecuencia").value, 10);
-      const hora = document.getElementById("hora").value;
-
-      if (!nombre || !dosis || !frecuencia || !hora) {
-        alert("Por favor complete todos los campos.");
-        return;
-      }
-
-      const datos = { nombre, dosis, frecuencia_horas: frecuencia, hora };
-
-      try {
-        const resp = await fetch("http://localhost:3000/Registro_medicamentos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(datos)
-        });
-
-        const resultado = await resp.json();
-        alert(resultado.mensaje || "Medicamento registrado correctamente.");
-
-        document.getElementById("nombre").value = "";
-        document.getElementById("dosis").value = "";
-        document.getElementById("frecuencia").value = "";
-        document.getElementById("hora").value = "";
-
-        cargarRegistroMedicamentos();
-
-      } catch (error) {
-        console.error("Error al guardar medicamento:", error);
-        alert("No se pudo conectar con el servidor.");
-      }
-    });
-  }
-
-  async function cargarRegistroMedicamentos() {
+  // Cargar pacientes al iniciar
+  async function cargarPacientes() {
     try {
-      const respuesta = await fetch("http://localhost:3000/Registro_medicamentos");
-      const data = await respuesta.json();
-      renderMedicamentos(data);
-    } catch (err) {
-      console.error("Error al cargar registro:", err);
+      const respuesta = await fetch("http://localhost:3000/usuarios/rol/usuario");
+      if (!respuesta.ok) throw new Error("Error al cargar pacientes");
+      
+      pacientesData = await respuesta.json();
+      
+      // Llenar select de pacientes en el modal
+      if (pacienteSelect) {
+        pacienteSelect.innerHTML = '<option value="" selected disabled>Seleccione un paciente</option>';
+        pacientesData.forEach(paciente => {
+          const option = document.createElement("option");
+          option.value = paciente.id;
+          option.textContent = `${paciente.nombres} ${paciente.apellidos}`;
+          pacienteSelect.appendChild(option);
+        });
+      }
+      
+      // Llenar filtro de pacientes
+      if (filtroPaciente) {
+        filtroPaciente.innerHTML = '<option value="">Todos los pacientes</option>';
+        pacientesData.forEach(paciente => {
+          const option = document.createElement("option");
+          option.value = paciente.id;
+          option.textContent = `${paciente.nombres} ${paciente.apellidos}`;
+          filtroPaciente.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.error("Error al cargar pacientes:", error);
+      mostrarToast("Error al cargar lista de pacientes", "error");
     }
   }
 
+  // Calcular próxima toma
+  function calcularProximaToma(hora, frecuencia) {
+    if (!hora || !frecuencia) return "No calculable";
+    
+    const now = new Date();
+    const [hours, minutes] = hora.split(':').map(Number);
+    
+    let proxima = new Date(now);
+    proxima.setHours(hours, minutes, 0, 0);
+    
+    // Si la hora ya pasó hoy, calcular siguiente toma
+    if (proxima <= now) {
+      proxima.setHours(proxima.getHours() + parseInt(frecuencia));
+    }
+    
+    const hoy = new Date();
+    const manana = new Date(hoy);
+    manana.setDate(manana.getDate() + 1);
+    
+    // Formatear fecha
+    if (proxima.toDateString() === hoy.toDateString()) {
+      return `Hoy ${proxima.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    } else if (proxima.toDateString() === manana.toDateString()) {
+      return `Mañana ${proxima.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    } else {
+      return proxima.toLocaleString([], {weekday: 'short', hour: '2-digit', minute:'2-digit'});
+    }
+  }
+
+  // Validar formulario
+  function validarFormulario() {
+    let valido = true;
+    
+    // Validar paciente
+    if (!pacienteSelect.value) {
+      pacienteSelect.classList.add("is-invalid");
+      valido = false;
+    } else {
+      pacienteSelect.classList.remove("is-invalid");
+    }
+    
+    // Validar nombre
+    if (!nombreInput.value.trim()) {
+      nombreInput.classList.add("is-invalid");
+      valido = false;
+    } else {
+      nombreInput.classList.remove("is-invalid");
+    }
+    
+    // Validar dosis
+    if (!dosisInput.value.trim()) {
+      dosisInput.classList.add("is-invalid");
+      valido = false;
+    } else {
+      dosisInput.classList.remove("is-invalid");
+    }
+    
+    // Validar frecuencia
+    if (!frecuenciaSelect.value) {
+      frecuenciaSelect.classList.add("is-invalid");
+      valido = false;
+    } else {
+      frecuenciaSelect.classList.remove("is-invalid");
+    }
+    
+    // Validar hora
+    if (!horaInput.value) {
+      horaInput.classList.add("is-invalid");
+      valido = false;
+    } else {
+      horaInput.classList.remove("is-invalid");
+    }
+    
+    return valido;
+  }
+
+  // Limpiar validaciones
+  function limpiarValidaciones() {
+    [pacienteSelect, nombreInput, dosisInput, frecuenciaSelect, horaInput].forEach(el => {
+      if (el) el.classList.remove("is-invalid");
+    });
+  }
+
+  // Guardar medicamento
+  async function guardarMedicamento(crearOtro = false) {
+    limpiarValidaciones();
+    
+    if (!validarFormulario()) {
+      mostrarToast("Por favor complete todos los campos obligatorios.", "warning");
+      return;
+    }
+
+    const datos = {
+      nombre: nombreInput.value.trim(),
+      dosis: dosisInput.value.trim(),
+      frecuencia_horas: parseInt(frecuenciaSelect.value, 10),
+      hora: horaInput.value,
+      paciente_id: parseInt(pacienteSelect.value, 10),
+      estado: estadoSelect.value,
+      fecha_inicio: fechaInicioInput.value || null,
+      fecha_fin: fechaFinInput.value || null,
+      notas: notasInput.value.trim() || null
+    };
+
+    try {
+      let url = "http://localhost:3000/Registro_medicamentos";
+      let method = "POST";
+      
+      // Si estamos editando, usar PUT
+      if (editingId) {
+        url = `http://localhost:3000/Registro_medicamentos/${editingId}`;
+        method = "PUT";
+      }
+
+      const resp = await fetch(url, {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(datos)
+      });
+
+      const resultado = await resp.json();
+      
+      if (resp.ok) {
+        mostrarToast(resultado.mensaje || "Medicamento guardado correctamente.", "success");
+        
+        if (crearOtro) {
+          // Limpiar solo ciertos campos para crear otro
+          nombreInput.value = "";
+          dosisInput.value = "";
+          notasInput.value = "";
+          nombreInput.focus();
+        } else {
+          // Cerrar modal y limpiar todo
+          const modal = bootstrap.Modal.getInstance(modalMedicamento);
+          if (modal) modal.hide();
+          limpiarFormulario();
+        }
+        
+        cargarRegistroMedicamentos();
+      } else {
+        mostrarToast("Error: " + (resultado.mensaje || "No se pudo guardar"), "error");
+      }
+
+    } catch (error) {
+      console.error("Error al guardar medicamento:", error);
+      mostrarToast("No se pudo conectar con el servidor.", "error");
+    }
+  }
+
+  // Limpiar formulario
+  function limpiarFormulario() {
+    editingId = null;
+    if (medicamentoId) medicamentoId.value = "";
+    if (pacienteSelect) pacienteSelect.value = "";
+    if (estadoSelect) estadoSelect.value = "activo";
+    if (nombreInput) nombreInput.value = "";
+    if (dosisInput) dosisInput.value = "";
+    if (frecuenciaSelect) frecuenciaSelect.value = "";
+    if (horaInput) horaInput.value = "";
+    if (fechaInicioInput) fechaInicioInput.value = "";
+    if (fechaFinInput) fechaFinInput.value = "";
+    if (notasInput) notasInput.value = "";
+    if (modalTitle) modalTitle.textContent = "Registrar Medicamento";
+    if (guardarYOtroBtn) guardarYOtroBtn.classList.remove("d-none");
+    limpiarValidaciones();
+  }
+
+  // Cargar medicamentos
+  async function cargarRegistroMedicamentos() {
+    try {
+      const respuesta = await fetch("http://localhost:3000/Registro_medicamentos");
+      if (!respuesta.ok) throw new Error("Error al cargar medicamentos");
+      
+      medicamentosData = await respuesta.json();
+      aplicarFiltros();
+    } catch (err) {
+      console.error("Error al cargar registro:", err);
+      mostrarToast("Error al cargar medicamentos", "error");
+    }
+  }
+
+  // Aplicar filtros
+  function aplicarFiltros() {
+    let filtrados = [...medicamentosData];
+    
+    // Filtro por búsqueda
+    const busqueda = buscarInput?.value.toLowerCase().trim();
+    if (busqueda) {
+      filtrados = filtrados.filter(m => 
+        m.nombre.toLowerCase().includes(busqueda) ||
+        m.dosis.toLowerCase().includes(busqueda)
+      );
+    }
+    
+    // Filtro por paciente
+    const pacienteId = filtroPaciente?.value;
+    if (pacienteId) {
+      filtrados = filtrados.filter(m => m.paciente_id == pacienteId);
+    }
+    
+    // Filtro por estado
+    const estado = filtroEstado?.value;
+    if (estado) {
+      filtrados = filtrados.filter(m => m.estado === estado);
+    }
+    
+    renderMedicamentos(filtrados);
+  }
+
+  // Renderizar medicamentos
   function renderMedicamentos(lista) {
     if (!tablaMedicamentos) return;
     tablaMedicamentos.innerHTML = "";
+    
+    if (lista.length === 0) {
+      tablaMedicamentos.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-muted py-4">
+            <i class="bi bi-inbox display-4 d-block mb-2"></i>
+            No hay medicamentos que coincidan con los filtros.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+    
     lista.forEach((m) => {
+      const paciente = pacientesData.find(p => p.id === m.paciente_id);
+      const nombrePaciente = paciente ? `${paciente.nombres} ${paciente.apellidos}` : "No asignado";
+      const proximaToma = calcularProximaToma(m.hora, m.frecuencia_horas);
+      
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${escapeHtml(m.nombre)}</td>
+        <td>
+          <span class="badge bg-${m.estado === 'activo' ? 'success' : 'secondary'}">
+            ${m.estado === 'activo' ? 'Activo' : 'Inactivo'}
+          </span>
+        </td>
+        <td><strong>${escapeHtml(m.nombre)}</strong></td>
         <td>${escapeHtml(m.dosis)}</td>
-        <td>${m.frecuencia_horas}</td>
-        <td>${m.hora}</td>
+        <td>${escapeHtml(nombrePaciente)}</td>
+        <td>Cada ${m.frecuencia_horas}h</td>
+        <td>
+          <span class="badge bg-info text-dark">
+            <i class="bi bi-clock me-1"></i> ${proximaToma}
+          </span>
+        </td>
+        <td class="text-center">
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-primary" onclick="editarMedicamento(${m.id})" title="Editar">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-outline-danger" onclick="eliminarMedicamento(${m.id})" title="Eliminar">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </td>
       `;
       tablaMedicamentos.appendChild(tr);
     });
   }
 
+  // Editar medicamento
+  window.editarMedicamento = async function(id) {
+    const medicamento = medicamentosData.find(m => m.id === id);
+    if (!medicamento) {
+      mostrarToast("Medicamento no encontrado", "error");
+      return;
+    }
+    
+    editingId = id;
+    
+    // Llenar formulario
+    if (medicamentoId) medicamentoId.value = id;
+    if (pacienteSelect) pacienteSelect.value = medicamento.paciente_id;
+    if (estadoSelect) estadoSelect.value = medicamento.estado || "activo";
+    if (nombreInput) nombreInput.value = medicamento.nombre;
+    if (dosisInput) dosisInput.value = medicamento.dosis;
+    if (frecuenciaSelect) frecuenciaSelect.value = medicamento.frecuencia_horas;
+    if (horaInput) horaInput.value = medicamento.hora;
+    if (fechaInicioInput) fechaInicioInput.value = medicamento.fecha_inicio || "";
+    if (fechaFinInput) fechaFinInput.value = medicamento.fecha_fin || "";
+    if (notasInput) notasInput.value = medicamento.notas || "";
+    
+    // Cambiar título y ocultar "Guardar y Crear Otro"
+    if (modalTitle) modalTitle.textContent = "Editar Medicamento";
+    if (guardarYOtroBtn) guardarYOtroBtn.classList.add("d-none");
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(modalMedicamento);
+    modal.show();
+  };
+
+  // Eliminar medicamento
+  window.eliminarMedicamento = async function(id) {
+    if (!confirm("¿Está seguro de que desea eliminar este medicamento?")) return;
+    
+    try {
+      const resp = await fetch(`http://localhost:3000/Registro_medicamentos/${id}`, {
+        method: "DELETE"
+      });
+      
+      const resultado = await resp.json();
+      
+      if (resp.ok) {
+        mostrarToast(resultado.mensaje || "Medicamento eliminado correctamente", "success");
+        cargarRegistroMedicamentos();
+      } else {
+        mostrarToast("Error: " + (resultado.mensaje || "No se pudo eliminar"), "error");
+      }
+    } catch (error) {
+      console.error("Error al eliminar medicamento:", error);
+      mostrarToast("Error al conectar con el servidor", "error");
+    }
+  };
+
+  // Event listeners
+  if (guardarBtn) {
+    guardarBtn.addEventListener("click", () => guardarMedicamento(false));
+  }
+  
+  if (guardarYOtroBtn) {
+    guardarYOtroBtn.addEventListener("click", () => guardarMedicamento(true));
+  }
+
+  // Event listeners para filtros
+  if (buscarInput) {
+    buscarInput.addEventListener("input", aplicarFiltros);
+  }
+  
+  if (filtroPaciente) {
+    filtroPaciente.addEventListener("change", aplicarFiltros);
+  }
+  
+  if (filtroEstado) {
+    filtroEstado.addEventListener("change", aplicarFiltros);
+  }
+  
+  if (limpiarFiltrosBtn) {
+    limpiarFiltrosBtn.addEventListener("click", () => {
+      if (buscarInput) buscarInput.value = "";
+      if (filtroPaciente) filtroPaciente.value = "";
+      if (filtroEstado) filtroEstado.value = "";
+      aplicarFiltros();
+    });
+  }
+
+  // Limpiar formulario al cerrar modal
+  if (modalMedicamento) {
+    modalMedicamento.addEventListener("hidden.bs.modal", limpiarFormulario);
+  }
+
+  // Inicializar
+  cargarPacientes();
   cargarRegistroMedicamentos();
 
 })();
@@ -201,7 +551,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const cantidad = parseInt(document.getElementById("cantidadInv").value, 10);
 
       if (isNaN(cantidad) || cantidad < 1) {
-        alert("Por favor ingrese una cantidad válida mayor a 0.");
+        mostrarToast("Por favor ingrese una cantidad válida mayor a 0.", "warning");
         return;
       }
 
@@ -211,19 +561,19 @@ document.addEventListener("DOMContentLoaded", () => {
         // Modo actualizar stock existente
         const medicamentoId = selectMedicamento.value;
         if (!medicamentoId) {
-          alert("Por favor seleccione un medicamento existente.");
+          mostrarToast("Por favor seleccione un medicamento existente.", "warning");
           return;
         }
 
         const medicamento = inventarioActual.find(m => m.id == medicamentoId);
         if (!medicamento) {
-          alert("Medicamento no encontrado.");
+          mostrarToast("Medicamento no encontrado.", "error");
           return;
         }
 
         datos = {
           id: medicamentoId,
-          cantidad: cantidad, // Cantidad a agregar
+          cantidad: cantidad,
           actualizar: true
         };
       } else {
@@ -232,7 +582,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const consumo_por_dosis = parseInt(document.getElementById("consumoInv").value, 10);
 
         if (!nombre || isNaN(consumo_por_dosis) || consumo_por_dosis < 1) {
-          alert("Por favor complete todos los campos correctamente.");
+          mostrarToast("Por favor complete todos los campos correctamente.", "warning");
           return;
         }
 
@@ -247,14 +597,14 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         const resultado = await resp.json();
-        alert(resultado.mensaje || (esModoActualizar ? "Stock actualizado correctamente." : "Medicamento agregado al inventario."));
+        mostrarToast(resultado.mensaje || (esModoActualizar ? "Stock actualizado correctamente." : "Medicamento agregado al inventario."), "success");
         await cargarInventario();
         await verificarAlertasStock();
         clearInvForm();
 
       } catch (error) {
         console.error("Error al guardar en inventario:", error);
-        alert("No se pudo conectar con el servidor.");
+        mostrarToast("No se pudo conectar con el servidor.", "error");
       }
     });
   }
@@ -298,7 +648,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   cargarInventario();
   verificarAlertasStock();
-
 })();
 
 // ===============================
@@ -310,15 +659,16 @@ async function verificarAlertasStock() {
     if (!response.ok) throw new Error('Error al cargar inventario');
 
     const inventario = await response.json();
-    console.log('Inventario cargado para alertas:', inventario);
-
     const alertas = inventario.filter(item => {
       const cantidad = item.cantidad || 0;
-      // Considerar stock bajo si cantidad <= 10 (puedes ajustar este umbral)
       return cantidad <= 10;
     });
 
     mostrarAlertasStock(alertas);
+
+    if (alertas.length > 0) {
+      mostrarToast(`Hay ${alertas.length} medicamento(s) con stock bajo. Revisa las alertas.`, 'warning');
+    }
   } catch (error) {
     console.error('Error al verificar stock:', error);
     mostrarAlertasStock([]);
@@ -327,10 +677,7 @@ async function verificarAlertasStock() {
 
 function mostrarAlertasStock(alertas) {
   const container = document.getElementById('alertasStock');
-  if (!container) {
-    console.error('Contenedor #alertasStock no encontrado');
-    return;
-  }
+  if (!container) return;
 
   container.innerHTML = '';
 
@@ -426,7 +773,7 @@ function mostrarAlertasStock(alertas) {
     const fechaNac = document.getElementById("fechaNac").value;
 
     if (!nombre || !fechaNac) {
-      alert("Completa nombre y fecha de nacimiento.");
+      mostrarToast("Completa nombre y fecha de nacimiento.", "warning");
       return;
     }
 
@@ -442,21 +789,14 @@ function mostrarAlertasStock(alertas) {
       const resultado = await resp.json();
 
       if (resp.ok) {
-        alert(resultado.mensaje || "Ficha médica guardada correctamente.");
+        mostrarToast(resultado.mensaje || "Ficha médica guardada correctamente.", "success");
         alergias.length = 0;
-        condiciones.length = 0;
-        renderList(listaAlergias, []);
-        renderCondiciones();
-        alertaCritica.classList.add("oculto");
-        document.getElementById("nombreFicha").value = "";
-        document.getElementById("fechaNac").value = "";
       } else {
-        alert("Error: " + (resultado.mensaje || "No se pudo guardar la ficha."));
+        mostrarToast("Error: " + (resultado.mensaje || "No se pudo guardar la ficha."), "error");
       }
-
     } catch (error) {
       console.error("Error al enviar ficha médica:", error);
-      alert("Error de conexión con el servidor.");
+      mostrarToast("Error de conexión con el servidor.", "error");
     }
   });
 
@@ -472,8 +812,19 @@ function mostrarAlertasStock(alertas) {
 })();
 
 // ===============================
-// MÓDULO DE CITAS MÉDICAS (SIN NOTIFICACIONES)
+// MÓDULO DE CITAS MÉDICAS - DESACTIVADO
 // ===============================
+// NOTA: Este módulo ha sido reemplazado por una implementación mejorada
+// en cuidador_backend.html que incluye:
+// - Selección de pacientes desde API
+// - Campos para doctor, especialidad, ubicación
+// - Sistema de estados (programada, completada, cancelada)
+// - Filtros avanzados
+// - Almacenamiento en localStorage
+// 
+// El nuevo sistema de Citas Médicas se encuentra en el archivo
+// cuidador_backend.html en la sección "Script para Citas Médicas"
+/*
 (function(){
   const formCita = document.getElementById('formCita');
   const fechaInput = document.getElementById('fechaCita');
@@ -565,9 +916,8 @@ function mostrarAlertasStock(alertas) {
       const verBtn = document.createElement('button');
       verBtn.className = 'btn btn-sm btn-outline-primary';
       verBtn.innerHTML = '<i class="bi bi-eye"></i>';
-      verBtn.onclick = () =>
-        alert(`Cita:\nFecha: ${formatearFechaHora(citaDate)}\nMotivo: ${cita.motivo}\nNotificar: ${cita.anticipacion} minutos antes`);
-      
+      verBtn.onclick = () => mostrarToast(`Cita: ${formatearFechaHora(citaDate)} - ${cita.motivo}`, "info");
+
       const delBtn = document.createElement('button');
       delBtn.className = 'btn btn-sm btn-outline-danger';
       delBtn.innerHTML = '<i class="bi bi-trash"></i>';
@@ -597,13 +947,13 @@ function mostrarAlertasStock(alertas) {
     const anticipacion = anticipacionInput.value;
 
     if (!fecha || !hora || !motivo) {
-      alert('Completa fecha, hora y motivo.');
+      mostrarToast('Completa fecha, hora y motivo.', "warning");
       return;
     }
 
     const dt = combinarFechaHora(fecha, hora);
     if (!dt || isNaN(dt.getTime())) {
-      alert('Fecha u hora inválida.');
+      mostrarToast('Fecha u hora inválida.', "warning");
       return;
     }
 
@@ -624,17 +974,16 @@ function mostrarAlertasStock(alertas) {
 
       const data = await res.json();
       if (res.ok) {
-        alert(data.mensaje || 'Cita guardada correctamente');
+        mostrarToast(data.mensaje || 'Cita guardada correctamente', "success");
         formCita.reset();
         anticipacionInput.value = '60';
         cargarCitasDesdeServidor();
       } else {
-        alert('Error: ' + data.mensaje);
+        mostrarToast('Error: ' + data.mensaje, "error");
       }
-
     } catch (error) {
       console.error('Error al enviar la cita:', error);
-      alert('Error al conectar con el servidor.');
+      mostrarToast('Error al conectar con el servidor.', "error");
     }
   }
 
@@ -646,14 +995,14 @@ function mostrarAlertasStock(alertas) {
 
       const data = await res.json();
       if (res.ok) {
-        alert(data.mensaje || 'Cita eliminada');
+        mostrarToast(data.mensaje || 'Cita eliminada', "success");
         cargarCitasDesdeServidor();
       } else {
-        alert('Error: ' + data.mensaje);
+        mostrarToast('Error: ' + data.mensaje, "error");
       }
     } catch (error) {
       console.error('Error al eliminar cita:', error);
-      alert('Error al conectar con el servidor.');
+      mostrarToast('Error al conectar con el servidor.', "error");
     }
   }
 
@@ -667,830 +1016,145 @@ function mostrarAlertasStock(alertas) {
 
       const data = await res.json();
       if (res.ok) {
-        alert(data.mensaje || 'Todas las citas eliminadas');
+        mostrarToast(data.mensaje || 'Todas las citas eliminadas', "success");
         cargarCitasDesdeServidor();
       } else {
-        alert('Error: ' + data.mensaje);
+        mostrarToast('Error: ' + data.mensaje, "error");
       }
     } catch (error) {
       console.error('Error al eliminar citas:', error);
-      alert('Error al conectar con el servidor.');
+      mostrarToast('Error al conectar con el servidor.', "error");
     }
   }
 
   formCita.addEventListener('submit', agregarCitaDesdeFormulario);
-  limpiarCitaBtn.addEventListener('click', () => formCita.reset());
-  borrarTodasCitasBtn.addEventListener('click', borrarTodasCitas);
-
+  if (limpiarCitaBtn) limpiarCitaBtn.addEventListener('click', () => formCita.reset());
+  if (borrarTodasCitasBtn) borrarTodasCitasBtn.addEventListener('click', borrarTodasCitas);
 })();
+*/
+
 
 // ===============================
-// MÓDULO DE CHECKLIST CORREGIDO
-// Contiene HU-32: Eliminación segura de medicamentos
-// Funciones: Cargar pacientes desde BD, cargar datos del día, confirmar toma,
-//   eliminar medicamento con modal (HU-32), limpiar día, exportar CSV
+// TOASTS PARA NOTIFICACIONES
 // ===============================
-(function(){
-  const patientInput = document.getElementById("patientInput");
-  const dateInput = document.getElementById("dateInput");
-  const loadBtn = document.getElementById("loadBtn");
-  const medListEl = document.getElementById("medList");
-  const statusMsg = document.getElementById("statusMsg");
-  const addSampleBtn = document.getElementById("addSampleBtn");
-  const clearDayBtn = document.getElementById("clearDayBtn");
-  const auditList = document.getElementById("auditList");
-  const exportCsvBtn = document.getElementById("exportCsvBtn");
-
-  if (!patientInput) return;
-
-  const sampleMeds = [
-    { id: 1, name: "Paracetamol 500 mg", dose: "1 tableta", schedule: "08:00" },
-    { id: 2, name: "Vitamina D 1000 UI", dose: "1 cápsula", schedule: "12:00" },
-    { id: 3, name: "Ibuprofeno 200 mg", dose: "1 tableta", schedule: "20:00" }
-  ];
-
-  let meds = [];
-  let checks = {};
-  let currentPatientKey = null;
-  let currentDateStr = null;
-
-  if (dateInput) {
-    dateInput.valueAsDate = new Date();
+function mostrarToast(mensaje, tipo = 'info') {
+  const toastContainer = document.getElementById('toast-container');
+  if (!toastContainer) {
+    console.error('Contenedor de toasts no encontrado');
+    return;
   }
 
-  // Cargar pacientes desde la BD al select
-  async function cargarPacientesChecklist() {
-    try {
-      const resp = await fetch('http://localhost:3000/pacientes');
-      const pacientes = await resp.json();
-      patientInput.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
-      pacientes.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = `${p.id_paciente} - ${p.nombre_completo}`;
-        opt.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
-        patientInput.appendChild(opt);
-      });
-    } catch (err) {
-      console.error('Error al cargar pacientes en checklist:', err);
-    }
-  }
+  const toastId = 'toast-' + Date.now();
+  const toastHTML = `
+    <div id="${toastId}" class="toast align-items-center text-bg-${tipo} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">${escapeHtml(mensaje)}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  `;
 
-  // Cargar pacientes al inicio y cuando se muestra la sección
-  cargarPacientesChecklist();
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.dataset.section === 'checklist') cargarPacientesChecklist();
-    });
+  toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+
+  const toastElement = document.getElementById(toastId);
+  const toast = new bootstrap.Toast(toastElement, {
+    autohide: true,
+    delay: 5000
   });
 
-  const escapeHtml = (text) => {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  };
+  toast.show();
 
-  const formatTime = iso => (iso ? new Date(iso).toLocaleTimeString() : "—");
-
-  const setStatus = (text, type = 'info') => {
-    if (!statusMsg) return;
-    statusMsg.textContent = text || "";
-    statusMsg.className = `alert alert-${type} mt-3`;
-    statusMsg.classList.toggle('d-none', !text);
-  };
-
-  const renderMeds = () => {
-    if (!medListEl) return;
-    medListEl.innerHTML = "";
-    
-    if (meds.length === 0) {
-      medListEl.innerHTML = `<div class="text-center text-muted p-4">No hay medicamentos. Carga ejemplos o añade medicamentos.</div>`;
-      return;
-    }
-
-    meds.forEach(m => {
-      const info = checks[m.id];
-      const taken = info && info.taken;
-      
-      const item = document.createElement("div");
-      item.className = `list-group-item d-flex justify-content-between align-items-center ${taken ? 'bg-light' : ''}`;
-      
-      item.innerHTML = `
-        <div class="me-3 flex-grow-1">
-          <div><strong>${escapeHtml(m.name)}</strong></div>
-          <div class="small text-muted">${escapeHtml(m.dose || "")} ${m.schedule ? "• " + m.schedule : ""}</div>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-          <div class="text-end" style="min-width:140px">
-            <div class="mb-1">
-              <input type="checkbox" class="form-check-input me-2" id="chk_${m.id}" ${taken ? "checked" : ""}>
-              <label for="chk_${m.id}" class="form-check-label small">Tomado</label>
-            </div>
-            <div>
-              <span class="badge bg-secondary">${info && info.takenAt ? formatTime(info.takenAt) : "—"}</span>
-              ${info && info.actor ? `<span class="badge bg-info">${escapeHtml(info.actor)}</span>` : ''}
-            </div>
-          </div>
-          <button class="btn btn-outline-danger btn-sm eliminar-med-btn" data-med-id="${m.id}" data-med-name="${escapeHtml(m.name)}" data-med-dose="${escapeHtml(m.dose || '')}" data-med-schedule="${m.schedule || ''}" title="Eliminar medicamento">
-            <i class="bi bi-trash"></i>
-          </button>
-        </div>
-      `;
-      
-      medListEl.appendChild(item);
-
-      const cb = item.querySelector(`#chk_${m.id}`);
-      cb.addEventListener("change", async () => {
-        const actor = prompt(
-          "¿Quién confirma la toma?",
-          (checks[m.id] && checks[m.id].actor) || patientInput.value || "Paciente"
-        );
-        
-        if (cb.checked) {
-          checks[m.id] = {
-            taken: true,
-            takenAt: new Date().toISOString(),
-            actor: actor || "Paciente"
-          };
-          await guardarCheckEnServidor(m.id);
-        } else {
-          delete checks[m.id];
-          await eliminarCheckEnServidor(m.id);
-        }
-        
-        renderMeds();
-        renderAudit();
-      });
-
-      // HU-32: Botón eliminar medicamento del tratamiento
-      // Abre modal de confirmación, elimina med + confirmaciones, actualiza inventario
-      const delBtn = item.querySelector('.eliminar-med-btn');
-      if (delBtn) {
-        delBtn.addEventListener('click', () => {
-          const medId = delBtn.dataset.medId;
-          const medName = delBtn.dataset.medName;
-          const medDose = delBtn.dataset.medDose;
-          const medSchedule = delBtn.dataset.medSchedule;
-
-          const elimNombre = document.getElementById('elimMedNombre');
-          const elimDetalle = document.getElementById('elimMedDetalle');
-          const confirmarBtn = document.getElementById('confirmarEliminarMedBtn');
-
-          if (elimNombre) elimNombre.textContent = medName;
-          if (elimDetalle) elimDetalle.textContent = `${medDose} ${medSchedule ? '• ' + medSchedule : ''}`;
-
-          const modalEl = document.getElementById('modalEliminarMed');
-          const modal = new bootstrap.Modal(modalEl);
-          modal.show();
-
-          // Remover listener previo para evitar duplicados
-          const nuevoBtn = confirmarBtn.cloneNode(true);
-          confirmarBtn.parentNode.replaceChild(nuevoBtn, confirmarBtn);
-
-          nuevoBtn.addEventListener('click', async () => {
-            nuevoBtn.disabled = true;
-            nuevoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Eliminando...';
-
-            try {
-              const resp = await fetch(
-                `http://localhost:3000/eliminarMedicamentoChecklist/${encodeURIComponent(currentPatientKey)}/${currentDateStr}/${medId}`,
-                { method: 'DELETE' }
-              );
-              const data = await resp.json();
-
-              if (resp.ok) {
-                // Quitar de la lista local
-                meds = meds.filter(med => med.id !== parseInt(medId));
-                delete checks[medId];
-                setStatus(`✅ ${medName} eliminado del tratamiento. ${data.inventario_actualizado ? 'Inventario actualizado.' : ''}`, 'success');
-                renderMeds();
-                renderAudit();
-              } else {
-                setStatus('❌ ' + (data.mensaje || 'Error al eliminar'), 'danger');
-              }
-            } catch (err) {
-              console.error('Error al eliminar medicamento:', err);
-              setStatus('❌ Error de conexión al eliminar', 'danger');
-            }
-
-            modal.hide();
-          });
-        });
-      }
-    });
-  };
-
-  const guardarCheckEnServidor = async (medId) => {
-    if (!currentPatientKey || !currentDateStr) return;
-    
-    const checkData = checks[medId];
-    if (!checkData) return;
-
-    try {
-      const resp = await fetch('http://localhost:3000/guardarChecklist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paciente_id: currentPatientKey,
-          fecha: currentDateStr,
-          medicamento_id: medId,
-          medicamento_nombre: meds.find(m => m.id === medId)?.name || '',
-          tomado: checkData.taken,
-          hora_toma: checkData.takenAt,
-          actor: checkData.actor
-        })
-      });
-
-      const data = await resp.json();
-      setStatus(data.mensaje || 'Guardado correctamente', 'success');
-    } catch (error) {
-      console.error('Error al guardar check:', error);
-      setStatus('Error al guardar en el servidor', 'danger');
-    }
-  };
-
-  const eliminarCheckEnServidor = async (medId) => {
-    if (!currentPatientKey || !currentDateStr) return;
-
-    try {
-      const resp = await fetch(`http://localhost:3000/eliminarChecklist/${currentPatientKey}/${currentDateStr}/${medId}`, {
-        method: 'DELETE'
-      });
-
-      const data = await resp.json();
-      setStatus(data.mensaje || 'Eliminado', 'warning');
-    } catch (error) {
-      console.error('Error al eliminar check:', error);
-    }
-  };
-
-  const renderAudit = () => {
-    if (!auditList) return;
-    auditList.innerHTML = "";
-    
-    const items = Object.entries(checks)
-      .filter(([, v]) => v && v.taken)
-      .map(([id, v]) => ({ medId: +id, takenAt: v.takenAt, actor: v.actor }))
-      .sort((a, b) => new Date(b.takenAt) - new Date(a.takenAt));
-
-    if (!items.length) {
-      auditList.innerHTML = '<li class="text-muted">Sin acciones registradas hoy.</li>';
-      return;
-    }
-
-    items.forEach(it => {
-      const med = meds.find(m => m.id === it.medId);
-      const li = document.createElement("li");
-      li.className = 'mb-2';
-      li.innerHTML = `
-        <strong>${escapeHtml(med ? med.name : "ID " + it.medId)}</strong><br>
-        <small class="text-muted">${formatTime(it.takenAt)} por ${escapeHtml(it.actor)}</small>
-      `;
-      auditList.appendChild(li);
-    });
-  };
-
-  const cargarDatosDesdeServidor = async () => {
-    const p = (patientInput.value || "").trim();
-    const d = dateInput.value;
-    
-    if (!p) {
-      alert("Completa paciente ID / Nombre");
-      return;
-    }
-    if (!d) {
-      alert("Selecciona una fecha");
-      return;
-    }
-
-    currentPatientKey = p;
-    currentDateStr = d;
-
-    try {
-      const resp = await fetch(`http://localhost:3000/obtenerChecklist/${p}/${d}`);
-      const data = await resp.json();
-      
-      if (data && data.meds) {
-        meds = data.meds;
-        checks = data.checks || {};
-        setStatus("Datos cargados correctamente", 'success');
-      } else {
-        meds = [];
-        checks = {};
-        setStatus("No hay datos guardados para esta fecha", 'warning');
-      }
-      
-      renderMeds();
-      renderAudit();
-    } catch (error) {
-      console.error('Error al cargar datos:', error);
-      setStatus('Error al conectar con el servidor', 'danger');
-    }
-  };
-
-  if (loadBtn) {
-    loadBtn.addEventListener("click", cargarDatosDesdeServidor);
-  }
-
-  if (addSampleBtn) {
-    addSampleBtn.addEventListener("click", async () => {
-      const p = (patientInput.value || "").trim();
-      const d = dateInput.value;
-      
-      if (!p) {
-        alert("Completa paciente ID / Nombre");
-        return;
-      }
-      if (!d) {
-        alert("Selecciona una fecha");
-        return;
-      }
-
-      // Confirmar si ya hay medicamentos cargados
-      if (meds.length > 0) {
-        if (!confirm("Ya hay medicamentos cargados. ¿Deseas reemplazarlos con los ejemplos?")) {
-          return;
-        }
-      }
-
-      currentPatientKey = p;
-      currentDateStr = d;
-      
-      // Limpiar todo primero
-      meds = [];
-      checks = {};
-      
-      // Cargar medicamentos de ejemplo
-      meds = JSON.parse(JSON.stringify(sampleMeds));
-      
-      try {
-        // Primero limpiar el día en el servidor
-        await fetch(`http://localhost:3000/limpiarDiaChecklist/${currentPatientKey}/${currentDateStr}`, {
-          method: 'DELETE'
-        });
-        
-        // Luego guardar los nuevos medicamentos
-        const resp = await fetch('http://localhost:3000/guardarMedicamentosChecklist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            paciente_id: currentPatientKey,
-            fecha: currentDateStr,
-            medicamentos: meds
-          })
-        });
-        
-        const data = await resp.json();
-        setStatus(data.mensaje || "Medicamentos de ejemplo cargados", 'success');
-        renderMeds();
-        renderAudit();
-      } catch (error) {
-        console.error('Error:', error);
-        // Si falla el servidor, al menos mostrar los datos localmente
-        setStatus('Medicamentos cargados localmente (sin conexión al servidor)', 'warning');
-        renderMeds();
-        renderAudit();
-      }
-    });
-  }
-
-  if (clearDayBtn) {
-    clearDayBtn.addEventListener("click", async () => {
-      if (!currentPatientKey || !currentDateStr) {
-        return alert("Carga primero paciente y fecha.");
-      }
-      if (!confirm("¿Seguro que quieres limpiar todo el día?")) return;
-      
-      try {
-        await fetch(`http://localhost:3000/limpiarDiaChecklist/${currentPatientKey}/${currentDateStr}`, {
-          method: 'DELETE'
-        });
-        
-        checks = {};
-        setStatus("Día limpiado correctamente", 'success');
-        renderMeds();
-        renderAudit();
-      } catch (error) {
-        console.error('Error:', error);
-        setStatus('Error al limpiar', 'danger');
-      }
-    });
-  }
-
-  if (exportCsvBtn) {
-    exportCsvBtn.addEventListener("click", () => {
-      if (!currentPatientKey || !currentDateStr) {
-        return alert("Carga primero paciente y fecha.");
-      }
-      
-      const rows = [
-        ["medicationId", "name", "dose", "schedule", "taken", "takenAt", "actor"]
-      ];
-      
-      meds.forEach(m => {
-        const i = checks[m.id];
-        rows.push([
-          m.id,
-          `"${m.name}"`,
-          `"${m.dose || ""}"`,
-          m.schedule || "",
-          i && i.taken ? "true" : "false",
-          i && i.takenAt ? i.takenAt : "",
-          i && i.actor ? `"${i.actor}"` : ""
-        ]);
-      });
-      
-      const csv = rows.map(r => r.join(",")).join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `checklist_${currentPatientKey}_${currentDateStr}.csv`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    });
-  }
-})();
-
-
-// ===============================
-// MÓDULO DE PEDIDOS A FARMACIAss
-// ===============================
-(function(){
-  const openBtn = document.getElementById('open-create-order');
-  const modalEl = document.getElementById('createOrderModal');
-  const detailModalEl = document.getElementById('detailModal');
-  
-  if (!openBtn || !modalEl) return;
-
-  const modal = new bootstrap.Modal(modalEl);
-  const detailModal = new bootstrap.Modal(detailModalEl);
-  
-  const historyList = document.getElementById('historyList');
-  const clearAllBtn = document.getElementById('clearAll');
-  const itemsTableBody = document.querySelector('#itemsTable tbody');
-  const addEmptyRowBtn = document.getElementById('addEmptyRow');
-  const farmaciaSelect = document.getElementById('farmaciaSelect');
-  const notasInput = document.getElementById('notas');
-  const previewBtn = document.getElementById('previewBtn');
-  const sendBtn = document.getElementById('sendBtn');
-  const previewContent = document.getElementById('previewContent');
-  const formMessage = document.getElementById('formMessage');
-  const detailBody = document.getElementById('detailBody');
-
-  openBtn.onclick = () => modal.show();
-  addEmptyRowBtn.onclick = () => addRow();
-
-  function addRow(){
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input class="form-control form-control-sm txt-name" placeholder="Medicamento"></td>
-      <td><input class="form-control form-control-sm txt-dose" placeholder="Dosis (ej: 500mg)"></td>
-      <td><input type="number" class="form-control form-control-sm num" min="0" value="1"></td>
-      <td><button type="button" class="btn btn-sm btn-outline-danger">✕</button></td>`;
-    tr.querySelector('button').onclick = ()=>tr.remove();
-    itemsTableBody.appendChild(tr);
-  }
-
-  previewBtn.onclick = async ()=>{
-    const o = await buildOrder();
-    if(!o)return;
-    previewContent.textContent = JSON.stringify(o,null,2);
-  };
-
-  sendBtn.onclick = async ()=>{
-    const o = await buildOrder();
-    if(!o)return;
-    
-    console.log('Enviando pedido:', o);
-    
-    try {
-      const resp = await fetch('http://localhost:3000/guardarPedido', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(o)
-      });
-
-      console.log('Respuesta del servidor:', resp.status);
-
-      if (!resp.ok) {
-        const data = await resp.json();
-        console.error('Error del servidor:', data);
-        showMsg('Error: ' + (data.mensaje || 'Error desconocido'), 'text-danger');
-        return;
-      }
-
-      const data = await resp.json();
-      console.log('Respuesta exitosa:', data);
-      showMsg('Pedido guardado correctamente','text-success');
-      
-      setTimeout(()=>{
-        modal.hide(); 
-        resetForm();
-        cargarHistorial();
-      },1000);
-      
-    } catch (error) {
-      console.error('Error completo:', error);
-      showMsg('Error al conectar: ' + error.message, 'text-danger');
-    }
-  };
-
-  async function buildOrder(){
-    const farmacia = farmaciaSelect.value.trim();
-    if(!farmacia) {
-      showMsg('Seleccione una farmacia','text-danger');
-      return null;
-    }
-    
-    const allItems = [...itemsTableBody.querySelectorAll('tr')].map(r => {
-      const nombre = r.querySelector('.txt-name').value.trim();
-      const dosisRaw = r.querySelector('.txt-dose').value.trim();
-      const cantidad = parseInt(r.querySelector('.num').value, 10);
-      
-      return {
-        nombre: nombre,
-        dosis: dosisRaw || 'No especificada',
-        cantidad: cantidad
-      };
-    });
-    
-    const items = allItems.filter(i => i.nombre && i.cantidad > 0);
-    
-    if(!items.length) {
-      showMsg('Debe agregar al menos un medicamento','text-danger');
-      return null;
-    }
-    
-    const itemsIncompletos = items.filter(i => !i.dosis);
-    if(itemsIncompletos.length > 0) {
-      showMsg('Todos los medicamentos deben tener dosis especificada','text-danger');
-      return null;
-    }
-    
-    clearMsg();
-    
-    const now = new Date();
-    const fecha_mysql = now.toISOString().slice(0, 19).replace('T', ' ');
-    
-    return {
-      id: 'P-'+Date.now().toString(36),
-      farmacia,
-      items,
-      notas: notasInput.value.trim(),
-      estado: 'Pendiente',
-      fecha_creacion: fecha_mysql,
-      id_usuario: 1
-    };
-  }
-
-  function showMsg(msg,cls){
-    formMessage.className='fw-semibold '+cls;
-    formMessage.textContent=msg;
-  }
-  
-  function clearMsg(){
-    formMessage.textContent='';
-  }
-  
-  function resetForm(){
-    itemsTableBody.innerHTML='';
-    farmaciaSelect.value='';
-    notasInput.value='';
-    previewContent.textContent='Aún no hay previsualización.';
-    clearMsg();
-  }
-
-  async function cargarHistorial(){
-    try {
-      const resp = await fetch('http://localhost:3000/obtenerPedidos');
-      const data = await resp.json();
-      renderHistory(data);
-    } catch (error) {
-      console.error('Error al cargar historial:', error);
-    }
-  }
-
-  function renderHistory(list){
-    historyList.innerHTML='';
-    
-    if(!list || !list.length){
-      historyList.innerHTML='<div class="text-muted small">No hay pedidos guardados.</div>';
-      return;
-    }
-    
-    list.forEach(o=>{
-      const div=document.createElement('div');
-      div.className='border rounded p-2 bg-white d-flex justify-content-between align-items-center mb-2';
-      div.innerHTML=`
-        <div>
-          <strong>${escapeHtml(o.id)}</strong><br>
-          <small>${new Date(o.fecha_creacion).toLocaleString()} — ${escapeHtml(o.farmacia)}</small><br>
-          <small>${o.total_items} ítem(s) — ${escapeHtml(o.estado)}</small>
-        </div>
-        <div>
-          <button class="btn btn-sm btn-outline-secondary me-2 btn-ver">Ver</button>
-          <button class="btn btn-sm btn-outline-danger btn-del">Eliminar</button>
-        </div>`;
-      
-      const viewBtn = div.querySelector('.btn-ver');
-      const delBtn = div.querySelector('.btn-del');
-      
-      viewBtn.onclick = () => showDetail(o.id);
-      delBtn.onclick = () => {
-        if(confirm('¿Eliminar este pedido?')){
-          eliminarPedido(o.id);
-        }
-      };
-      
-      historyList.appendChild(div);
-    });
-  }
-
-  async function showDetail(pedidoId){
-    try {
-      const resp = await fetch(`http://localhost:3000/obtenerPedido/${pedidoId}`);
-      const data = await resp.json();
-      
-      if (data.pedido && data.items) {
-        const o = data.pedido;
-        const items = data.items;
-        
-        detailBody.innerHTML=`
-          <p><strong>ID:</strong> ${escapeHtml(o.id)}</p>
-          <p><strong>Farmacia:</strong> ${escapeHtml(o.farmacia)}</p>
-          <p><strong>Fecha:</strong> ${new Date(o.fecha_creacion).toLocaleString()}</p>
-          <p><strong>Estado:</strong> <span class="badge bg-info">${escapeHtml(o.estado)}</span></p>
-          <h6>Medicamentos</h6>
-          <ul>${items.map(i=>`<li>${escapeHtml(i.nombre_medicamento)} — ${escapeHtml(i.dosis)} — x${i.cantidad}</li>`).join('')}</ul>
-          <p><strong>Notas:</strong> ${escapeHtml(o.notas)||'(sin notas)'}</p>`;
-        
-        detailModal.show();
-      }
-    } catch (error) {
-      console.error('Error al cargar detalle:', error);
-      alert('Error al cargar el detalle del pedido');
-    }
-  }
-
-  async function eliminarPedido(pedidoId){
-    try {
-      const resp = await fetch(`http://localhost:3000/eliminarPedido/${pedidoId}`, {
-        method: 'DELETE'
-      });
-      
-      const data = await resp.json();
-      
-      if (resp.ok) {
-        alert(data.mensaje || 'Pedido eliminado');
-        cargarHistorial();
-      } else {
-        alert('Error: ' + data.mensaje);
-      }
-    } catch (error) {
-      console.error('Error al eliminar pedido:', error);
-      alert('Error al conectar con el servidor');
-    }
-  }
-
-  clearAllBtn.onclick = async () => {
-    if(!confirm('¿Borrar todo el historial?')) return;
-
-    try {
-      const resp = await fetch('http://localhost:3000/eliminarTodosPedidos', {
-        method: 'DELETE'
-      });
-
-      const data = await resp.json();
-
-      if (resp.ok) {
-        alert(data.mensaje || 'Historial limpiado');
-        cargarHistorial();
-      } else {
-        alert('Error: ' + data.mensaje);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al conectar con el servidor');
-    }
-  };
-
-  cargarHistorial();
-})();
+  toastElement.addEventListener('hidden.bs.toast', () => {
+    toastElement.remove();
+  });
+}
 
 // ===============================
 // GESTIÓN DE USUARIOS
 // ===============================
 (function(){
-  const abrirModalUsuarioBtn = document.getElementById('abrirModalUsuario');
-  const modalUsuarioEl = document.getElementById('modalUsuario');
-  const guardarUsuarioBtn = document.getElementById('guardarUsuarioBtn');
-  const tablaUsuarios = document.querySelector('#tablaUsuarios tbody');
-
-  let modalUsuario = null;
+  const tablaUsuarios = document.querySelector("#tablaUsuarios tbody");
+  const noUsuariosDiv = document.getElementById("noUsuarios");
+  const abrirModalUsuarioBtn = document.getElementById("abrirModalUsuario");
+  const modalUsuario = document.getElementById("modalUsuario");
+  const formUsuario = document.getElementById("formUsuario");
+  const guardarUsuarioBtn = document.getElementById("guardarUsuarioBtn");
+  
+  // Campos del formulario
+  const nombresUsuario = document.getElementById("nombresUsuario");
+  const apellidosUsuario = document.getElementById("apellidosUsuario");
+  const identidadUsuario = document.getElementById("identidadUsuario");
+  const telefonoUsuario = document.getElementById("telefonoUsuario");
+  const emailUsuario = document.getElementById("emailUsuario");
+  const passwordUsuario = document.getElementById("passwordUsuario");
+  const rolUsuario = document.getElementById("rolUsuario");
+  
+  let usuariosData = [];
   let editingUserId = null;
 
-  if (modalUsuarioEl) {
-    modalUsuario = new bootstrap.Modal(modalUsuarioEl);
-  }
-
-  if (abrirModalUsuarioBtn) {
-    abrirModalUsuarioBtn.addEventListener('click', () => {
-      editingUserId = null;
-      limpiarFormUsuario();
-      modalUsuario.show();
-    });
-  }
-
-  if (guardarUsuarioBtn) {
-    guardarUsuarioBtn.addEventListener('click', async () => {
-      const nombres = document.getElementById('nombresUsuario').value.trim();
-      const apellidos = document.getElementById('apellidosUsuario').value.trim();
-      const identidad = document.getElementById('identidadUsuario').value.trim();
-      const telefono = document.getElementById('telefonoUsuario').value.trim();
-      const email = document.getElementById('emailUsuario').value.trim();
-      const password = document.getElementById('passwordUsuario').value;
-      const rol = document.getElementById('rolUsuario').value;
-
-      if (!nombres || !apellidos || !identidad || !telefono || !email || !password || !rol) {
-        alert('Por favor complete todos los campos.');
-        return;
-      }
-
-      const datos = { nombres, apellidos, identidad, telefono, email, password, rol };
-
-      try {
-        let resp;
-        if (editingUserId) {
-          // Actualizar usuario existente
-          resp = await fetch(`http://localhost:3000/usuarios/${editingUserId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datos)
-          });
-        } else {
-          // Crear nuevo usuario
-          resp = await fetch('http://localhost:3000/registraradm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datos)
-          });
-        }
-
-        const resultado = await resp.json();
-        if (resp.ok) {
-          alert(resultado.mensaje || 'Usuario guardado correctamente.');
-          modalUsuario.hide();
-          cargarUsuarios();
-        } else {
-          alert('Error: ' + (resultado.error || resultado.mensaje));
-        }
-      } catch (error) {
-        console.error('Error al guardar usuario:', error);
-        alert('No se pudo conectar con el servidor.');
-      }
-    });
-  }
-
+  // Cargar usuarios desde el servidor
   async function cargarUsuarios() {
     try {
-      const respuesta = await fetch('http://localhost:3000/usuarios');
-      const data = await respuesta.json();
-      renderUsuarios(data);
-    } catch (err) {
-      console.error('Error al cargar usuarios:', err);
+      const token = localStorage.getItem('auth_token') || 
+                    localStorage.getItem('token') || 
+                    localStorage.getItem('accessToken') ||
+                    sessionStorage.getItem('auth_token') ||
+                    sessionStorage.getItem('token');
+      
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const respuesta = await fetch("http://localhost:3000/usuarios", {
+        headers: headers
+      });
+      
+      if (!respuesta.ok) {
+        if (respuesta.status === 403) {
+          mostrarToast("No tienes permisos para ver usuarios", "error");
+          return;
+        }
+        throw new Error("Error al cargar usuarios");
+      }
+      
+      usuariosData = await respuesta.json();
+      renderUsuarios();
+    } catch (error) {
+      console.error("Error al cargar usuarios:", error);
+      mostrarToast("Error al cargar usuarios: " + error.message, "error");
     }
   }
 
-  function renderUsuarios(usuarios) {
-    const tablaUsuarios = document.querySelector('#tablaUsuarios tbody');
-    const noUsuarios = document.getElementById('noUsuarios');
-
+  // Renderizar usuarios en la tabla
+  function renderUsuarios() {
     if (!tablaUsuarios) return;
-
-    tablaUsuarios.innerHTML = '';
-
-    if (usuarios.length === 0) {
-      noUsuarios.classList.remove('d-none');
+    
+    tablaUsuarios.innerHTML = "";
+    
+    if (usuariosData.length === 0) {
+      if (noUsuariosDiv) noUsuariosDiv.classList.remove("d-none");
       return;
     }
-
-    noUsuarios.classList.add('d-none');
-
-    usuarios.forEach(user => {
-      const tr = document.createElement('tr');
+    
+    if (noUsuariosDiv) noUsuariosDiv.classList.add("d-none");
+    
+    usuariosData.forEach((u) => {
+      const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td class="fw-semibold">${escapeHtml(user.nombres)}</td>
-        <td class="fw-semibold">${escapeHtml(user.apellidos)}</td>
-        <td><code class="text-muted">${escapeHtml(user.identidad)}</code></td>
-        <td>${escapeHtml(user.telefono)}</td>
-        <td>${escapeHtml(user.email)}</td>
-        <td><code class="text-danger font-monospace">${escapeHtml(user.password)}</code></td>
-        <td><span class="badge bg-${getRolBadgeClass(user.rol)}">${escapeHtml(user.rol)}</span></td>
+        <td>${u.id}</td>
+        <td>${escapeHtml(u.nombres)}</td>
+        <td>${escapeHtml(u.apellidos)}</td>
+        <td>${escapeHtml(u.identidad)}</td>
+        <td>${escapeHtml(u.telefono)}</td>
+        <td>${escapeHtml(u.email)}</td>
+        <td><span class="badge bg-${getRolBadgeColor(u.rol)}">${escapeHtml(u.rol)}</span></td>
         <td class="text-center">
-          <div class="btn-group" role="group">
-            <button class="btn btn-sm btn-outline-primary" onclick="editarUsuario(${user.id})" title="Editar">
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-primary" onclick="editarUsuario(${u.id})" title="Editar">
               <i class="bi bi-pencil"></i>
             </button>
-            <button class="btn btn-sm btn-outline-danger" onclick="eliminarUsuario(${user.id})" title="Eliminar">
+            <button class="btn btn-outline-danger" onclick="eliminarUsuario(${u.id})" title="Eliminar">
               <i class="bi bi-trash"></i>
             </button>
           </div>
@@ -1500,341 +1164,199 @@ function mostrarAlertasStock(alertas) {
     });
   }
 
-  function getRolBadgeClass(rol) {
-    const classes = {
-      'paciente': 'primary',
-      'cuidador': 'success',
-      'farmacia': 'info',
-      'administrador': 'warning'
-    };
-    return classes[rol] || 'secondary';
+  // Obtener color de badge según rol
+  function getRolBadgeColor(rol) {
+    switch(rol) {
+      case 'administrador': return 'danger';
+      case 'empleado': return 'warning';
+      case 'usuario': return 'info';
+      default: return 'secondary';
+    }
   }
 
-  window.editarUsuario = async function(id) {
-    try {
-      const respuesta = await fetch('http://localhost:3000/usuarios');
-      const usuarios = await respuesta.json();
-      const user = usuarios.find(u => u.id === id);
+  // Abrir modal para nuevo usuario
+  function abrirModalNuevoUsuario() {
+    editingUserId = null;
+    formUsuario.reset();
+    document.querySelector("#modalUsuario .modal-title").innerHTML = '<i class="bi bi-person-plus me-2"></i> Nuevo Usuario';
+    guardarUsuarioBtn.textContent = "Guardar Usuario";
+    
+    // Mostrar requisitos de contraseña
+    const passwordRequisitos = document.getElementById("passwordRequisitosUsuario");
+    if (passwordRequisitos) passwordRequisitos.style.display = "none";
+    
+    const modal = new bootstrap.Modal(modalUsuario);
+    modal.show();
+  }
 
-      if (user) {
-        editingUserId = id;
-        document.getElementById('nombresUsuario').value = user.nombres;
-        document.getElementById('apellidosUsuario').value = user.apellidos;
-        document.getElementById('identidadUsuario').value = user.identidad;
-        document.getElementById('telefonoUsuario').value = user.telefono;
-        document.getElementById('emailUsuario').value = user.email;
-        document.getElementById('passwordUsuario').value = user.password; // Mostrar password para editar
-        document.getElementById('rolUsuario').value = user.rol;
-        modalUsuario.show();
-      }
-    } catch (error) {
-      console.error('Error al cargar usuario para editar:', error);
+  // Guardar usuario (crear o actualizar)
+  async function guardarUsuario() {
+    // Validar campos
+    if (!nombresUsuario.value.trim() || !apellidosUsuario.value.trim() || 
+        !identidadUsuario.value.trim() || !telefonoUsuario.value.trim() || 
+        !emailUsuario.value.trim() || !rolUsuario.value) {
+      mostrarToast("Por favor complete todos los campos obligatorios", "warning");
+      return;
     }
-  };
 
-  window.eliminarUsuario = async function(id) {
-    if (!confirm('¿Está seguro de que desea eliminar este usuario?')) return;
+    // Validar contraseña solo si es nuevo usuario o se proporcionó una
+    const password = passwordUsuario.value;
+    if (!editingUserId && !password) {
+      mostrarToast("La contraseña es obligatoria para nuevos usuarios", "warning");
+      return;
+    }
+
+    if (password && !passwordUsuarioEsValida()) {
+      mostrarToast("La contraseña no cumple con los requisitos mínimos", "warning");
+      return;
+    }
+
+    const datos = {
+      nombres: nombresUsuario.value.trim(),
+      apellidos: apellidosUsuario.value.trim(),
+      identidad: identidadUsuario.value.trim(),
+      telefono: telefonoUsuario.value.trim(),
+      email: emailUsuario.value.trim(),
+      password: password || undefined,
+      rol: rolUsuario.value
+    };
 
     try {
-      const resp = await fetch(`http://localhost:3000/usuarios/${id}`, {
-        method: 'DELETE'
+      let url = "http://localhost:3000/registraradm";
+      let method = "POST";
+      
+      if (editingUserId) {
+        url = `http://localhost:3000/usuarios/${editingUserId}`;
+        method = "PUT";
+      }
+
+      const token = localStorage.getItem('auth_token') || 
+                    localStorage.getItem('token') || 
+                    localStorage.getItem('accessToken') ||
+                    sessionStorage.getItem('auth_token') ||
+                    sessionStorage.getItem('token');
+      
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const resp = await fetch(url, {
+        method: method,
+        headers: headers,
+        body: JSON.stringify(datos)
       });
 
       const resultado = await resp.json();
+      
       if (resp.ok) {
-        alert(resultado.mensaje || 'Usuario eliminado correctamente.');
-        cargarUsuarios();
+        mostrarToast(resultado.mensaje || (editingUserId ? "Usuario actualizado correctamente" : "Usuario registrado correctamente"), "success");
+        const modal = bootstrap.Modal.getInstance(modalUsuario);
+        if (modal) modal.hide();
+        await cargarUsuarios();
       } else {
-        alert('Error: ' + resultado.mensaje);
+        mostrarToast("Error: " + (resultado.mensaje || resultado.error || "No se pudo guardar"), "error");
       }
     } catch (error) {
-      console.error('Error al eliminar usuario:', error);
-      alert('No se pudo conectar con el servidor.');
+      console.error("Error al guardar usuario:", error);
+      mostrarToast("Error al conectar con el servidor: " + error.message, "error");
+    }
+  }
+
+  // Editar usuario
+  window.editarUsuario = async function(id) {
+    const usuario = usuariosData.find(u => u.id === id);
+    if (!usuario) {
+      mostrarToast("Usuario no encontrado", "error");
+      return;
+    }
+    
+    editingUserId = id;
+    
+    nombresUsuario.value = usuario.nombres;
+    apellidosUsuario.value = usuario.apellidos;
+    identidadUsuario.value = usuario.identidad;
+    telefonoUsuario.value = usuario.telefono;
+    emailUsuario.value = usuario.email;
+    rolUsuario.value = usuario.rol;
+    passwordUsuario.value = ""; // Dejar vacío para no cambiar
+    
+    document.querySelector("#modalUsuario .modal-title").innerHTML = '<i class="bi bi-pencil-square me-2"></i> Editar Usuario';
+    guardarUsuarioBtn.textContent = "Actualizar Usuario";
+    
+    // Ocultar requisitos de contraseña al editar
+    const passwordRequisitos = document.getElementById("passwordRequisitosUsuario");
+    if (passwordRequisitos) passwordRequisitos.style.display = "none";
+    
+    const modal = new bootstrap.Modal(modalUsuario);
+    modal.show();
+  };
+
+  // Eliminar usuario
+  window.eliminarUsuario = async function(id) {
+    if (!confirm("¿Está seguro de que desea eliminar este usuario?")) return;
+    
+    try {
+      const token = localStorage.getItem('auth_token') || 
+                    localStorage.getItem('token') || 
+                    localStorage.getItem('accessToken') ||
+                    sessionStorage.getItem('auth_token') ||
+                    sessionStorage.getItem('token');
+      
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const resp = await fetch(`http://localhost:3000/usuarios/${id}`, {
+        method: "DELETE",
+        headers: headers
+      });
+      
+      const resultado = await resp.json();
+      
+      if (resp.ok) {
+        mostrarToast(resultado.mensaje || "Usuario eliminado correctamente", "success");
+        await cargarUsuarios();
+      } else {
+        mostrarToast("Error: " + (resultado.mensaje || "No se pudo eliminar"), "error");
+      }
+    } catch (error) {
+      console.error("Error al eliminar usuario:", error);
+      mostrarToast("Error al conectar con el servidor: " + error.message, "error");
     }
   };
 
-  function limpiarFormUsuario() {
-    document.getElementById('nombresUsuario').value = '';
-    document.getElementById('apellidosUsuario').value = '';
-    document.getElementById('identidadUsuario').value = '';
-    document.getElementById('telefonoUsuario').value = '';
-    document.getElementById('emailUsuario').value = '';
-    document.getElementById('passwordUsuario').value = '';
-    document.getElementById('rolUsuario').value = '';
+  // Event listeners
+  if (abrirModalUsuarioBtn) {
+    abrirModalUsuarioBtn.addEventListener("click", abrirModalNuevoUsuario);
+  }
+  
+  if (guardarUsuarioBtn) {
+    guardarUsuarioBtn.addEventListener("click", guardarUsuario);
   }
 
-  // Cargar usuarios al iniciar
-  cargarUsuarios();
-})();
-
-// ===============================
-// PANEL CONSOLIDADO DE PACIENTES (CUIDADOR) - HU-26
-// Funciones: Listar pacientes por cuidador, filtrar por estatus de salud,
-//   filtrar alertas por estado/fecha, tabla de detalle de alertas
-// ===============================
-(function () {
-  const API_BASE = 'http://localhost:3000';
-
-  function normalizeDatetimeLocal(value) {
-    // Convierte "YYYY-MM-DDTHH:mm" a "YYYY-MM-DD HH:mm:00" (sin timezone)
-    if (!value) return '';
-    return value.replace('T', ' ') + ':00';
-  }
-
-  function getStatusLabel(estatus) {
-    const map = {
-      critico: 'Crítico',
-      importante: 'Importante',
-      normal: 'Normal',
-      leve: 'Leve'
-    };
-    return map[String(estatus || '').toLowerCase()] || 'Sin clasificar';
-  }
-
-  function getStatusBadgeClass(estatus) {
-    const key = String(estatus || '').toLowerCase();
-    if (key === 'critico') return 'danger';
-    if (key === 'importante') return 'warning';
-    if (key === 'normal') return 'primary';
-    if (key === 'leve') return 'success';
-    return 'secondary';
-  }
-
-  function getAlertStateLabel(estado) {
-    const key = String(estado || '').toLowerCase();
-    if (key === 'pendiente') return 'Pendiente';
-    if (key === 'atendida') return 'Atendida';
-    return 'Desconocido';
-  }
-
-  function getAlertStateBadgeClass(estado) {
-    const key = String(estado || '').toLowerCase();
-    if (key === 'pendiente') return 'danger';
-    if (key === 'atendida') return 'success';
-    return 'secondary';
-  }
-
-  async function fetchJson(url) {
-    const resp = await fetch(url);
-    const data = await resp.json();
-    return { resp, data };
-  }
-
-  function renderEmpty(panelContenido, panelTabla, text) {
-    if (panelContenido) panelContenido.innerHTML = '';
-    if (panelTabla) {
-      panelTabla.innerHTML = `
-        <div class="card">
-          <div class="text-center text-muted p-4">${escapeHtml(text)}</div>
-        </div>
-      `;
-    }
-  }
-
-  function groupPatientsByStatus(pacientes) {
-    const groups = { critico: [], importante: [], normal: [], leve: [], other: [] };
-    pacientes.forEach(p => {
-      const key = String(p.estatus_salud || '').toLowerCase();
-      if (groups[key]) groups[key].push(p);
-      else groups.other.push(p);
+  // Cargar usuarios cuando se muestre la sección
+  const usuariosBtn = document.querySelector('.nav-btn[data-section="usuarios"]');
+  if (usuariosBtn) {
+    usuariosBtn.addEventListener("click", () => {
+      cargarUsuarios();
     });
-    return groups;
   }
 
-  function hasActiveAlertFilters({ estado, desde, hasta }) {
-    return (estado && estado !== 'todas') || Boolean(desde) || Boolean(hasta);
-  }
-
-  function buildAlertsByPatient(alertas) {
-    const map = new Map();
-    (alertas || []).forEach(a => {
-      const pid = a.paciente_id;
-      if (!map.has(pid)) map.set(pid, []);
-      map.get(pid).push(a);
-    });
-    return map;
-  }
-
-  function formatDateTime(value) {
-    if (!value) return '';
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) {
-      return String(value);
-    }
-    return d.toLocaleString();
-  }
-
-  function renderPanel(panelContenido, panelTabla, panelMsg, pacientes, alertas, filters) {
-    const alertasPorPaciente = buildAlertsByPatient(alertas);
-    const filtrosAlertasActivos = hasActiveAlertFilters(filters);
-
-    let pacientesMostrados = pacientes;
-    if (filtrosAlertasActivos) {
-      pacientesMostrados = pacientes.filter(p => {
-        const list = alertasPorPaciente.get(p.id_paciente) || [];
-        return list.length > 0;
-      });
-    }
-
-    const totalAlertas = pacientesMostrados.reduce((acc, p) => {
-      return acc + ((alertasPorPaciente.get(p.id_paciente) || []).length);
-    }, 0);
-
-    panelMsg.textContent = `${pacientesMostrados.length} paciente(s) · ${totalAlertas} alerta(s)`;
-
-    if (!pacientesMostrados.length) {
-      renderEmpty(panelContenido, panelTabla, filtrosAlertasActivos ? 'No hay pacientes con alertas para los filtros seleccionados.' : 'No hay pacientes asignados para mostrar.');
-      return;
-    }
-
-    // Tarjetas no requeridas: solo tabla
-    if (panelContenido) panelContenido.innerHTML = '';
-
-    // Tabla detalle (alertas filtradas)
-    const pacientesById = new Map();
-    pacientesMostrados.forEach(p => pacientesById.set(p.id_paciente, p));
-
-    const alertasDetalle = Array.isArray(alertas) ? alertas : [];
-    const rowsHtml = alertasDetalle.length
-      ? alertasDetalle.map(a => {
-          const p = pacientesById.get(a.paciente_id) || {};
-          const est = String(p.estatus_salud || '').toLowerCase();
-          return `
-            <tr>
-              <td class="fw-semibold">${escapeHtml(p.nombre_completo || `Paciente ${a.paciente_id}`)}</td>
-              <td><span class="badge bg-${getStatusBadgeClass(est)}">${escapeHtml(getStatusLabel(est))}</span></td>
-              <td>${escapeHtml(a.descripcion || '')}</td>
-              <td><span class="badge bg-${getAlertStateBadgeClass(a.estado)}">${escapeHtml(getAlertStateLabel(a.estado))}</span></td>
-              <td class="text-muted">${escapeHtml(formatDateTime(a.creado_en))}</td>
-            </tr>
-          `;
-        }).join('')
-      : '';
-
-    const tableHtml = `
-      <div class="card form-card">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h5 class="card-title mb-0"><i class="bi bi-table me-2"></i> Detalle de Alertas</h5>
-          <span class="small text-muted">${alertasDetalle.length} registro(s)</span>
-        </div>
-        <div class="table-responsive">
-          <table class="table align-middle">
-            <thead>
-              <tr>
-                <th>Paciente</th>
-                <th>Estatus</th>
-                <th>Descripción</th>
-                <th>Estado</th>
-                <th>Creada</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml || `<tr><td colspan="5" class="text-center text-muted p-4">No hay alertas para mostrar.</td></tr>`}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-
-    if (panelTabla) panelTabla.innerHTML = tableHtml;
-  }
-
-  async function loadPanel(panelContenido, panelTabla, panelMsg, filters) {
-    const cuidadorId = localStorage.getItem('userId');
-    if (!cuidadorId) {
-      panelMsg.textContent = '';
-      renderEmpty(panelContenido, panelTabla, 'No se encontró el id del cuidador (userId). Vuelve a iniciar sesión.');
-      return;
-    }
-
-    panelMsg.textContent = 'Cargando...';
-    panelContenido.innerHTML = '<div class="text-center text-muted p-4">Cargando...</div>';
-    if (panelTabla) panelTabla.innerHTML = '';
-
-    try {
-      const { data: pacientesResp } = await fetchJson(`${API_BASE}/cuidador/${encodeURIComponent(cuidadorId)}/pacientes`);
-      let pacientes = Array.isArray(pacientesResp) ? pacientesResp : [];
-
-      const estatusFiltro = String(filters.estatus || 'todas').toLowerCase();
-      if (estatusFiltro && estatusFiltro !== 'todas') {
-        pacientes = pacientes.filter(p => String(p.estatus_salud || '').toLowerCase() === estatusFiltro);
-      }
-
-      const qs = new URLSearchParams();
-      if (filters.estado) qs.set('estado', filters.estado);
-      if (filters.desde) qs.set('desde', filters.desde);
-      if (filters.hasta) qs.set('hasta', filters.hasta);
-
-      const { data: alertasResp } = await fetchJson(`${API_BASE}/cuidador/${encodeURIComponent(cuidadorId)}/alertas?${qs.toString()}`);
-
-      if (alertasResp && alertasResp.needsSetup) {
-        panelMsg.textContent = 'Panel listo (sin tabla de alertas)';
-        renderPanel(panelContenido, panelTabla, panelMsg, pacientes, [], filters);
-        return;
-      }
-
-      let alertas = alertasResp && alertasResp.ok ? alertasResp.alertas : [];
-      alertas = Array.isArray(alertas) ? alertas : [];
-      const allowedIds = new Set(pacientes.map(p => p.id_paciente));
-      alertas = alertas.filter(a => allowedIds.has(a.paciente_id));
-
-      renderPanel(panelContenido, panelTabla, panelMsg, pacientes, alertas, filters);
-    } catch (err) {
-      console.error('Error al cargar panel:', err);
-      panelMsg.textContent = '';
-      renderEmpty(panelContenido, panelTabla, 'No se pudo cargar el panel. Verifica que el servidor esté activo.');
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const panelContenido = document.getElementById('panelContenido');
-    const panelTabla = document.getElementById('panelTabla');
-    const panelMsg = document.getElementById('panelMsg');
-    const panelEstatus = document.getElementById('panelEstatus');
-    const panelEstado = document.getElementById('panelEstado');
-    const panelDesde = document.getElementById('panelDesde');
-    const panelHasta = document.getElementById('panelHasta');
-    const panelAplicar = document.getElementById('panelAplicar');
-    const panelLimpiar = document.getElementById('panelLimpiar');
-
-    if (!panelContenido || !panelMsg || !panelEstatus || !panelEstado || !panelDesde || !panelHasta || !panelAplicar || !panelLimpiar) return;
-
-    function currentFilters() {
-      return {
-        estatus: panelEstatus.value || 'todas',
-        estado: panelEstado.value || 'todas',
-        desde: normalizeDatetimeLocal(panelDesde.value),
-        hasta: normalizeDatetimeLocal(panelHasta.value)
-      };
-    }
-
-    panelAplicar.addEventListener('click', () => {
-      loadPanel(panelContenido, panelTabla, panelMsg, currentFilters());
-    });
-
-    panelLimpiar.addEventListener('click', () => {
-      panelEstatus.value = 'todas';
-      panelEstado.value = 'todas';
-      panelDesde.value = '';
-      panelHasta.value = '';
-      loadPanel(panelContenido, panelTabla, panelMsg, currentFilters());
-    });
-
-    // Carga inicial (sin filtros)
-    loadPanel(panelContenido, panelTabla, panelMsg, currentFilters());
-  });
+  // Exponer función de carga global para que pueda ser llamada desde otros scripts
+  window.cargarUsuarios = cargarUsuarios;
 })();
 
 // ===============================
 // UTILIDAD
 // ===============================
-function escapeHtml(str){
-  return String(str || "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = String(str || "");
+  return div.innerHTML;
 }
 
 // ===============================
