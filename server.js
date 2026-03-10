@@ -359,25 +359,70 @@ app.post("/registraradm", verificarRol(['administrador']), async (req, res) => {
     return res.status(400).json({ error: "Todos los campos son obligatorios." });
   }
 
-  // Hashear la contraseña antes de insertar
-  const saltRounds = 10;
-  const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-  // SQL para insertar el usuario
-  const sql = `
-    INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password, rol)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `;
-
-db.query(sql, [nombres, apellidos, identidad, telefono, email, hashedPassword, rol], (err, result) => {
-
-
-  if (err) {
-    //console.error("Error SQL completo:", err); // <-- imprime todo
-    return res.status(500).json({ error: "Error al registrar usuario en la base de datos.", detalle: err.message });
+  // Validación de formato de identidad (solo números, exactamente 13 dígitos)
+  if (!/^\d{13}$/.test(identidad)) {
+    return res.status(400).json({ error: "La identidad debe contener exactamente 13 dígitos numéricos." });
   }
-  res.status(200).json({ mensaje: "Usuario registrado con éxito." });
-});
+
+  // Validación de formato de teléfono (solo números, 8 dígitos)
+  if (!/^\d{8}$/.test(telefono)) {
+    return res.status(400).json({ error: "El teléfono debe contener exactamente 8 dígitos numéricos." });
+  }
+
+  // Validación de formato de email
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: "El formato del email no es válido." });
+  }
+
+  // Validación de roles permitidos
+  const rolesValidos = ['usuario', 'empleado', 'administrador'];
+  if (!rolesValidos.includes(rol)) {
+    return res.status(400).json({ error: "El rol seleccionado no es válido." });
+  }
+
+  // Verificar duplicados antes de insertar
+  const verificarSql = "SELECT * FROM usuarios WHERE email = ? OR identidad = ?";
+  db.query(verificarSql, [email, identidad], async (err, results) => {
+    if (err) {
+      console.error("Error al verificar duplicados:", err);
+      return res.status(500).json({ error: "Error al verificar datos del usuario." });
+    }
+
+    if (results.length > 0) {
+      const duplicado = results[0];
+      if (duplicado.email === email && duplicado.identidad === identidad) {
+        return res.status(400).json({ error: "Ya existe un usuario con ese email y esa identidad." });
+      } else if (duplicado.email === email) {
+        return res.status(400).json({ error: "Ya existe un usuario con ese email." });
+      } else {
+        return res.status(400).json({ error: "Ya existe un usuario con esa identidad." });
+      }
+    }
+
+    // Hashear la contraseña antes de insertar
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // SQL para insertar el usuario
+    const sql = `
+      INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password, rol)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    db.query(sql, [nombres, apellidos, identidad, telefono, email, hashedPassword, rol], (err, result) => {
+      if (err) {
+        console.error("Error SQL completo:", err);
+        if (err.code === 'ER_DATA_TOO_LONG') {
+          return res.status(400).json({ error: "Uno de los campos tiene demasiados caracteres. Verifique la información ingresada." });
+        }
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(400).json({ error: "Ya existe un usuario con ese email o identidad." });
+        }
+        return res.status(500).json({ error: "Error al registrar usuario en la base de datos." });
+      }
+      res.status(200).json({ mensaje: "Usuario registrado con éxito." });
+    });
+  });
 
 });
 
@@ -1892,6 +1937,308 @@ app.get('/pacientes', (req, res) => {
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar pacientes' });
     res.json(results);
+  });
+});
+
+// ============================================
+// HU-27 / HU-26: PANEL - Pacientes del cuidador
+// ============================================
+app.get('/cuidador/:id/pacientes', (req, res) => {
+  const cuidadorId = req.params.id;
+
+  // Primero verificar si el usuario tiene pacientes asignados
+  db.query('SELECT COUNT(*) as c FROM paciente WHERE usuario_id = ?', [cuidadorId], (err, countRes) => {
+    const tieneAsignados = !err && countRes[0].c > 0;
+
+    let sql = `
+      SELECT p.id_paciente, p.nombre_completo, p.fecha_nacimiento,
+        (SELECT cm.nivel FROM condicion_medica cm WHERE cm.id_paciente = p.id_paciente
+         ORDER BY FIELD(cm.nivel, 'Crítica', 'Moderada', 'Leve') LIMIT 1) AS estatus_salud_raw
+      FROM paciente p
+    `;
+    const params = [];
+
+    if (tieneAsignados) {
+      sql += ' WHERE p.usuario_id = ?';
+      params.push(cuidadorId);
+    }
+    sql += ' ORDER BY p.nombre_completo ASC';
+
+    db.query(sql, params, (err, results) => {
+      if (err) {
+        console.error('Error al obtener pacientes del cuidador:', err);
+        return res.status(500).json({ mensaje: 'Error al obtener pacientes' });
+      }
+
+      const pacientes = results.map(p => {
+        let estatus = 'normal';
+        if (p.estatus_salud_raw === 'Crítica') estatus = 'critico';
+        else if (p.estatus_salud_raw === 'Moderada') estatus = 'importante';
+        else if (p.estatus_salud_raw === 'Leve') estatus = 'leve';
+        return {
+          id_paciente: p.id_paciente,
+          nombre_completo: p.nombre_completo,
+          fecha_nacimiento: p.fecha_nacimiento,
+          estatus_salud: estatus
+        };
+      });
+
+      res.json(pacientes);
+    });
+  });
+});
+
+// ============================================
+// HU-27 / HU-26: PANEL - Alertas del cuidador
+// ============================================
+app.get('/cuidador/:id/alertas', (req, res) => {
+  const cuidadorId = req.params.id;
+  const { estado, desde, hasta } = req.query;
+
+  // Verificar si la tabla alertas_paciente existe
+  db.query("SHOW TABLES LIKE 'alertas_paciente'", (err, tables) => {
+    if (err || tables.length === 0) {
+      return res.json({ needsSetup: true });
+    }
+
+    // Verificar si el usuario tiene pacientes asignados
+    db.query('SELECT COUNT(*) as c FROM paciente WHERE usuario_id = ?', [cuidadorId], (err2, countRes) => {
+      const tieneAsignados = !err2 && countRes[0].c > 0;
+
+      let sql = `
+        SELECT ap.id_alerta, ap.paciente_id, ap.descripcion, ap.estado, ap.creado_en
+        FROM alertas_paciente ap
+        INNER JOIN paciente p ON ap.paciente_id = p.id_paciente
+      `;
+      const conditions = [];
+      const params = [];
+
+      if (tieneAsignados) {
+        conditions.push('p.usuario_id = ?');
+        params.push(cuidadorId);
+      }
+
+      if (estado && estado !== 'todas') {
+        conditions.push('ap.estado = ?');
+        params.push(estado);
+      }
+      if (desde) {
+        conditions.push('ap.creado_en >= ?');
+        params.push(desde);
+      }
+      if (hasta) {
+        conditions.push('ap.creado_en <= ?');
+        params.push(hasta + ' 23:59:59');
+      }
+
+      if (conditions.length > 0) {
+        sql += ' WHERE ' + conditions.join(' AND ');
+      }
+      sql += ' ORDER BY ap.creado_en DESC';
+
+      db.query(sql, params, (err, alertas) => {
+        if (err) {
+          console.error('Error al obtener alertas:', err);
+          return res.status(500).json({ ok: false, mensaje: 'Error al obtener alertas' });
+        }
+        res.json({ ok: true, alertas });
+      });
+    });
+  });
+});
+
+// ============================================
+// HU-27: ESTADÍSTICAS INDIVIDUAL
+// ============================================
+app.get('/estadisticas/paciente/:id', (req, res) => {
+  const id = req.params.id;
+
+  const queries = {
+    paciente: 'SELECT id_paciente, nombre_completo, fecha_nacimiento FROM paciente WHERE id_paciente = ?',
+    medicamentos: 'SELECT nombre, dosis, frecuencia FROM medicamentos WHERE paciente_id = ?',
+    condiciones: 'SELECT nombre_condicion, nivel FROM condicion_medica WHERE id_paciente = ?',
+    alergias: 'SELECT nombre_alergia FROM alergia WHERE id_paciente = ?',
+    citas: `SELECT estado, COUNT(*) as total FROM citas WHERE id_paciente = ? GROUP BY estado`,
+    totalCitas: 'SELECT COUNT(*) as total FROM citas WHERE id_paciente = ?',
+    programados: `SELECT COUNT(*) as total FROM checklist_medicamentos WHERE paciente_id LIKE CONCAT(?, ' - %')`,
+    tomados: `SELECT COUNT(*) as total FROM checklist_confirmaciones WHERE paciente_id LIKE CONCAT(?, ' - %') AND tomado = 1`
+  };
+
+  const results = {};
+  let completed = 0;
+  const totalQ = Object.keys(queries).length;
+
+  function checkDone() {
+    if (++completed < totalQ) return;
+
+    if (!results.paciente) {
+      return res.status(404).json({ mensaje: 'Paciente no encontrado' });
+    }
+
+    const totalProgramados = results.programados || 0;
+    const totalTomados = results.tomados || 0;
+    const porcentaje = totalProgramados > 0 ? Math.round((totalTomados / totalProgramados) * 100) : 0;
+
+    res.json({
+      paciente: results.paciente,
+      cumplimiento: {
+        porcentaje,
+        total_tomados: totalTomados,
+        total_programados: totalProgramados
+      },
+      citas: {
+        total: results.totalCitas || 0,
+        detalle: results.citas || []
+      },
+      condiciones: results.condiciones || [],
+      alergias: results.alergias || [],
+      medicamentos: results.medicamentos || []
+    });
+  }
+
+  db.query(queries.paciente, [id], (err, rows) => {
+    results.paciente = err ? null : (rows[0] || null);
+    checkDone();
+  });
+
+  db.query(queries.medicamentos, [id], (err, rows) => {
+    results.medicamentos = err ? [] : rows;
+    checkDone();
+  });
+
+  db.query(queries.condiciones, [id], (err, rows) => {
+    results.condiciones = err ? [] : rows;
+    checkDone();
+  });
+
+  db.query(queries.alergias, [id], (err, rows) => {
+    results.alergias = err ? [] : rows;
+    checkDone();
+  });
+
+  db.query(queries.citas, [id], (err, rows) => {
+    results.citas = err ? [] : rows;
+    checkDone();
+  });
+
+  db.query(queries.totalCitas, [id], (err, rows) => {
+    results.totalCitas = err ? 0 : (rows[0] ? rows[0].total : 0);
+    checkDone();
+  });
+
+  db.query(queries.programados, [id], (err, rows) => {
+    results.programados = err ? 0 : (rows[0] ? rows[0].total : 0);
+    checkDone();
+  });
+
+  db.query(queries.tomados, [id], (err, rows) => {
+    results.tomados = err ? 0 : (rows[0] ? rows[0].total : 0);
+    checkDone();
+  });
+});
+
+// ============================================
+// HU-27: COMPARAR PACIENTES
+// ============================================
+app.get('/estadisticas/comparar', (req, res) => {
+  const idsStr = req.query.ids;
+  if (!idsStr) return res.status(400).json({ mensaje: 'Debe proporcionar ids de pacientes' });
+
+  const ids = idsStr.split(',').map(Number).filter(n => !isNaN(n));
+  if (ids.length < 2) return res.status(400).json({ mensaje: 'Seleccione al menos 2 pacientes' });
+
+  const placeholders = ids.map(() => '?').join(',');
+
+  const queries = {
+    pacientes: `SELECT id_paciente, nombre_completo FROM paciente WHERE id_paciente IN (${placeholders})`,
+    medicamentos: `SELECT paciente_id, COUNT(*) as total FROM medicamentos WHERE paciente_id IN (${placeholders}) GROUP BY paciente_id`,
+    condiciones: `SELECT id_paciente, COUNT(*) as total FROM condicion_medica WHERE id_paciente IN (${placeholders}) GROUP BY id_paciente`,
+    alergias: `SELECT id_paciente, COUNT(*) as total FROM alergia WHERE id_paciente IN (${placeholders}) GROUP BY id_paciente`,
+    citas: `SELECT id_paciente, estado, COUNT(*) as total FROM citas WHERE id_paciente IN (${placeholders}) GROUP BY id_paciente, estado`,
+    nivelMax: `SELECT id_paciente, 
+      CASE 
+        WHEN SUM(nivel = 'Crítica') > 0 THEN 'Crítica'
+        WHEN SUM(nivel = 'Moderada') > 0 THEN 'Moderada'
+        WHEN SUM(nivel = 'Leve') > 0 THEN 'Leve'
+        ELSE NULL
+      END as nivel_max
+      FROM condicion_medica WHERE id_paciente IN (${placeholders}) GROUP BY id_paciente`
+  };
+
+  const results = {};
+  let completed = 0;
+  const totalQ = Object.keys(queries).length;
+
+  function checkDone() {
+    if (++completed < totalQ) return;
+
+    const medsMap = new Map();
+    (results.medicamentos || []).forEach(r => medsMap.set(r.paciente_id, r.total));
+
+    const condsMap = new Map();
+    (results.condiciones || []).forEach(r => condsMap.set(r.id_paciente, r.total));
+
+    const allerMap = new Map();
+    (results.alergias || []).forEach(r => allerMap.set(r.id_paciente, r.total));
+
+    const citasMap = new Map();
+    (results.citas || []).forEach(r => {
+      if (!citasMap.has(r.id_paciente)) citasMap.set(r.id_paciente, { total: 0, cumplidas: 0, canceladas: 0 });
+      const entry = citasMap.get(r.id_paciente);
+      entry.total += r.total;
+      if (r.estado === 'cumplida') entry.cumplidas = r.total;
+      if (r.estado === 'cancelada') entry.canceladas = r.total;
+    });
+
+    const nivelMap = new Map();
+    (results.nivelMax || []).forEach(r => nivelMap.set(r.id_paciente, r.nivel_max));
+
+    const data = (results.pacientes || []).map(p => {
+      const citas = citasMap.get(p.id_paciente) || { total: 0, cumplidas: 0, canceladas: 0 };
+      return {
+        id_paciente: p.id_paciente,
+        nombre_completo: p.nombre_completo,
+        total_medicamentos: medsMap.get(p.id_paciente) || 0,
+        total_condiciones: condsMap.get(p.id_paciente) || 0,
+        total_alergias: allerMap.get(p.id_paciente) || 0,
+        total_citas: citas.total,
+        citas_cumplidas: citas.cumplidas,
+        citas_canceladas: citas.canceladas,
+        nivel_max: nivelMap.get(p.id_paciente) || null
+      };
+    });
+
+    res.json(data);
+  }
+
+  db.query(queries.pacientes, ids, (err, rows) => {
+    results.pacientes = err ? [] : rows;
+    checkDone();
+  });
+
+  db.query(queries.medicamentos, ids, (err, rows) => {
+    results.medicamentos = err ? [] : rows;
+    checkDone();
+  });
+
+  db.query(queries.condiciones, ids, (err, rows) => {
+    results.condiciones = err ? [] : rows;
+    checkDone();
+  });
+
+  db.query(queries.alergias, ids, (err, rows) => {
+    results.alergias = err ? [] : rows;
+    checkDone();
+  });
+
+  db.query(queries.citas, ids, (err, rows) => {
+    results.citas = err ? [] : rows;
+    checkDone();
+  });
+
+  db.query(queries.nivelMax, ids, (err, rows) => {
+    results.nivelMax = err ? [] : rows;
+    checkDone();
   });
 });
 
