@@ -58,10 +58,34 @@ db.connect(err => {
         console.error('Error al crear tabla tomas_medicas:', err);
       } else {
         console.log('Tabla tomas_medicas verificada/creada correctamente');
+        ensureTomasMedicasColumn('estado', "ALTER TABLE tomas_medicas ADD COLUMN estado VARCHAR(20) NOT NULL DEFAULT 'tomada' AFTER fecha_toma");
+        ensureTomasMedicasColumn('motivo_omision', "ALTER TABLE tomas_medicas ADD COLUMN motivo_omision TEXT NULL AFTER estado");
       }
     });
   }
 });
+
+function ensureTomasMedicasColumn(columnName, alterSql) {
+  db.query('SHOW COLUMNS FROM tomas_medicas LIKE ?', [columnName], (err, results) => {
+    if (err) {
+      console.error(`Error al verificar columna ${columnName} en tomas_medicas:`, err);
+      return;
+    }
+
+    if (results.length > 0) {
+      return;
+    }
+
+    db.query(alterSql, (alterErr) => {
+      if (alterErr) {
+        console.error(`Error al agregar columna ${columnName} en tomas_medicas:`, alterErr);
+        return;
+      }
+
+      console.log(`Columna ${columnName} agregada correctamente a tomas_medicas`);
+    });
+  });
+}
 
 
 // Puntero de guardado de medicamentos que ejecute el codigo
@@ -1341,26 +1365,60 @@ app.delete('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
 // ============================================
 
 app.post('/registrarTomaMedicamento', (req, res) => {
-  const { id_usuario, id_receta, nombre_medicamento, hora_toma, fecha_toma } = req.body;
+  const {
+    id_usuario,
+    id_receta,
+    nombre_medicamento,
+    hora_toma,
+    fecha_toma,
+    estado = 'tomada',
+    motivo_omision = null
+  } = req.body;
 
   if (!id_usuario || !id_receta || !nombre_medicamento || !hora_toma || !fecha_toma) {
     return res.status(400).json({ mensaje: 'Campos incompletos' });
   }
 
-  const sql = 'INSERT INTO tomas_medicas (id_usuario, id_receta, nombre_medicamento, hora_toma, fecha_toma) VALUES (?, ?, ?, ?, ?)';
-  db.query(sql, [id_usuario, id_receta, nombre_medicamento, hora_toma, fecha_toma], (err, result) => {
+  if (!['tomada', 'no_tomada'].includes(estado)) {
+    return res.status(400).json({ mensaje: 'Estado de toma no valido' });
+  }
+
+  if (estado === 'no_tomada' && !motivo_omision) {
+    return res.status(400).json({ mensaje: 'Debes indicar el motivo de la omision' });
+  }
+
+  const sql = `
+    INSERT INTO tomas_medicas
+      (id_usuario, id_receta, nombre_medicamento, hora_toma, fecha_toma, estado, motivo_omision)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+  db.query(sql, [id_usuario, id_receta, nombre_medicamento, hora_toma, fecha_toma, estado, motivo_omision], (err, result) => {
     if (err) {
       console.error('Error al guardar toma:', err);
       return res.status(500).json({ mensaje: 'Error al guardar' });
     }
-    res.json({ mensaje: 'Toma registrada', puntos_ganados: 10 });
+
+    res.json({
+      mensaje: estado === 'no_tomada' ? 'Omision registrada y notificada al cuidador' : 'Toma registrada',
+      puntos_ganados: estado === 'tomada' ? 10 : 0,
+      evento: {
+        id: result.insertId,
+        estado,
+        motivo_omision
+      }
+    });
   });
 });
 
 app.get('/tomasHoy/:id_usuario', (req, res) => {
   const { id_usuario } = req.params;
 
-  const sql = 'SELECT * FROM tomas_medicas WHERE id_usuario = ? AND fecha_toma = CURDATE() ORDER BY hora_toma';
+  const sql = `
+    SELECT *
+    FROM tomas_medicas
+    WHERE id_usuario = ? AND DATE(fecha_toma) = CURDATE()
+    ORDER BY hora_toma DESC, id DESC
+  `;
   db.query(sql, [id_usuario], (err, results) => {
     if (err) {
       console.error('Error al cargar tomas:', err);
@@ -1376,13 +1434,65 @@ app.get('/tomas/:id_usuario/:fecha', (req, res) => {
   console.log(`Consultando tomas - Usuario: ${id_usuario}, Fecha: ${fecha}`);
 
   // Usar rango de fechas para compatibilidad con DATETIME/TIMESTAMP
-  const sql = 'SELECT * FROM tomas_medicas WHERE id_usuario = ? AND fecha_toma >= ? AND fecha_toma < DATE_ADD(?, INTERVAL 1 DAY) ORDER BY hora_toma';
+  const sql = `
+    SELECT *
+    FROM tomas_medicas
+    WHERE id_usuario = ? AND fecha_toma >= ? AND fecha_toma < DATE_ADD(?, INTERVAL 1 DAY)
+    ORDER BY hora_toma ASC, id ASC
+  `;
   db.query(sql, [id_usuario, fecha, fecha], (err, results) => {
     if (err) {
       console.error('Error SQL al cargar tomas:', err);
       return res.status(500).json({ mensaje: 'Error al cargar', error: err.message, sql: sql });
     }
     console.log(`Tomas encontradas: ${results.length}`);
+    res.json(results);
+  });
+});
+
+app.get('/historialMedicacionEventos/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = `
+    SELECT *
+    FROM tomas_medicas
+    WHERE id_usuario = ?
+    ORDER BY fecha_toma DESC, hora_toma DESC, id DESC
+  `;
+
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al cargar historial de medicacion:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar historial de medicacion' });
+    }
+
+    res.json(results);
+  });
+});
+
+app.get('/alertasOmisiones', (req, res) => {
+  const sql = `
+    SELECT
+      t.id,
+      t.id_usuario,
+      t.id_receta,
+      t.nombre_medicamento,
+      t.hora_toma,
+      t.fecha_toma,
+      t.motivo_omision,
+      CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS nombre_paciente
+    FROM tomas_medicas t
+    INNER JOIN usuarios u ON u.id = t.id_usuario
+    WHERE t.estado = 'no_tomada' AND DATE(t.fecha_toma) = CURDATE()
+    ORDER BY t.fecha_toma DESC, t.hora_toma DESC, t.id DESC
+  `;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error al cargar alertas de omisiones:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar alertas de omisiones' });
+    }
+
     res.json(results);
   });
 });
@@ -1915,7 +2025,7 @@ app.get('/reporte-semanal/:id', (req, res) => {
     else if (pctSemana >= 50) nivel = 'Regular';
     else nivel = 'Baja';
 
-    const resumen = `El paciente ${results.paciente.nombre_completo} cumplió el ${pctSemana}% de sus tomas esta semana (${totalTomSemana}/${totalProgSemana}). Adherencia: ${nivel}.`;
+    const resumen = `El paciente ${results.paciente.nombre_completo} cumplió el ${pctSemana}% de sus tomas esta semana (${totalTomSemana}/${totalProgSemana}). Adherencia:`;
 
     res.json({
       paciente: results.paciente,

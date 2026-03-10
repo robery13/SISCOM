@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -15,10 +15,70 @@
 
 </head>
 <body>
+  <!-- VALIDACIÓN DE ROL - Solo administrador y empleado pueden acceder -->
+  <script>
+    (function() {
+      const usuarioData = localStorage.getItem('usuario');
+      let rol = '';
+      
+      if (usuarioData) {
+        try {
+          const usuario = JSON.parse(usuarioData);
+          rol = usuario.rol || '';
+        } catch (e) {
+          console.error('Error al parsear datos del usuario:', e);
+        }
+      }
+      
+      // Roles permitidos para acceder a Admin_Backend
+      const rolesPermitidos = ['administrador', 'empleado'];
+      
+      if (!rolesPermitidos.includes(rol)) {
+        // Mostrar mensaje de acceso denegado
+        document.body.innerHTML = `
+          <div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8f9fa; font-family: Arial, sans-serif;">
+            <div style="text-align: center; padding: 40px; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px;">
+              <i class="bi bi-shield-exclamation" style="font-size: 64px; color: #dc3545;"></i>
+              <h1 style="color: #dc3545; margin: 20px 0;">Acceso Denegado</h1>
+              <p style="color: #6c757d; font-size: 16px; margin-bottom: 20px;">
+                No tienes permisos para acceder al panel de administración.
+              </p>
+              <p style="color: #6c757d; font-size: 14px; margin-bottom: 30px;">
+                Tu rol actual: <strong>${rol || 'Sin rol'}</strong><br>
+                Roles requeridos: Administrador o Empleado
+              </p>
+              <button onclick="window.location.href='../index.html'" style="padding: 12px 30px; background: #0d6efd; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                Volver al Inicio
+              </button>
+            </div>
+          </div>
+        `;
+        
+        // Redireccionar después de 5 segundos
+        setTimeout(() => {
+          window.location.href = '../index.html';
+        }, 5000);
+        
+        return false;
+      }
+      
+      // Guardar el rol en una variable global para usar en menús dinámicos
+      window.userRole = rol;
+    })();
+  </script>
+
+  <!-- Botón para abrir menú en móvil -->
+  <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
+    <i class="bi bi-list"></i>
+  </button>
+
+  <!-- Overlay para cerrar menú -->
+  <div class="overlay" id="overlay"></div>
+
   <div class="app">
 
     <!-- SIDEBAR -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="brand">SISCOM</div>
 
       <div class="user-info" id="userInfo">
@@ -28,13 +88,13 @@
 
       <nav class="nav-menu">
         
-        <button class="nav-btn active" data-section="medicamentos"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
-        <button class="nav-btn" data-section="recetas"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
-        <button class="nav-btn" data-section="Ficha"><i class="bi bi-file-person"></i> <span>Ficha</span></button>
-        <button class="nav-btn" data-section="inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
-        <button class="nav-btn" data-section="pedidos"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
-        <button class="nav-btn" data-section="usuarios"><i class="bi bi-people"></i> <span>Gestión de Usuarios</span></button>
-        <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
+        <button class="nav-btn active" data-section="medicamentos" data-role="administrador,empleado"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
+        <button class="nav-btn" data-section="recetas" data-role="administrador,empleado"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
+        <button class="nav-btn" data-section="Ficha" data-role="administrador,empleado"><i class="bi bi-clipboard2-check"></i> <span>Verificaci&oacute;n de medicamentos</span></button>
+        <button class="nav-btn" data-section="inventario" data-role="administrador,empleado"><i class="bi bi-box"></i> <span>Inventario</span></button>
+        <button class="nav-btn" data-section="pedidos" data-role="administrador,empleado"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
+        <button class="nav-btn" data-section="usuarios" data-role="administrador"><i class="bi bi-people"></i> <span>Gestión de Usuarios</span></button>
+        <button class="nav-btn" id="cerrarSesionBtn" data-role="administrador,empleado"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
       </nav>
     </aside>
 
@@ -256,53 +316,52 @@
   </div>
 </div>
       <!-- FICHA MÉDICA -->
-      <section id="Ficha" class="section d-none">
+            <section id="Ficha" class="section d-none">
         <div class="card">
-          <h2>Ficha Médica del Paciente</h2>
+          <div class="section-header text-start mb-3">
+            <h2><i class="bi bi-clipboard2-check me-2"></i> Verificación de medicamentos</h2>
+            <p class="muted mb-0">Consulta si el paciente ya tomó cada medicamento en una fecha específica.</p>
+          </div>
 
-          <form id="formFicha">
-            <div class="form-row">
-              <label for="nombreFicha">Nombre completo</label>
-              <input type="text" id="nombreFicha" class="form-control" placeholder="Ej: Juan Pérez" required>
+          <div class="row g-3 align-items-end mb-3">
+            <div class="col-md-4">
+              <label for="fechaVerificacionMedicamentos" class="form-label">Fecha</label>
+              <input type="date" id="fechaVerificacionMedicamentos" class="form-control">
             </div>
+            <div class="col-md-5">
+              <label for="pacienteVerificacionMedicamentos" class="form-label">Paciente</label>
+              <select id="pacienteVerificacionMedicamentos" class="form-select">
+                <option value="">Todos los pacientes</option>
+              </select>
+            </div>
+            <div class="col-md-3 d-grid">
+              <button type="button" id="cargarVerificacionMedicamentosBtn" class="btn btn-primary">
+                <i class="bi bi-search me-1"></i> Consultar
+              </button>
+            </div>
+          </div>
 
-            <div class="form-row">
-              <label for="fechaNac">Fecha de nacimiento</label>
-              <input type="date" id="fechaNac" class="form-control" required>
-            </div>
+          <div class="table-responsive">
+            <table class="table table-hover" id="tablaVerificacionMedicamentos">
+              <thead class="table-light">
+                <tr>
+                  <th>Fecha</th>
+                  <th>Paciente</th>
+                  <th>Medicamento</th>
+                  <th>Dosis</th>
+                  <th>Frecuencia</th>
+                  <th>Cumplimiento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="6" class="text-center text-muted py-4">Selecciona filtros y presiona "Consultar".</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-            <div class="form-row">
-              <label for="alergias">Registrar alergias</label>
-              <div class="input-group">
-                <input type="text" id="alergiasInput" class="form-control" placeholder="Ej: Penicilina, Mariscos...">
-                <button type="button" id="btnAgregarAlergia" class="btn btn-outline-secondary">Agregar</button>
-              </div>
-              <ul id="listaAlergias" class="list-group mt-2"></ul>
-            </div>
-
-            <div class="form-row">
-              <label for="condiciones">Registrar condiciones</label>
-              <div class="input-group mb-2">
-                <input type="text" id="condicionesInput" class="form-control" placeholder="Ej: Diabetes, Hipertensión...">
-                <select id="nivelCondicion" class="form-select" style="max-width: 150px;">
-                  <option value="Leve">Leve</option>
-                  <option value="Moderada">Moderada</option>
-                  <option value="Crítica">Crítica</option>
-                </select>
-                <button type="button" id="btnAgregarCondicion" class="btn btn-outline-secondary">Agregar</button>
-              </div>
-              <ul id="listaCondiciones" class="list-group"></ul>
-            </div>
-
-            <div id="alertaCritica" class="alerta-critica oculto">
-              Atención: el paciente presenta condiciones o alergias críticas.
-            </div>
-
-            <div class="d-flex gap-2 mt-4">
-              <button type="button" id="btnGuardar" class="btn btn-primary">Guardar Ficha</button>
-              <button type="button" id="btnLimpiar" class="btn btn-danger">Limpiar</button>
-            </div>
-          </form>
+          <div id="resumenVerificacionMedicamentos" class="mt-2 text-muted"></div>
         </div>
       </section>
 
@@ -355,6 +414,13 @@
           </div>
           <div class="mb-3">
             <input type="text" id="searchUsuarios" class="form-control" placeholder="Buscar usuarios...">
+          </div>
+          <div id="paginacionUsuarios" class="d-flex justify-content-between align-items-center mb-3 d-none">
+            <small class="text-muted" id="infoPaginacionUsuarios">Mostrando 0 de 0 usuarios</small>
+            <div class="btn-group btn-group-sm">
+              <button id="btnAnteriorUsuarios" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i></button>
+              <button id="btnSiguienteUsuarios" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-right"></i></button>
+            </div>
           </div>
           <div class="card-body p-0">
             <div class="table-responsive">
@@ -614,11 +680,107 @@ document.addEventListener('DOMContentLoaded', () => {
           if (targetSection) {
             targetSection.classList.remove('d-none');
             btn.classList.add('active');
+            // Guardar sección en localStorage
+            guardarSeccionActiva(sectionId);
+            if (sectionId === 'Ficha' && window.cargarVerificacionMedicamentos) {
+              window.cargarVerificacionMedicamentos();
+            }
           }
         });
       });
     });
   </script>
+
+
+
+  <!-- Script para recargar datos después de restaurar sección -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Escuchar el evento de sección restaurada para recargar datos
+      document.addEventListener('sectionRestored', (e) => {
+        const sectionId = e.detail.sectionId;
+        console.log('Sección restaurada:', sectionId);
+        
+        // Recargar datos según la sección con múltiples intentos
+        setTimeout(() => {
+          // Intentar llamar funciones de carga específicas si existen
+          const funcionesCarga = {
+            'medicamentos': 'cargarMedicamentos',
+            'recetas': 'cargarCitas',
+            'inventario': 'cargarInventario',
+            'pedidos': 'cargarPedidos',
+            'usuarios': 'cargarUsuarios',
+            'Ficha': 'cargarVerificacionMedicamentos'
+          };
+          
+          const funcionNombre = funcionesCarga[sectionId];
+          if (funcionNombre && typeof window[funcionNombre] === 'function') {
+            console.log('Llamando función de carga:', funcionNombre);
+            window[funcionNombre]();
+          } else {
+            // Si no hay función específica, intentar cargar todas
+            console.log('Intentando cargar todas las funciones disponibles');
+            Object.values(funcionesCarga).forEach(fn => {
+              if (typeof window[fn] === 'function') {
+                try {
+                  window[fn]();
+                } catch (err) {
+                  console.log('Error al llamar', fn, err);
+                }
+              }
+            });
+          }
+          
+          // Forzar actualización de la UI con múltiples métodos
+          const seccionActiva = document.getElementById(sectionId);
+          if (seccionActiva) {
+            // Forzar reflow del navegador
+            seccionActiva.style.display = 'none';
+            void seccionActiva.offsetHeight;
+            seccionActiva.style.display = '';
+            
+            // Disparar evento de resize para forzar recálculo de layouts
+            window.dispatchEvent(new Event('resize'));
+            
+            // Forzar actualización de tablas si existen
+            const tablas = seccionActiva.querySelectorAll('table');
+            tablas.forEach(tabla => {
+              // Trigger update en DataTables si está disponible
+              if (typeof $ !== 'undefined' && $(tabla).DataTable) {
+                $(tabla).DataTable().columns.adjust();
+              }
+            });
+          }
+        }, 150);
+      });
+    });
+  </script>
+
+
+  <!-- Script para preservar posición de scroll -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const mainContent = document.querySelector('.main');
+      
+      // Restaurar posición de scroll después de que el contenido se haya cargado
+      const savedScroll = localStorage.getItem('adminBackend_scroll');
+      if (savedScroll && mainContent) {
+        // Usar setTimeout para esperar a que el contenido se renderice completamente
+        setTimeout(() => {
+          mainContent.scrollTop = parseInt(savedScroll);
+        }, 300);
+      }
+      
+      // Guardar posición de scroll antes de salir
+      window.addEventListener('beforeunload', () => {
+        if (mainContent) {
+          localStorage.setItem('adminBackend_scroll', mainContent.scrollTop);
+        }
+      });
+    });
+  </script>
+
+
 
   <!-- Script para mostrar información del usuario -->
   <script>
@@ -681,5 +843,611 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   </script>
+
+  <!-- Script para Citas Médicas -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Elementos del DOM
+      const formCita = document.getElementById('formCita');
+      const citaIdInput = document.getElementById('citaId');
+      const pacienteCita = document.getElementById('pacienteCita');
+      const fechaCita = document.getElementById('fechaCita');
+      const horaCita = document.getElementById('horaCita');
+      const doctorCita = document.getElementById('doctorCita');
+      const especialidadCita = document.getElementById('especialidadCita');
+      const ubicacionCita = document.getElementById('ubicacionCita');
+      const motivoCita = document.getElementById('motivoCita');
+      const estadoCita = document.getElementById('estadoCita');
+      const anticipacion = document.getElementById('anticipacion');
+      const notasCita = document.getElementById('notasCita');
+      const btnGuardarCita = document.getElementById('btnGuardarCita');
+      const btnCancelarEdicion = document.getElementById('btnCancelarEdicion');
+      const limpiarCitaBtn = document.getElementById('limpiarCitaBtn');
+      const tituloFormCita = document.getElementById('tituloFormCita');
+      
+      const filtroPacienteCita = document.getElementById('filtroPacienteCita');
+      const filtroEstadoCita = document.getElementById('filtroEstadoCita');
+      const filtroFechaDesde = document.getElementById('filtroFechaDesde');
+      const filtroFechaHasta = document.getElementById('filtroFechaHasta');
+      const limpiarFiltrosCitas = document.getElementById('limpiarFiltrosCitas');
+      
+      const listaCitas = document.getElementById('listaCitas');
+      const contadorCitas = document.getElementById('contadorCitas');
+      const totalProgramadas = document.getElementById('totalProgramadas');
+      const totalCompletadas = document.getElementById('totalCompletadas');
+      const totalCanceladas = document.getElementById('totalCanceladas');
+      const proximaCita = document.getElementById('proximaCita');
+      const citasSemana = document.getElementById('citasSemana');
+      const borrarTodasCitasBtn = document.getElementById('borrarTodasCitasBtn');
+
+      let modoEdicion = false;
+      let citaEditandoId = null;
+      let citasGlobales = [];
+
+      // Cargar pacientes en los selects
+      async function cargarPacientesCitas() {
+        try {
+          const response = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          if (!response.ok) throw new Error('Error al cargar pacientes');
+          
+          const pacientes = await response.json();
+          
+          const opcionDefault = '<option value="" selected disabled>Seleccione un paciente</option>';
+          const opcionTodos = '<option value="">Todos los pacientes</option>';
+          
+          pacienteCita.innerHTML = opcionDefault;
+          filtroPacienteCita.innerHTML = opcionTodos;
+          
+          pacientes.forEach(paciente => {
+            const nombreCompleto = `${paciente.nombres} ${paciente.apellidos}`;
+            const option = `<option value="${paciente.id}">${nombreCompleto}</option>`;
+            pacienteCita.insertAdjacentHTML('beforeend', option);
+            filtroPacienteCita.insertAdjacentHTML('beforeend', option);
+          });
+        } catch (error) {
+          console.error('Error al cargar pacientes:', error);
+        }
+      }
+
+      // Cargar citas desde el servidor
+      async function cargarCitas() {
+        try {
+          const response = await fetch('http://localhost:3000/obtenerCitas');
+          if (!response.ok) throw new Error('Error al cargar citas');
+          
+          const citas = await response.json();
+          citasGlobales = citas;
+          mostrarCitas();
+          actualizarResumen(citas);
+        } catch (error) {
+          console.error('Error al cargar citas:', error);
+          mostrarToast('Error al cargar citas desde el servidor', 'danger');
+        }
+      }
+
+      // Guardar cita
+      async function guardarCita(e) {
+        e.preventDefault();
+        
+        const fechaHora = `${fechaCita.value}T${horaCita.value}:00`;
+        
+        const cita = {
+          id_paciente: parseInt(pacienteCita.value),
+          fecha_hora: fechaHora,
+          motivo: motivoCita.value,
+          doctor: doctorCita.value || null,
+          especialidad: especialidadCita.value || null,
+          ubicacion: ubicacionCita.value || null,
+          estado: estadoCita.value,
+          anticipacion_min: parseInt(anticipacion.value),
+          notas: notasCita.value || null
+        };
+
+        try {
+          let url = 'http://localhost:3000/guardarCita';
+          let method = 'POST';
+          
+          if (modoEdicion && citaEditandoId) {
+            url = `http://localhost:3000/actualizarCita/${citaEditandoId}`;
+            method = 'PUT';
+          }
+
+          const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cita)
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.mensaje || 'Error al guardar cita');
+          }
+
+          mostrarToast(modoEdicion ? 'Cita actualizada correctamente' : 'Cita guardada correctamente', 'success');
+          limpiarFormulario();
+          await cargarCitas();
+          
+        } catch (error) {
+          console.error('Error al guardar cita:', error);
+          mostrarToast('Error al guardar la cita: ' + error.message, 'danger');
+        }
+      }
+
+      // Mostrar citas
+      function mostrarCitas(citas = null) {
+        const citasAMostrar = citas || citasGlobales || [];
+        
+        const filtroPaciente = filtroPacienteCita.value;
+        const filtroEstado = filtroEstadoCita.value;
+        const fechaDesde = filtroFechaDesde.value;
+        const fechaHasta = filtroFechaHasta.value;
+
+        let citasFiltradas = citasAMostrar.filter(cita => {
+          let incluir = true;
+          const fechaCita = cita.fecha_hora ? new Date(cita.fecha_hora).toISOString().split('T')[0] : '';
+          
+          if (filtroPaciente && cita.id_paciente != filtroPaciente) incluir = false;
+          if (filtroEstado && cita.estado !== filtroEstado) incluir = false;
+          if (fechaDesde && fechaCita < fechaDesde) incluir = false;
+          if (fechaHasta && fechaCita > fechaHasta) incluir = false;
+          
+          return incluir;
+        });
+
+        citasFiltradas.sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
+        contadorCitas.textContent = `${citasFiltradas.length} citas`;
+
+        if (citasFiltradas.length === 0) {
+          listaCitas.innerHTML = `
+            <div class="text-center text-muted p-4">
+              <i class="bi bi-calendar-x display-4 d-block mb-2"></i>
+              No hay citas registradas. Crea una nueva cita usando el formulario.
+            </div>
+          `;
+          return;
+        }
+
+        listaCitas.innerHTML = citasFiltradas.map(cita => {
+          const citaId = cita.id || cita.id_cita || cita.cita_id || cita.ID;
+          const fechaHora = new Date(cita.fecha_hora);
+          const ahora = new Date();
+          const esProxima = fechaHora > ahora && (fechaHora - ahora) < 24 * 60 * 60 * 1000;
+          
+          const fechaStr = fechaHora.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
+          const horaStr = fechaHora.toTimeString().slice(0, 5);
+          
+          const badgeClass = {
+            'programada': 'bg-primary',
+            'completada': 'bg-success',
+            'cancelada': 'bg-danger'
+          }[cita.estado] || 'bg-secondary';
+
+          const iconoEstado = {
+            'programada': 'bi-calendar-event',
+            'completada': 'bi-check-circle',
+            'cancelada': 'bi-x-circle'
+          }[cita.estado] || 'bi-calendar';
+
+          return `
+            <div class="list-group-item p-3 ${esProxima ? 'border-start border-4 border-warning' : ''}">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge ${badgeClass} text-capitalize">
+                      <i class="bi ${iconoEstado} me-1"></i> ${cita.estado || 'Programada'}
+                    </span>
+                    ${esProxima ? '<span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i> Próxima</span>' : ''}
+                  </div>
+                  <h6 class="mb-1">${cita.motivo}</h6>
+                  <p class="mb-1 text-muted">
+                    <i class="bi bi-person me-1"></i> Paciente #${cita.id_paciente}<br>
+                    <i class="bi bi-calendar me-1"></i> ${fechaStr} 
+                    <i class="bi bi-clock ms-2 me-1"></i> ${horaStr}
+                    ${cita.doctor ? `<br><i class="bi bi-person-badge me-1"></i> Dr. ${cita.doctor}` : ''}
+                    ${cita.ubicacion ? `<br><i class="bi bi-geo-alt me-1"></i> ${cita.ubicacion}` : ''}
+                  </p>
+                </div>
+                <div class="btn-group btn-group-sm ms-2">
+                  <button class="btn btn-outline-primary btn-editar-cita" data-id="${citaId}" title="Editar" ${!citaId ? 'disabled' : ''}>
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn btn-outline-danger btn-eliminar-cita" data-id="${citaId}" title="Eliminar" ${!citaId ? 'disabled' : ''}>
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Actualizar resumen
+      function actualizarResumen(citas = []) {
+        const ahora = new Date();
+        const inicioSemana = new Date(ahora);
+        inicioSemana.setDate(ahora.getDate() - ahora.getDay());
+        inicioSemana.setHours(0, 0, 0, 0);
+        const finSemana = new Date(inicioSemana);
+        finSemana.setDate(inicioSemana.getDate() + 6);
+        finSemana.setHours(23, 59, 59, 999);
+
+        const programadas = citas.filter(c => c.estado === 'programada' || !c.estado);
+        const completadas = citas.filter(c => c.estado === 'completada');
+        const canceladas = citas.filter(c => c.estado === 'cancelada');
+
+        totalProgramadas.textContent = programadas.length;
+        totalCompletadas.textContent = completadas.length;
+        totalCanceladas.textContent = canceladas.length;
+
+        const citasFuturas = programadas.filter(c => new Date(c.fecha_hora) > ahora);
+        citasFuturas.sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
+        
+        if (citasFuturas.length > 0) {
+          const proxima = citasFuturas[0];
+          const fechaHora = new Date(proxima.fecha_hora);
+          const fechaStr = fechaHora.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
+          const horaStr = fechaHora.toTimeString().slice(0, 5);
+          proximaCita.innerHTML = `${proxima.motivo}<br>
+            <small class="text-muted">${fechaStr} - ${horaStr}</small>`;
+        } else {
+          proximaCita.textContent = 'No hay citas programadas';
+        }
+
+        const citasSemanaActual = citas.filter(c => {
+          const fechaCita = new Date(c.fecha_hora);
+          return fechaCita >= inicioSemana && fechaCita <= finSemana;
+        });
+
+        citasSemana.textContent = `${citasSemanaActual.length} citas`;
+      }
+
+      // Editar cita
+      window.editarCita = async function(id) {
+        if (!id || isNaN(id)) {
+          mostrarToast('Error: ID de cita inválido', 'danger');
+          return;
+        }
+        
+        try {
+          const response = await fetch('http://localhost:3000/obtenerCitas');
+          if (!response.ok) throw new Error('Error al cargar citas');
+          
+          const citas = await response.json();
+          const cita = citas.find(c => 
+            (c.id === id) || 
+            (c.id_cita === id) || 
+            (c.cita_id === id) || 
+            (c.ID === id)
+          );
+          
+          if (!cita) {
+            mostrarToast('Cita no encontrada', 'danger');
+            return;
+          }
+
+          const fechaHora = new Date(cita.fecha_hora);
+          const fechaStr = fechaHora.toISOString().split('T')[0];
+          const horaStr = fechaHora.toTimeString().slice(0, 5);
+          
+          modoEdicion = true;
+          citaEditandoId = id;
+          pacienteCita.value = cita.id_paciente;
+          fechaCita.value = fechaStr;
+          horaCita.value = horaStr;
+          doctorCita.value = cita.doctor || '';
+          especialidadCita.value = cita.especialidad || '';
+          ubicacionCita.value = cita.ubicacion || '';
+          motivoCita.value = cita.motivo;
+          estadoCita.value = cita.estado || 'programada';
+          anticipacion.value = cita.anticipacion_min || 60;
+          notasCita.value = cita.notas || '';
+
+          tituloFormCita.textContent = 'Editar Cita Médica';
+          btnGuardarCita.innerHTML = '<i class="bi bi-save me-2"></i> Actualizar Cita';
+          btnCancelarEdicion.classList.remove('d-none');
+          
+          formCita.scrollIntoView({ behavior: 'smooth' });
+        } catch (error) {
+          console.error('Error al cargar cita para editar:', error);
+          mostrarToast('Error al cargar la cita para editar', 'danger');
+        }
+      };
+
+      // Eliminar cita
+      window.eliminarCita = async function(id) {
+        if (!id || isNaN(id)) {
+          mostrarToast('Error: ID de cita inválido', 'danger');
+          return;
+        }
+        
+        if (!confirm('¿Estás seguro de que deseas eliminar esta cita?')) return;
+        
+        try {
+          const response = await fetch(`http://localhost:3000/eliminarCita/${id}`, {
+            method: 'DELETE'
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            mostrarToast(errorData.mensaje || 'Error al eliminar la cita', 'danger');
+            return;
+          }
+
+          mostrarToast('Cita eliminada correctamente', 'success');
+          await cargarCitas();
+        } catch (error) {
+          console.error('Error al eliminar cita:', error);
+          mostrarToast(error.message || 'Error de conexión al eliminar la cita', 'danger');
+        }
+      };
+
+      // Limpiar formulario
+      function limpiarFormulario() {
+        formCita.reset();
+        citaIdInput.value = '';
+        modoEdicion = false;
+        citaEditandoId = null;
+        tituloFormCita.textContent = 'Nueva Cita Médica';
+        btnGuardarCita.innerHTML = '<i class="bi bi-save me-2"></i> Guardar Cita';
+        btnCancelarEdicion.classList.add('d-none');
+      }
+
+      // Mostrar toast
+      function mostrarToast(mensaje, tipo = 'info') {
+        const toastContainer = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${tipo} border-0 show`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+          <div class="d-flex">
+            <div class="toast-body">${mensaje}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          </div>
+        `;
+        toastContainer.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
+
+      // Event listeners
+      formCita.addEventListener('submit', guardarCita);
+      
+      btnCancelarEdicion.addEventListener('click', () => {
+        limpiarFormulario();
+      });
+      
+      limpiarCitaBtn.addEventListener('click', limpiarFormulario);
+      
+      filtroPacienteCita.addEventListener('change', mostrarCitas);
+      filtroEstadoCita.addEventListener('change', mostrarCitas);
+      filtroFechaDesde.addEventListener('change', mostrarCitas);
+      filtroFechaHasta.addEventListener('change', mostrarCitas);
+      
+      limpiarFiltrosCitas.addEventListener('click', () => {
+        filtroPacienteCita.value = '';
+        filtroEstadoCita.value = '';
+        filtroFechaDesde.value = '';
+        filtroFechaHasta.value = '';
+        mostrarCitas();
+      });
+      
+      // Botón eliminar todas las citas
+      if (borrarTodasCitasBtn) {
+        borrarTodasCitasBtn.onclick = async function() {
+          if (!confirm('¿Estás seguro de que deseas eliminar TODAS las citas? Esta acción no se puede deshacer.')) return;
+          
+          try {
+            let token = null;
+            const usuarioData = localStorage.getItem('usuario');
+            if (usuarioData) {
+              try {
+                const usuario = JSON.parse(usuarioData);
+                token = usuario.token || usuario.accessToken || usuario.authToken;
+              } catch (e) {
+                console.error('Error al parsear usuario:', e);
+              }
+            }
+            
+            if (!token) {
+              token = localStorage.getItem('auth_token') || 
+                      localStorage.getItem('token') || 
+                      localStorage.getItem('accessToken') || 
+                      localStorage.getItem('authToken') ||
+                      sessionStorage.getItem('auth_token') ||
+                      sessionStorage.getItem('token');
+            }
+
+
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) {
+              headers['Authorization'] = `Bearer ${token}`;
+            } else {
+              mostrarToast('Acceso restringido. Se requiere autenticación.', 'warning');
+              return;
+            }
+
+            const response = await fetch('http://localhost:3000/eliminarTodasCitas', {
+              method: 'DELETE',
+              headers: headers
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              if (response.status === 403) {
+                throw new Error('No tienes permisos para eliminar todas las citas.');
+              }
+              throw new Error(error.mensaje || 'Error al eliminar citas');
+            }
+
+            mostrarToast('Todas las citas han sido eliminadas', 'success');
+            await cargarCitas();
+          } catch (error) {
+            console.error('Error al eliminar todas las citas:', error);
+            mostrarToast('Error al eliminar todas las citas: ' + error.message, 'danger');
+          }
+        };
+      }
+
+      // Delegación de eventos para botones de editar/eliminar
+      listaCitas.addEventListener('click', function(e) {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        
+        if (btn.classList.contains('btn-editar-cita')) {
+          const id = parseInt(btn.dataset.id);
+          editarCita(id);
+        } else if (btn.classList.contains('btn-eliminar-cita')) {
+          const id = parseInt(btn.dataset.id);
+          eliminarCita(id);
+        }
+      });
+
+      // Cargar pacientes al mostrar la sección de citas
+      const citasBtn = document.querySelector('.nav-btn[data-section="recetas"]');
+      if (citasBtn) {
+        citasBtn.addEventListener('click', () => {
+          cargarPacientesCitas();
+          cargarCitas();
+        });
+      }
+
+      // Inicializar si la sección está activa al cargar
+      if (!document.getElementById('recetas').classList.contains('d-none')) {
+        cargarPacientesCitas();
+        cargarCitas();
+      }
+    });
+  </script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const fechaInput = document.getElementById('fechaVerificacionMedicamentos');
+      const pacienteSelect = document.getElementById('pacienteVerificacionMedicamentos');
+      const cargarBtn = document.getElementById('cargarVerificacionMedicamentosBtn');
+      const tablaBody = document.querySelector('#tablaVerificacionMedicamentos tbody');
+      const resumen = document.getElementById('resumenVerificacionMedicamentos');
+
+      if (!fechaInput || !pacienteSelect || !cargarBtn || !tablaBody || !resumen) return;
+
+      function hoyISO() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+
+      function fechaLegible(fechaIso) {
+        const [y, m, d] = fechaIso.split('-');
+        return `${d}/${m}/${y}`;
+      }
+
+      async function cargarPacientesVerificacion() {
+        try {
+          const resp = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          if (!resp.ok) throw new Error('No se pudieron cargar pacientes');
+          const pacientes = await resp.json();
+
+          pacienteSelect.innerHTML = '<option value="">Todos los pacientes</option>';
+          pacientes.forEach((p) => {
+            const option = document.createElement('option');
+            option.value = String(p.id);
+            option.textContent = `${p.nombres} ${p.apellidos}`;
+            pacienteSelect.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error al cargar pacientes de verificacion:', error);
+        }
+      }
+
+      async function construirFilasVerificacion() {
+        const fecha = fechaInput.value;
+        const pacienteIdFiltro = pacienteSelect.value;
+
+        if (!fecha) {
+          alert('Selecciona una fecha para consultar la verificacion.');
+          return;
+        }
+
+        tablaBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Cargando verificacion...</td></tr>';
+        resumen.textContent = '';
+
+        try {
+          const pacientesResp = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          if (!pacientesResp.ok) throw new Error('No se pudieron cargar pacientes');
+          const pacientes = await pacientesResp.json();
+
+          const pacientesFiltrados = pacienteIdFiltro
+            ? pacientes.filter((p) => String(p.id) === String(pacienteIdFiltro))
+            : pacientes;
+
+          const filas = [];
+
+          for (const paciente of pacientesFiltrados) {
+            const [recetasResp, tomasResp] = await Promise.all([
+              fetch(`http://localhost:3000/recetas/${paciente.id}`),
+              fetch(`http://localhost:3000/tomas/${paciente.id}/${fecha}`)
+            ]);
+
+            if (!recetasResp.ok || !tomasResp.ok) {
+              throw new Error(`No se pudieron cargar datos para ${paciente.nombres} ${paciente.apellidos}`);
+            }
+
+            const recetas = await recetasResp.json();
+            const tomas = await tomasResp.json();
+
+            recetas.forEach((receta) => {
+              const eventosReceta = tomas.filter((t) => t.id_receta === receta.id);
+              const ultimoEvento = eventosReceta.length ? eventosReceta[eventosReceta.length - 1] : null;
+              const cumplio = !!(ultimoEvento && ultimoEvento.estado !== 'no_tomada');
+
+              filas.push({
+                fecha,
+                paciente: `${paciente.nombres} ${paciente.apellidos}`,
+                medicamento: receta.nombre_medicamento || 'N/A',
+                dosis: receta.dosis || 'N/A',
+                frecuencia: receta.frecuencia || 'N/A',
+                cumplio
+              });
+            });
+          }
+
+          if (!filas.length) {
+            tablaBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No hay medicamentos para mostrar en la fecha seleccionada.</td></tr>';
+            resumen.textContent = 'Sin resultados para los filtros seleccionados.';
+            return;
+          }
+
+          tablaBody.innerHTML = filas.map((fila) => `
+            <tr>
+              <td>${fechaLegible(fila.fecha)}</td>
+              <td>${fila.paciente}</td>
+              <td>${fila.medicamento}</td>
+              <td>${fila.dosis}</td>
+              <td>${fila.frecuencia}</td>
+              <td>
+                <span class="badge ${fila.cumplio ? 'bg-success' : 'bg-danger'}">${fila.cumplio ? 'SI' : 'NO'}</span>
+              </td>
+            </tr>
+          `).join('');
+
+          const total = filas.length;
+          const cumplidas = filas.filter((f) => f.cumplio).length;
+          const porcentaje = total > 0 ? Math.round((cumplidas / total) * 100) : 0;
+          resumen.innerHTML = `<strong>Resumen:</strong> ${cumplidas} de ${total} medicamentos cumplidos (${porcentaje}%).`;
+        } catch (error) {
+          console.error('Error al construir verificacion de medicamentos:', error);
+          tablaBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">Error al cargar datos: ${error.message}</td></tr>`;
+          resumen.textContent = '';
+        }
+      }
+
+      window.cargarVerificacionMedicamentos = construirFilasVerificacion;
+
+      fechaInput.value = fechaInput.value || hoyISO();
+      cargarBtn.addEventListener('click', construirFilasVerificacion);
+      cargarPacientesVerificacion();
+    });
+  </script>
 </body>
 </html>
+

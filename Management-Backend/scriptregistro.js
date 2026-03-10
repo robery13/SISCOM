@@ -4,11 +4,33 @@
 document.addEventListener("DOMContentLoaded", () => {
   const navBtns = document.querySelectorAll(".nav-btn[data-section]");
   const sections = document.querySelectorAll(".section");
+  const sidebar = document.getElementById("sidebar");
+  const menuToggle = document.getElementById("menuToggle");
+  const overlay = document.getElementById("overlay");
 
-  /* Submenú Estadísticas */
-  const btnEstadisticas = document.getElementById("btnEstadisticas");
-  const submenuEst = document.getElementById("submenuEstadisticas");
-  const estSubSections = ["est-individual", "est-comparar", "est-reporte"];
+  function cerrarMenuMovil() {
+    if (sidebar) sidebar.classList.remove("active");
+    if (overlay) overlay.classList.remove("active");
+    document.body.classList.remove("menu-open");
+  }
+
+  if (menuToggle) {
+    menuToggle.addEventListener("click", () => {
+      if (sidebar) sidebar.classList.toggle("active");
+      if (overlay) overlay.classList.toggle("active");
+      document.body.classList.toggle("menu-open");
+    });
+  }
+
+  if (overlay) {
+    overlay.addEventListener("click", cerrarMenuMovil);
+  }
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 992) {
+      cerrarMenuMovil();
+    }
+  });
 
   function hideAllSections() {
     sections.forEach(s => s.classList.add("d-none"));
@@ -23,44 +45,19 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelector('.nav-btn[data-section="medicamentos"]')?.classList.add('active');
   }
 
-  /* Click en botones normales (no parent) */
+  /* Click en botones de navegación */
   navBtns.forEach(btn => {
     btn.addEventListener("click", () => {
       const sectionId = btn.dataset.section;
       if (!sectionId) return;
       hideAllSections();
 
-      /* Si es sub-item de Estadísticas, resaltar padre */
-      if (estSubSections.includes(sectionId)) {
-        btnEstadisticas.classList.add("open");
-        submenuEst.classList.add("show");
-      } else {
-        /* Colapsar submenú al navegar a otra sección */
-        btnEstadisticas.classList.remove("open");
-        submenuEst.classList.remove("show");
-      }
-
       btn.classList.add("active");
       const s = document.getElementById(sectionId);
       if (s) s.classList.remove("d-none");
+      if (window.innerWidth <= 992) cerrarMenuMovil();
     });
   });
-
-  /* Toggle submenú al hacer click en "Estadísticas" padre */
-  if (btnEstadisticas) {
-    btnEstadisticas.addEventListener("click", () => {
-      const isOpen = btnEstadisticas.classList.toggle("open");
-      submenuEst.classList.toggle("show", isOpen);
-      /* Si se abre y ningún sub-item está activo, mostrar el primero */
-      if (isOpen) {
-        const anyActive = submenuEst.querySelector(".nav-btn-sub.active");
-        if (!anyActive) {
-          const first = submenuEst.querySelector('.nav-btn-sub[data-section="est-individual"]');
-          if (first) first.click();
-        }
-      }
-    });
-  }
 });
 
 // ===============================
@@ -1411,8 +1408,26 @@ function mostrarAlertasStock(alertas) {
   const modalUsuarioEl = document.getElementById('modalUsuario');
   const guardarUsuarioBtn = document.getElementById('guardarUsuarioBtn');
   const tablaUsuarios = document.querySelector('#tablaUsuarios tbody');
+  const noUsuariosDiv = document.getElementById("noUsuarios");
+  const searchUsuariosInput = document.getElementById("searchUsuarios");
+  const paginacionUsuarios = document.getElementById("paginacionUsuarios");
+  const infoPaginacionUsuarios = document.getElementById("infoPaginacionUsuarios");
+  const btnAnteriorUsuarios = document.getElementById("btnAnteriorUsuarios");
+  const btnSiguienteUsuarios = document.getElementById("btnSiguienteUsuarios");
+  const formUsuario = document.getElementById("formUsuario");
+  const nombresUsuario = document.getElementById("nombresUsuario");
+  const apellidosUsuario = document.getElementById("apellidosUsuario");
+  const identidadUsuario = document.getElementById("identidadUsuario");
+  const telefonoUsuario = document.getElementById("telefonoUsuario");
+  const emailUsuario = document.getElementById("emailUsuario");
+  const passwordUsuario = document.getElementById("passwordUsuario");
+  const rolUsuario = document.getElementById("rolUsuario");
 
   let modalUsuario = null;
+  let usuariosData = [];
+  let usuariosFiltrados = [];
+  let paginaActualUsuarios = 1;
+  const USUARIOS_POR_PAGINA = 6;
   let editingUserId = null;
 
   if (modalUsuarioEl) {
@@ -1497,11 +1512,36 @@ function mostrarAlertasStock(alertas) {
 
   async function cargarUsuarios() {
     try {
-      const respuesta = await fetch('http://localhost:3000/usuarios');
-      const data = await respuesta.json();
-      renderUsuarios(data);
-    } catch (err) {
-      console.error('Error al cargar usuarios:', err);
+      const token = localStorage.getItem('auth_token') || 
+                    localStorage.getItem('token') || 
+                    localStorage.getItem('accessToken') ||
+                    sessionStorage.getItem('auth_token') ||
+                    sessionStorage.getItem('token');
+      
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const respuesta = await fetch("http://localhost:3000/usuarios", {
+        headers: headers
+      });
+      
+      if (!respuesta.ok) {
+        if (respuesta.status === 403) {
+          mostrarNotificacion("No tienes permisos para ver usuarios", "danger");
+          return;
+        }
+        throw new Error("Error al cargar usuarios");
+      }
+      
+      usuariosData = await respuesta.json();
+      usuariosFiltrados = [...usuariosData];
+      paginaActualUsuarios = 1;
+      renderUsuarios();
+    } catch (error) {
+      console.error("Error al cargar usuarios:", error);
+      mostrarNotificacion("Error al cargar usuarios: " + error.message, "danger");
     }
   }
 
@@ -1510,18 +1550,27 @@ function mostrarAlertasStock(alertas) {
     const noUsuarios = document.getElementById('noUsuarios');
 
     if (!tablaUsuarios) return;
-
-    tablaUsuarios.innerHTML = '';
-
-    if (usuarios.length === 0) {
-      noUsuarios.classList.remove('d-none');
+    
+    tablaUsuarios.innerHTML = "";
+    
+    if (usuariosFiltrados.length === 0) {
+      if (noUsuariosDiv) noUsuariosDiv.classList.remove("d-none");
+      if (noUsuarios) noUsuarios.classList.remove("d-none");
+      if (paginacionUsuarios) paginacionUsuarios.classList.add("d-none");
       return;
     }
+    
+    if (noUsuariosDiv) noUsuariosDiv.classList.add("d-none");
+    if (noUsuarios) noUsuarios.classList.add("d-none");
 
-    noUsuarios.classList.add('d-none');
+    const totalPaginas = Math.max(1, Math.ceil(usuariosFiltrados.length / USUARIOS_POR_PAGINA));
+    if (paginaActualUsuarios > totalPaginas) paginaActualUsuarios = totalPaginas;
+    const inicio = (paginaActualUsuarios - 1) * USUARIOS_POR_PAGINA;
+    const fin = inicio + USUARIOS_POR_PAGINA;
+    const usuariosPagina = usuariosFiltrados.slice(inicio, fin);
 
-    usuarios.forEach(user => {
-      const tr = document.createElement('tr');
+    usuariosPagina.forEach((user) => {
+      const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="fw-semibold">${escapeHtml(user.nombres)}</td>
         <td class="fw-semibold">${escapeHtml(user.apellidos)}</td>
@@ -1543,6 +1592,43 @@ function mostrarAlertasStock(alertas) {
       `;
       tablaUsuarios.appendChild(tr);
     });
+
+    if (paginacionUsuarios) {
+      paginacionUsuarios.classList.remove("d-none");
+    }
+    if (infoPaginacionUsuarios) {
+      const inicioVisual = usuariosFiltrados.length ? inicio + 1 : 0;
+      const finVisual = Math.min(fin, usuariosFiltrados.length);
+      infoPaginacionUsuarios.textContent = `Mostrando ${inicioVisual}-${finVisual} de ${usuariosFiltrados.length} usuarios`;
+    }
+    if (btnAnteriorUsuarios) {
+      btnAnteriorUsuarios.disabled = paginaActualUsuarios <= 1;
+    }
+    if (btnSiguienteUsuarios) {
+      btnSiguienteUsuarios.disabled = paginaActualUsuarios >= totalPaginas;
+    }
+  }
+
+  function aplicarFiltroUsuarios() {
+    const texto = (searchUsuariosInput?.value || "").trim().toLowerCase();
+    if (!texto) {
+      usuariosFiltrados = [...usuariosData];
+    } else {
+      usuariosFiltrados = usuariosData.filter((u) => {
+        const campos = [
+          u.id,
+          u.nombres,
+          u.apellidos,
+          u.identidad,
+          u.telefono,
+          u.email,
+          u.rol
+        ];
+        return campos.some((c) => String(c || "").toLowerCase().includes(texto));
+      });
+    }
+    paginaActualUsuarios = 1;
+    renderUsuarios();
   }
 
   function getRolBadgeClass(rol) {
@@ -1606,6 +1692,36 @@ function mostrarAlertasStock(alertas) {
     document.getElementById('emailUsuario').value = '';
     document.getElementById('passwordUsuario').value = '';
     document.getElementById('rolUsuario').value = '';
+  }
+
+  // Listeners de búsqueda y paginación de usuarios
+  if (searchUsuariosInput) {
+    searchUsuariosInput.addEventListener("input", aplicarFiltroUsuarios);
+  }
+  if (btnAnteriorUsuarios) {
+    btnAnteriorUsuarios.addEventListener("click", () => {
+      if (paginaActualUsuarios > 1) {
+        paginaActualUsuarios--;
+        renderUsuarios();
+      }
+    });
+  }
+  if (btnSiguienteUsuarios) {
+    btnSiguienteUsuarios.addEventListener("click", () => {
+      const totalPaginas = Math.ceil(usuariosFiltrados.length / USUARIOS_POR_PAGINA);
+      if (paginaActualUsuarios < totalPaginas) {
+        paginaActualUsuarios++;
+        renderUsuarios();
+      }
+    });
+  }
+
+  // Cargar usuarios cuando se muestre la sección
+  const usuariosBtn = document.querySelector('.nav-btn[data-section="usuarios"]');
+  if (usuariosBtn) {
+    usuariosBtn.addEventListener("click", () => {
+      cargarUsuarios();
+    });
   }
 
   // Cargar usuarios al iniciar
@@ -1831,6 +1947,7 @@ function mostrarAlertasStock(alertas) {
     }
   }
 
+  // Panel de pacientes: filtros
   document.addEventListener('DOMContentLoaded', () => {
     const panelContenido = document.getElementById('panelContenido');
     const panelTabla = document.getElementById('panelTabla');
@@ -1897,7 +2014,8 @@ function escapeHtml(str){
   const exportCsvBtn = document.getElementById("estExportarCsvBtn");
   const exportPdfBtn = document.getElementById("estExportarPdfBtn");
   const resumenDiv = document.getElementById("estResumen");
-  const compararSelect = document.getElementById("estCompararSelect");
+  const compararSelect1 = document.getElementById("estCompararSelect1");
+  const compararSelect2 = document.getElementById("estCompararSelect2");
   const compararBtn = document.getElementById("estCompararBtn");
   const comparacionDiv = document.getElementById("estComparacion");
 
@@ -1919,7 +2037,8 @@ function escapeHtml(str){
       const pacientes = await resp.json();
 
       pacienteSelect.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
-      compararSelect.innerHTML = '';
+      compararSelect1.innerHTML = '<option value="">-- Seleccione primer paciente --</option>';
+      compararSelect2.innerHTML = '<option value="">-- Seleccione segundo paciente --</option>';
 
       pacientes.forEach(p => {
         const opt1 = document.createElement("option");
@@ -1927,10 +2046,15 @@ function escapeHtml(str){
         opt1.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
         pacienteSelect.appendChild(opt1);
 
-        const opt2 = document.createElement("option");
-        opt2.value = p.id_paciente;
-        opt2.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
-        compararSelect.appendChild(opt2);
+        const optC1 = document.createElement("option");
+        optC1.value = p.id_paciente;
+        optC1.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+        compararSelect1.appendChild(optC1);
+
+        const optC2 = document.createElement("option");
+        optC2.value = p.id_paciente;
+        optC2.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+        compararSelect2.appendChild(optC2);
       });
 
       // HU-42: También cargar pacientes en el selector del reporte semanal
@@ -2186,12 +2310,18 @@ function escapeHtml(str){
 
   // ---- Comparar entre pacientes ----
   compararBtn.addEventListener("click", async () => {
-    const seleccionados = Array.from(compararSelect.selectedOptions).map(o => o.value);
+    const id1 = compararSelect1.value;
+    const id2 = compararSelect2.value;
 
-    if (seleccionados.length < 2) {
-      mostrarNotificacion('Seleccione al menos 2 pacientes para comparar.', 'warning');
+    if (!id1 || !id2) {
+      mostrarNotificacion('Seleccione un paciente en cada campo.', 'warning');
       return;
     }
+    if (id1 === id2) {
+      mostrarNotificacion('Seleccione dos pacientes diferentes.', 'warning');
+      return;
+    }
+    const seleccionados = [id1, id2];
 
     try {
       const resp = await fetch(`${API}/estadisticas/comparar?ids=${seleccionados.join(",")}`);
@@ -2287,8 +2417,9 @@ function escapeHtml(str){
     if (tbody) tbody.innerHTML = "";
     // Destruir gráfico
     if (chartComparacion) { chartComparacion.destroy(); chartComparacion = null; }
-    // Deseleccionar opciones
-    Array.from(compararSelect.options).forEach(o => o.selected = false);
+    // Resetear selects
+    compararSelect1.value = '';
+    compararSelect2.value = '';
   });
 
   // ===============================
@@ -2585,16 +2716,26 @@ function escapeHtml(str){
     });
   }
 
-  // ---- Inicialización: cargar pacientes al abrir cualquier sub-sección de estadísticas ----
-  const navBtnsEst = document.querySelectorAll(".nav-btn[data-section]");
-  const estSubs = ["est-individual", "est-comparar", "est-reporte"];
-  navBtnsEst.forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (estSubs.includes(btn.dataset.section)) {
-        cargarPacientes();
-      }
+  // ---- Limpiar reporte semanal ----
+  const rptLimpiarBtn = document.getElementById("rptLimpiarBtn");
+  if (rptLimpiarBtn) {
+    rptLimpiarBtn.addEventListener("click", () => {
+      rptPacienteSelect.value = "";
+      const monday = getMondayFromDate(new Date().toISOString().slice(0, 10));
+      rptSemanaInput.value = monday.toISOString().slice(0, 10);
+      if (rptResultados) rptResultados.classList.add("d-none");
+      if (rptExportarPdfBtn) rptExportarPdfBtn.disabled = true;
+      if (chartReporteSemanal) { chartReporteSemanal.destroy(); chartReporteSemanal = null; }
+      if (chartReporteDonut) { chartReporteDonut.destroy(); chartReporteDonut = null; }
+      datosReporteSemanal = null;
     });
-  });
+  }
+
+  // ---- Inicialización: cargar pacientes al mostrar la sección de estadísticas ----
+  const navBtnEst = document.querySelector('.nav-btn[data-section="estadisticas"]');
+  if (navBtnEst) {
+    navBtnEst.addEventListener("click", () => cargarPacientes());
+  }
 
   // También cargar al inicio por si ya está visible
   cargarPacientes();

@@ -546,6 +546,67 @@ function mostrarPrompt(titulo, mensaje, placeholder = '') {
   });
 }
 
+function mostrarPromptMotivoOmision(titulo, mensaje, placeholder = '') {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(0,0,0,0.5);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      animation:fadeIn 0.2s ease-out;
+    `;
+
+    modal.innerHTML = `
+      <div style="background:white;padding:2rem;border-radius:1rem;max-width:520px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation:scaleIn 0.3s ease-out">
+        <h5 style="margin:0 0 1rem 0;color:#1e3a8a;font-size:1.25rem">${titulo}</h5>
+        <p style="margin:0 0 1rem 0;color:#666;line-height:1.5">${mensaje}</p>
+        <textarea class="form-control" id="promptMotivoOmision" rows="4" placeholder="${placeholder}" style="margin-bottom:1.5rem;resize:vertical"></textarea>
+        <div style="display:flex;gap:1rem;justify-content:flex-end">
+          <button class="btn btn-secondary" id="btnCancelarMotivoOmision">Cancelar</button>
+          <button class="btn btn-warning" id="btnAceptarMotivoOmision">Registrar omision</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const input = document.getElementById('promptMotivoOmision');
+    input.focus();
+
+    function cerrar(valor) {
+      modal.remove();
+      resolve(valor);
+    }
+
+    document.getElementById('btnAceptarMotivoOmision').addEventListener('click', () => {
+      const valor = input.value.trim();
+      if (!valor) {
+        input.focus();
+        input.classList.add('is-invalid');
+        return;
+      }
+      cerrar(valor);
+    });
+
+    document.getElementById('btnCancelarMotivoOmision').addEventListener('click', () => cerrar(null));
+
+    input.addEventListener('input', () => input.classList.remove('is-invalid'));
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        cerrar(null);
+      }
+    });
+  });
+}
+
 function mostrarAlerta(titulo, mensaje) {
   return new Promise((resolve) => {
     const modal = document.createElement('div');
@@ -732,19 +793,25 @@ async function cargarMedicamentosHoy() {
     }
     
     recetas.forEach((receta) => {
+      const nombreMedicamentoEscapado = (receta.nombre_medicamento || 'Sin nombre').replace(/'/g, "\\'");
       const div = document.createElement('div');
       div.className = 'list-group-item';
       div.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
           <div>
             <i class="bi bi-capsule text-primary me-2"></i>
             <strong>${receta.nombre_medicamento}</strong>
             <br>
             <small class="text-muted">Dosis: ${receta.dosis} - ${receta.frecuencia}</small>
           </div>
-          <button class="btn btn-sm btn-success" onclick="confirmarTomaMedicamento(${receta.id}, '${receta.nombre_medicamento}')">
-            <i class="bi bi-check-circle"></i> Ya tome
-          </button>
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-sm btn-success" onclick="confirmarTomaMedicamento(${receta.id}, '${nombreMedicamentoEscapado}')">
+              <i class="bi bi-check-circle"></i> Ya tome
+            </button>
+            <button class="btn btn-sm btn-outline-warning" onclick="registrarOmisionMedicamento(${receta.id}, '${nombreMedicamentoEscapado}')">
+              <i class="bi bi-x-circle"></i> No tomada
+            </button>
+          </div>
         </div>
       `;
       listaMedicamentos.appendChild(div);
@@ -792,15 +859,23 @@ async function cargarTomasRegistradasHoy() {
     }
     
     tomas.forEach(toma => {
+      const esTomada = toma.estado !== 'no_tomada';
+      const icono = esTomada ? 'check-circle-fill text-success' : 'x-circle-fill text-warning';
+      const badgeClass = esTomada ? 'bg-success' : 'bg-warning text-dark';
+      const estadoTexto = esTomada ? toma.hora_toma : 'No tomada';
+      const motivoHtml = !esTomada && toma.motivo_omision
+        ? `<small class="text-muted d-block mt-1">Motivo: ${toma.motivo_omision}</small>`
+        : '';
       const div = document.createElement('div');
       div.className = 'list-group-item';
       div.innerHTML = `
         <div class="d-flex justify-content-between align-items-center">
           <div>
-            <i class="bi bi-check-circle-fill text-success me-2"></i>
+            <i class="bi bi-${icono} me-2"></i>
             <strong>${toma.nombre_medicamento}</strong>
+            ${motivoHtml}
           </div>
-          <span class="badge bg-success">${toma.hora_toma}</span>
+          <span class="badge ${badgeClass}">${estadoTexto}</span>
         </div>
       `;
       listaTomas.appendChild(div);
@@ -911,38 +986,64 @@ async function confirmarTomaMedicamento(id_receta, nombre_medicamento) {
   
   if (!confirmado) return;
   
-  const idUsuario = getUsuarioId();
-  const horaActual = new Date().toTimeString().slice(0, 8);
-  const fechaActual = new Date().toISOString().slice(0, 10);
-  
   try {
-    const response = await fetch(`${API_URL}/registrarTomaMedicamento`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id_usuario: idUsuario,
-        id_receta: id_receta,
-        nombre_medicamento: nombre_medicamento,
-        hora_toma: horaActual,
-        fecha_toma: fechaActual
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Error en la respuesta del servidor');
-    }
-    
-    const data = await response.json();
-    
+    const data = await registrarEventoMedicamento(id_receta, nombre_medicamento, 'tomada');
     mostrarNotificacion('Medicamento registrado. Ganaste ' + data.puntos_ganados + ' puntos', 'success');
-    
-    await cargarEstadisticasInicio();
-    await cargarRecompensas();
-    
   } catch (error) {
     console.error('Error completo:', error);
     mostrarNotificacion('Error al registrar la toma del medicamento', 'error');
   }
+}
+
+async function registrarOmisionMedicamento(id_receta, nombre_medicamento) {
+  const motivo = await mostrarPromptMotivoOmision(
+    'Registrar dosis no tomada',
+    `Indica por que omitiste la dosis de ${nombre_medicamento}. Este motivo se enviara al cuidador.`,
+    'Ej: Me senti mal, se me paso el horario, no tenia el medicamento...'
+  );
+
+  if (!motivo) return;
+
+  try {
+    await registrarEventoMedicamento(id_receta, nombre_medicamento, 'no_tomada', motivo);
+    mostrarNotificacion('Omision registrada y cuidador notificado', 'warning');
+  } catch (error) {
+    console.error('Error al registrar omision:', error);
+    mostrarNotificacion('Error al registrar la omision del medicamento', 'error');
+  }
+}
+
+async function registrarEventoMedicamento(id_receta, nombre_medicamento, estado = 'tomada', motivoOmision = null) {
+  const idUsuario = getUsuarioId();
+  const ahora = new Date();
+  const horaActual = ahora.toTimeString().slice(0, 8);
+  const fechaActual = ahora.toISOString().slice(0, 10);
+
+  const response = await fetch(`${API_URL}/registrarTomaMedicamento`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id_usuario: idUsuario,
+      id_receta: id_receta,
+      nombre_medicamento: nombre_medicamento,
+      hora_toma: horaActual,
+      fecha_toma: fechaActual,
+      estado: estado,
+      motivo_omision: motivoOmision
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.mensaje || 'Error en la respuesta del servidor');
+  }
+
+  await cargarEstadisticasInicio();
+  await cargarTomasRegistradasHoy();
+  await cargarHistorialMedicacion();
+  await cargarRecompensas();
+
+  return data;
 }
 
 // ===============================
@@ -1013,6 +1114,9 @@ async function cargarRecetas() {
           <td>
             <button class="btn btn-sm btn-success me-1" onclick="confirmarTomaMedicamento(${receta.id}, '${nombreMedicamentoEscapado}')">
               <i class="bi bi-check-circle"></i> Ya tome
+            </button>
+            <button class="btn btn-sm btn-outline-warning me-1" onclick="registrarOmisionMedicamento(${receta.id}, '${nombreMedicamentoEscapado}')">
+              <i class="bi bi-x-circle"></i> No tomada
             </button>
             <button class="btn btn-sm btn-info me-1" onclick="verReceta(${receta.id})">
               <i class="bi bi-eye"></i>
@@ -1204,22 +1308,22 @@ async function cargarHistorialMedicacion() {
   const idUsuario = getUsuarioId();
   
   try {
-    const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
-    const recetas = await response.json();
+    const response = await fetch(`${API_URL}/historialMedicacionEventos/${idUsuario}`);
+    const eventos = await response.json();
     
     const historialContainer = document.getElementById('historialMedicacion');
     if (!historialContainer) return;
     
     historialContainer.innerHTML = '';
     
-    if (recetas.length === 0) {
+    if (eventos.length === 0) {
       historialContainer.innerHTML = '<p class="text-muted">No hay historial de medicacion</p>';
       return;
     }
     
     const porMes = {};
-    recetas.forEach(r => {
-      const fecha = new Date(r.fecha_subida);
+    eventos.forEach(r => {
+      const fecha = new Date(r.fecha_toma);
       const mesAnio = `${fecha.toLocaleString('es', {month: 'long'})} ${fecha.getFullYear()}`;
       if (!porMes[mesAnio]) porMes[mesAnio] = [];
       porMes[mesAnio].push(r);
@@ -1236,11 +1340,12 @@ async function cargarHistorialMedicacion() {
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <h6 class="mb-1">${r.nombre_medicamento}</h6>
-                  <p class="mb-1"><strong>Dosis:</strong> ${r.dosis}</p>
-                  <p class="mb-1"><strong>Frecuencia:</strong> ${r.frecuencia}</p>
-                  <small class="text-muted">Fecha: ${new Date(r.fecha_subida).toLocaleDateString()}</small>
+                  <p class="mb-1"><strong>Estado:</strong> ${r.estado === 'no_tomada' ? 'No tomada' : 'Tomada'}</p>
+                  <p class="mb-1"><strong>Hora:</strong> ${r.hora_toma || 'Sin hora'}</p>
+                  ${r.motivo_omision ? `<p class="mb-1"><strong>Motivo:</strong> ${r.motivo_omision}</p>` : ''}
+                  <small class="text-muted">Fecha: ${new Date(r.fecha_toma).toLocaleDateString()}</small>
                 </div>
-                <span class="badge bg-success">Activo</span>
+                <span class="badge ${r.estado === 'no_tomada' ? 'bg-warning text-dark' : 'bg-success'}">${r.estado === 'no_tomada' ? 'No tomada' : 'Tomada'}</span>
               </div>
             </div>
           `).join('')}
@@ -1258,15 +1363,18 @@ async function exportarHistorialPDF() {
   const idUsuario = getUsuarioId();
   
   try {
-    const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
-    const recetas = await response.json();
+    const response = await fetch(`${API_URL}/historialMedicacionEventos/${idUsuario}`);
+    const eventos = await response.json();
     
     let contenido = 'HISTORIAL DE MEDICACION\n\n';
-    recetas.forEach(r => {
-      contenido += `${new Date(r.fecha_subida).toLocaleDateString()}\n`;
+    eventos.forEach(r => {
+      contenido += `${new Date(r.fecha_toma).toLocaleDateString()} ${r.hora_toma || ''}\n`;
       contenido += `Medicamento: ${r.nombre_medicamento}\n`;
-      contenido += `Dosis: ${r.dosis}\n`;
-      contenido += `Frecuencia: ${r.frecuencia}\n\n`;
+      contenido += `Estado: ${r.estado === 'no_tomada' ? 'No tomada' : 'Tomada'}\n`;
+      if (r.motivo_omision) {
+        contenido += `Motivo: ${r.motivo_omision}\n`;
+      }
+      contenido += '\n';
     });
     
     const blob = new Blob([contenido], { type: 'text/plain' });

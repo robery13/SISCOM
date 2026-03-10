@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -15,10 +15,18 @@
 
 </head>
 <body>
+  <!-- Botón para abrir menú en móvil -->
+  <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
+    <i class="bi bi-list"></i>
+  </button>
+
+  <!-- Overlay para cerrar menú -->
+  <div class="overlay" id="overlay"></div>
+
   <div class="app">
 
     <!-- SIDEBAR -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="brand">SISCOM</div>
 
       <div class="user-info" id="userInfo">
@@ -33,17 +41,13 @@
         <button class="nav-btn active" data-section="medicamentos"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
         <button class="nav-btn" data-section="recetas"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
         <button class="nav-btn" data-section="checklist"><i class="bi bi-check2-square"></i> <span>Checklist</span></button>
-        <button class="nav-btn" data-section="Ficha"><i class="bi bi-file-person"></i> <span>Ficha</span></button>
+        <button class="nav-btn" data-section="historial-tomas"><i class="bi bi-clock-history"></i> <span>Historial Tomas</span></button>
+        <button class="nav-btn" data-section="Ficha"><i class="bi bi-clipboard2-check"></i> <span>Verificación de medicamentos</span></button>
         <button class="nav-btn" data-section="inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
         <!-- HU-27: Botón Estadísticas de Salud con submenú -->
-        <button class="nav-btn nav-btn-parent" id="btnEstadisticas"><i class="bi bi-bar-chart-line"></i> <span>Estadísticas</span> <i class="bi bi-chevron-down submenu-arrow"></i></button>
-        <div class="nav-submenu" id="submenuEstadisticas">
-          <button class="nav-btn nav-btn-sub" data-section="est-individual"><i class="bi bi-person-lines-fill"></i> <span>Individual</span></button>
-          <button class="nav-btn nav-btn-sub" data-section="est-comparar"><i class="bi bi-people"></i> <span>Comparar</span></button>
-          <button class="nav-btn nav-btn-sub" data-section="est-reporte"><i class="bi bi-calendar-week"></i> <span>Reporte Semanal</span></button>
-        </div>
+        <button class="nav-btn" data-section="estadisticas"><i class="bi bi-bar-chart-line"></i> <span>Estadísticas</span></button>
         <button class="nav-btn" data-section="pedidos"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
-        <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
+        <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesi&oacute;n</span></button>
       </nav>
     </aside>
 
@@ -334,6 +338,82 @@
     </div>
   </div>
 
+  <!-- HISTORIAL TOMAS -->
+  <section id="historial-tomas" class="section d-none">
+    <!-- HU-37 - Historial diario de tomas -->
+    <div class="section-header">
+      <h2><i class="bi bi-clock-history me-2"></i> Historial Diario de Tomas</h2>
+      <p class="muted">Consulta el historial de tomas de medicamentos para evaluar el cumplimiento del tratamiento.</p>
+    </div>
+
+    <div class="card form-card mb-4">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <h5 class="card-title mb-0"><i class="bi bi-bell-fill text-warning me-2"></i> Alertas automáticas de dosis omitidas</h5>
+          <button id="actualizarAlertasOmisionesBtn" class="btn btn-sm btn-outline-warning">
+            <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
+          </button>
+        </div>
+        <div id="alertasOmisionesCuidador" class="list-group">
+          <div class="list-group-item text-center text-muted">No hay omisiones registradas hoy</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card form-card mb-4">
+      <h5 class="card-title"><i class="bi bi-person-check me-2"></i> Seleccionar Paciente y Fecha</h5>
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label">Paciente</label>
+          <select id="pacienteHistorial" class="form-select">
+            <option value="">Selecciona un paciente</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Fecha</label>
+          <input id="fechaHistorial" type="date" class="form-control">
+        </div>
+        <div class="col-md-2 d-grid">
+          <button id="cargarHistorialBtn" class="btn btn-primary">
+            <i class="bi bi-search me-2"></i> Consultar Historial
+          </button>
+        </div>
+        <div class="col-md-2 d-grid">
+          <button id="generarReporteSemanalBtn" class="btn btn-outline-primary">
+            <i class="bi bi-calendar-week me-2"></i> Reporte Semanal
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="bi bi-list-check me-2"></i> Historial de Tomas del Día</h5>
+      </div>
+      <div class="card-body">
+        <div id="historialTomasContainer">
+          <div class="text-center text-muted p-4">
+            Selecciona un paciente y una fecha para ver el historial de tomas
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-4">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h5 class="card-title mb-0"><i class="bi bi-clipboard2-pulse me-2"></i>Reporte Semanal de Cumplimiento</h5>
+        <button id="exportarReporteSemanalBtn" class="btn btn-sm btn-outline-danger" disabled>
+          <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="reporteSemanalContainer" class="text-muted">
+          Selecciona un paciente y una fecha, luego presiona "Reporte Semanal" para generar el informe.
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- INVENTARIO -->
 <section id="inventario" class="section d-none">
   <div class="section-header">
@@ -439,31 +519,50 @@
   </div>
 </div>
       <!-- FICHA MÉDICA -->
-      <section id="Ficha" class="section d-none">
+            <section id="Ficha" class="section d-none">
         <div class="card">
-          <h2>Ficha Médica del Paciente</h2>
+          <div class="section-header text-start mb-3">
+            <h2><i class="bi bi-clipboard2-check me-2"></i> Verificación de medicamentos</h2>
+            <p class="muted mb-0">Consulta si el paciente ya tomó cada medicamento en una fecha específica.</p>
+          </div>
 
-          <form id="formFicha">
-            <div class="form-row">
-              <label for="nombreFicha">Nombre completo</label>
-              <select id="nombreFicha" class="form-control" required>
-                <option value="">Selecciona un usuario</option>
+          <div class="row g-3 align-items-end mb-3">
+            <div class="col-md-4">
+              <label for="fechaVerificacionMedicamentos" class="form-label">Fecha</label>
+              <input type="date" id="fechaVerificacionMedicamentos" class="form-control">
+            </div>
+            <div class="col-md-5">
+              <label for="pacienteVerificacionMedicamentos" class="form-label">Paciente</label>
+              <select id="pacienteVerificacionMedicamentos" class="form-select">
+                <option value="">Todos los pacientes</option>
               </select>
             </div>
-
-            <div class="form-row">
-              <label for="fechaNac">Fecha de nacimiento</label>
-              <input type="date" id="fechaNac" class="form-control" required>
+            <div class="col-md-3 d-grid">
+              <button type="button" id="cargarVerificacionMedicamentosBtn" class="btn btn-primary">
+                <i class="bi bi-search me-1"></i> Consultar
+              </button>
             </div>
+          </div>
 
-            <div class="form-row">
-              <label for="alergias">Registrar alergias</label>
-              <div class="input-group">
-                <input type="text" id="alergiasInput" class="form-control" placeholder="Ej: Penicilina, Mariscos...">
-                <button type="button" id="btnAgregarAlergia" class="btn btn-outline-secondary">Agregar</button>
-              </div>
-              <ul id="listaAlergias" class="list-group mt-2"></ul>
-            </div>
+          <div class="table-responsive">
+            <table class="table table-hover" id="tablaVerificacionMedicamentos">
+              <thead class="table-light">
+                <tr>
+                  <th>Fecha</th>
+                  <th>Paciente</th>
+                  <th>Medicamento</th>
+                  <th>Dosis</th>
+                  <th>Frecuencia</th>
+                  <th>Cumplimiento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="6" class="text-center text-muted py-4">Selecciona filtros y presiona "Consultar".</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
             <div class="form-row">
               <label for="condiciones">Registrar condiciones</label>
@@ -488,15 +587,35 @@
               <button type="button" id="btnLimpiar" class="btn btn-danger">Limpiar</button>
             </div>
           </form>
+
+          <div id="resumenVerificacionMedicamentos" class="mt-2 text-muted"></div>
         </div>
       </section>
 
-      <!-- HU-27: ESTADÍSTICAS INDIVIDUAL -->
-      <section id="est-individual" class="section d-none">
+      <!-- HU-27: ESTADÍSTICAS -->
+      <section id="estadisticas" class="section d-none">
         <div class="section-header">
-          <h2><i class="bi bi-person-lines-fill me-2"></i> Estadísticas Individual</h2>
-          <p class="muted">Consulta gráficos y porcentajes de cumplimiento por paciente.</p>
+          <h2><i class="bi bi-bar-chart-line me-2"></i> Estadísticas</h2>
+          <p class="muted">Consulta gráficos, compara pacientes y genera reportes de cumplimiento.</p>
         </div>
+
+        <!-- Pestañas -->
+        <ul class="nav nav-tabs est-tabs mb-4" id="estTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-individual" data-bs-toggle="tab" data-bs-target="#pane-individual" type="button" role="tab"><i class="bi bi-person-lines-fill me-1"></i> Individual</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-comparar" data-bs-toggle="tab" data-bs-target="#pane-comparar" type="button" role="tab"><i class="bi bi-people me-1"></i> Comparar</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-reporte" data-bs-toggle="tab" data-bs-target="#pane-reporte" type="button" role="tab"><i class="bi bi-calendar-week me-1"></i> Reporte Semanal</button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="estTabContent">
+
+        <!-- TAB: Individual -->
+        <div class="tab-pane fade show active" id="pane-individual" role="tabpanel">
 
         <div class="est-wrapper">
 
@@ -592,31 +711,37 @@
         </div>
 
         </div><!-- /.est-wrapper -->
-      </section>
+        </div><!-- /tab-pane individual -->
 
-      <!-- HU-27: COMPARAR PACIENTES -->
-      <section id="est-comparar" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-people me-2"></i> Comparar Pacientes</h2>
-          <p class="muted">Compara estadísticas entre múltiples pacientes.</p>
-        </div>
-
+        <!-- TAB: Comparar -->
+        <div class="tab-pane fade" id="pane-comparar" role="tabpanel">
         <div class="est-wrapper">
 
         <div class="card mb-3">
           <h5 class="card-title"><i class="bi bi-people me-2"></i> Seleccione Pacientes</h5>
-          <label for="estCompararSelect" class="form-label">Seleccione pacientes a comparar</label>
-          <div class="d-flex gap-2 align-items-stretch flex-wrap est-toolbar">
-            <select id="estCompararSelect" class="form-select" multiple size="4">
-            </select>
-            <button id="estCompararBtn" class="btn btn-outline-primary">
+          <p class="text-muted small mb-3">Seleccione un paciente en cada campo para comparar sus estadísticas.</p>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="estCompararSelect1" class="form-label fw-semibold">Primer paciente</label>
+              <select id="estCompararSelect1" class="form-select">
+                <option value="">-- Seleccione primer paciente --</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="estCompararSelect2" class="form-label fw-semibold">Segundo paciente</label>
+              <select id="estCompararSelect2" class="form-select">
+                <option value="">-- Seleccione segundo paciente --</option>
+              </select>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button id="estCompararBtn" class="btn btn-primary">
               <i class="bi bi-arrow-left-right me-1"></i> Comparar
             </button>
             <button id="estLimpiarCompBtn" class="btn btn-outline-secondary">
               <i class="bi bi-x-circle me-1"></i> Limpiar
             </button>
           </div>
-          <small class="text-muted mt-1 d-block">Mantenga Ctrl para seleccionar varios.</small>
         </div>
 
         <div id="estComparacion" class="d-none">
@@ -649,15 +774,10 @@
         </div>
 
         </div><!-- /.est-wrapper -->
-      </section>
+        </div><!-- /tab-pane comparar -->
 
-      <!-- HU-42: REPORTE SEMANAL DE CUMPLIMIENTO -->
-      <section id="est-reporte" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-calendar-week me-2"></i> Reporte Semanal de Cumplimiento</h2>
-          <p class="muted">Evalúa la adherencia al tratamiento semana a semana.</p>
-        </div>
-
+        <!-- TAB: Reporte Semanal -->
+        <div class="tab-pane fade" id="pane-reporte" role="tabpanel">
         <div class="est-wrapper">
 
         <div class="card mb-3">
@@ -665,24 +785,28 @@
           <p class="text-muted small mb-3">Seleccione un paciente y una fecha para ver el reporte de adherencia al tratamiento.</p>
 
           <div class="row g-2 align-items-end mb-3">
-            <div class="col-md-5">
+            <div class="col-md-6">
               <label for="rptPacienteSelect" class="form-label fw-semibold">Paciente</label>
               <select id="rptPacienteSelect" class="form-select">
                 <option value="">-- Seleccione un paciente --</option>
               </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-6">
               <label for="rptSemanaInput" class="form-label fw-semibold">Inicio de semana (lunes)</label>
               <input type="date" id="rptSemanaInput" class="form-control">
             </div>
-            <div class="col-md-4 d-flex gap-2">
-              <button id="rptGenerarBtn" class="btn btn-primary">
-                <i class="bi bi-bar-chart-steps me-1"></i> Generar
-              </button>
-              <button id="rptExportarPdfBtn" class="btn btn-outline-danger" disabled>
-                <i class="bi bi-file-earmark-pdf me-1"></i> Exportar
-              </button>
-            </div>
+          </div>
+          <div class="d-flex gap-2 align-items-center">
+            <button id="rptGenerarBtn" class="btn btn-primary">
+              <i class="bi bi-bar-chart-steps me-1"></i> Generar
+            </button>
+            <button id="rptExportarPdfBtn" class="btn btn-outline-danger" disabled>
+              <i class="bi bi-file-earmark-pdf me-1"></i> Exportar
+            </button>
+            <button id="rptLimpiarBtn" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle me-1"></i> Limpiar
+            </button>
+          </div>
           </div>
         </div>
 
@@ -780,6 +904,9 @@
         <!-- /HU-42 -->
 
         </div><!-- /.est-wrapper -->
+        </div><!-- /tab-pane reporte -->
+
+        </div><!-- /tab-content -->
       </section>
 
       <!-- PEDIDOS FARMACIA -->
@@ -946,6 +1073,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Scripts propios -->
   <script src="scriptregistro.js?v=20260209"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
   <!-- Script para abrir modal de medicamentos -->
   <script>
@@ -981,6 +1109,41 @@ document.addEventListener('DOMContentLoaded', () => {
       const navBtns = document.querySelectorAll('.nav-btn');
       const sections = document.querySelectorAll('.section');
 
+      // Función para guardar sección activa en localStorage
+      function guardarSeccionActiva(sectionId) {
+        localStorage.setItem('cuidadorBackend_section', sectionId);
+      }
+
+      // Función para restaurar sección desde localStorage
+      function restaurarSeccion() {
+        const savedSection = localStorage.getItem('cuidadorBackend_section');
+        if (savedSection) {
+          const targetBtn = document.querySelector(`[data-section="${savedSection}"]`);
+          const targetSection = document.getElementById(savedSection);
+          
+          if (targetBtn && targetSection) {
+            // Ocultar todas las secciones
+            sections.forEach(sec => sec.classList.add('d-none'));
+            navBtns.forEach(b => b.classList.remove('active'));
+            
+            // Mostrar sección guardada
+            targetSection.classList.remove('d-none');
+            targetBtn.classList.add('active');
+            
+            // Cargar verificacion cuando se muestra la seccion
+            if (savedSection === 'Ficha' && window.cargarVerificacionMedicamentos) {
+              window.cargarVerificacionMedicamentos();
+            }
+            return true;
+          }
+        }
+        return false;
+      }
+
+      // Restaurar sección guardada al cargar
+      restaurarSeccion();
+
+
       navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
           const sectionId = btn.getAttribute('data-section');
@@ -997,9 +1160,9 @@ document.addEventListener('DOMContentLoaded', () => {
             targetSection.classList.remove('d-none');
             btn.classList.add('active');
 
-            // Cargar usuarios cuando se muestra la sección Ficha
-            if (sectionId === 'Ficha' && window.cargarUsuarios) {
-              window.cargarUsuarios();
+            // Cargar verificacion cuando se muestra la seccion
+            if (sectionId === 'Ficha' && window.cargarVerificacionMedicamentos) {
+              window.cargarVerificacionMedicamentos();
             }
           }
         });
@@ -1026,5 +1189,1293 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   </script>
+
+
+  <!-- Script para el botón Sugerir pedido a farmacia -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const sugerirPedidoBtn = document.getElementById('sugerirPedidoBtn');
+      const navBtns = document.querySelectorAll('.nav-btn');
+      const sections = document.querySelectorAll('.section');
+
+      if (sugerirPedidoBtn) {
+        sugerirPedidoBtn.addEventListener('click', () => {
+          const sectionId = 'pedidos';
+
+          // Ocultar todas las secciones
+          sections.forEach(sec => sec.classList.add('d-none'));
+
+          // Remover clase active de todos los botones
+          navBtns.forEach(b => b.classList.remove('active'));
+
+          // Mostrar sección seleccionada y activar botón
+          const targetSection = document.getElementById(sectionId);
+          if (targetSection) {
+            targetSection.classList.remove('d-none');
+            // Activar el botón de navegación correspondiente
+            const navBtn = document.querySelector(`.nav-btn[data-section="${sectionId}"]`);
+            if (navBtn) {
+              navBtn.classList.add('active');
+            }
+          }
+        });
+      }
+    });
+  </script>
+
+  <!-- Script para Citas Médicas -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Elementos del DOM
+      const formCita = document.getElementById('formCita');
+      const citaIdInput = document.getElementById('citaId');
+      const pacienteCita = document.getElementById('pacienteCita');
+      const fechaCita = document.getElementById('fechaCita');
+      const horaCita = document.getElementById('horaCita');
+      const doctorCita = document.getElementById('doctorCita');
+      const especialidadCita = document.getElementById('especialidadCita');
+      const ubicacionCita = document.getElementById('ubicacionCita');
+      const motivoCita = document.getElementById('motivoCita');
+      const estadoCita = document.getElementById('estadoCita');
+      const anticipacion = document.getElementById('anticipacion');
+      const notasCita = document.getElementById('notasCita');
+      const btnGuardarCita = document.getElementById('btnGuardarCita');
+      const btnCancelarEdicion = document.getElementById('btnCancelarEdicion');
+      const limpiarCitaBtn = document.getElementById('limpiarCitaBtn');
+      const tituloFormCita = document.getElementById('tituloFormCita');
+      
+      const filtroPacienteCita = document.getElementById('filtroPacienteCita');
+      const filtroEstadoCita = document.getElementById('filtroEstadoCita');
+      const filtroFechaDesde = document.getElementById('filtroFechaDesde');
+      const filtroFechaHasta = document.getElementById('filtroFechaHasta');
+      const limpiarFiltrosCitas = document.getElementById('limpiarFiltrosCitas');
+      
+      const listaCitas = document.getElementById('listaCitas');
+      const contadorCitas = document.getElementById('contadorCitas');
+      const totalProgramadas = document.getElementById('totalProgramadas');
+      const totalCompletadas = document.getElementById('totalCompletadas');
+      const totalCanceladas = document.getElementById('totalCanceladas');
+      const proximaCita = document.getElementById('proximaCita');
+      const citasSemana = document.getElementById('citasSemana');
+      const borrarTodasCitasBtn = document.getElementById('borrarTodasCitasBtn');
+
+      let modoEdicion = false;
+      let citaEditandoId = null;
+      let citasGlobales = []; // Variable global para almacenar citas
+
+      // Cargar pacientes en los selects
+
+      async function cargarPacientesCitas() {
+        try {
+          const response = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          if (!response.ok) throw new Error('Error al cargar pacientes');
+          
+          const pacientes = await response.json();
+          
+          // Limpiar y poblar selects
+          const opcionDefault = '<option value="" selected disabled>Seleccione un paciente</option>';
+          const opcionTodos = '<option value="">Todos los pacientes</option>';
+          
+          pacienteCita.innerHTML = opcionDefault;
+          filtroPacienteCita.innerHTML = opcionTodos;
+          
+          pacientes.forEach(paciente => {
+            const nombreCompleto = `${paciente.nombres} ${paciente.apellidos}`;
+            const option = `<option value="${paciente.id}">${nombreCompleto}</option>`;
+            pacienteCita.insertAdjacentHTML('beforeend', option);
+            filtroPacienteCita.insertAdjacentHTML('beforeend', option);
+          });
+        } catch (error) {
+          console.error('Error al cargar pacientes:', error);
+        }
+      }
+
+      // Cargar citas desde el servidor
+      async function cargarCitas() {
+        try {
+          const response = await fetch('http://localhost:3000/obtenerCitas');
+          if (!response.ok) throw new Error('Error al cargar citas');
+          
+          const citas = await response.json();
+          citasGlobales = citas; // Guardar en variable global
+          mostrarCitas();
+          actualizarResumen(citas);
+        } catch (error) {
+          console.error('Error al cargar citas:', error);
+          mostrarToast('Error al cargar citas desde el servidor', 'danger');
+        }
+      }
+
+
+
+
+      // Guardar cita
+      async function guardarCita(e) {
+        e.preventDefault();
+        
+        // Combinar fecha y hora en formato datetime
+        const fechaHora = `${fechaCita.value}T${horaCita.value}:00`;
+        
+        const cita = {
+          id_paciente: parseInt(pacienteCita.value),
+          fecha_hora: fechaHora,
+          motivo: motivoCita.value,
+          anticipacion_min: parseInt(anticipacion.value)
+        };
+
+        try {
+          const response = await fetch('http://localhost:3000/guardarCita', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cita)
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.mensaje || 'Error al guardar cita');
+          }
+
+          mostrarToast('Cita guardada correctamente', 'success');
+          limpiarFormulario();
+          await cargarCitas();
+          
+        } catch (error) {
+          console.error('Error al guardar cita:', error);
+          mostrarToast('Error al guardar la cita: ' + error.message, 'danger');
+        }
+      }
+
+
+
+      // Mostrar citas
+      function mostrarCitas(citas = null) {
+        // Usar citasGlobales si no se pasan citas como parámetro
+        const citasAMostrar = citas || citasGlobales || [];
+        
+        // Debug: ver qué campos tiene la primera cita
+        if (citasAMostrar.length > 0) {
+          console.log('Primera cita recibida:', citasAMostrar[0]);
+          console.log('Campos disponibles:', Object.keys(citasAMostrar[0]));
+        }
+
+        const filtroPaciente = filtroPacienteCita.value;
+        const filtroEstado = filtroEstadoCita.value;
+        const fechaDesde = filtroFechaDesde.value;
+        const fechaHasta = filtroFechaHasta.value;
+
+        let citasFiltradas = citasAMostrar.filter(cita => {
+
+          let incluir = true;
+          const fechaCita = cita.fecha_hora ? new Date(cita.fecha_hora).toISOString().split('T')[0] : '';
+          
+          if (filtroPaciente && cita.id_paciente != filtroPaciente) incluir = false;
+          if (filtroEstado && cita.estado !== filtroEstado) incluir = false;
+          if (fechaDesde && fechaCita < fechaDesde) incluir = false;
+          if (fechaHasta && fechaCita > fechaHasta) incluir = false;
+          
+          return incluir;
+        });
+
+        // Ordenar por fecha y hora
+        citasFiltradas.sort((a, b) => {
+          return new Date(a.fecha_hora) - new Date(b.fecha_hora);
+        });
+
+        contadorCitas.textContent = `${citasFiltradas.length} citas`;
+
+        if (citasFiltradas.length === 0) {
+          listaCitas.innerHTML = `
+            <div class="text-center text-muted p-4">
+              <i class="bi bi-calendar-x display-4 d-block mb-2"></i>
+              No hay citas registradas. Crea una nueva cita usando el formulario.
+            </div>
+          `;
+          return;
+        }
+
+        listaCitas.innerHTML = citasFiltradas.map(cita => {
+          // Intentar obtener el ID de diferentes campos posibles
+          const citaId = cita.id || cita.id_cita || cita.cita_id || cita.ID;
+          
+          if (!citaId) {
+            console.error('Cita sin ID:', cita);
+          }
+          
+          const fechaHora = new Date(cita.fecha_hora);
+          const ahora = new Date();
+          const esProxima = fechaHora > ahora && (fechaHora - ahora) < 24 * 60 * 60 * 1000;
+          
+          const fechaStr = fechaHora.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
+          const horaStr = fechaHora.toTimeString().slice(0, 5);
+          
+          const badgeClass = {
+            'programada': 'bg-primary',
+            'completada': 'bg-success',
+            'cancelada': 'bg-danger'
+          }[cita.estado] || 'bg-secondary';
+
+          const iconoEstado = {
+            'programada': 'bi-calendar-event',
+            'completada': 'bi-check-circle',
+            'cancelada': 'bi-x-circle'
+          }[cita.estado] || 'bi-calendar';
+
+          return `
+            <div class="list-group-item p-3 ${esProxima ? 'border-start border-4 border-warning' : ''}">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge ${badgeClass} text-capitalize">
+                      <i class="bi ${iconoEstado} me-1"></i> ${cita.estado || 'Programada'}
+                    </span>
+                    ${esProxima ? '<span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i> Próxima</span>' : ''}
+                  </div>
+                  <h6 class="mb-1">${cita.motivo}</h6>
+                  <p class="mb-1 text-muted">
+                    <i class="bi bi-person me-1"></i> Paciente #${cita.id_paciente}<br>
+                    <i class="bi bi-calendar me-1"></i> ${fechaStr} 
+                    <i class="bi bi-clock ms-2 me-1"></i> ${horaStr}
+                  </p>
+                </div>
+                <div class="btn-group btn-group-sm ms-2">
+                  <button class="btn btn-outline-primary btn-editar-cita" data-id="${citaId}" title="Editar" ${!citaId ? 'disabled' : ''}>
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn btn-outline-danger btn-eliminar-cita" data-id="${citaId}" title="Eliminar" ${!citaId ? 'disabled' : ''}>
+
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+
+      // Actualizar resumen
+      function actualizarResumen(citas = []) {
+        const ahora = new Date();
+        const inicioSemana = new Date(ahora);
+        inicioSemana.setDate(ahora.getDate() - ahora.getDay());
+        inicioSemana.setHours(0, 0, 0, 0);
+        const finSemana = new Date(inicioSemana);
+        finSemana.setDate(inicioSemana.getDate() + 6);
+        finSemana.setHours(23, 59, 59, 999);
+
+        const programadas = citas.filter(c => c.estado === 'programada' || !c.estado);
+        const completadas = citas.filter(c => c.estado === 'completada');
+        const canceladas = citas.filter(c => c.estado === 'cancelada');
+
+        totalProgramadas.textContent = programadas.length;
+        totalCompletadas.textContent = completadas.length;
+        totalCanceladas.textContent = canceladas.length;
+
+        // Próxima cita
+        const citasFuturas = programadas.filter(c => new Date(c.fecha_hora) > ahora);
+        citasFuturas.sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
+        
+        if (citasFuturas.length > 0) {
+          const proxima = citasFuturas[0];
+          const fechaHora = new Date(proxima.fecha_hora);
+          const fechaStr = fechaHora.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
+          const horaStr = fechaHora.toTimeString().slice(0, 5);
+          proximaCita.innerHTML = `${proxima.motivo}<br>
+            <small class="text-muted">${fechaStr} - ${horaStr}</small>`;
+        } else {
+          proximaCita.textContent = 'No hay citas programadas';
+        }
+
+        // Citas esta semana
+        const citasSemanaActual = citas.filter(c => {
+          const fechaCita = new Date(c.fecha_hora);
+          return fechaCita >= inicioSemana && fechaCita <= finSemana;
+        });
+
+        citasSemana.textContent = `${citasSemanaActual.length} citas`;
+      }
+
+
+
+      // Editar cita - Cargar datos desde la lista mostrada
+      window.editarCita = async function(id) {
+        if (!id || isNaN(id)) {
+          mostrarToast('Error: ID de cita inválido', 'danger');
+          console.error('ID inválido recibido:', id);
+          return;
+        }
+        
+        try {
+          // Obtener todas las citas y buscar la que corresponde
+          const response = await fetch('http://localhost:3000/obtenerCitas');
+          if (!response.ok) throw new Error('Error al cargar citas');
+          
+          const citas = await response.json();
+          // Buscar por diferentes posibles nombres de campo ID
+          const cita = citas.find(c => 
+            (c.id === id) || 
+            (c.id_cita === id) || 
+            (c.cita_id === id) || 
+            (c.ID === id)
+          );
+          
+          if (!cita) {
+            mostrarToast('Cita no encontrada', 'danger');
+            return;
+          }
+
+          
+          // Parsear fecha y hora del formato datetime
+          const fechaHora = new Date(cita.fecha_hora);
+          const fechaStr = fechaHora.toISOString().split('T')[0];
+          const horaStr = fechaHora.toTimeString().slice(0, 5);
+          
+          modoEdicion = true;
+          citaEditandoId = id;
+          pacienteCita.value = cita.id_paciente;
+          fechaCita.value = fechaStr;
+          horaCita.value = horaStr;
+          doctorCita.value = cita.doctor || '';
+          especialidadCita.value = cita.especialidad || '';
+          ubicacionCita.value = cita.ubicacion || '';
+          motivoCita.value = cita.motivo;
+          estadoCita.value = cita.estado || 'programada';
+          anticipacion.value = cita.anticipacion_min || 60;
+          notasCita.value = cita.notas || '';
+
+          tituloFormCita.textContent = 'Editar Cita Médica';
+          btnGuardarCita.innerHTML = '<i class="bi bi-save me-2"></i> Actualizar Cita';
+          btnCancelarEdicion.classList.remove('d-none');
+          
+          formCita.scrollIntoView({ behavior: 'smooth' });
+        } catch (error) {
+          console.error('Error al cargar cita para editar:', error);
+          mostrarToast('Error al cargar la cita para editar', 'danger');
+        }
+      };
+
+
+
+      // Eliminar cita
+      window.eliminarCita = async function(id) {
+        if (!id || isNaN(id)) {
+          mostrarToast('Error: ID de cita inválido', 'danger');
+          console.error('ID inválido recibido para eliminar:', id);
+          return;
+        }
+        
+        if (!confirm('¿Estás seguro de que deseas eliminar esta cita?')) return;
+        
+        try {
+          console.log('Eliminando cita con ID:', id);
+          const response = await fetch(`http://localhost:3000/eliminarCita/${id}`, {
+            method: 'DELETE'
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            mostrarToast(errorData.mensaje || 'Error al eliminar la cita', 'danger');
+            return;
+          }
+
+          mostrarToast('Cita eliminada correctamente', 'success');
+          await cargarCitas();
+        } catch (error) {
+          console.error('Error al eliminar cita:', error);
+          mostrarToast(error.message || 'Error de conexión al eliminar la cita', 'danger');
+        }
+      };
+
+
+
+
+
+
+
+
+      // Limpiar formulario
+      function limpiarFormulario() {
+        formCita.reset();
+        citaIdInput.value = '';
+        modoEdicion = false;
+        citaEditandoId = null;
+        tituloFormCita.textContent = 'Nueva Cita Médica';
+        btnGuardarCita.innerHTML = '<i class="bi bi-save me-2"></i> Guardar Cita';
+        btnCancelarEdicion.classList.add('d-none');
+      }
+
+
+      // Mostrar toast
+      function mostrarToast(mensaje, tipo = 'info') {
+        const toastContainer = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${tipo} border-0 show`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+          <div class="d-flex">
+            <div class="toast-body">${mensaje}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          </div>
+        `;
+        toastContainer.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
+
+      // Event listeners
+      formCita.addEventListener('submit', guardarCita);
+      
+      btnCancelarEdicion.addEventListener('click', () => {
+        limpiarFormulario();
+      });
+      
+      limpiarCitaBtn.addEventListener('click', limpiarFormulario);
+      
+      filtroPacienteCita.addEventListener('change', mostrarCitas);
+      filtroEstadoCita.addEventListener('change', mostrarCitas);
+      filtroFechaDesde.addEventListener('change', mostrarCitas);
+      filtroFechaHasta.addEventListener('change', mostrarCitas);
+      
+      limpiarFiltrosCitas.addEventListener('click', () => {
+        filtroPacienteCita.value = '';
+        filtroEstadoCita.value = '';
+        filtroFechaDesde.value = '';
+        filtroFechaHasta.value = '';
+        mostrarCitas();
+      });
+      
+      // Botón eliminar todas las citas
+      if (borrarTodasCitasBtn) {
+        borrarTodasCitasBtn.onclick = async function() {
+          if (!confirm('¿Estás seguro de que deseas eliminar TODAS las citas? Esta acción no se puede deshacer.')) return;
+          
+          try {
+            // Obtener token de autenticación de múltiples fuentes posibles
+            let token = null;
+            
+            // Intentar obtener de 'usuario' (objeto completo)
+            const usuarioData = localStorage.getItem('usuario');
+            if (usuarioData) {
+              try {
+                const usuario = JSON.parse(usuarioData);
+                token = usuario.token || usuario.accessToken || usuario.authToken;
+              } catch (e) {
+                console.error('Error al parsear usuario:', e);
+              }
+            }
+            
+            // Si no se encontró, intentar claves alternativas
+            if (!token) {
+              token = localStorage.getItem('auth_token') || 
+                      localStorage.getItem('token') || 
+                      localStorage.getItem('accessToken') || 
+                      localStorage.getItem('authToken') ||
+                      sessionStorage.getItem('token');
+            }
+
+            
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) {
+              headers['Authorization'] = `Bearer ${token}`;
+              console.log('Token encontrado y enviado');
+            } else {
+              console.warn('No se encontró token de autenticación');
+              mostrarToast('Acceso restringido. Solo los administradores pueden eliminar todas las citas. Como cuidador, puedes eliminar citas individuales desde la lista.', 'warning');
+              return;
+            }
+
+            
+            const response = await fetch('http://localhost:3000/eliminarTodasCitas', {
+              method: 'DELETE',
+              headers: headers
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              if (response.status === 403) {
+                throw new Error('No tienes permisos para eliminar todas las citas. Esta función solo está disponible para administradores. Como cuidador, puedes eliminar citas individuales usando el botón de eliminar en cada cita.');
+              }
+              throw new Error(error.mensaje || 'Error al eliminar citas');
+            }
+
+            mostrarToast('Todas las citas han sido eliminadas', 'success');
+
+            await cargarCitas();
+          } catch (error) {
+            console.error('Error al eliminar todas las citas:', error);
+            mostrarToast('Error al eliminar todas las citas: ' + error.message, 'danger');
+          }
+        };
+      }
+
+
+
+
+
+      
+      // Delegación de eventos para botones de editar/eliminar en la lista
+      listaCitas.addEventListener('click', function(e) {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        
+        if (btn.classList.contains('btn-editar-cita')) {
+          const id = parseInt(btn.dataset.id);
+          editarCita(id);
+        } else if (btn.classList.contains('btn-eliminar-cita')) {
+          const id = parseInt(btn.dataset.id);
+          eliminarCita(id);
+        }
+      });
+
+
+      // Cargar pacientes al mostrar la sección de citas
+      const citasBtn = document.querySelector('.nav-btn[data-section="recetas"]');
+      if (citasBtn) {
+        citasBtn.addEventListener('click', () => {
+          cargarPacientesCitas();
+          cargarCitas();
+        });
+      }
+
+      // Inicializar si la sección está activa al cargar
+      if (!document.getElementById('recetas').classList.contains('d-none')) {
+        cargarPacientesCitas();
+        cargarCitas();
+      }
+
+    });
+  </script>
+
+  <!-- Script para Historial de Tomas -->
+  <script>
+    // No Historia HU-37 - Como cuidador, quiero consultar el historial diario de tomas para evaluar el cumplimiento del tratamiento.
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const pacienteSelect = document.getElementById('pacienteHistorial');
+      const fechaInput = document.getElementById('fechaHistorial');
+      const cargarBtn = document.getElementById('cargarHistorialBtn');
+      const generarReporteSemanalBtn = document.getElementById('generarReporteSemanalBtn');
+      const exportarReporteSemanalBtn = document.getElementById('exportarReporteSemanalBtn');
+      const container = document.getElementById('historialTomasContainer');
+      const reporteSemanalContainer = document.getElementById('reporteSemanalContainer');
+      const alertasContainer = document.getElementById('alertasOmisionesCuidador');
+      const actualizarAlertasBtn = document.getElementById('actualizarAlertasOmisionesBtn');
+      const ALERTAS_STORAGE_KEY = 'cuidador_ultima_alerta_omision';
+      let ultimoReporteSemanal = null;
+
+      // Verificar que los elementos existan
+      if (!pacienteSelect || !fechaInput || !cargarBtn || !container) {
+        console.error('Error: No se encontraron todos los elementos del DOM para Historial Tomas');
+        return;
+      }
+
+      function formatearHora(valor) {
+        if (!valor) return 'Sin hora';
+        return typeof valor === 'string' ? valor.slice(0, 8) : valor;
+      }
+
+      function formatearFechaISO(fecha) {
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      function obtenerRangoSemana(fechaReferencia) {
+        const base = new Date(`${fechaReferencia}T00:00:00`);
+        const diaSemana = base.getDay(); // 0 domingo, 1 lunes...
+        const ajusteLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
+
+        const inicio = new Date(base);
+        inicio.setDate(base.getDate() + ajusteLunes);
+
+        const fin = new Date(inicio);
+        fin.setDate(inicio.getDate() + 6);
+
+        const fechas = [];
+        for (let i = 0; i < 7; i++) {
+          const actual = new Date(inicio);
+          actual.setDate(inicio.getDate() + i);
+          fechas.push(formatearFechaISO(actual));
+        }
+
+        return {
+          inicio: formatearFechaISO(inicio),
+          fin: formatearFechaISO(fin),
+          fechas
+        };
+      }
+
+      function construirResumenSemanal(porcentaje, tomadas, esperadas, omitidas) {
+        if (esperadas === 0) {
+          return 'No se encontraron dosis programadas en la semana seleccionada.';
+        }
+        if (porcentaje >= 90) {
+          return `Adherencia excelente. Se registraron ${tomadas} dosis tomadas de ${esperadas}.`;
+        }
+        if (porcentaje >= 70) {
+          return `Adherencia aceptable con oportunidad de mejora. Se omitieron ${omitidas} dosis.`;
+        }
+        return `Adherencia baja. Se recomienda revisar el plan del paciente y reforzar recordatorios.`;
+      }
+
+      function renderizarAlertasOmisiones(omisiones) {
+        if (!alertasContainer) return;
+
+        if (!omisiones.length) {
+          alertasContainer.innerHTML = '<div class="list-group-item text-center text-muted">No hay omisiones registradas hoy</div>';
+          return;
+        }
+
+        alertasContainer.innerHTML = omisiones.map(omision => `
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+              <div>
+                <div class="fw-semibold text-warning">
+                  <i class="bi bi-exclamation-triangle-fill me-2"></i>${omision.nombre_paciente || 'Paciente'}
+                </div>
+                <div><strong>${omision.nombre_medicamento}</strong></div>
+                <small class="text-muted d-block">Hora registrada: ${formatearHora(omision.hora_toma)}</small>
+                <small class="text-muted d-block">Motivo: ${omision.motivo_omision || 'Sin motivo'}</small>
+              </div>
+              <span class="badge bg-warning text-dark">No tomada</span>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      async function cargarAlertasOmisiones(mostrarToasts = false) {
+        if (!alertasContainer) return;
+
+        try {
+          const response = await fetch('http://localhost:3000/alertasOmisiones');
+
+          if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+          }
+
+          const omisiones = await response.json();
+          renderizarAlertasOmisiones(omisiones);
+
+          const ultimoIdVisto = parseInt(localStorage.getItem(ALERTAS_STORAGE_KEY) || '0', 10);
+          const nuevasOmisiones = omisiones.filter(omision => omision.id > ultimoIdVisto);
+
+          if (mostrarToasts && nuevasOmisiones.length && typeof mostrarToast === 'function') {
+            nuevasOmisiones
+              .sort((a, b) => a.id - b.id)
+              .forEach(omision => {
+                mostrarToast(`Alerta: ${omision.nombre_paciente || 'Paciente'} omitio ${omision.nombre_medicamento}. Motivo: ${omision.motivo_omision || 'Sin motivo'}`, 'warning');
+              });
+          }
+
+          if (omisiones.length) {
+            const maxId = Math.max(...omisiones.map(omision => omision.id));
+            localStorage.setItem(ALERTAS_STORAGE_KEY, String(maxId));
+          }
+        } catch (error) {
+          console.error('Error al cargar alertas de omisiones:', error);
+          alertasContainer.innerHTML = '<div class="list-group-item text-center text-danger">Error al cargar alertas de omisiones</div>';
+        }
+      }
+
+      // Cargar pacientes al mostrar la sección
+      const historialBtn = document.querySelector('.nav-btn[data-section="historial-tomas"]');
+      if (historialBtn) {
+        historialBtn.addEventListener('click', () => {
+          console.log('Cargando pacientes para historial...');
+          cargarPacientes();
+          cargarAlertasOmisiones(true);
+        });
+      }
+
+      if (actualizarAlertasBtn) {
+        actualizarAlertasBtn.addEventListener('click', () => cargarAlertasOmisiones(true));
+      }
+
+      if (!fechaInput.value) {
+        fechaInput.value = formatearFechaISO(new Date());
+      }
+
+      cargarAlertasOmisiones(false);
+      setInterval(() => cargarAlertasOmisiones(true), 30000);
+
+      async function cargarPacientes() {
+        try {
+          console.log('Obteniendo pacientes de http://localhost:3000/usuarios/rol/usuario');
+          const response = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          
+          if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+          }
+          
+          const pacientes = await response.json();
+          console.log('Pacientes obtenidos:', pacientes.length);
+
+          pacienteSelect.innerHTML = '<option value="">Selecciona un paciente</option>';
+          pacientes.forEach(paciente => {
+            const option = document.createElement('option');
+            option.value = paciente.id;
+            option.textContent = `${paciente.nombres} ${paciente.apellidos}`;
+            pacienteSelect.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error al cargar pacientes:', error);
+          pacienteSelect.innerHTML = '<option value="">Error al cargar pacientes</option>';
+        }
+      }
+
+      cargarBtn.addEventListener('click', async () => {
+        const pacienteId = pacienteSelect.value;
+        const fecha = fechaInput.value;
+
+        console.log('Consultando historial - Paciente:', pacienteId, 'Fecha:', fecha);
+
+        if (!pacienteId || !fecha) {
+          alert('Por favor selecciona un paciente y una fecha');
+          return;
+        }
+
+        // Mostrar indicador de carga
+        container.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2">Cargando historial...</p></div>';
+
+        try {
+          // Obtener tomas del día
+          console.log(`Consultando tomas: http://localhost:3000/tomas/${pacienteId}/${fecha}`);
+          const tomasResponse = await fetch(`http://localhost:3000/tomas/${pacienteId}/${fecha}`);
+          
+          if (!tomasResponse.ok) {
+            throw new Error(`Error al cargar tomas: ${tomasResponse.status}`);
+          }
+          
+          const tomas = await tomasResponse.json();
+          console.log('Tomas obtenidas:', tomas.length);
+
+          // Obtener recetas del paciente
+          console.log(`Consultando recetas: http://localhost:3000/recetas/${pacienteId}`);
+          const recetasResponse = await fetch(`http://localhost:3000/recetas/${pacienteId}`);
+          
+          if (!recetasResponse.ok) {
+            throw new Error(`Error al cargar recetas: ${recetasResponse.status}`);
+          }
+          
+          const recetas = await recetasResponse.json();
+          console.log('Recetas obtenidas:', recetas.length);
+
+          // Mostrar el historial
+          mostrarHistorialActualizado(tomas, recetas, fecha);
+          await generarReporteSemanal(pacienteId, fecha, pacienteSelect.options[pacienteSelect.selectedIndex]?.text || 'Paciente');
+        } catch (error) {
+          console.error('Error al cargar historial:', error);
+          container.innerHTML = `<div class="alert alert-danger">Error al cargar el historial: ${error.message}</div>`;
+        }
+      });
+
+      async function generarReporteSemanal(pacienteId, fechaReferencia, nombrePaciente) {
+        if (!reporteSemanalContainer) return;
+
+        reporteSemanalContainer.innerHTML = `
+          <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+            <p class="mt-2 mb-0">Generando reporte semanal...</p>
+          </div>
+        `;
+
+        try {
+          const rango = obtenerRangoSemana(fechaReferencia);
+          const recetasResponse = await fetch(`http://localhost:3000/recetas/${pacienteId}`);
+          if (!recetasResponse.ok) {
+            throw new Error(`No se pudieron cargar recetas (${recetasResponse.status})`);
+          }
+          const recetas = await recetasResponse.json();
+
+          if (!recetas.length) {
+            reporteSemanalContainer.innerHTML = '<div class="alert alert-info mb-0">El paciente no tiene recetas para calcular el reporte semanal.</div>';
+            ultimoReporteSemanal = null;
+            if (exportarReporteSemanalBtn) exportarReporteSemanalBtn.disabled = true;
+            return;
+          }
+
+          const tomasPorDia = await Promise.all(
+            rango.fechas.map(async (fechaDia) => {
+              const response = await fetch(`http://localhost:3000/tomas/${pacienteId}/${fechaDia}`);
+              if (!response.ok) {
+                throw new Error(`No se pudieron cargar tomas del ${fechaDia} (${response.status})`);
+              }
+              const tomas = await response.json();
+              return { fecha: fechaDia, tomas };
+            })
+          );
+
+          const filas = [];
+          let totalEsperadasSemana = 0;
+          let totalTomadasSemana = 0;
+          let totalOmitidasSemana = 0;
+
+          tomasPorDia.forEach(({ fecha, tomas }) => {
+            let tomadasDia = 0;
+            let omitidasDia = 0;
+            const esperadasDia = recetas.length;
+            totalEsperadasSemana += esperadasDia;
+
+            recetas.forEach((receta) => {
+              const eventosReceta = tomas.filter((t) => t.id_receta === receta.id);
+              const ultimoEvento = eventosReceta.length ? eventosReceta[eventosReceta.length - 1] : null;
+              if (ultimoEvento?.estado === 'no_tomada') {
+                omitidasDia += 1;
+              } else if (ultimoEvento) {
+                tomadasDia += 1;
+              }
+            });
+
+            totalTomadasSemana += tomadasDia;
+            totalOmitidasSemana += omitidasDia;
+            const porcentajeDia = esperadasDia > 0 ? Math.round((tomadasDia / esperadasDia) * 100) : 0;
+
+            filas.push({
+              fecha,
+              tomadasDia,
+              omitidasDia,
+              esperadasDia,
+              porcentajeDia
+            });
+          });
+
+          const porcentajeSemanal = totalEsperadasSemana > 0
+            ? Math.round((totalTomadasSemana / totalEsperadasSemana) * 100)
+            : 0;
+          const resumenAutomatico = construirResumenSemanal(
+            porcentajeSemanal,
+            totalTomadasSemana,
+            totalEsperadasSemana,
+            totalOmitidasSemana
+          );
+
+          reporteSemanalContainer.innerHTML = `
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <div class="p-3 border rounded bg-light">
+                  <div class="text-muted small">Cumplimiento semanal</div>
+                  <div class="h4 mb-1">${porcentajeSemanal}%</div>
+                  <div class="progress">
+                    <div class="progress-bar ${porcentajeSemanal >= 70 ? 'bg-success' : 'bg-warning'}" role="progressbar" style="width: ${porcentajeSemanal}%">${porcentajeSemanal}%</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-8">
+                <div class="p-3 border rounded">
+                  <div class="text-muted small">Resumen automatico (${rango.inicio} a ${rango.fin})</div>
+                  <p class="mb-1">${resumenAutomatico}</p>
+                  <small class="text-muted">Dosis tomadas: ${totalTomadasSemana}/${totalEsperadasSemana}. Omitidas: ${totalOmitidasSemana}.</small>
+                </div>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-striped align-middle">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tomadas</th>
+                    <th>Esperadas</th>
+                    <th>Omitidas</th>
+                    <th>Cumplimiento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${filas.map((fila) => `
+                    <tr>
+                      <td>${fila.fecha}</td>
+                      <td>${fila.tomadasDia}</td>
+                      <td>${fila.esperadasDia}</td>
+                      <td>${fila.omitidasDia}</td>
+                      <td><span class="badge ${fila.porcentajeDia >= 70 ? 'bg-success' : 'bg-warning text-dark'}">${fila.porcentajeDia}%</span></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+
+          ultimoReporteSemanal = {
+            nombrePaciente,
+            pacienteId,
+            rango,
+            porcentajeSemanal,
+            resumenAutomatico,
+            totalTomadasSemana,
+            totalEsperadasSemana,
+            totalOmitidasSemana,
+            filas
+          };
+
+          if (exportarReporteSemanalBtn) exportarReporteSemanalBtn.disabled = false;
+        } catch (error) {
+          console.error('Error al generar reporte semanal:', error);
+          reporteSemanalContainer.innerHTML = `<div class="alert alert-danger mb-0">Error al generar reporte semanal: ${error.message}</div>`;
+          ultimoReporteSemanal = null;
+          if (exportarReporteSemanalBtn) exportarReporteSemanalBtn.disabled = true;
+        }
+      }
+
+      function exportarReporteSemanalPDF() {
+        if (!ultimoReporteSemanal) {
+          if (typeof mostrarToast === 'function') {
+            mostrarToast('Primero genera el reporte semanal.', 'warning');
+          }
+          return;
+        }
+
+        const { jsPDF } = window.jspdf || {};
+        if (!jsPDF) {
+          if (typeof mostrarToast === 'function') {
+            mostrarToast('No se pudo cargar la libreria PDF.', 'danger');
+          }
+          return;
+        }
+
+        const doc = new jsPDF();
+        let y = 14;
+        const salto = 8;
+        const ancho = 180;
+        const r = ultimoReporteSemanal;
+
+        doc.setFontSize(14);
+        doc.text('SISCOM - Reporte semanal de cumplimiento', 14, y);
+        y += salto;
+
+        doc.setFontSize(10);
+        doc.text(`Paciente: ${r.nombrePaciente}`, 14, y); y += 6;
+        doc.text(`Periodo: ${r.rango.inicio} a ${r.rango.fin}`, 14, y); y += 6;
+        doc.text(`Cumplimiento semanal: ${r.porcentajeSemanal}%`, 14, y); y += 6;
+        doc.text(`Tomadas/Esperadas: ${r.totalTomadasSemana}/${r.totalEsperadasSemana} | Omitidas: ${r.totalOmitidasSemana}`, 14, y); y += 10;
+
+        doc.setFontSize(11);
+        doc.text('Resumen automatico:', 14, y); y += 6;
+        doc.setFontSize(10);
+        const resumenLineas = doc.splitTextToSize(r.resumenAutomatico, ancho);
+        doc.text(resumenLineas, 14, y);
+        y += resumenLineas.length * 5 + 6;
+
+        doc.setFontSize(11);
+        doc.text('Detalle por dia', 14, y); y += 7;
+        doc.setFontSize(10);
+
+        r.filas.forEach((fila) => {
+          if (y > 275) {
+            doc.addPage();
+            y = 14;
+          }
+          const linea = `${fila.fecha}  |  Tomadas: ${fila.tomadasDia}  |  Esperadas: ${fila.esperadasDia}  |  Omitidas: ${fila.omitidasDia}  |  ${fila.porcentajeDia}%`;
+          doc.text(linea, 14, y);
+          y += 6;
+        });
+
+        doc.save(`reporte_semanal_${r.pacienteId}_${r.rango.fin}.pdf`);
+      }
+
+      if (generarReporteSemanalBtn) {
+        generarReporteSemanalBtn.addEventListener('click', async () => {
+          const pacienteId = pacienteSelect.value;
+          const fecha = fechaInput.value;
+          if (!pacienteId || !fecha) {
+            alert('Por favor selecciona un paciente y una fecha');
+            return;
+          }
+          await generarReporteSemanal(
+            pacienteId,
+            fecha,
+            pacienteSelect.options[pacienteSelect.selectedIndex]?.text || 'Paciente'
+          );
+        });
+      }
+
+      if (exportarReporteSemanalBtn) {
+        exportarReporteSemanalBtn.addEventListener('click', exportarReporteSemanalPDF);
+      }
+
+      function mostrarHistorialActualizado(tomas, recetas, fecha) {
+        if (recetas.length === 0) {
+          container.innerHTML = '<div class="alert alert-info">El paciente no tiene medicamentos registrados</div>';
+          return;
+        }
+
+        let html = `
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Medicamento</th>
+                  <th>Dosis</th>
+                  <th>Frecuencia</th>
+                  <th>Hora Esperada</th>
+                  <th>Hora Evento</th>
+                  <th>Estado</th>
+                  <th>Motivo</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        let tomasTomadas = 0;
+        let tomasOmitidas = 0;
+        let totalEsperadas = 0;
+
+        recetas.forEach(receta => {
+          totalEsperadas++;
+
+          const eventosReceta = tomas.filter(t => t.id_receta === receta.id);
+          const ultimoEvento = eventosReceta.length ? eventosReceta[eventosReceta.length - 1] : null;
+          const horaToma = ultimoEvento ? formatearHora(ultimoEvento.hora_toma) : 'Sin registro';
+          const estado = !ultimoEvento
+            ? '<span class="badge bg-secondary">Pendiente</span>'
+            : ultimoEvento.estado === 'no_tomada'
+              ? '<span class="badge bg-warning text-dark">No tomada</span>'
+              : '<span class="badge bg-success">Tomado</span>';
+          const motivo = ultimoEvento?.estado === 'no_tomada'
+            ? (ultimoEvento.motivo_omision || 'Sin motivo')
+            : 'N/A';
+
+          if (ultimoEvento?.estado === 'no_tomada') {
+            tomasOmitidas++;
+          } else if (ultimoEvento) {
+            tomasTomadas++;
+          }
+
+          html += `
+            <tr>
+              <td>${receta.nombre_medicamento}</td>
+              <td>${receta.dosis}</td>
+              <td>${receta.frecuencia}</td>
+              <td>Según frecuencia</td>
+              <td>${horaToma}</td>
+              <td>${estado}</td>
+              <td>${motivo}</td>
+            </tr>
+          `;
+        });
+
+        const porcentaje = totalEsperadas > 0 ? Math.round((tomasTomadas / totalEsperadas) * 100) : 0;
+
+        html += `
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-3">
+            <h6>Resumen del Día (${fecha})</h6>
+            <p>Medicamentos tomados: ${tomasTomadas} de ${totalEsperadas}</p>
+            <p>Dosis no tomadas registradas: ${tomasOmitidas}</p>
+            <div class="progress">
+              <div class="progress-bar" role="progressbar" style="width: ${porcentaje}%">${porcentaje}%</div>
+            </div>
+            <small class="text-muted">Cumplimiento: ${porcentaje}%</small>
+          </div>
+        `;
+
+        container.innerHTML = html;
+      }
+
+      function mostrarHistorial(tomas, recetas, fecha) {
+        if (recetas.length === 0) {
+          container.innerHTML = '<div class="alert alert-info">El paciente no tiene medicamentos registrados</div>';
+          return;
+        }
+
+        let html = `
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Medicamento</th>
+                  <th>Dosis</th>
+                  <th>Frecuencia</th>
+                  <th>Hora Esperada</th>
+                  <th>Hora Evento</th>
+                  <th>Estado</th>
+                  <th>Motivo</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        let tomasTomadas = 0;
+        let tomasOmitidas = 0;
+        let totalEsperadas = 0;
+
+        recetas.forEach(receta => {
+          // Para simplificar, asumimos que cada receta tiene una toma por día
+          // En un sistema real, se debería calcular basado en la frecuencia
+          totalEsperadas++;
+
+          const tomaRealizada = tomas.find(t => t.id_receta === receta.id);
+          const horaToma = tomaRealizada ? tomaRealizada.hora_toma : 'No tomado';
+          const estado = tomaRealizada ? '<span class="badge bg-success">Tomado</span>' : '<span class="badge bg-danger">Omisión</span>';
+
+          if (tomaRealizada) tomasTomadas++;
+
+          html += `
+            <tr>
+              <td>${receta.nombre_medicamento}</td>
+              <td>${receta.dosis}</td>
+              <td>${receta.frecuencia}</td>
+              <td>Según frecuencia</td>
+              <td>${horaToma}</td>
+              <td>${estado}</td>
+            </tr>
+          `;
+        });
+
+        const porcentaje = totalEsperadas > 0 ? Math.round((tomasTomadas / totalEsperadas) * 100) : 0;
+
+        html += `
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-3">
+            <h6>Resumen del Día (${fecha})</h6>
+            <p>Medicamentos tomados: ${tomasTomadas} de ${totalEsperadas}</p>
+            <div class="progress">
+              <div class="progress-bar" role="progressbar" style="width: ${porcentaje}%">${porcentaje}%</div>
+            </div>
+            <small class="text-muted">Cumplimiento: ${porcentaje}%</small>
+          </div>
+        `;
+
+        container.innerHTML = html;
+      }
+    });
+  </script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const fechaInput = document.getElementById('fechaVerificacionMedicamentos');
+      const pacienteSelect = document.getElementById('pacienteVerificacionMedicamentos');
+      const cargarBtn = document.getElementById('cargarVerificacionMedicamentosBtn');
+      const tablaBody = document.querySelector('#tablaVerificacionMedicamentos tbody');
+      const resumen = document.getElementById('resumenVerificacionMedicamentos');
+
+      if (!fechaInput || !pacienteSelect || !cargarBtn || !tablaBody || !resumen) return;
+
+      function hoyISO() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+
+      function fechaLegible(fechaIso) {
+        const [y, m, d] = fechaIso.split('-');
+        return `${d}/${m}/${y}`;
+      }
+
+      async function cargarPacientesVerificacion() {
+        try {
+          const resp = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          if (!resp.ok) throw new Error('No se pudieron cargar pacientes');
+          const pacientes = await resp.json();
+
+          pacienteSelect.innerHTML = '<option value="">Todos los pacientes</option>';
+          pacientes.forEach((p) => {
+            const option = document.createElement('option');
+            option.value = String(p.id);
+            option.textContent = `${p.nombres} ${p.apellidos}`;
+            pacienteSelect.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error al cargar pacientes de verificacion:', error);
+        }
+      }
+
+      async function construirFilasVerificacion() {
+        const fecha = fechaInput.value;
+        const pacienteIdFiltro = pacienteSelect.value;
+
+        if (!fecha) {
+          alert('Selecciona una fecha para consultar la verificacion.');
+          return;
+        }
+
+        tablaBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Cargando verificacion...</td></tr>';
+        resumen.textContent = '';
+
+        try {
+          const pacientesResp = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          if (!pacientesResp.ok) throw new Error('No se pudieron cargar pacientes');
+          const pacientes = await pacientesResp.json();
+
+          const pacientesFiltrados = pacienteIdFiltro
+            ? pacientes.filter((p) => String(p.id) === String(pacienteIdFiltro))
+            : pacientes;
+
+          const filas = [];
+
+          for (const paciente of pacientesFiltrados) {
+            const [recetasResp, tomasResp] = await Promise.all([
+              fetch(`http://localhost:3000/recetas/${paciente.id}`),
+              fetch(`http://localhost:3000/tomas/${paciente.id}/${fecha}`)
+            ]);
+
+            if (!recetasResp.ok || !tomasResp.ok) {
+              throw new Error(`No se pudieron cargar datos para ${paciente.nombres} ${paciente.apellidos}`);
+            }
+
+            const recetas = await recetasResp.json();
+            const tomas = await tomasResp.json();
+
+            recetas.forEach((receta) => {
+              const eventosReceta = tomas.filter((t) => t.id_receta === receta.id);
+              const ultimoEvento = eventosReceta.length ? eventosReceta[eventosReceta.length - 1] : null;
+              const cumplio = !!(ultimoEvento && ultimoEvento.estado !== 'no_tomada');
+
+              filas.push({
+                fecha,
+                paciente: `${paciente.nombres} ${paciente.apellidos}`,
+                medicamento: receta.nombre_medicamento || 'N/A',
+                dosis: receta.dosis || 'N/A',
+                frecuencia: receta.frecuencia || 'N/A',
+                cumplio
+              });
+            });
+          }
+
+          if (!filas.length) {
+            tablaBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No hay medicamentos para mostrar en la fecha seleccionada.</td></tr>';
+            resumen.textContent = 'Sin resultados para los filtros seleccionados.';
+            return;
+          }
+
+          tablaBody.innerHTML = filas.map((fila) => `
+            <tr>
+              <td>${fechaLegible(fila.fecha)}</td>
+              <td>${fila.paciente}</td>
+              <td>${fila.medicamento}</td>
+              <td>${fila.dosis}</td>
+              <td>${fila.frecuencia}</td>
+              <td>
+                <span class="badge ${fila.cumplio ? 'bg-success' : 'bg-danger'}">${fila.cumplio ? 'SI' : 'NO'}</span>
+              </td>
+            </tr>
+          `).join('');
+
+          const total = filas.length;
+          const cumplidas = filas.filter((f) => f.cumplio).length;
+          const porcentaje = total > 0 ? Math.round((cumplidas / total) * 100) : 0;
+          resumen.innerHTML = `<strong>Resumen:</strong> ${cumplidas} de ${total} medicamentos cumplidos (${porcentaje}%).`;
+        } catch (error) {
+          console.error('Error al construir verificacion de medicamentos:', error);
+          tablaBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">Error al cargar datos: ${error.message}</td></tr>`;
+          resumen.textContent = '';
+        }
+      }
+
+      window.cargarVerificacionMedicamentos = construirFilasVerificacion;
+
+      fechaInput.value = fechaInput.value || hoyISO();
+      cargarBtn.addEventListener('click', construirFilasVerificacion);
+      cargarPacientesVerificacion();
+    });
+  </script>
+
 </body>
 </html>
+
+
