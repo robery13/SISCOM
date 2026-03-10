@@ -5,9 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SISCOM | Sistema de Control de Medicación</title>
   <link rel="stylesheet" href="../css/estilos_main.css">
+  <!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 </head>
 
 <body>
+  <!-- Botón toggle modo oscuro -->
+  <button class="dark-mode-toggle" id="darkModeToggle" title="Cambiar modo oscuro">
+    <i class="bi bi-moon-fill" id="darkModeIcon"></i>
+  </button>
+
   <!-- ===== ENCABEZADO ===== -->
   <header>
   <div class="topbar">
@@ -224,9 +231,46 @@
  
 
      <!-- Enlace a tu JavaScript -->
-  <script src="../jv/script_main.js"></script>
+<script src="../jv/script_main.js"></script>
 
-
+  <!-- Script para Modo Oscuro -->
+  <script>
+    // Restaurar preferencia de modo oscuro al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+      const darkModePreference = localStorage.getItem('darkMode');
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      const darkModeIcon = document.getElementById('darkModeIcon');
+      
+      if (darkModePreference === 'enabled') {
+        document.documentElement.classList.add('dark-mode');
+        if (darkModeIcon) {
+          darkModeIcon.classList.remove('bi-moon-fill');
+          darkModeIcon.classList.add('bi-sun-fill');
+        }
+      }
+      
+      // Agregar evento click al botón toggle
+      if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', function() {
+          const isDarkMode = document.documentElement.classList.toggle('dark-mode');
+          
+          // Cambiar icono
+          if (darkModeIcon) {
+            if (isDarkMode) {
+              darkModeIcon.classList.remove('bi-moon-fill');
+              darkModeIcon.classList.add('bi-sun-fill');
+            } else {
+              darkModeIcon.classList.remove('bi-sun-fill');
+              darkModeIcon.classList.add('bi-moon-fill');
+            }
+          }
+          
+          // Guardar preferencia
+          localStorage.setItem('darkMode', isDarkMode ? 'enabled' : 'disabled');
+        });
+      }
+    });
+  </script>
 
 </body>
 </html>
