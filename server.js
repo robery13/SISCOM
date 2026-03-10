@@ -769,16 +769,45 @@ app.get('/obtenerCitas', (req, res) => {
   });
 });
 
+// ============================================
+// RUTA PARA OBTENER CITAS POR USUARIO (id_paciente)
+// ============================================
+app.get('/citas/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+  
+  console.log('=== GET /citas/:id_usuario ===');
+  console.log('ID Usuario recibido:', id_usuario);
+
+  // Buscar citas por id_paciente (que es el id del usuario/paciente)
+  const sql = 'SELECT * FROM citas WHERE id_paciente = ? ORDER BY fecha_hora ASC';
+  console.log('SQL Query:', sql);
+  console.log('Parámetros:', [id_usuario]);
+  
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al obtener citas:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener las citas.', error: err.message });
+    }
+    
+    console.log('Citas encontradas:', results.length);
+    console.log('Citas:', JSON.stringify(results, null, 2));
+    console.log('================================');
+    
+    res.status(200).json(results);
+  });
+});
+
 app.delete('/eliminarCita/:id', (req, res) => {
   const { id } = req.params;
   console.log('=== DELETE /eliminarCita ===');
   console.log('ID recibido:', id);
   
-  const sql = 'DELETE FROM citas WHERE id_cita = ?';
+  // Accept both id_cita and id as column names for compatibility
+  const sql = 'DELETE FROM citas WHERE id_cita = ? OR id = ?';
   console.log('SQL:', sql);
-  console.log('Valores:', [id]);
+  console.log('Valores:', [id, id]);
   
-  db.query(sql, [id], (err, result) => {
+  db.query(sql, [id, id], (err, result) => {
     if (err) {
       console.error('Error SQL al eliminar cita:', err);
       console.error('Código de error:', err.code);
@@ -1727,6 +1756,41 @@ app.get('/migrar-citas', (req, res) => {
       });
     }
 
+    // Si no existe la tabla citas, crearla
+    if (!existingColumns || existingColumns.length === 0) {
+      const createTableSql = `
+        CREATE TABLE IF NOT EXISTS citas (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          id_paciente INT,
+          fecha_hora DATETIME NOT NULL,
+          motivo VARCHAR(255) NOT NULL,
+          anticipacion_min INT DEFAULT 60,
+          doctor VARCHAR(255),
+          especialidad VARCHAR(255),
+          ubicacion VARCHAR(255),
+          estado VARCHAR(50) DEFAULT 'programada',
+          notas TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_citas_paciente (id_paciente),
+          INDEX idx_citas_fecha (fecha_hora)
+        )
+      `;
+      db.query(createTableSql, (err) => {
+        if (err) {
+          console.error('Error al crear tabla citas:', err);
+          return res.status(500).json({ 
+            mensaje: 'Error al crear la tabla citas', 
+            error: err.message 
+          });
+        }
+        res.json({ 
+          mensaje: ' Tabla citas creada exitosamente',
+          nota: 'La tabla citas ha sido creada con todas las columnas necesarias'
+        });
+      });
+      return;
+    }
+
     const existingColumnNames = existingColumns.map(col => col.COLUMN_NAME);
     console.log('Columnas existentes:', existingColumnNames);
 
@@ -1741,7 +1805,7 @@ app.get('/migrar-citas', (req, res) => {
 
     if (columnsToAdd.length === 0) {
       return res.json({ 
-        mensaje: '✅ Todas las columnas ya existen en la tabla citas',
+        mensaje: 'Todas las columnas ya existen en la tabla citas',
         columnas_agregadas: 0,
         nota: 'No se requiere ninguna migración'
       });
@@ -1814,7 +1878,7 @@ app.get('/fix-citas-foreign-key', (req, res) => {
 
     if (constraints.length === 0) {
       return res.json({ 
-        mensaje: '✅ No hay foreign key constraints que eliminar',
+        mensaje: ' No hay foreign key constraints que eliminar',
         nota: 'La tabla citas ya permite guardar citas sin validación de paciente'
       });
     }
@@ -1835,7 +1899,7 @@ app.get('/fix-citas-foreign-key', (req, res) => {
           console.error(`Error al eliminar constraint ${constraint.CONSTRAINT_NAME}:`, err.message);
           errors.push({ constraint: constraint.CONSTRAINT_NAME, error: err.message });
         } else {
-          console.log(`✅ Foreign key '${constraint.CONSTRAINT_NAME}' eliminada correctamente`);
+          console.log(` Foreign key '${constraint.CONSTRAINT_NAME}' eliminada correctamente`);
           removed.push(constraint.CONSTRAINT_NAME);
         }
 
@@ -1843,7 +1907,7 @@ app.get('/fix-citas-foreign-key', (req, res) => {
         if (completed === constraints.length) {
           if (errors.length === 0) {
             res.json({ 
-              mensaje: '✅ Restricciones eliminadas exitosamente', 
+              mensaje: ' Restricciones eliminadas exitosamente', 
               constraints_eliminadas: removed.length,
               constraints: removed,
               nota: 'Ahora puedes guardar citas sin necesidad de que el paciente exista previamente'
