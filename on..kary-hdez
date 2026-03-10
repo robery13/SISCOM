@@ -1,0 +1,179 @@
+[33mae0e601[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mrobertson[m[33m, [m[1;31morigin/kary-hdez[m[33m, [m[1;32mkary-hdez[m[33m)[m paginacion usuarios, tabs estadisticas, UI unificada
+[33m0e45b4f[m[33m ([m[1;31morigin/robertson[m[33m, [m[1;31morigin/Angel.DEV[m[33m, [m[1;32mAngel.DEV[m[33m)[m Modificaciones de ajustes y cambios en la interfaz de Paciente, Cuidador y Administrador. Se ha estado trabajando en las Historias 41 y 42.
+[33mf1c538f[m HU-27/HU-42: Validaciones, toasts, rutas estadisticas/panel, layout citas mejorado
+[33m4d22f29[m Fusionar cambios remotos con local (preservar todo)
+[33m2b33c46[m Fix admin users loading and login password migration
+[33m74203dc[m HU-42: Reporte semanal de cumplimiento + submenu Estadisticas
+[33m59f4587[m Merge updates and lint fixes
+[33m9cbab9b[m Merge remote-tracking branch 'origin/main' into kary-hdez
+[33mbf6eb07[m[33m ([m[1;33mtag: [m[1;33mV5.0[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Mejora en los formularios con cifrado. Concordancia en las secciones Medicamentos, Citas Médicas en el Frontend y Backend. Mejoras en las cargas de las páginas de los archivos. Historias 36-40 Terminadas.
+[33m393d3a7[m Mejora en los formularios con cifrado. Concordancia en las secciones Medicamentos, Citas Médicas en el Frontend y Backend. Mejoras en las cargas de las páginas de los archivos. Historias 36-40 Terminadas.
+[33m9cbcd1e[m HU-42: Reporte semanal de cumplimiento + submenu Estadisticas
+[33m3913619[m Mejora en los formularios con cifrado. Concordancia en las secciones Medicamentos, Citas Médicas en el Frontend y Backend. Mejoras en las cargas de las páginas de los archivos. Historias 36-40 Terminadas.
+[33m25e5cbc[m Mejora en los formularios con encriptado. Concordancia en las secciones Medicamentos, Citas Medicas en el Frontend y Backend. Mejoras en las cargas de las paginas de los archivos. Historias 36-40 Terminadas.
+[33m3f63971[m Se trabajo en: Historias 36-40; se arreglo actualizar pagina para que no se mueva de la sección; Se soluciono el problema de carga de usuarios en el Backend.
+[33meab1d4d[m Nuevas historias agregadas
+[33m04fb63a[m Historias 36 y 37 arreglados, solucion de algunas tareas.
+[33m2504b85[m Historia 36 y 37 arreglados
+[33m59d8467[m Historia 36 y 37 arreglados
+[33m426f0f1[m Sincronización forzada de archivos locales
+[33mebd1353[m Remove Archivos DB.rar from history and add to gitignore
+[33mba0dc7d[m Añadiendo sección de estadísticas de salud por paciente, comparativa y la funcion para borar medicamentos
+[33m3446b2e[m Agregando las dos ultimas tareas de la Historia HU-36: Enviar notificación automática Y Sugerir pedido a farmacia.
+[33m19dadc5[m Remove secret and clean commit
+[33m3b13202[m Remove secret and clean commit
+[33m55b2570[m Cambios sin archivos sensibles
+[33mbe9fbb8[m Cambios sin archivos sensibles
+[33me481a07[m Actualizacion de Stock
+[33mc32ea45[m Actualizacion de Stock
+[33mf7deff5[m Atualizacion de archivos
+[33m68e6613[m Atualizacion de archivos
+[33m9439834[m Archivos actualizados
+[33m28dce50[m Archivos actualizados
+[33m9a9ea82[m actualizar
+[33m272a982[m actualizar
+[33mb90cf90[m Subiendo cambios a rama Angel.DEV
+[33mcaf6d22[m Subiendo cambios a rama Angel.DEV
+[33m5ddb194[m Merge branch 'Itrean'
+[33m9ea7688[m[33m ([m[1;33mtag: [m[1;33mV3.0[m[33m)[m Merge branch 'Itrean'
+[33mf545e64[m se agrego ruta de formulario en boton de cerrar sesion
+[33m9e9532a[m se agrego ruta de formulario en boton de cerrar sesion
+[33m405e2ed[m Merge Itrean: aceptar cambios de Itrean 11/26/2025 2:47
+[33m1a2a6ae[m Merge Itrean: aceptar cambios de Itrean 11/26/2025 2:47
+[33m247c8d3[m eliminando las notificaciones del boton cerrar sesion
+[33m1b4f944[m eliminando las notificaciones del boton cerrar sesion
+[33m016dcc2[m boton de cerrar sesion
+[33m2fba38c[m boton de cerrar sesion
+[33me922b7b[m Resolviendo conflicto usando versión de Itrean
+[33m617c9f8[m[33m ([m[1;32mbackup-main-before-merge[m[33m)[m Resolviendo conflicto usando versión de Itrean
+[33mdf7992c[m que en la pagina de inicio tras logearse se vere el formulario de medicamentos
+[33m7340b8d[m que en la pagina de inicio tras logearse se vere el formulario de medicamentos
+[33m8f78244[m se agrego forma mordal en medicamentos y inventario
+[33m7af3f57[m se agrego forma mordal en medicamentos y inventario
+[33mf3a5b31[m Merge branch 'robertson' modificaciones importantes de pagina de inicio
+[33m07da54c[m[33m ([m[1;33mtag: [m[1;33mV2.2[m[33m)[m Merge branch 'robertson' modificaciones importantes de pagina de inicio
+[33mcd6ee0c[m actualizaciones realizadas en la pagina de inicio 13/11/2025 2:40 pm
+[33mf0c2177[m actualizaciones realizadas en la pagina de inicio 13/11/2025 2:40 pm
+[33md0ff307[m cambio de alerts, comentado codigos de debugin, eliminado repeticiones de scripts en proyecto_siscom, modificado css para toast. eliminado css sin usar, agregado bugs para corregirlos mas tarde
+[33m5c6fdf8[m[33m ([m[1;33mtag: [m[1;33mV2.1[m[33m)[m cambio de alerts, comentado codigos de debugin, eliminado repeticiones de scripts en proyecto_siscom, modificado css para toast. eliminado css sin usar, agregado bugs para corregirlos mas tarde
+[33m5cdd747[m Subiendo las modificaciones finales de la rama robertson
+[33m3e7b76b[m[33m ([m[1;33mtag: [m[1;33mV2.0[m[33m)[m Subiendo las modificaciones finales de la rama robertson
+[33mbcbafbe[m Actualicé Proyecto_SISCOM.html, server.js y package-lock.json con mis versiones locales
+[33m74e934c[m Actualicé Proyecto_SISCOM.html, server.js y package-lock.json con mis versiones locales
+[33m886bfb5[m Merge branch 'Itrean' into robertson fucionando para traer actualizaciones de Itrean
+[33mf6da6ce[m Merge branch 'Itrean' into robertson fucionando para traer actualizaciones de Itrean
+[33m4daf9c4[m Delete registro/script registro.js se  cambio por un nuevo script
+[33md2a331f[m Delete registro/script registro.js se  cambio por un nuevo script
+[33m651741c[m se agrego modulo de crear pedidos, se agregaron nuevas funciones de guardar y eliminar
+[33m7e08cb4[m se agrego modulo de crear pedidos, se agregaron nuevas funciones de guardar y eliminar
+[33m2782de0[m Fusioné cambios de jonathan pero conservé mi versión de Proyecto_SISCOM.html y resolví conflicto en server.js
+[33m4b1880f[m Fusioné cambios de jonathan pero conservé mi versión de Proyecto_SISCOM.html y resolví conflicto en server.js
+[33me143cf4[m nuevo formulario chelickts se agregaron nuevos estilos y funciones
+[33ma255210[m nuevo formulario chelickts se agregaron nuevos estilos y funciones
+[33m1198ffa[m se quuito el estilo de ficha y se agrego en el css
+[33m467c2f4[m se quuito el estilo de ficha y se agrego en el css
+[33md894cf2[m se agrego funciones para funcionamiento del formulario decita medica
+[33m73634a2[m se agrego funciones para funcionamiento del formulario decita medica
+[33m7fa9be3[m Se agrego formulario de cita medica
+[33m3484398[m Se agrego formulario de cita medica
+[33m9d0479f[m añadido registro, correcion de error de conexion, cambio visual en recuperar contraseña, añadido enlaces de recuperacion y registro
+[33m4877cbf[m añadido registro, correcion de error de conexion, cambio visual en recuperar contraseña, añadido enlaces de recuperacion y registro
+[33me00f46c[m agregando funcion a los botones contactanos y mas informacion,ademas implementacion de modales en los logins
+[33mfa400cc[m agregando funcion a los botones contactanos y mas informacion,ademas implementacion de modales en los logins
+[33m6fdd382[m agregado recuperacion de contraseña (sin terminar)
+[33maaa26bd[m agregado recuperacion de contraseña (sin terminar)
+[33mb343116[m nuevos estilos para ficha agregado en el formulario principal
+[33mce95996[m nuevos estilos para ficha agregado en el formulario principal
+[33mb2a5dd6[m se agrego el formulario ficha y  se agrego ruta del script
+[33mb4c3706[m se agrego el formulario ficha y  se agrego ruta del script
+[33m1142dc8[m Cambio de nombre en el script y se agreag funcion de guardar dtaos de la ficha en base de datos
+[33m3aa4dda[m Cambio de nombre en el script y se agreag funcion de guardar dtaos de la ficha en base de datos
+[33me1e6833[m Se agrego formulario de ficha medica y se agrego en el panel principal
+[33m21fd661[m Se agrego formulario de ficha medica y se agrego en el panel principal
+[33m6fb3da9[m modifiicacion de alertas en registro usuario admin, registro medicamento e inicio de seccion
+[33mf7fce5a[m modifiicacion de alertas en registro usuario admin, registro medicamento e inicio de seccion
+[33mdf70b1a[m Modificacion de notificacion para registro de medicamento
+[33m7060f1b[m Modificacion de notificacion para registro de medicamento
+[33m41b098f[m seguridad en conexion a BD
+[33md736be9[m seguridad en conexion a BD
+[33m2d6fd3b[m Merge branch 'robertson' cambios realizados para fucionar lo trabajado actualizando el main con nueva interfas de inicio
+[33md27f310[m[33m ([m[1;33mtag: [m[1;33mV1.0[m[33m)[m Merge branch 'robertson' cambios realizados para fucionar lo trabajado actualizando el main con nueva interfas de inicio
+[33m6d781e3[m Guardando últimos cambios antes de fusionar con main
+[33mdc1b4d8[m Guardando últimos cambios antes de fusionar con main
+[33m1b6281a[m Merge remote-tracking branch 'origin/registro' into robertson
+[33m2a98169[m Merge remote-tracking branch 'origin/registro' into robertson
+[33m06743ed[m  resulto merge entre rama jonathan_Conexion_BD
+[33m0d2617d[m  resulto merge entre rama jonathan_Conexion_BD
+[33m85011ba[m Delete package-lock.jso por confictos con el main
+[33mefb0d0f[m[33m ([m[1;31morigin/registro[m[33m)[m Delete package-lock.jso por confictos con el main
+[33mf2995aa[m Delete node_modules directory por conficto con el main
+[33mf626b52[m Delete node_modules directory por conficto con el main
+[33mabd1fcb[m Delete package.json por conflictos con el main
+[33m0aaf534[m Delete package.json por conflictos con el main
+[33mcb4d5ff[m se elimino por confilicto con el mai
+[33m8371161[m se elimino por confilicto con el mai
+[33m62eb80c[m cambios en una explicacion
+[33m004408a[m cambios en una explicacion
+[33mee60ea8[m se agrego nuevo estilos para boton de iniciar sesion
+[33m2df3fde[m se agrego nuevo estilos para boton de iniciar sesion
+[33mb1454b9[m se agrego funcion de inicio de sesion
+[33m84555e0[m se agrego funcion de inicio de sesion
+[33md1caeaa[m Se agrego boton de cerrar sesion en panel de control
+[33mf72b45b[m Se agrego boton de cerrar sesion en panel de control
+[33me9a99e6[m logo del proyecto
+[33m2db098c[m logo del proyecto
+[33mf35b6d3[m Delete registro/logo.jpg
+[33m401e9b1[m Delete registro/logo.jpg
+[33mbd9cf02[m Add files via upload
+[33m79e77ac[m Add files via upload
+[33m125debc[m feat: agrega interfaz principal de SISCOM con navegación y módulos de panel, medicamentos e inventario
+[33ma9292e7[m feat: agrega interfaz principal de SISCOM con navegación y módulos de panel, medicamentos e inventario
+[33m0ae5541[m style: añade estilos para navegación lateral, panel principal, formularios y tablas con diseño moderno y responsivo
+[33m49031d6[m style: añade estilos para navegación lateral, panel principal, formularios y tablas con diseño moderno y responsivo
+[33m4aa00fb[m feat: agrega navegación entre secciones y funciones para registrar medicamentos e inventario conectadas al backend
+[33mb29a34c[m feat: agrega navegación entre secciones y funciones para registrar medicamentos e inventario conectadas al backend
+[33m877154a[m Servidor Express con MySQL: rutas de login, registro, inventario y medicamentos. Configuración base lista y conexión MySQL .
+[33m6d33325[m Servidor Express con MySQL: rutas de login, registro, inventario y medicamentos. Configuración base lista y conexión MySQL .
+[33mb07def7[m actualizacion de los formularios por terminar
+[33mbc83567[m actualizacion de los formularios por terminar
+[33m9379746[m Merge pull request #1 from robery13/jonathan_Conexion_BD
+[33mdb32e9f[m Merge pull request #1 from robery13/jonathan_Conexion_BD
+[33m80d549c[m Añadido registro de usuarios a nivel administratiivo
+[33ma242feb[m[33m ([m[1;31morigin/jonathan_Conexion_BD[m[33m)[m Añadido registro de usuarios a nivel administratiivo
+[33mad44f76[m Agregado script de registro de usuario
+[33me8f2535[m Agregado script de registro de usuario
+[33m32f588d[m Se ajustaron los colores, márgenes y sombras para mantener el diseño clásico del panel. Se restauraron los estilos previos del formulario y botones, con un enfoque limpio y centrado visualmente.
+[33md6f2dca[m Se ajustaron los colores, márgenes y sombras para mantener el diseño clásico del panel. Se restauraron los estilos previos del formulario y botones, con un enfoque limpio y centrado visualmente.
+[33m9daed01[m Se organizó el HTML general del sistema, manteniendo la barra lateral y las secciones principales. Se añadió el formulario de medicamentos centrado visualmente, el cual solo se muestra al seleccionar la opción "Inventario".
+[33m4fa1960[m Se organizó el HTML general del sistema, manteniendo la barra lateral y las secciones principales. Se añadió el formulario de medicamentos centrado visualmente, el cual solo se muestra al seleccionar la opción "Inventario".
+[33mcc219b2[m Agregado menú prototipo y actualización de Proyect o_SISCOM, script_main y server.js
+[33mf17a47d[m Agregado menú prototipo y actualización de Proyect o_SISCOM, script_main y server.js
+[33m02d4aa8[m modificaciones de formularios de registro actualizados
+[33m34af360[m modificaciones de formularios de registro actualizados
+[33mb001506[m Comentarios en el codigo de server.js y script.js
+[33mb4492f3[m Comentarios en el codigo de server.js y script.js
+[33ma359ab9[m Actualizacion archivos faltantes
+[33m9fbe76b[m[33m ([m[1;32mjonathan_Conexion_BD[m[33m)[m Actualizacion archivos faltantes
+[33m26eab19[m Update Registro.html
+[33m3e1a17d[m Update Registro.html
+[33m3bd4e9e[m Add files via upload
+[33m93b133c[m Add files via upload
+[33m099d472[m Delete Html directory
+[33m4e9698a[m Delete Html directory
+[33m3dd96a7[m Create Fichero.html
+[33mb3cb485[m Create Fichero.html
+[33m3192a96[m actualizacio de arhivos un inicio con los login
+[33m58b0625[m[33m ([m[1;31morigin/diana[m[33m, [m[1;31morigin/Enalurfi[m[33m)[m actualizacio de arhivos un inicio con los login
+[33m066e6de[m se verifico enlace de medicamentos exitosa
+[33m5c561d7[m se verifico enlace de medicamentos exitosa
+[33mfe71f7e[m Add files via upload
+[33mc98b0c4[m Add files via upload
+[33m50f6bcc[m Add files via upload
+[33m9d9e632[m Add files via upload
+[33mf9d54f0[m Add files via upload
+[33m4bb6635[m Add files via upload
+[33mfb3208a[m Primera versión del sistema web SISCOM con estructura HTML, CSS, JS e imágenes
+[33m4fca0ad[m[33m ([m[1;31morigin/master[m[33m)[m subiendo primeros archivos
+[33m14e1a65[m Inicio proyecto web SISCOM: estructura base HTML/CSS/JS
+[33mad31d45[m Inicio proyecto web SISCOM con HTML, CSS y JavaScript
+[33m40699ec[m Inicio proyecto web SISCOM: estructura base HTML/CSS/JS
