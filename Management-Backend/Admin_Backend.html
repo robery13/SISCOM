@@ -10,8 +10,12 @@
   <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
    <!-- Estilos propios -->
-  <link rel="stylesheet" href="estilos.css" />
-  <link rel="stylesheet" href="Estiloficha1.css" />
+  <link rel="stylesheet" href="estilos.css?v=20260312-1" />
+<link rel="stylesheet" href="Estiloficha1.css" />
+  <!-- Chart.js + Animate on Scroll -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aos@next/dist/aos.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/aos@next/dist/aos.css" rel="stylesheet">
 
   
 </head>
@@ -90,7 +94,8 @@
 
       <nav class="nav-menu" id="navMenu">
         
-        <button class="nav-btn active" data-section="medicamentos" data-role="administrador,empleado"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
+        <button class="nav-btn active" data-section="dashboard" data-role="administrador,empleado"><i class="bi bi-speedometer2"></i> <span>Dashboard</span></button>
+        <button class="nav-btn" data-section="medicamentos" data-role="administrador,empleado"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
         <button class="nav-btn" data-section="recetas" data-role="administrador,empleado"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
         <button class="nav-btn" data-section="Ficha" data-role="administrador,empleado"><i class="bi bi-clipboard2-check"></i> <span>Verificaci&oacute;n de medicamentos</span></button>
         <button class="nav-btn" data-section="inventario" data-role="administrador,empleado"><i class="bi bi-box"></i> <span>Inventario</span></button>
@@ -105,6 +110,132 @@
     <main class="main">
 
       <!-- PANEL DE CONTROL -->
+      <section id="dashboard" class="section d-none">
+        <div class="section-header dashboard-hero" data-aos="fade-down">
+          <h1 class="dashboard-title"><i class="bi bi-speedometer2 me-2"></i> Dashboard</h1>
+          <p class="muted">Resumen en tiempo real con visualizaciones avanzadas y métricas clave del sistema SISCOM</p>
+          <div class="dashboard-meta">
+            <span class="meta-item"><i class="bi bi-clock-history"></i> Actualizado hace <span id="last-update">3s</span></span>
+            <button id="refreshDashboardBtn" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
+            </button>
+            <button id="darkModeToggle" class="btn btn-sm btn-outline-secondary ms-2">
+              <i class="bi bi-moon"></i>
+            </button>
+          </div>
+        </div>
+
+<div class="dashboard-kpi-grid" data-aos="fade-up" data-aos-delay="100">
+          <!-- KPI 1: Usuarios -->
+          <article class="dashboard-kpi-card glass-card animate-counter" data-target="0" data-id="kpiUsuariosTotal">
+            <div class="kpi-icon gradient-primary">
+              <i class="bi bi-people-fill"></i>
+            </div>
+            <div class="kpi-content">
+              <p>Usuarios Totales</p>
+              <div class="kpi-sparkline" id="sparkline-users"></div>
+              <h3 class="kpi-number" id="kpiUsuariosTotal">0</h3>
+              <span class="kpi-trend positive"><i class="bi bi-arrow-up"></i> +12%</span>
+            </div>
+          </article>
+          <article class="dashboard-kpi-card glass-card animate-counter" data-target="0" data-id="kpiMedicamentosActivos">
+            <div class="kpi-icon gradient-success">
+              <i class="bi bi-capsule-pill"></i>
+            </div>
+            <div class="kpi-content">
+              <p>Medicamentos Activos</p>
+              <div class="kpi-sparkline" id="sparkline-meds"></div>
+              <h3 class="kpi-number" id="kpiMedicamentosActivos">0</h3>
+              <span class="kpi-trend positive"><i class="bi bi-arrow-up"></i> +8%</span>
+            </div>
+          </article>
+          <article class="dashboard-kpi-card glass-card animate-counter" data-target="0" data-id="kpiStockBajo">
+            <div class="kpi-icon gradient-warning">
+              <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="kpi-content">
+              <p>Stock Bajo</p>
+              <div class="kpi-sparkline" id="sparkline-stock"></div>
+              <h3 class="kpi-number" id="kpiStockBajo">0</h3>
+              <span class="kpi-trend negative"><i class="bi bi-arrow-down"></i> -5%</span>
+            </div>
+          </article>
+          <article class="dashboard-kpi-card glass-card animate-counter" data-target="0" data-id="kpiCitasHoy">
+            <div class="kpi-icon gradient-info">
+              <i class="bi bi-calendar2-check"></i>
+            </div>
+            <div class="kpi-content">
+              <p>Citas Programadas Hoy</p>
+              <div class="kpi-sparkline" id="sparkline-citas"></div>
+              <h3 class="kpi-number" id="kpiCitasHoy">0</h3>
+              <span class="kpi-trend positive"><i class="bi bi-arrow-up"></i> +15%</span>
+              <p class="text-muted mb-0">Cargando actividad...</p>
+            </div>
+          </article>
+
+        </div>
+
+        <!-- Sección de Análisis y Gráficos -->
+        <div class="dashboard-analytics-grid" data-aos="fade-up" data-aos-delay="200">
+          <article class="card dashboard-panel analytics-card">
+            <div class="dashboard-panel-header">
+              <h5><i class="bi bi-bar-chart-line me-2"></i> Tendencias de Usuarios</h5>
+              <span class="badge bg-primary">Mensual</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-trends" height="250"></canvas>
+            </div>
+          </article>
+
+          <article class="card dashboard-panel analytics-card">
+            <div class="dashboard-panel-header">
+              <h5><i class="bi bi-pie-chart me-2"></i> Estado del Inventario</h5>
+              <span class="badge bg-success">En tiempo real</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-inventory" height="250"></canvas>
+            </div>
+          </article>
+
+          <article class="card dashboard-panel analytics-card">
+            <div class="dashboard-panel-header">
+              <h5><i class="bi bi-graph-up me-2"></i> Rendimiento del Sistema</h5>
+              <span class="badge bg-info">KPIs</span>
+            </div>
+            <div class="performance-metrics">
+              <div class="metric-item">
+                <div class="metric-icon">
+                  <i class="bi bi-speedometer2"></i>
+                </div>
+                <div class="metric-content">
+                  <span class="metric-value">98.5%</span>
+                  <span class="metric-label">Uptime</span>
+                </div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-icon">
+                  <i class="bi bi-lightning-charge"></i>
+                </div>
+                <div class="metric-content">
+                  <span class="metric-value">1.2s</span>
+                  <span class="metric-label">Respuesta Promedio</span>
+                </div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-icon">
+                  <i class="bi bi-shield-check"></i>
+                </div>
+                <div class="metric-content">
+                  <span class="metric-value">100%</span>
+                  <span class="metric-label">Seguridad</span>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+
+      </section>
       
 
       <!-- MEDICAMENTOS -->
@@ -152,8 +283,23 @@
               <i class="bi bi-plus-circle me-2"></i> Nuevo Medicamento
             </button>
           </div>
+          <div class="datatable-toolbar mb-3">
+            <div class="datatable-length">
+              <select id="entriesMedicamentos" class="form-select form-select-sm">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+              <span>entries per page</span>
+            </div>
+            <div class="datatable-search">
+              <label for="searchMedicamentosTabla">Search:</label>
+              <input type="text" id="searchMedicamentosTabla" class="form-control form-control-sm">
+            </div>
+          </div>
           <div class="table-responsive">
-            <table class="table table-hover" id="tablaMedicamentos">
+            <table class="table table-hover datatable-theme" id="tablaMedicamentos">
               <thead class="table-light">
                 <tr>
                   <th>Estado</th>
@@ -176,11 +322,12 @@
             </table>
           </div>
           <!-- Paginación -->
-          <div id="paginacionMedicamentos" class="d-flex justify-content-between align-items-center mt-3 d-none">
-            <small class="text-muted" id="infoPaginacion">Mostrando 0 de 0 medicamentos</small>
-            <div class="btn-group btn-group-sm">
-              <button id="btnAnterior" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i></button>
-              <button id="btnSiguiente" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-right"></i></button>
+          <div id="paginacionMedicamentos" class="custom-pagination d-none">
+            <small class="pagination-info" id="infoPaginacion">Showing 0 to 0 of 0 entries</small>
+            <div class="pagination-controls">
+              <button id="btnAnterior" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-left"></i></button>
+              <div id="pageNumbersMedicamentos" class="pagination-numbers"></div>
+              <button id="btnSiguiente" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-right"></i></button>
             </div>
           </div>
         </div>
@@ -424,10 +571,25 @@
         <i class="bi bi-plus-circle me-2"></i> Registrar o Actualizar Medicamento
       </button>
     </div>
+    <div class="datatable-toolbar mb-3">
+      <div class="datatable-length">
+        <select id="entriesInventario" class="form-select form-select-sm">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+        </select>
+        <span>entries per page</span>
+      </div>
+      <div class="datatable-search">
+        <label for="searchInventario">Search:</label>
+        <input type="text" id="searchInventario" class="form-control form-control-sm">
+      </div>
+    </div>
 
     <!-- TABLA -->
     <div class="table-responsive">
-      <table class="table" id="tablaInventario">
+      <table class="table datatable-theme" id="tablaInventario">
         <thead>
           <tr>
             <th>Medicamento</th>
@@ -438,6 +600,14 @@
         </thead>
         <tbody></tbody>
       </table>
+    </div>
+    <div id="paginacionInventario" class="custom-pagination d-none">
+      <small class="pagination-info" id="infoPaginacionInventario">Showing 0 to 0 of 0 entries</small>
+      <div class="pagination-controls">
+        <button id="btnAnteriorInventario" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-left"></i></button>
+        <div id="pageNumbersInventario" class="pagination-numbers"></div>
+        <button id="btnSiguienteInventario" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-right"></i></button>
+      </div>
     </div>
   </div>
 </section>
@@ -582,47 +752,132 @@
           <p class="muted">Lista, agrega, modifica y elimina usuarios del sistema.</p>
         </div>
 
-        <div class="card table-card">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="card-title mb-0"><i class="bi bi-list me-2"></i> Usuarios Registrados</h5>
-            <button id="abrirModalUsuario" class="btn btn-primary">
-              <i class="bi bi-plus-circle me-2"></i> Nuevo Usuario
+        <ul class="nav nav-tabs mb-4" id="usuariosTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-usuarios-registrados" data-bs-toggle="tab" data-bs-target="#panel-usuarios-registrados" type="button" role="tab" aria-controls="panel-usuarios-registrados" aria-selected="true">
+              <i class="bi bi-list-ul me-2"></i>Usuarios Registrados
             </button>
-          </div>
-          <div class="mb-3">
-            <input type="text" id="searchUsuarios" class="form-control" placeholder="Buscar usuarios...">
-          </div>
-          <div id="paginacionUsuarios" class="d-flex justify-content-between align-items-center mb-3 d-none">
-            <small class="text-muted" id="infoPaginacionUsuarios">Mostrando 0 de 0 usuarios</small>
-            <div class="btn-group btn-group-sm">
-              <button id="btnAnteriorUsuarios" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i></button>
-              <button id="btnSiguienteUsuarios" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-right"></i></button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-usuarios-asignacion" data-bs-toggle="tab" data-bs-target="#panel-usuarios-asignacion" type="button" role="tab" aria-controls="panel-usuarios-asignacion" aria-selected="false">
+              <i class="bi bi-diagram-3 me-2"></i>Asignación de Pacientes por Cuidador
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="usuariosTabsContent">
+          <div class="tab-pane fade show active" id="panel-usuarios-registrados" role="tabpanel" aria-labelledby="tab-usuarios-registrados">
+            <div class="card table-card">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0"><i class="bi bi-list me-2"></i> Usuarios Registrados</h5>
+                <button id="abrirModalUsuario" class="btn btn-primary">
+                  <i class="bi bi-plus-circle me-2"></i> Nuevo Usuario
+                </button>
+              </div>
+              <div class="datatable-toolbar mb-3">
+                <div class="datatable-length">
+                  <select id="entriesUsuarios" class="form-select form-select-sm">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                  </select>
+                  <span>entries per page</span>
+                </div>
+                <div class="datatable-search">
+                  <label for="searchUsuarios">Search:</label>
+                  <input type="text" id="searchUsuarios" class="form-control form-control-sm">
+                </div>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover table-striped mb-0 datatable-theme" id="tablaUsuarios">
+                    <thead class="table-dark">
+                      <tr>
+                        <th class="fw-bold"><i class="bi bi-hash me-2"></i>Id</th>
+                        <th class="fw-bold"><i class="bi bi-person me-2"></i>Nombres</th>
+                        <th class="fw-bold"><i class="bi bi-person me-2"></i>Apellidos</th>
+                        <th class="fw-bold"><i class="bi bi-card-text me-2"></i>Identidad</th>
+                        <th class="fw-bold"><i class="bi bi-telephone me-2"></i>Teléfono</th>
+                        <th class="fw-bold"><i class="bi bi-envelope me-2"></i>Email</th>
+                        <th class="fw-bold"><i class="bi bi-shield me-2"></i>Rol</th>
+                        <th class="fw-bold text-center"><i class="bi bi-gear me-2"></i>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div id="noUsuarios" class="text-center text-muted py-5 d-none">
+                  <i class="bi bi-people display-4 mb-3"></i>
+                  <h5>No hay usuarios registrados</h5>
+                  <p>Haz clic en "Nuevo Usuario" para agregar el primer usuario.</p>
+                </div>
+                <div id="paginacionUsuarios" class="custom-pagination mt-3 d-none">
+                  <small class="pagination-info" id="infoPaginacionUsuarios">Showing 0 to 0 of 0 entries</small>
+                  <div class="pagination-controls">
+                    <button id="btnAnteriorUsuarios" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-left"></i></button>
+                    <div id="pageNumbersUsuarios" class="pagination-numbers"></div>
+                    <button id="btnSiguienteUsuarios" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-right"></i></button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-hover table-striped mb-0" id="tablaUsuarios">
-                <thead class="table-dark">
-                  <tr>
-                    <th class="fw-bold"><i class="bi bi-hash me-2"></i>Id</th>
-                    <th class="fw-bold"><i class="bi bi-person me-2"></i>Nombres</th>
-                    <th class="fw-bold"><i class="bi bi-person me-2"></i>Apellidos</th>
-                    <th class="fw-bold"><i class="bi bi-card-text me-2"></i>Identidad</th>
-                    <th class="fw-bold"><i class="bi bi-telephone me-2"></i>Teléfono</th>
-                    <th class="fw-bold"><i class="bi bi-envelope me-2"></i>Email</th>
-                    <th class="fw-bold"><i class="bi bi-shield me-2"></i>Rol</th>
-                    <th class="fw-bold text-center"><i class="bi bi-gear me-2"></i>Acciones</th>
-                  </tr>
 
+          <div class="tab-pane fade" id="panel-usuarios-asignacion" role="tabpanel" aria-labelledby="tab-usuarios-asignacion">
+            <div class="card form-card">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                  <h5 class="card-title mb-1"><i class="bi bi-diagram-3 me-2"></i>Asignación de Pacientes por Cuidador</h5>
+                  <p class="text-muted mb-0">Selecciona un cuidador, agrega pacientes y guarda la relación para <code>cuidador_backend.html</code>.</p>
+                </div>
+                <button id="guardarAsignacionesBtn" class="btn btn-primary">
+                  <i class="bi bi-save me-2"></i>Guardar Asignaciones
+                </button>
+              </div>
 
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-            <div id="noUsuarios" class="text-center text-muted py-5 d-none">
-              <i class="bi bi-people display-4 mb-3"></i>
-              <h5>No hay usuarios registrados</h5>
-              <p>Haz clic en "Nuevo Usuario" para agregar el primer usuario.</p>
+              <div class="row g-4">
+                <div class="col-lg-4">
+                  <label for="selectCuidadorAsignacion" class="form-label">Cuidador</label>
+                  <select id="selectCuidadorAsignacion" class="form-select mb-3">
+                    <option value="">Selecciona un cuidador</option>
+                  </select>
+                  <div class="form-text mb-3">Solo se muestran usuarios con rol <strong>empleado</strong>.</div>
+
+                  <label for="selectPacienteDisponibleAsignacion" class="form-label">Agregar paciente</label>
+                  <div class="input-group">
+                    <select id="selectPacienteDisponibleAsignacion" class="form-select">
+                      <option value="">Selecciona un paciente</option>
+                    </select>
+                    <button id="agregarPacienteAsignacionBtn" type="button" class="btn btn-outline-primary">
+                      <i class="bi bi-plus-lg"></i>
+                    </button>
+                  </div>
+
+                  <div class="mt-3 small text-muted" id="resumenAsignacionesCuidador">
+                    Selecciona un cuidador para administrar sus pacientes.
+                  </div>
+                </div>
+
+                <div class="col-lg-8">
+                  <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="tablaPacientesAsignados">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Paciente</th>
+                          <th>Correo</th>
+                          <th class="text-center">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td colspan="3" class="text-center text-muted py-4">Selecciona un cuidador para administrar sus pacientes.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1015,6 +1270,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // Si no se restauró una sección válida, mostrar la sección inicial
+      if (!seccionRestaurada) {
+        const botonInicial = Array.from(navBtns).find((btn) => {
+          const roleAttr = btn.getAttribute('data-role');
+          if (!roleAttr) return true;
+          return roleAttr.split(',').map((r) => r.trim()).includes(userRole);
+        }) || navBtns[0];
+
+        const sectionIdInicial = botonInicial?.getAttribute('data-section') || 'dashboard';
+        const seccionInicial = document.getElementById(sectionIdInicial);
+
+        sections.forEach(sec => sec.classList.add('d-none'));
+        navBtns.forEach(b => b.classList.remove('active'));
+
+        if (seccionInicial) {
+          seccionInicial.classList.remove('d-none');
+        }
+        if (botonInicial) {
+          botonInicial.classList.add('active');
+        }
+
+        guardarSeccionActiva(sectionIdInicial);
+      }
+
       navBtns.forEach(btn => {
 
         btn.addEventListener('click', () => {
@@ -1033,12 +1312,23 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             // Guardar sección en localStorage
             guardarSeccionActiva(sectionId);
+            if (sectionId === 'dashboard' && window.cargarDashboard) {
+              window.cargarDashboard();
+            }
             if (sectionId === 'Ficha' && window.cargarVerificacionMedicamentos) {
               window.cargarVerificacionMedicamentos();
             }
           }
         });
       });
+
+      // Reutilizar el mismo flujo del clic para la carga inicial
+      const botonActivoInicial = document.querySelector('.nav-btn.active');
+      if (botonActivoInicial) {
+        setTimeout(() => {
+          botonActivoInicial.click();
+        }, 0);
+      }
     });
   </script>
 
@@ -1056,6 +1346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
           // Intentar llamar funciones de carga específicas si existen
           const funcionesCarga = {
+            'dashboard': 'cargarDashboard',
             'medicamentos': 'cargarMedicamentos',
             'recetas': 'cargarCitas',
             'inventario': 'cargarInventario',
@@ -1106,6 +1397,9 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   </script>
+
+  <!-- dashboard script removed – functionality delegated to external scriptregistro.js -->
+
 
 
   <!-- Script para preservar posición de scroll -->

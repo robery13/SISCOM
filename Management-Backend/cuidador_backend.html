@@ -10,7 +10,7 @@
   <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
    <!-- Estilos propios -->
-  <link rel="stylesheet" href="estilos.css" />
+  <link rel="stylesheet" href="estilos.css?v=20260312-1" />
   <link rel="stylesheet" href="Estiloficha1.css" />
 
 </head>
@@ -98,8 +98,23 @@
               <i class="bi bi-plus-circle me-2"></i> Nuevo Medicamento
             </button>
           </div>
+          <div class="datatable-toolbar mb-3">
+            <div class="datatable-length">
+              <select id="entriesMedicamentos" class="form-select form-select-sm">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+              <span>entries per page</span>
+            </div>
+            <div class="datatable-search">
+              <label for="searchMedicamentosTabla">Search:</label>
+              <input type="text" id="searchMedicamentosTabla" class="form-control form-control-sm">
+            </div>
+          </div>
           <div class="table-responsive">
-            <table class="table table-hover" id="tablaMedicamentos">
+            <table class="table table-hover datatable-theme" id="tablaMedicamentos">
               <thead class="table-light">
                 <tr>
                   <th>Estado</th>
@@ -122,11 +137,12 @@
             </table>
           </div>
           <!-- Paginación -->
-          <div id="paginacionMedicamentos" class="d-flex justify-content-between align-items-center mt-3 d-none">
-            <small class="text-muted" id="infoPaginacion">Mostrando 0 de 0 medicamentos</small>
-            <div class="btn-group btn-group-sm">
-              <button id="btnAnterior" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i></button>
-              <button id="btnSiguiente" class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-right"></i></button>
+          <div id="paginacionMedicamentos" class="custom-pagination d-none">
+            <small class="pagination-info" id="infoPaginacion">Showing 0 to 0 of 0 entries</small>
+            <div class="pagination-controls">
+              <button id="btnAnterior" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-left"></i></button>
+              <div id="pageNumbersMedicamentos" class="pagination-numbers"></div>
+              <button id="btnSiguiente" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-right"></i></button>
             </div>
           </div>
         </div>
@@ -454,10 +470,25 @@
         <i class="bi bi-plus-circle me-2"></i> Registrar o Actualizar Medicamento
       </button>
     </div>
+    <div class="datatable-toolbar mb-3">
+      <div class="datatable-length">
+        <select id="entriesInventario" class="form-select form-select-sm">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+        </select>
+        <span>entries per page</span>
+      </div>
+      <div class="datatable-search">
+        <label for="searchInventario">Search:</label>
+        <input type="text" id="searchInventario" class="form-control form-control-sm">
+      </div>
+    </div>
 
     <!-- TABLA -->
     <div class="table-responsive">
-      <table class="table" id="tablaInventario">
+      <table class="table datatable-theme" id="tablaInventario">
         <thead>
           <tr>
             <th>Medicamento</th>
@@ -468,6 +499,14 @@
         </thead>
         <tbody></tbody>
       </table>
+    </div>
+    <div id="paginacionInventario" class="custom-pagination d-none">
+      <small class="pagination-info" id="infoPaginacionInventario">Showing 0 to 0 of 0 entries</small>
+      <div class="pagination-controls">
+        <button id="btnAnteriorInventario" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-left"></i></button>
+        <div id="pageNumbersInventario" class="pagination-numbers"></div>
+        <button id="btnSiguienteInventario" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-right"></i></button>
+      </div>
     </div>
   </div>
 </section>
@@ -800,6 +839,45 @@
   <script src="scriptregistro.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
+  <script>
+    function obtenerTokenCuidador() {
+      let token = localStorage.getItem('auth_token') ||
+                  localStorage.getItem('token') ||
+                  localStorage.getItem('accessToken') ||
+                  sessionStorage.getItem('auth_token') ||
+                  sessionStorage.getItem('token');
+
+      if (!token) {
+        const usuarioData = localStorage.getItem('usuario');
+        if (usuarioData) {
+          try {
+            const usuario = JSON.parse(usuarioData);
+            token = usuario.token || usuario.accessToken || usuario.authToken || token;
+          } catch (e) {
+            console.warn('No se pudo recuperar el token del cuidador', e);
+          }
+        }
+      }
+
+      return token;
+    }
+
+    function obtenerHeadersCuidador() {
+      const headers = {};
+      const token = obtenerTokenCuidador();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      return headers;
+    }
+
+    function obtenerPacientesCuidador() {
+      return fetch('http://localhost:3000/mis-pacientes', {
+        headers: obtenerHeadersCuidador()
+      });
+    }
+  </script>
+
   <!-- Script para abrir modal de medicamentos -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -859,6 +937,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (savedSection === 'Ficha' && window.cargarVerificacionMedicamentos) {
               window.cargarVerificacionMedicamentos();
             }
+            if (savedSection === 'inventario') {
+              if (window.cargarInventario) window.cargarInventario();
+              if (window.verificarAlertasStock) window.verificarAlertasStock();
+            }
             return true;
           }
         }
@@ -889,6 +971,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Cargar verificacion cuando se muestra la seccion
             if (sectionId === 'Ficha' && window.cargarVerificacionMedicamentos) {
               window.cargarVerificacionMedicamentos();
+            }
+            if (sectionId === 'inventario') {
+              if (window.cargarInventario) window.cargarInventario();
+              if (window.verificarAlertasStock) window.verificarAlertasStock();
             }
           }
         });
@@ -1028,15 +1114,19 @@ document.addEventListener('DOMContentLoaded', () => {
       let modoEdicion = false;
       let citaEditandoId = null;
       let citasGlobales = []; // Variable global para almacenar citas
+      let pacientesCitasMap = new Map();
 
       // Cargar pacientes en los selects
 
       async function cargarPacientesCitas() {
         try {
-          const response = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          const response = await obtenerPacientesCuidador();
           if (!response.ok) throw new Error('Error al cargar pacientes');
           
           const pacientes = await response.json();
+          pacientesCitasMap = new Map(
+            pacientes.map((paciente) => [String(paciente.id), `${paciente.nombres} ${paciente.apellidos}`])
+          );
           
           // Limpiar y poblar selects
           const opcionDefault = '<option value="" selected disabled>Seleccione un paciente</option>';
@@ -1064,12 +1154,54 @@ document.addEventListener('DOMContentLoaded', () => {
           
           const citas = await response.json();
           citasGlobales = citas; // Guardar en variable global
-          mostrarCitas();
-          actualizarResumen(citas);
+          aplicarFiltrosCitas();
         } catch (error) {
           console.error('Error al cargar citas:', error);
           mostrarToast('Error al cargar citas desde el servidor', 'danger');
         }
+      }
+
+      function obtenerFechaLocalISO(fechaValor) {
+        if (!fechaValor) return '';
+        const fechaNormalizada =
+          typeof fechaValor === 'string'
+            ? fechaValor.replace(' ', 'T')
+            : fechaValor;
+
+        const fecha = new Date(fechaNormalizada);
+        if (Number.isNaN(fecha.getTime())) return '';
+
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      function obtenerCitasFiltradas(citas = []) {
+        const filtroPaciente = filtroPacienteCita.value;
+        const filtroEstado = filtroEstadoCita.value;
+        const fechaDesde = filtroFechaDesde.value;
+        const fechaHasta = filtroFechaHasta.value;
+
+        return citas
+          .filter((cita) => {
+            let incluir = true;
+            const fechaCitaActual = obtenerFechaLocalISO(cita.fecha_hora);
+
+            if (filtroPaciente && String(cita.id_paciente) !== String(filtroPaciente)) incluir = false;
+            if (filtroEstado && String(cita.estado || 'programada') !== filtroEstado) incluir = false;
+            if (fechaDesde && fechaCitaActual < fechaDesde) incluir = false;
+            if (fechaHasta && fechaCitaActual > fechaHasta) incluir = false;
+
+            return incluir;
+          })
+          .sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
+      }
+
+      function aplicarFiltrosCitas() {
+        const citasFiltradas = obtenerCitasFiltradas(citasGlobales || []);
+        mostrarCitas(citasFiltradas);
+        actualizarResumen(citasFiltradas);
       }
 
 
@@ -1117,49 +1249,20 @@ document.addEventListener('DOMContentLoaded', () => {
       function mostrarCitas(citas = null) {
         // Usar citasGlobales si no se pasan citas como parámetro
         const citasAMostrar = citas || citasGlobales || [];
-        
-        // Debug: ver qué campos tiene la primera cita
-        if (citasAMostrar.length > 0) {
-          console.log('Primera cita recibida:', citasAMostrar[0]);
-          console.log('Campos disponibles:', Object.keys(citasAMostrar[0]));
-        }
 
-        const filtroPaciente = filtroPacienteCita.value;
-        const filtroEstado = filtroEstadoCita.value;
-        const fechaDesde = filtroFechaDesde.value;
-        const fechaHasta = filtroFechaHasta.value;
+        contadorCitas.textContent = `${citasAMostrar.length} citas`;
 
-        let citasFiltradas = citasAMostrar.filter(cita => {
-
-          let incluir = true;
-          const fechaCita = cita.fecha_hora ? new Date(cita.fecha_hora).toISOString().split('T')[0] : '';
-          
-          if (filtroPaciente && cita.id_paciente != filtroPaciente) incluir = false;
-          if (filtroEstado && cita.estado !== filtroEstado) incluir = false;
-          if (fechaDesde && fechaCita < fechaDesde) incluir = false;
-          if (fechaHasta && fechaCita > fechaHasta) incluir = false;
-          
-          return incluir;
-        });
-
-        // Ordenar por fecha y hora
-        citasFiltradas.sort((a, b) => {
-          return new Date(a.fecha_hora) - new Date(b.fecha_hora);
-        });
-
-        contadorCitas.textContent = `${citasFiltradas.length} citas`;
-
-        if (citasFiltradas.length === 0) {
+        if (citasAMostrar.length === 0) {
           listaCitas.innerHTML = `
             <div class="text-center text-muted p-4">
               <i class="bi bi-calendar-x display-4 d-block mb-2"></i>
-              No hay citas registradas. Crea una nueva cita usando el formulario.
+              No hay citas que coincidan con los filtros seleccionados.
             </div>
           `;
           return;
         }
 
-        listaCitas.innerHTML = citasFiltradas.map(cita => {
+        listaCitas.innerHTML = citasAMostrar.map(cita => {
           // Intentar obtener el ID de diferentes campos posibles
           const citaId = cita.id || cita.id_cita || cita.cita_id || cita.ID;
           
@@ -1173,6 +1276,7 @@ document.addEventListener('DOMContentLoaded', () => {
           
           const fechaStr = fechaHora.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
           const horaStr = fechaHora.toTimeString().slice(0, 5);
+          const nombrePaciente = pacientesCitasMap.get(String(cita.id_paciente)) || `Paciente #${cita.id_paciente}`;
           
           const badgeClass = {
             'programada': 'bg-primary',
@@ -1198,7 +1302,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   </div>
                   <h6 class="mb-1">${cita.motivo}</h6>
                   <p class="mb-1 text-muted">
-                    <i class="bi bi-person me-1"></i> Paciente #${cita.id_paciente}<br>
+                    <i class="bi bi-person me-1"></i> ${nombrePaciente}<br>
                     <i class="bi bi-calendar me-1"></i> ${fechaStr} 
                     <i class="bi bi-clock ms-2 me-1"></i> ${horaStr}
                   </p>
@@ -1294,7 +1398,7 @@ document.addEventListener('DOMContentLoaded', () => {
           
           // Parsear fecha y hora del formato datetime
           const fechaHora = new Date(cita.fecha_hora);
-          const fechaStr = fechaHora.toISOString().split('T')[0];
+          const fechaStr = obtenerFechaLocalISO(cita.fecha_hora);
           const horaStr = fechaHora.toTimeString().slice(0, 5);
           
           modoEdicion = true;
@@ -1397,17 +1501,19 @@ document.addEventListener('DOMContentLoaded', () => {
       
       limpiarCitaBtn.addEventListener('click', limpiarFormulario);
       
-      filtroPacienteCita.addEventListener('change', mostrarCitas);
-      filtroEstadoCita.addEventListener('change', mostrarCitas);
-      filtroFechaDesde.addEventListener('change', mostrarCitas);
-      filtroFechaHasta.addEventListener('change', mostrarCitas);
+      filtroPacienteCita.addEventListener('change', aplicarFiltrosCitas);
+      filtroEstadoCita.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaDesde.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaHasta.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaDesde.addEventListener('input', aplicarFiltrosCitas);
+      filtroFechaHasta.addEventListener('input', aplicarFiltrosCitas);
       
       limpiarFiltrosCitas.addEventListener('click', () => {
         filtroPacienteCita.value = '';
         filtroEstadoCita.value = '';
         filtroFechaDesde.value = '';
         filtroFechaHasta.value = '';
-        mostrarCitas();
+        aplicarFiltrosCitas();
       });
       
       // Botón eliminar todas las citas
@@ -1668,7 +1774,7 @@ document.addEventListener('DOMContentLoaded', () => {
       async function cargarPacientes() {
         try {
           console.log('Obteniendo pacientes de http://localhost:3000/usuarios/rol/usuario');
-          const response = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          const response = await obtenerPacientesCuidador();
           
           if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
@@ -2135,7 +2241,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       async function cargarPacientesVerificacion() {
         try {
-          const resp = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          const resp = await obtenerPacientesCuidador();
           if (!resp.ok) throw new Error('No se pudieron cargar pacientes');
           const pacientes = await resp.json();
 
@@ -2164,7 +2270,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resumen.textContent = '';
 
         try {
-          const pacientesResp = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          const pacientesResp = await obtenerPacientesCuidador();
           if (!pacientesResp.ok) throw new Error('No se pudieron cargar pacientes');
           const pacientes = await pacientesResp.json();
 

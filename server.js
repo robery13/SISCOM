@@ -53,6 +53,26 @@ db.connect(err => {
         ensureTomasMedicasColumn('motivo_omision', "ALTER TABLE tomas_medicas ADD COLUMN motivo_omision TEXT NULL AFTER estado");
       }
     });
+
+    const createAsignacionesSql = `
+      CREATE TABLE IF NOT EXISTS cuidador_pacientes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        cuidador_id INT NOT NULL,
+        paciente_id INT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_cuidador_paciente (cuidador_id, paciente_id),
+        INDEX idx_cuidador_id (cuidador_id),
+        INDEX idx_paciente_id (paciente_id)
+      )
+    `;
+
+    db.query(createAsignacionesSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla cuidador_pacientes:', err);
+      } else {
+        console.log('Tabla cuidador_pacientes verificada/creada correctamente');
+      }
+    });
   }
 });
 
@@ -1807,6 +1827,151 @@ app.get('/usuarios/rol/:rol', (req, res) => {
   db.query(sql, [rol], (err, results) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar usuarios' });
     res.json(results);
+  });
+});
+
+app.get('/asignaciones-cuidador', verificarRol(['administrador']), (req, res) => {
+  const sqlCuidadores = "SELECT id, nombres, apellidos, email FROM usuarios WHERE rol = 'empleado' ORDER BY nombres, apellidos";
+  const sqlPacientes = "SELECT id, nombres, apellidos, email FROM usuarios WHERE rol = 'usuario' ORDER BY nombres, apellidos";
+  const sqlAsignaciones = `
+    SELECT cp.cuidador_id, cp.paciente_id,
+           c.nombres AS cuidador_nombres, c.apellidos AS cuidador_apellidos,
+           p.nombres AS paciente_nombres, p.apellidos AS paciente_apellidos
+    FROM cuidador_pacientes cp
+    INNER JOIN usuarios c ON c.id = cp.cuidador_id
+    INNER JOIN usuarios p ON p.id = cp.paciente_id
+    ORDER BY c.nombres, c.apellidos, p.nombres, p.apellidos
+  `;
+
+  db.query(sqlCuidadores, (errCuidadores, cuidadores) => {
+    if (errCuidadores) {
+      return res.status(500).json({ mensaje: 'Error al cargar cuidadores' });
+    }
+
+    db.query(sqlPacientes, (errPacientes, pacientes) => {
+      if (errPacientes) {
+        return res.status(500).json({ mensaje: 'Error al cargar pacientes' });
+      }
+
+      db.query(sqlAsignaciones, (errAsignaciones, asignaciones) => {
+        if (errAsignaciones) {
+          return res.status(500).json({ mensaje: 'Error al cargar asignaciones' });
+        }
+
+        res.json({ cuidadores, pacientes, asignaciones });
+      });
+    });
+  });
+});
+
+app.get('/asignaciones-cuidador/:cuidadorId', verificarRol(['administrador']), (req, res) => {
+  const { cuidadorId } = req.params;
+  const sql = `
+    SELECT paciente_id
+    FROM cuidador_pacientes
+    WHERE cuidador_id = ?
+    ORDER BY paciente_id
+  `;
+
+  db.query(sql, [cuidadorId], (err, results) => {
+    if (err) {
+      return res.status(500).json({ mensaje: 'Error al cargar asignaciones del cuidador' });
+    }
+
+    res.json(results.map((row) => row.paciente_id));
+  });
+});
+
+app.post('/asignaciones-cuidador/:cuidadorId', verificarRol(['administrador']), (req, res) => {
+  const { cuidadorId } = req.params;
+  const { pacientes } = req.body;
+
+  const cuidadorIdNum = parseInt(cuidadorId, 10);
+  const pacientesIds = Array.isArray(pacientes)
+    ? [...new Set(pacientes.map((id) => parseInt(id, 10)).filter((id) => Number.isInteger(id) && id > 0))]
+    : [];
+
+  if (!Number.isInteger(cuidadorIdNum) || cuidadorIdNum <= 0) {
+    return res.status(400).json({ mensaje: 'Cuidador inválido' });
+  }
+
+  const sqlValidarCuidador = "SELECT id FROM usuarios WHERE id = ? AND rol = 'empleado' LIMIT 1";
+  db.query(sqlValidarCuidador, [cuidadorIdNum], (errValidar, cuidadores) => {
+    if (errValidar) {
+      return res.status(500).json({ mensaje: 'Error al validar cuidador' });
+    }
+
+    if (!cuidadores.length) {
+      return res.status(404).json({ mensaje: 'Cuidador no encontrado' });
+    }
+
+    const sqlDelete = 'DELETE FROM cuidador_pacientes WHERE cuidador_id = ?';
+    db.query(sqlDelete, [cuidadorIdNum], (errDelete) => {
+      if (errDelete) {
+        return res.status(500).json({ mensaje: 'Error al actualizar asignaciones' });
+      }
+
+      if (!pacientesIds.length) {
+        return res.json({ mensaje: 'Asignaciones actualizadas correctamente' });
+      }
+
+      const sqlInsert = 'INSERT INTO cuidador_pacientes (cuidador_id, paciente_id) VALUES ?';
+      const values = pacientesIds.map((pacienteId) => [cuidadorIdNum, pacienteId]);
+
+      db.query(sqlInsert, [values], (errInsert) => {
+        if (errInsert) {
+          return res.status(500).json({ mensaje: 'Error al guardar asignaciones' });
+        }
+
+        res.json({ mensaje: 'Asignaciones actualizadas correctamente' });
+      });
+    });
+  });
+});
+
+app.get('/mis-pacientes', verificarRol(['administrador', 'empleado']), (req, res) => {
+  if (req.user.rol === 'administrador') {
+    const sqlAdmin = "SELECT id, nombres, apellidos, email FROM usuarios WHERE rol = 'usuario' ORDER BY nombres, apellidos";
+    db.query(sqlAdmin, (err, results) => {
+      if (err) return res.status(500).json({ mensaje: 'Error al cargar pacientes' });
+      res.json(results);
+    });
+    return;
+  }
+
+  const sql = `
+    SELECT u.id, u.nombres, u.apellidos, u.email
+    FROM cuidador_pacientes cp
+    INNER JOIN usuarios u ON u.id = cp.paciente_id
+    WHERE cp.cuidador_id = ? AND u.rol = 'usuario'
+    ORDER BY u.nombres, u.apellidos
+  `;
+
+  db.query(sql, [req.user.id], (err, results) => {
+    if (err) {
+      return res.status(500).json({ mensaje: 'Error al cargar pacientes asignados' });
+    }
+
+    res.json(results);
+  });
+});
+
+app.get('/mi-cuidador', verificarRol(['usuario']), (req, res) => {
+  const sql = `
+    SELECT u.id, u.nombres, u.apellidos, u.email, u.telefono
+    FROM cuidador_pacientes cp
+    INNER JOIN usuarios u ON u.id = cp.cuidador_id
+    WHERE cp.paciente_id = ? AND u.rol = 'empleado'
+    ORDER BY cp.created_at ASC, u.nombres ASC, u.apellidos ASC
+    LIMIT 1
+  `;
+
+  db.query(sql, [req.user.id], (err, results) => {
+    if (err) {
+      return res.status(500).json({ mensaje: 'Error al cargar el cuidador asignado' });
+    }
+
+    res.json(results[0] || null);
   });
 });
 

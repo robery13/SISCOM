@@ -36,15 +36,19 @@ function togglePassword(inputId, iconElement) {
   }
 }
 
-// Mostrar icono del ojo solo si hay texto
+// Mantener visible el icono del ojo en todos los campos de contraseña
 function toggleEyeVisibility(input) {
-  const icon = input.parentElement.querySelector(".toggle-password");
-  if (icon) icon.style.display = input.value.trim() ? "block" : "none";
+  const container = input.closest(".password-container");
+  if (!container) return;
+  const icon = container.querySelector(".toggle-password");
+  if (icon) icon.style.display = "flex";
 }
 
-// Al cargar la página, ocultar todos los iconos de contraseña
 window.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll(".toggle-password").forEach(icon => icon.style.display = "none");
+  document.querySelectorAll(".password-container input").forEach((input) => {
+    toggleEyeVisibility(input);
+    input.addEventListener("input", () => toggleEyeVisibility(input));
+  });
 });
 
 // ================== VALIDACIÓN DE CONTRASEÑA ==================

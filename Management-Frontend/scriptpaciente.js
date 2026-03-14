@@ -27,6 +27,51 @@ function getAuthToken() {
   return localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
 }
 
+async function cargarCuidadorAsignado() {
+  try {
+    const token = getAuthToken();
+    if (!token) return;
+
+    const response = await fetch(`${API_URL}/mi-cuidador`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('No se pudo cargar el cuidador asignado');
+    }
+
+    const cuidador = await response.json();
+    const nombreCuidador = cuidador
+      ? `${cuidador.nombres || ''} ${cuidador.apellidos || ''}`.trim()
+      : 'Sin cuidador asignado';
+
+    const sidebarCaregiver = document.getElementById('sidebar-caregiver');
+    const welcomeCaregiver = document.getElementById('welcome-caregiver');
+
+    if (sidebarCaregiver) {
+      sidebarCaregiver.textContent = `Cuidador: ${nombreCuidador}`;
+    }
+
+    if (welcomeCaregiver) {
+      welcomeCaregiver.textContent = `Cuidador asignado: ${nombreCuidador}`;
+    }
+  } catch (error) {
+    console.error('Error al cargar cuidador asignado:', error);
+    const sidebarCaregiver = document.getElementById('sidebar-caregiver');
+    const welcomeCaregiver = document.getElementById('welcome-caregiver');
+
+    if (sidebarCaregiver) {
+      sidebarCaregiver.textContent = 'Cuidador: no disponible';
+    }
+
+    if (welcomeCaregiver) {
+      welcomeCaregiver.textContent = 'Cuidador asignado: no disponible';
+    }
+  }
+}
+
 function isRememberMeActive() {
   return localStorage.getItem('remember_me') === 'true';
 }
@@ -3326,6 +3371,7 @@ async function cargarAvatarYNombre() {
     
     if (welcomeAvatar) welcomeAvatar.innerHTML = avatarHTML;
     if (welcomeUsername) welcomeUsername.textContent = nombreUsuario;
+    await cargarCuidadorAsignado();
     
   } catch (error) {
     console.log('Error al cargar avatar:', error);

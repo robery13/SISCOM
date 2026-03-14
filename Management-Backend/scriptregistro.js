@@ -1,4 +1,503 @@
 // ===============================
+/* DASHBOARD ENHANCEMENTS */
+// ===============================
+const hasAOS = typeof window !== "undefined" && typeof window.AOS !== "undefined";
+const hasChart = typeof window !== "undefined" && typeof window.Chart !== "undefined";
+
+function obtenerTokenSesion() {
+  let token = localStorage.getItem('auth_token') ||
+              localStorage.getItem('token') ||
+              localStorage.getItem('accessToken') ||
+              sessionStorage.getItem('auth_token') ||
+              sessionStorage.getItem('token');
+
+  if (!token) {
+    const usuarioData = localStorage.getItem('usuario');
+    if (usuarioData) {
+      try {
+        const usuario = JSON.parse(usuarioData);
+        token = usuario.token || usuario.accessToken || usuario.authToken || token;
+      } catch (e) {
+        console.warn('No se pudo recuperar token desde localStorage.usuario', e);
+      }
+    }
+  }
+
+  return token;
+}
+
+function obtenerUrlPacientesSegunVista() {
+  const path = String(window.location.pathname || '').toLowerCase();
+  return path.includes('cuidador_backend.html')
+    ? 'http://localhost:3000/mis-pacientes'
+    : 'http://localhost:3000/usuarios/rol/usuario';
+}
+
+function obtenerHeadersPacientes() {
+  const headers = {};
+  const token = obtenerTokenSesion();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+// Initialize AOS animations
+if (hasAOS) {
+  AOS.init({
+    duration: 1000,
+    once: true,
+    offset: 100
+  });
+}
+
+// Dark Mode Toggle
+let darkMode = localStorage.getItem('darkMode') === 'enabled';
+const darkModeToggle = document.getElementById('darkModeToggle');
+if (darkModeToggle) {
+  const icon = darkModeToggle.querySelector('i');
+  if (darkMode) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    icon.className = 'bi bi-sun';
+  }
+  
+  darkModeToggle.addEventListener('click', () => {
+    darkMode = !darkMode;
+    if (darkMode) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      icon.className = 'bi bi-sun';
+      localStorage.setItem('darkMode', 'enabled');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      icon.className = 'bi bi-moon';
+      localStorage.setItem('darkMode', 'disabled');
+    }
+    // adjust chart colors after theme change
+    if (hasChart) {
+      Chart.defaults.color = getComputedStyle(document.body).color || '';
+      if (window.myTrendChart) window.myTrendChart.update();
+      if (window.myInventoryChart) window.myInventoryChart.update();
+    }
+  });
+}
+
+// Animated Counters
+function animateCounter(el, target, duration = 2000) {
+  if (isNaN(target) || target < 0) target = 0;
+  let start = 0;
+  const increment = target / (duration / 16);
+  const timer = setInterval(() => {
+    start += increment;
+    if (start >= target) {
+      el.textContent = target.toLocaleString();
+      clearInterval(timer);
+    } else {
+      el.textContent = Math.floor(start).toLocaleString();
+    }
+  }, 16);
+}
+
+// Enhanced Dashboard Loading with Charts
+async function cargarDashboard() {
+  const lastUpdateEl = document.getElementById('last-update');
+  
+  // Skeleton loading
+  document.querySelectorAll('.dashboard-kpi-card').forEach(card => {
+    card.classList.add('skeleton-shimmer');
+  });
+  
+  try {
+    // attach token if available
+    const token = localStorage.getItem('auth_token') || 
+                  localStorage.getItem('token') || 
+                  localStorage.getItem('accessToken') ||
+                  sessionStorage.getItem('auth_token') ||
+                  sessionStorage.getItem('token');
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const [usuariosRes, medsRes, invRes, citasRes] = await Promise.allSettled([
+      fetch('http://localhost:3000/usuarios', { headers: authHeaders }),
+      fetch('http://localhost:3000/Registro_medicamentos', { headers: authHeaders }),
+      fetch('http://localhost:3000/inventario', { headers: authHeaders }),
+      fetch('http://localhost:3000/obtenerCitas', { headers: authHeaders })
+    ]);
+
+    // log response statuses
+    console.log('fetch statuses', {
+      usuarios: usuariosRes.status === 'fulfilled' ? usuariosRes.value.status : usuariosRes.status,
+      medicamentos: medsRes.status === 'fulfilled' ? medsRes.value.status : medsRes.status,
+      inventario: invRes.status === 'fulfilled' ? invRes.value.status : invRes.status,
+      citas: citasRes.status === 'fulfilled' ? citasRes.value.status : citasRes.status
+    });
+
+    const usuarios = usuariosRes.status === 'fulfilled' && usuariosRes.value.ok ? await usuariosRes.value.json() : [];
+    const medicamentos = medsRes.status === 'fulfilled' && medsRes.value.ok ? await medsRes.value.json() : [];
+    const inventario = invRes.status === 'fulfilled' && invRes.value.ok ? await invRes.value.json() : [];
+    const citas = citasRes.status === 'fulfilled' && citasRes.value.ok ? await citasRes.value.json() : [];
+
+    // if any returned ok:false, show toast with server message
+    [usuariosRes, medsRes, invRes, citasRes].forEach(res => {
+      if (res.status === 'fulfilled' && res.value && res.value.ok === false) {
+        const msg = res.value.mensaje || res.value.message || 'Error de servidor';
+        mostrarToast(msg, 'warning');
+      }
+    });
+
+    console.log('Parsed lengths', {
+      usuarios: usuarios.length,
+      medicamentos: medicamentos.length,
+      inventario: inventario.length,
+      citas: citas.length
+    });
+
+    // Remove skeleton
+    document.querySelectorAll('.dashboard-kpi-card').forEach(card => {
+      card.classList.remove('skeleton-shimmer');
+    });
+
+    // Animate KPIs
+    const kpiUsuarios = document.getElementById('kpiUsuariosTotal');
+    const kpiMeds = document.getElementById('kpiMedicamentosActivos');
+    const kpiStock = document.getElementById('kpiStockBajo');
+    const kpiCitas = document.getElementById('kpiCitasHoy');
+    
+    if (kpiUsuarios) animateCounter(kpiUsuarios, usuarios.length);
+    if (kpiMeds) animateCounter(kpiMeds, medicamentos.filter(m => m.estado === 'activo').length);
+    if (kpiStock) animateCounter(kpiStock, inventario.filter(i => Number(i.cantidad || 0) <= 10).length);
+    if (kpiCitas) animateCounter(kpiCitas, citas.filter(c => (c.fecha_hora || '').split('T')[0] === new Date().toISOString().split('T')[0]).length);
+    
+    console.log('KPI values', {
+      usuarios: usuarios.length,
+      medicamentos: medicamentos.filter(m => m.estado === 'activo').length,
+      stockBajo: inventario.filter(i => Number(i.cantidad||0) <= 10).length,
+      citasHoy: citas.filter(c => (c.fecha_hora || '').split('T')[0] === new Date().toISOString().split('T')[0]).length
+    });
+
+    // Update last update time
+    if (lastUpdateEl) {
+      lastUpdateEl.textContent = 'justo ahora';
+      setTimeout(() => lastUpdateEl.textContent = '10s', 10000);
+    }
+    
+    // Update chart default text color to match theme
+    if (hasChart) {
+      Chart.defaults.color = getComputedStyle(document.body).color || '#1e293b';
+      // Charts - Trends
+      createTrendChart(usuarios.length, medicamentos.length);
+      
+      // Inventory Pie Chart
+      createInventoryPieChart(inventario);
+      
+      // Sparklines
+      createSparkline('sparkline-users', [10, 15, 20, 25, 30, usuarios.length]);
+      createSparkline('sparkline-meds', [5, 8, 12, 15, 18, medicamentos.filter(m => m.estado === 'activo').length]);
+      createSparkline('sparkline-stock', [3, 2, 4, 1, 2, inventario.filter(i => Number(i.cantidad || 0) <= 10).length]);
+      createSparkline('sparkline-citas', [1, 3, 2, 4, 5, citas.filter(c => (c.fecha_hora || '').split('T')[0] === new Date().toISOString().split('T')[0]).length]);
+    }
+    
+    // Existing render functions...
+    renderActividadReciente(usuarios, medicamentos);
+    
+  } catch (error) {
+    console.error('Error loading dashboard:', error);
+    mostrarToast('Error al cargar dashboard. Revisa la conexión.', 'error');
+  }
+}
+
+// Chart Functions
+function createTrendChart(usersCount, medsCount) {
+  const ctx = document.getElementById('chart-trends')?.getContext('2d');
+  if (!ctx || !hasChart) return;
+
+  if (window.myTrendChart) {
+    window.myTrendChart.destroy();
+    window.myTrendChart = null;
+  }
+  
+  const config = {
+    type: 'line',
+    data: {
+      labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May'],
+      datasets: [{
+        label: 'Usuarios',
+        data: [65, 59, 80, usersCount * 0.8, usersCount],
+        borderColor: '#667eea',
+        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { grid: { display: false } }
+      }
+    }
+  };
+  const chart = new Chart(ctx, config);
+  window.myTrendChart = chart;
+}
+
+function createInventoryPieChart(inventario) {
+  const ctx = document.getElementById('chart-inventory')?.getContext('2d');
+  if (!ctx || inventario.length === 0 || !hasChart) return;
+
+  if (window.myInventoryChart) {
+    window.myInventoryChart.destroy();
+    window.myInventoryChart = null;
+  }
+
+  const critical = inventario.filter(i => Number(i.cantidad || 0) <= 10);
+  const normal = inventario.length - critical.length;
+
+  const config = {
+    type: 'doughnut',
+    data: {
+      labels: ['Stock Crítico', 'Normal'],
+      datasets: [{
+        data: [critical.length, normal],
+        backgroundColor: ['#ef4444', '#10b981']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.label}: ${ctx.raw} medicamentos`
+          }
+        }
+      }
+    }
+  };
+
+  const chart = new Chart(ctx, config);
+  window.myInventoryChart = chart;
+}
+
+function renderActividadReciente(users, meds) {
+  const actividades = [];
+  users.slice(-3).reverse().forEach(u => {
+    actividades.push({
+      icon: 'bi-person-plus-fill',
+      type: 'primary',
+      title: `${u.nombres} ${u.apellidos}`,
+      subtitle: `Nuevo ${u.rol}`,
+      time: new Date().toLocaleTimeString()
+    });
+  });
+  
+  const container = document.getElementById('dashboardActividadReciente');
+  if (container) {
+    container.innerHTML = actividades.map(a => `
+      <div class="activity-item glass-card p-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="activity-icon ${a.type}">
+            <i class="${a.icon}"></i>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="mb-1">${a.title}</h6>
+            <small class="text-muted">${a.subtitle}</small>
+          </div>
+          <small class="text-muted">${a.time}</small>
+        </div>
+      </div>
+    `).join('') || '<p class="text-muted text-center py-4">Sin actividad reciente</p>';
+  }
+}
+
+
+
+
+
+// Sparkline for KPIs (mini charts)
+function createSparkline(containerId, data) {
+  const host = document.getElementById(containerId);
+  if (!host || !hasChart) return;
+
+  let canvas = host;
+  if (host.tagName !== 'CANVAS') {
+    canvas = host.querySelector('canvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.width = host.clientWidth || 120;
+      canvas.height = host.clientHeight || 36;
+      host.innerHTML = '';
+      host.appendChild(canvas);
+    }
+  }
+
+  const ctx = typeof canvas.getContext === 'function' ? canvas.getContext('2d') : null;
+  if (!ctx) return;
+
+  const existingChart = Chart.getChart(canvas);
+  if (existingChart) {
+    existingChart.destroy();
+  }
+  
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map((_, i) => i),
+      datasets: [{
+        data: data,
+        borderColor: '#667eea',
+        backgroundColor: 'transparent',
+        pointRadius: 0,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { display: false }, y: { display: false } },
+      elements: { point: { radius: 0 } }
+    }
+  });
+}
+
+// ===============================
+// DASHBOARD MODERNIZADO - ENHANCEMENTS
+// ===============================
+
+// Chart instances
+let kpiCharts = {};
+let inventoryChart = null;
+
+// AOS Animation Init
+if (hasAOS) {
+  AOS.init({
+    duration: 800,
+    once: true,
+    offset: 100
+  });
+}
+
+// Dark Mode Toggle
+function initDarkMode() {
+  const toggle = document.getElementById('darkModeToggle');
+  const html = document.documentElement;
+  
+  if (!toggle) return;
+  
+  const isDark = localStorage.getItem('darkMode') === 'true';
+  if (isDark) {
+    html.setAttribute('data-theme', 'dark');
+    toggle.innerHTML = '<i class="bi bi-sun"></i>';
+  }
+  
+  toggle.addEventListener('click', () => {
+    const currentDark = html.getAttribute('data-theme') === 'dark';
+    const newTheme = currentDark ? 'light' : 'dark';
+    
+    html.setAttribute('data-theme', newTheme);
+    toggle.innerHTML = newTheme === 'dark' ? '<i class="bi bi-sun"></i>' : '<i class="bi bi-moon"></i>';
+    localStorage.setItem('darkMode', newTheme === 'dark');
+  });
+}
+
+// Animated Counters
+function animateCounters() {
+  const counters = document.querySelectorAll('.animate-counter');
+  
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const counterEl = entry.target.querySelector('.kpi-number');
+        const target = parseInt(entry.target.dataset.target) || 0;
+        const id = entry.target.dataset.id;
+        
+        if (counterEl && !counterEl.dataset.animated) {
+          let current = 0;
+          const increment = target / 100;
+          const timer = setInterval(() => {
+            current += increment;
+            if (current >= target) {
+              counterEl.textContent = target;
+              clearInterval(timer);
+            } else {
+              counterEl.textContent = Math.floor(current);
+            }
+          }, 20);
+          
+          counterEl.dataset.animated = 'true';
+        }
+      }
+    });
+  }, { threshold: 0.5 });
+  
+  counters.forEach(counter => observer.observe(counter));
+}
+
+// Live Update Timer
+function startLiveUpdate() {
+  const lastUpdate = document.getElementById('last-update');
+  let seconds = 0;
+  
+  const timer = setInterval(() => {
+    seconds++;
+    if (lastUpdate) {
+      lastUpdate.textContent = seconds === 1 ? `${seconds}s` : `${seconds}s`;
+    }
+  }, 1000);
+  
+  return timer;
+}
+
+// Sparklines (Simple Canvas Charts)
+function createSparkline(canvasId, data) {
+  const host = document.getElementById(canvasId);
+  if (!host) return;
+
+  let canvas = host;
+  if (host.tagName !== 'CANVAS') {
+    canvas = host.querySelector('canvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      host.innerHTML = '';
+      host.appendChild(canvas);
+    }
+  }
+
+  if (typeof canvas.getContext !== 'function') return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  canvas.width = 100;
+  canvas.height = 30;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const points = data && data.length ? data : [10, 20, 15, 35, 25, 40];
+  const max = Math.max(...points);
+  const min = Math.min(...points);
+  const rango = max - min || 1;
+
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+
+  points.forEach((point, i) => {
+    const x = points.length === 1 ? canvas.width / 2 : (i / (points.length - 1)) * canvas.width;
+    const y = canvas.height - ((point - min) / rango) * canvas.height;
+
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+
+  ctx.stroke();
+}
+
+// Enhanced Dashboard Loader
+
+// ===============================
 // NAVEGACIÓN ENTRE SECCIONES
 // ===============================
 document.addEventListener("DOMContentLoaded", () => {
@@ -94,18 +593,30 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Filtros
   const buscarInput = document.getElementById("buscarMedicamento");
+  const searchMedicamentosTabla = document.getElementById("searchMedicamentosTabla");
+  const entriesMedicamentos = document.getElementById("entriesMedicamentos");
   const filtroPaciente = document.getElementById("filtroPaciente");
   const filtroEstado = document.getElementById("filtroEstado");
   const limpiarFiltrosBtn = document.getElementById("limpiarFiltros");
+  const paginacionMedicamentos = document.getElementById("paginacionMedicamentos");
+  const infoPaginacionMedicamentos = document.getElementById("infoPaginacion");
+  const btnAnteriorMedicamentos = document.getElementById("btnAnterior");
+  const btnSiguienteMedicamentos = document.getElementById("btnSiguiente");
+  const pageNumbersMedicamentos = document.getElementById("pageNumbersMedicamentos");
   
   let medicamentosData = [];
   let pacientesData = [];
+  let medicamentosFiltrados = [];
+  let paginaActualMedicamentos = 1;
+  let MEDICAMENTOS_POR_PAGINA = Number(entriesMedicamentos?.value || 10);
   let editingId = null;
 
   // Cargar pacientes al iniciar
   async function cargarPacientes() {
     try {
-      const respuesta = await fetch("http://localhost:3000/usuarios/rol/usuario");
+      const respuesta = await fetch(obtenerUrlPacientesSegunVista(), {
+        headers: obtenerHeadersPacientes()
+      });
       if (!respuesta.ok) throw new Error("Error al cargar pacientes");
       
       pacientesData = await respuesta.json();
@@ -330,6 +841,22 @@ document.addEventListener("DOMContentLoaded", () => {
         m.dosis.toLowerCase().includes(busqueda)
       );
     }
+
+    // Búsqueda en tabla (estilo DataTable)
+    const busquedaTabla = searchMedicamentosTabla?.value.toLowerCase().trim();
+    if (busquedaTabla) {
+      filtrados = filtrados.filter(m => {
+        const paciente = pacientesData.find(p => p.id === m.paciente_id);
+        const nombrePaciente = paciente ? `${paciente.nombres} ${paciente.apellidos}` : "";
+        return (
+          (m.nombre || "").toLowerCase().includes(busquedaTabla) ||
+          (m.dosis || "").toLowerCase().includes(busquedaTabla) ||
+          String(m.frecuencia_horas || "").includes(busquedaTabla) ||
+          nombrePaciente.toLowerCase().includes(busquedaTabla) ||
+          (m.estado || "").toLowerCase().includes(busquedaTabla)
+        );
+      });
+    }
     
     // Filtro por paciente
     const pacienteId = filtroPaciente?.value;
@@ -343,15 +870,17 @@ document.addEventListener("DOMContentLoaded", () => {
       filtrados = filtrados.filter(m => m.estado === estado);
     }
     
-    renderMedicamentos(filtrados);
+    medicamentosFiltrados = filtrados;
+    paginaActualMedicamentos = 1;
+    renderMedicamentos();
   }
 
   // Renderizar medicamentos
-  function renderMedicamentos(lista) {
+  function renderMedicamentos() {
     if (!tablaMedicamentos) return;
     tablaMedicamentos.innerHTML = "";
     
-    if (lista.length === 0) {
+    if (medicamentosFiltrados.length === 0) {
       tablaMedicamentos.innerHTML = `
         <tr>
           <td colspan="7" class="text-center text-muted py-4">
@@ -360,10 +889,18 @@ document.addEventListener("DOMContentLoaded", () => {
           </td>
         </tr>
       `;
+      if (paginacionMedicamentos) paginacionMedicamentos.classList.add("d-none");
+      if (pageNumbersMedicamentos) pageNumbersMedicamentos.innerHTML = "";
       return;
     }
+
+    const totalPaginas = Math.max(1, Math.ceil(medicamentosFiltrados.length / MEDICAMENTOS_POR_PAGINA));
+    if (paginaActualMedicamentos > totalPaginas) paginaActualMedicamentos = totalPaginas;
+    const inicio = (paginaActualMedicamentos - 1) * MEDICAMENTOS_POR_PAGINA;
+    const fin = inicio + MEDICAMENTOS_POR_PAGINA;
+    const medicamentosPagina = medicamentosFiltrados.slice(inicio, fin);
     
-    lista.forEach((m) => {
+    medicamentosPagina.forEach((m) => {
       const paciente = pacientesData.find(p => p.id === m.paciente_id);
       const nombrePaciente = paciente ? `${paciente.nombres} ${paciente.apellidos}` : "No asignado";
       const proximaToma = calcularProximaToma(m.hora, m.frecuencia_horas);
@@ -397,6 +934,37 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
       tablaMedicamentos.appendChild(tr);
     });
+
+    if (paginacionMedicamentos) paginacionMedicamentos.classList.remove("d-none");
+    if (infoPaginacionMedicamentos) {
+      const inicioVisual = medicamentosFiltrados.length ? inicio + 1 : 0;
+      const finVisual = Math.min(fin, medicamentosFiltrados.length);
+      infoPaginacionMedicamentos.textContent = `Showing ${inicioVisual} to ${finVisual} of ${medicamentosFiltrados.length} entries`;
+    }
+    if (btnAnteriorMedicamentos) btnAnteriorMedicamentos.disabled = paginaActualMedicamentos <= 1;
+    if (btnSiguienteMedicamentos) btnSiguienteMedicamentos.disabled = paginaActualMedicamentos >= totalPaginas;
+    renderBotonesPaginaMedicamentos(totalPaginas);
+  }
+
+  function renderBotonesPaginaMedicamentos(totalPaginas) {
+    if (!pageNumbersMedicamentos) return;
+    pageNumbersMedicamentos.innerHTML = "";
+    const maxBotones = 5;
+    let inicio = Math.max(1, paginaActualMedicamentos - Math.floor(maxBotones / 2));
+    let fin = inicio + maxBotones - 1;
+    if (fin > totalPaginas) {
+      fin = totalPaginas;
+      inicio = Math.max(1, fin - maxBotones + 1);
+    }
+
+    for (let i = inicio; i <= fin; i++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `page-number-btn ${i === paginaActualMedicamentos ? "active" : ""}`;
+      btn.textContent = i;
+      btn.dataset.page = String(i);
+      pageNumbersMedicamentos.appendChild(btn);
+    }
   }
 
   // Editar medicamento
@@ -466,6 +1034,21 @@ document.addEventListener("DOMContentLoaded", () => {
   if (buscarInput) {
     buscarInput.addEventListener("input", aplicarFiltros);
   }
+
+  if (searchMedicamentosTabla) {
+    searchMedicamentosTabla.addEventListener("input", () => {
+      paginaActualMedicamentos = 1;
+      aplicarFiltros();
+    });
+  }
+
+  if (entriesMedicamentos) {
+    entriesMedicamentos.addEventListener("change", () => {
+      MEDICAMENTOS_POR_PAGINA = Number(entriesMedicamentos.value || 10);
+      paginaActualMedicamentos = 1;
+      renderMedicamentos();
+    });
+  }
   
   if (filtroPaciente) {
     filtroPaciente.addEventListener("change", aplicarFiltros);
@@ -481,6 +1064,37 @@ document.addEventListener("DOMContentLoaded", () => {
       if (filtroPaciente) filtroPaciente.value = "";
       if (filtroEstado) filtroEstado.value = "";
       aplicarFiltros();
+    });
+  }
+
+  if (btnAnteriorMedicamentos) {
+    btnAnteriorMedicamentos.addEventListener("click", () => {
+      if (paginaActualMedicamentos > 1) {
+        paginaActualMedicamentos--;
+        renderMedicamentos();
+      }
+    });
+  }
+
+  if (btnSiguienteMedicamentos) {
+    btnSiguienteMedicamentos.addEventListener("click", () => {
+      const totalPaginas = Math.ceil(medicamentosFiltrados.length / MEDICAMENTOS_POR_PAGINA);
+      if (paginaActualMedicamentos < totalPaginas) {
+        paginaActualMedicamentos++;
+        renderMedicamentos();
+      }
+    });
+  }
+
+  if (pageNumbersMedicamentos) {
+    pageNumbersMedicamentos.addEventListener("click", (e) => {
+      const btn = e.target.closest(".page-number-btn");
+      if (!btn) return;
+      const pagina = Number(btn.dataset.page);
+      if (!Number.isNaN(pagina)) {
+        paginaActualMedicamentos = pagina;
+        renderMedicamentos();
+      }
     });
   }
 
@@ -501,6 +1115,13 @@ document.addEventListener("DOMContentLoaded", () => {
 (function(){
   const registrarBtn = document.getElementById("registrarBtn");
   const tablaInv = document.querySelector("#tablaInventario tbody");
+  const searchInventarioInput = document.getElementById("searchInventario");
+  const entriesInventario = document.getElementById("entriesInventario");
+  const paginacionInventario = document.getElementById("paginacionInventario");
+  const infoPaginacionInventario = document.getElementById("infoPaginacionInventario");
+  const btnAnteriorInventario = document.getElementById("btnAnteriorInventario");
+  const btnSiguienteInventario = document.getElementById("btnSiguienteInventario");
+  const pageNumbersInventario = document.getElementById("pageNumbersInventario");
   const modoActualizarCheckbox = document.getElementById("modoActualizar");
   const selectMedicamentoRow = document.getElementById("selectMedicamentoRow");
   const inputNombreRow = document.getElementById("inputNombreRow");
@@ -508,6 +1129,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const selectMedicamento = document.getElementById("selectMedicamento");
 
   let inventarioActual = [];
+  let inventarioFiltrado = [];
+  let paginaActualInventario = 1;
+  let INVENTARIO_POR_PAGINA = Number(entriesInventario?.value || 10);
 
   // Toggle entre modo nuevo y actualizar
   if (modoActualizarCheckbox) {
@@ -608,18 +1232,63 @@ document.addEventListener("DOMContentLoaded", () => {
   async function cargarInventario() {
     try {
       const respuesta = await fetch("http://localhost:3000/inventario");
+      if (!respuesta.ok) {
+        throw new Error(`Error HTTP ${respuesta.status}`);
+      }
       const data = await respuesta.json();
-      inventarioActual = data;
-      renderInventario(data);
+      inventarioActual = Array.isArray(data) ? data : [];
+      aplicarFiltrosInventario();
     } catch (err) {
       console.error("Error al cargar inventario:", err);
+      inventarioActual = [];
+      inventarioFiltrado = [];
+      renderInventario();
     }
   }
 
-  function renderInventario(lista) {
+  function aplicarFiltrosInventario() {
+    const texto = (searchInventarioInput?.value || "").trim().toLowerCase();
+    if (!texto) {
+      inventarioFiltrado = [...inventarioActual];
+    } else {
+      inventarioFiltrado = inventarioActual.filter((m) => {
+        return [
+          m.nombre,
+          m.cantidad,
+          m.consumo_por_dosis,
+          m.fecha_registro
+        ].some((c) => String(c || "").toLowerCase().includes(texto));
+      });
+    }
+    paginaActualInventario = 1;
+    renderInventario();
+  }
+
+  function renderInventario() {
     if (!tablaInv) return;
     tablaInv.innerHTML = "";
-    lista.forEach((m) => {
+
+    if (inventarioFiltrado.length === 0) {
+      tablaInv.innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center text-muted py-4">
+            <i class="bi bi-inbox display-6 d-block mb-2"></i>
+            No matching records found.
+          </td>
+        </tr>
+      `;
+      if (paginacionInventario) paginacionInventario.classList.add("d-none");
+      if (pageNumbersInventario) pageNumbersInventario.innerHTML = "";
+      return;
+    }
+
+    const totalPaginas = Math.max(1, Math.ceil(inventarioFiltrado.length / INVENTARIO_POR_PAGINA));
+    if (paginaActualInventario > totalPaginas) paginaActualInventario = totalPaginas;
+    const inicio = (paginaActualInventario - 1) * INVENTARIO_POR_PAGINA;
+    const fin = inicio + INVENTARIO_POR_PAGINA;
+    const inventarioPagina = inventarioFiltrado.slice(inicio, fin);
+
+    inventarioPagina.forEach((m) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHtml(m.nombre)}</td>
@@ -629,6 +1298,37 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
       tablaInv.appendChild(tr);
     });
+
+    if (paginacionInventario) paginacionInventario.classList.remove("d-none");
+    if (infoPaginacionInventario) {
+      const inicioVisual = inventarioFiltrado.length ? inicio + 1 : 0;
+      const finVisual = Math.min(fin, inventarioFiltrado.length);
+      infoPaginacionInventario.textContent = `Showing ${inicioVisual} to ${finVisual} of ${inventarioFiltrado.length} entries`;
+    }
+    if (btnAnteriorInventario) btnAnteriorInventario.disabled = paginaActualInventario <= 1;
+    if (btnSiguienteInventario) btnSiguienteInventario.disabled = paginaActualInventario >= totalPaginas;
+    renderBotonesPaginaInventario(totalPaginas);
+  }
+
+  function renderBotonesPaginaInventario(totalPaginas) {
+    if (!pageNumbersInventario) return;
+    pageNumbersInventario.innerHTML = "";
+    const maxBotones = 5;
+    let inicio = Math.max(1, paginaActualInventario - Math.floor(maxBotones / 2));
+    let fin = inicio + maxBotones - 1;
+    if (fin > totalPaginas) {
+      fin = totalPaginas;
+      inicio = Math.max(1, fin - maxBotones + 1);
+    }
+
+    for (let i = inicio; i <= fin; i++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `page-number-btn ${i === paginaActualInventario ? "active" : ""}`;
+      btn.textContent = i;
+      btn.dataset.page = String(i);
+      pageNumbersInventario.appendChild(btn);
+    }
   }
 
   function clearInvForm() {
@@ -642,8 +1342,230 @@ document.addEventListener("DOMContentLoaded", () => {
     selectMedicamento.value = "";
   }
 
+  if (searchInventarioInput) {
+    searchInventarioInput.addEventListener("input", () => {
+      aplicarFiltrosInventario();
+    });
+  }
+
+  if (entriesInventario) {
+    entriesInventario.addEventListener("change", () => {
+      INVENTARIO_POR_PAGINA = Number(entriesInventario.value || 10);
+      paginaActualInventario = 1;
+      renderInventario();
+    });
+  }
+
+  if (btnAnteriorInventario) {
+    btnAnteriorInventario.addEventListener("click", () => {
+      if (paginaActualInventario > 1) {
+        paginaActualInventario--;
+        renderInventario();
+      }
+    });
+  }
+
+  if (btnSiguienteInventario) {
+    btnSiguienteInventario.addEventListener("click", () => {
+      const totalPaginas = Math.ceil(inventarioFiltrado.length / INVENTARIO_POR_PAGINA);
+      if (paginaActualInventario < totalPaginas) {
+        paginaActualInventario++;
+        renderInventario();
+      }
+    });
+  }
+
+  if (pageNumbersInventario) {
+    pageNumbersInventario.addEventListener("click", (e) => {
+      const btn = e.target.closest(".page-number-btn");
+      if (!btn) return;
+      const pagina = Number(btn.dataset.page);
+      if (!Number.isNaN(pagina)) {
+        paginaActualInventario = pagina;
+        renderInventario();
+      }
+    });
+  }
+
+  window.cargarInventario = cargarInventario;
+  window.verificarAlertasStock = verificarAlertasStock;
+
   cargarInventario();
   verificarAlertasStock();
+})();
+
+// ===============================
+// ENHANCER UI: LISTA DE CITAS / VERIFICACION / REPORTE SEMANAL
+// ===============================
+(function () {
+  function createDataControls(config) {
+    const root = document.getElementById(config.rootId);
+    if (!root) return;
+
+    let paginaActual = 1;
+    let itemsPorPagina = 10;
+    let terminoBusqueda = "";
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "datatable-toolbar mb-3";
+    toolbar.innerHTML = `
+      <div class="datatable-length">
+        <select class="form-select form-select-sm">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+        </select>
+        <span>entries per page</span>
+      </div>
+      <div class="datatable-search">
+        <label>Search:</label>
+        <input type="text" class="form-control form-control-sm">
+      </div>
+    `;
+
+    const paginacion = document.createElement("div");
+    paginacion.className = "custom-pagination mt-3 d-none";
+    paginacion.innerHTML = `
+      <small class="pagination-info">Showing 0 to 0 of 0 entries</small>
+      <div class="pagination-controls">
+        <button type="button" class="btn btn-outline-secondary pagination-nav-btn" data-nav="prev" disabled><i class="bi bi-chevron-left"></i></button>
+        <div class="pagination-numbers"></div>
+        <button type="button" class="btn btn-outline-secondary pagination-nav-btn" data-nav="next" disabled><i class="bi bi-chevron-right"></i></button>
+      </div>
+    `;
+
+    root.parentElement?.insertBefore(toolbar, root);
+    root.parentElement?.insertBefore(paginacion, root.nextSibling);
+
+    const selectEntries = toolbar.querySelector("select");
+    const inputSearch = toolbar.querySelector("input");
+    const info = paginacion.querySelector(".pagination-info");
+    const numeros = paginacion.querySelector(".pagination-numbers");
+    const btnPrev = paginacion.querySelector('[data-nav="prev"]');
+    const btnNext = paginacion.querySelector('[data-nav="next"]');
+
+    function obtenerItems() {
+      return Array.from(root.querySelectorAll(config.itemSelector));
+    }
+
+    function esFilaPlaceholder(item) {
+      if (!item) return false;
+      const td = item.querySelector("td[colspan]");
+      if (!td) return false;
+      const txt = (td.textContent || "").toLowerCase();
+      return txt.includes("no hay") || txt.includes("cargando") || txt.includes("error");
+    }
+
+    function render() {
+      const items = obtenerItems();
+
+      if (items.length === 0 || (items.length === 1 && esFilaPlaceholder(items[0]))) {
+        toolbar.classList.add("d-none");
+        paginacion.classList.add("d-none");
+        items.forEach((i) => (i.style.display = ""));
+        return;
+      }
+
+      toolbar.classList.remove("d-none");
+
+      const filtrados = items.filter((item) =>
+        (item.textContent || "").toLowerCase().includes(terminoBusqueda)
+      );
+
+      const total = filtrados.length;
+      const totalPaginas = Math.max(1, Math.ceil(total / itemsPorPagina));
+      if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+
+      const inicio = (paginaActual - 1) * itemsPorPagina;
+      const fin = inicio + itemsPorPagina;
+
+      items.forEach((item) => (item.style.display = "none"));
+      filtrados.slice(inicio, fin).forEach((item) => (item.style.display = ""));
+
+      paginacion.classList.toggle("d-none", total === 0);
+      const inicioVisual = total ? inicio + 1 : 0;
+      const finVisual = Math.min(fin, total);
+      info.textContent = `Showing ${inicioVisual} to ${finVisual} of ${total} entries`;
+
+      btnPrev.disabled = paginaActual <= 1;
+      btnNext.disabled = paginaActual >= totalPaginas;
+
+      numeros.innerHTML = "";
+      const maxBtns = 5;
+      let inicioBtn = Math.max(1, paginaActual - Math.floor(maxBtns / 2));
+      let finBtn = inicioBtn + maxBtns - 1;
+      if (finBtn > totalPaginas) {
+        finBtn = totalPaginas;
+        inicioBtn = Math.max(1, finBtn - maxBtns + 1);
+      }
+
+      for (let p = inicioBtn; p <= finBtn; p++) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `page-number-btn ${p === paginaActual ? "active" : ""}`;
+        btn.textContent = String(p);
+        btn.dataset.page = String(p);
+        numeros.appendChild(btn);
+      }
+    }
+
+    selectEntries?.addEventListener("change", () => {
+      itemsPorPagina = Number(selectEntries.value || 10);
+      paginaActual = 1;
+      render();
+    });
+
+    inputSearch?.addEventListener("input", () => {
+      terminoBusqueda = (inputSearch.value || "").trim().toLowerCase();
+      paginaActual = 1;
+      render();
+    });
+
+    btnPrev?.addEventListener("click", () => {
+      if (paginaActual > 1) {
+        paginaActual--;
+        render();
+      }
+    });
+
+    btnNext?.addEventListener("click", () => {
+      paginaActual++;
+      render();
+    });
+
+    numeros?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".page-number-btn");
+      if (!btn) return;
+      const p = Number(btn.dataset.page);
+      if (!Number.isNaN(p)) {
+        paginaActual = p;
+        render();
+      }
+    });
+
+    const observer = new MutationObserver(() => render());
+    observer.observe(root, { childList: true, subtree: true });
+
+    render();
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    createDataControls({
+      rootId: "listaCitas",
+      itemSelector: ".list-group-item"
+    });
+
+    createDataControls({
+      rootId: "tablaVerificacionMedicamentos",
+      itemSelector: "tbody tr"
+    });
+
+    createDataControls({
+      rootId: "reporteSemanalContainer",
+      itemSelector: "table tbody tr"
+    });
+  });
 })();
 
 // ===============================
@@ -1072,14 +1994,22 @@ function mostrarToast(mensaje, tipo = 'info') {
   const tablaUsuarios = document.querySelector("#tablaUsuarios tbody");
   const noUsuariosDiv = document.getElementById("noUsuarios");
   const searchUsuariosInput = document.getElementById("searchUsuarios");
+  const entriesUsuarios = document.getElementById("entriesUsuarios");
   const paginacionUsuarios = document.getElementById("paginacionUsuarios");
   const infoPaginacionUsuarios = document.getElementById("infoPaginacionUsuarios");
   const btnAnteriorUsuarios = document.getElementById("btnAnteriorUsuarios");
   const btnSiguienteUsuarios = document.getElementById("btnSiguienteUsuarios");
+  const pageNumbersUsuarios = document.getElementById("pageNumbersUsuarios");
   const abrirModalUsuarioBtn = document.getElementById("abrirModalUsuario");
   const modalUsuario = document.getElementById("modalUsuario");
   const formUsuario = document.getElementById("formUsuario");
   const guardarUsuarioBtn = document.getElementById("guardarUsuarioBtn");
+  const selectCuidadorAsignacion = document.getElementById("selectCuidadorAsignacion");
+  const selectPacienteDisponibleAsignacion = document.getElementById("selectPacienteDisponibleAsignacion");
+  const agregarPacienteAsignacionBtn = document.getElementById("agregarPacienteAsignacionBtn");
+  const tablaPacientesAsignadosBody = document.querySelector("#tablaPacientesAsignados tbody");
+  const guardarAsignacionesBtn = document.getElementById("guardarAsignacionesBtn");
+  const resumenAsignacionesCuidador = document.getElementById("resumenAsignacionesCuidador");
   
   // Campos del formulario
   const nombresUsuario = document.getElementById("nombresUsuario");
@@ -1093,25 +2023,49 @@ function mostrarToast(mensaje, tipo = 'info') {
   let usuariosData = [];
   let usuariosFiltrados = [];
   let paginaActualUsuarios = 1;
-  const USUARIOS_POR_PAGINA = 6;
+  let USUARIOS_POR_PAGINA = Number(entriesUsuarios?.value || 10);
   let editingUserId = null;
+  let cuidadoresAsignacion = [];
+  let pacientesAsignacion = [];
+  let asignacionesActuales = [];
+  let pacientesSeleccionadosAsignacion = [];
+  let cuidadorAsignacionActual = "";
+
+  function obtenerTokenAuth() {
+    let token = localStorage.getItem('auth_token') || 
+                localStorage.getItem('token') || 
+                localStorage.getItem('accessToken') ||
+                sessionStorage.getItem('auth_token') ||
+                sessionStorage.getItem('token');
+
+    if (!token) {
+      const usuarioData = localStorage.getItem('usuario');
+      if (usuarioData) {
+        try {
+          const usuario = JSON.parse(usuarioData);
+          token = usuario.token || usuario.accessToken || usuario.authToken || token;
+        } catch (e) {
+          console.warn('No se pudo recuperar token desde localStorage.usuario', e);
+        }
+      }
+    }
+
+    return token;
+  }
+
+  function crearHeadersAuth(incluirJson = false) {
+    const headers = {};
+    const token = obtenerTokenAuth();
+    if (incluirJson) headers['Content-Type'] = 'application/json';
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+  }
 
   // Cargar usuarios desde el servidor
   async function cargarUsuarios() {
     try {
-      const token = localStorage.getItem('auth_token') || 
-                    localStorage.getItem('token') || 
-                    localStorage.getItem('accessToken') ||
-                    sessionStorage.getItem('auth_token') ||
-                    sessionStorage.getItem('token');
-      
-      const headers = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
       const respuesta = await fetch("http://localhost:3000/usuarios", {
-        headers: headers
+        headers: crearHeadersAuth()
       });
       
       if (!respuesta.ok) {
@@ -1126,10 +2080,170 @@ function mostrarToast(mensaje, tipo = 'info') {
       usuariosFiltrados = [...usuariosData];
       paginaActualUsuarios = 1;
       renderUsuarios();
+      await cargarAsignacionesCuidadores();
     } catch (error) {
       console.error("Error al cargar usuarios:", error);
       mostrarToast("Error al cargar usuarios: " + error.message, "error");
     }
+  }
+
+  function renderListaPacientesAsignacion() {
+    if (!tablaPacientesAsignadosBody) return;
+
+    const cuidadorId = selectCuidadorAsignacion?.value;
+    if (!cuidadorId) {
+      cuidadorAsignacionActual = "";
+      pacientesSeleccionadosAsignacion = [];
+      if (selectPacienteDisponibleAsignacion) {
+        selectPacienteDisponibleAsignacion.innerHTML = '<option value="">Selecciona un paciente</option>';
+      }
+      tablaPacientesAsignadosBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Selecciona un cuidador para administrar sus pacientes.</td></tr>';
+      if (resumenAsignacionesCuidador) {
+        resumenAsignacionesCuidador.textContent = 'Selecciona un cuidador para administrar sus pacientes.';
+      }
+      return;
+    }
+
+    if (String(cuidadorAsignacionActual) !== String(cuidadorId)) {
+      pacientesSeleccionadosAsignacion = asignacionesActuales
+        .filter((item) => String(item.cuidador_id) === String(cuidadorId))
+        .map((item) => Number(item.paciente_id));
+      cuidadorAsignacionActual = String(cuidadorId);
+    }
+
+    const pacientesDisponibles = pacientesAsignacion.filter(
+      (paciente) => !pacientesSeleccionadosAsignacion.includes(Number(paciente.id))
+    );
+
+    if (selectPacienteDisponibleAsignacion) {
+      selectPacienteDisponibleAsignacion.innerHTML = '<option value="">Selecciona un paciente</option>';
+      pacientesDisponibles.forEach((paciente) => {
+        const option = document.createElement("option");
+        option.value = String(paciente.id);
+        option.textContent = `${paciente.nombres} ${paciente.apellidos}`;
+        selectPacienteDisponibleAsignacion.appendChild(option);
+      });
+    }
+
+    const pacientesAsignadosDetalle = pacientesAsignacion.filter((paciente) =>
+      pacientesSeleccionadosAsignacion.includes(Number(paciente.id))
+    );
+
+    if (!pacientesAsignadosDetalle.length) {
+      tablaPacientesAsignadosBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Este cuidador no tiene pacientes asignados.</td></tr>';
+    } else {
+      tablaPacientesAsignadosBody.innerHTML = pacientesAsignadosDetalle.map((paciente) => `
+        <tr>
+          <td><strong>${escapeHtml(`${paciente.nombres} ${paciente.apellidos}`)}</strong></td>
+          <td>${escapeHtml(paciente.email || '')}</td>
+          <td class="text-center">
+            <button type="button" class="btn btn-sm btn-outline-danger quitar-paciente-asignacion-btn" data-id="${paciente.id}">
+              <i class="bi bi-trash me-1"></i>Quitar
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    if (resumenAsignacionesCuidador) {
+      const cuidador = cuidadoresAsignacion.find((item) => String(item.id) === String(cuidadorId));
+      const totalSeleccionados = pacientesSeleccionadosAsignacion.length;
+      resumenAsignacionesCuidador.textContent = cuidador
+        ? `${cuidador.nombres} ${cuidador.apellidos} tiene ${totalSeleccionados} paciente(s) asignado(s).`
+        : `${totalSeleccionados} paciente(s) asignado(s).`;
+    }
+  }
+
+  async function cargarAsignacionesCuidadores() {
+    if (!selectCuidadorAsignacion) return;
+
+    try {
+      const respuesta = await fetch("http://localhost:3000/asignaciones-cuidador", {
+        headers: crearHeadersAuth()
+      });
+
+      if (!respuesta.ok) {
+        throw new Error('No se pudieron cargar las asignaciones');
+      }
+
+      const data = await respuesta.json();
+      cuidadoresAsignacion = Array.isArray(data.cuidadores) ? data.cuidadores : [];
+      pacientesAsignacion = Array.isArray(data.pacientes) ? data.pacientes : [];
+      asignacionesActuales = Array.isArray(data.asignaciones) ? data.asignaciones : [];
+
+      const valorActual = selectCuidadorAsignacion.value;
+      selectCuidadorAsignacion.innerHTML = '<option value="">Selecciona un cuidador</option>';
+      cuidadoresAsignacion.forEach((cuidador) => {
+        const option = document.createElement("option");
+        option.value = String(cuidador.id);
+        option.textContent = `${cuidador.nombres} ${cuidador.apellidos}`;
+        selectCuidadorAsignacion.appendChild(option);
+      });
+
+      if (valorActual && cuidadoresAsignacion.some((item) => String(item.id) === String(valorActual))) {
+        selectCuidadorAsignacion.value = valorActual;
+      }
+
+      if (!valorActual) {
+        cuidadorAsignacionActual = "";
+        pacientesSeleccionadosAsignacion = [];
+      }
+
+      renderListaPacientesAsignacion();
+    } catch (error) {
+      console.error("Error al cargar asignaciones:", error);
+      if (tablaPacientesAsignadosBody) {
+        tablaPacientesAsignadosBody.innerHTML = '<tr><td colspan="3" class="text-center text-danger py-4">No se pudieron cargar las asignaciones.</td></tr>';
+      }
+      if (resumenAsignacionesCuidador) {
+        resumenAsignacionesCuidador.textContent = 'Error al cargar asignaciones.';
+      }
+    }
+  }
+
+  async function guardarAsignacionesCuidador() {
+    const cuidadorId = selectCuidadorAsignacion?.value;
+    if (!cuidadorId) {
+      mostrarToast("Selecciona un cuidador para guardar sus asignaciones", "warning");
+      return;
+    }
+
+    try {
+      const respuesta = await fetch(`http://localhost:3000/asignaciones-cuidador/${cuidadorId}`, {
+        method: "POST",
+        headers: crearHeadersAuth(true),
+        body: JSON.stringify({ pacientes: pacientesSeleccionadosAsignacion })
+      });
+
+      const resultado = await respuesta.json();
+      if (!respuesta.ok) {
+        throw new Error(resultado.mensaje || 'No se pudieron guardar las asignaciones');
+      }
+
+      mostrarToast(resultado.mensaje || "Asignaciones guardadas correctamente", "success");
+      await cargarAsignacionesCuidadores();
+    } catch (error) {
+      console.error("Error al guardar asignaciones:", error);
+      mostrarToast("Error al guardar asignaciones: " + error.message, "error");
+    }
+  }
+
+  function agregarPacienteAsignacion() {
+    const pacienteId = Number(selectPacienteDisponibleAsignacion?.value || 0);
+    if (!pacienteId) {
+      mostrarToast("Selecciona un paciente para asignarlo", "warning");
+      return;
+    }
+
+    if (!pacientesSeleccionadosAsignacion.includes(pacienteId)) {
+      pacientesSeleccionadosAsignacion.push(pacienteId);
+      renderListaPacientesAsignacion();
+    }
+  }
+
+  function quitarPacienteAsignacion(pacienteId) {
+    pacientesSeleccionadosAsignacion = pacientesSeleccionadosAsignacion.filter((id) => Number(id) !== Number(pacienteId));
+    renderListaPacientesAsignacion();
   }
 
   // Renderizar usuarios en la tabla
@@ -1182,13 +2296,35 @@ function mostrarToast(mensaje, tipo = 'info') {
     if (infoPaginacionUsuarios) {
       const inicioVisual = usuariosFiltrados.length ? inicio + 1 : 0;
       const finVisual = Math.min(fin, usuariosFiltrados.length);
-      infoPaginacionUsuarios.textContent = `Mostrando ${inicioVisual}-${finVisual} de ${usuariosFiltrados.length} usuarios`;
+      infoPaginacionUsuarios.textContent = `Showing ${inicioVisual} to ${finVisual} of ${usuariosFiltrados.length} entries`;
     }
     if (btnAnteriorUsuarios) {
       btnAnteriorUsuarios.disabled = paginaActualUsuarios <= 1;
     }
     if (btnSiguienteUsuarios) {
       btnSiguienteUsuarios.disabled = paginaActualUsuarios >= totalPaginas;
+    }
+    renderBotonesPaginaUsuarios(totalPaginas);
+  }
+
+  function renderBotonesPaginaUsuarios(totalPaginas) {
+    if (!pageNumbersUsuarios) return;
+    pageNumbersUsuarios.innerHTML = "";
+    const maxBotones = 5;
+    let inicio = Math.max(1, paginaActualUsuarios - Math.floor(maxBotones / 2));
+    let fin = inicio + maxBotones - 1;
+    if (fin > totalPaginas) {
+      fin = totalPaginas;
+      inicio = Math.max(1, fin - maxBotones + 1);
+    }
+
+    for (let i = inicio; i <= fin; i++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `page-number-btn ${i === paginaActualUsuarios ? "active" : ""}`;
+      btn.textContent = i;
+      btn.dataset.page = String(i);
+      pageNumbersUsuarios.appendChild(btn);
     }
   }
 
@@ -1280,22 +2416,9 @@ function mostrarToast(mensaje, tipo = 'info') {
         method = "PUT";
       }
 
-      const token = localStorage.getItem('auth_token') || 
-                    localStorage.getItem('token') || 
-                    localStorage.getItem('accessToken') ||
-                    sessionStorage.getItem('auth_token') ||
-                    sessionStorage.getItem('token');
-      
-      const headers = {
-        'Content-Type': 'application/json'
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
       const resp = await fetch(url, {
         method: method,
-        headers: headers,
+        headers: crearHeadersAuth(true),
         body: JSON.stringify(datos)
       });
 
@@ -1349,20 +2472,9 @@ function mostrarToast(mensaje, tipo = 'info') {
     if (!confirm("¿Está seguro de que desea eliminar este usuario?")) return;
     
     try {
-      const token = localStorage.getItem('auth_token') || 
-                    localStorage.getItem('token') || 
-                    localStorage.getItem('accessToken') ||
-                    sessionStorage.getItem('auth_token') ||
-                    sessionStorage.getItem('token');
-      
-      const headers = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
       const resp = await fetch(`http://localhost:3000/usuarios/${id}`, {
         method: "DELETE",
-        headers: headers
+        headers: crearHeadersAuth()
       });
       
       const resultado = await resp.json();
@@ -1388,8 +2500,36 @@ function mostrarToast(mensaje, tipo = 'info') {
     guardarUsuarioBtn.addEventListener("click", guardarUsuario);
   }
 
+  if (selectCuidadorAsignacion) {
+    selectCuidadorAsignacion.addEventListener("change", renderListaPacientesAsignacion);
+  }
+
+  if (guardarAsignacionesBtn) {
+    guardarAsignacionesBtn.addEventListener("click", guardarAsignacionesCuidador);
+  }
+
+  if (agregarPacienteAsignacionBtn) {
+    agregarPacienteAsignacionBtn.addEventListener("click", agregarPacienteAsignacion);
+  }
+
+  if (tablaPacientesAsignadosBody) {
+    tablaPacientesAsignadosBody.addEventListener("click", (e) => {
+      const btn = e.target.closest(".quitar-paciente-asignacion-btn");
+      if (!btn) return;
+      quitarPacienteAsignacion(Number(btn.dataset.id));
+    });
+  }
+
   if (searchUsuariosInput) {
     searchUsuariosInput.addEventListener("input", aplicarFiltroUsuarios);
+  }
+
+  if (entriesUsuarios) {
+    entriesUsuarios.addEventListener("change", () => {
+      USUARIOS_POR_PAGINA = Number(entriesUsuarios.value || 10);
+      paginaActualUsuarios = 1;
+      renderUsuarios();
+    });
   }
   if (btnAnteriorUsuarios) {
     btnAnteriorUsuarios.addEventListener("click", () => {
@@ -1404,6 +2544,18 @@ function mostrarToast(mensaje, tipo = 'info') {
       const totalPaginas = Math.ceil(usuariosFiltrados.length / USUARIOS_POR_PAGINA);
       if (paginaActualUsuarios < totalPaginas) {
         paginaActualUsuarios++;
+        renderUsuarios();
+      }
+    });
+  }
+
+  if (pageNumbersUsuarios) {
+    pageNumbersUsuarios.addEventListener("click", (e) => {
+      const btn = e.target.closest(".page-number-btn");
+      if (!btn) return;
+      const pagina = Number(btn.dataset.page);
+      if (!Number.isNaN(pagina)) {
+        paginaActualUsuarios = pagina;
         renderUsuarios();
       }
     });
