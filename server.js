@@ -1976,6 +1976,347 @@ app.get('/mi-cuidador', verificarRol(['usuario']), (req, res) => {
 });
 
 // ============================================
+// RUTAS DE ESTADÍSTICAS (HU-27 / HU-42)
+// ============================================
+
+function queryAsync(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+}
+
+function normalizarEstadoCita(estado) {
+  const valor = String(estado || '').toLowerCase();
+  if (valor === 'completada' || valor === 'cumplida') return 'cumplida';
+  if (valor === 'cancelada') return 'cancelada';
+  if (valor === 'vencida') return 'vencida';
+  return 'programada';
+}
+
+function calcularNivelAdherencia(porcentaje) {
+  if (porcentaje >= 90) return 'Excelente';
+  if (porcentaje >= 75) return 'Buena';
+  if (porcentaje >= 50) return 'Regular';
+  return 'Baja';
+}
+
+function construirResumenSemanal(porcentaje, totalTomados, totalProgramados) {
+  if (totalProgramados === 0) {
+    return 'No se encontraron tomas registradas en la semana seleccionada.';
+  }
+  if (porcentaje >= 90) {
+    return `Adherencia excelente. Se registraron ${totalTomados} tomas de ${totalProgramados} programadas.`;
+  }
+  if (porcentaje >= 75) {
+    return `Adherencia buena. Se registraron ${totalTomados} tomas de ${totalProgramados} programadas.`;
+  }
+  if (porcentaje >= 50) {
+    return `Adherencia regular. Se recomienda reforzar el seguimiento de tomas del paciente.`;
+  }
+  return 'Adherencia baja. Se recomienda revisar el plan de tratamiento y recordatorios.';
+}
+
+// Lista simple de pacientes para el selector de estadísticas
+app.get('/pacientes', async (req, res) => {
+  try {
+    const pacientes = await queryAsync(`
+      SELECT 
+        u.id AS id_paciente,
+        CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS nombre_completo,
+        NULL AS fecha_nacimiento
+      FROM usuarios u
+      WHERE u.rol = 'usuario'
+      ORDER BY u.nombres, u.apellidos
+    `);
+
+    res.json(pacientes);
+  } catch (error) {
+    console.error('Error al cargar pacientes para estadísticas:', error);
+    res.status(500).json({ mensaje: 'Error al cargar pacientes' });
+  }
+});
+
+// Estadísticas individuales por paciente
+app.get('/estadisticas/paciente/:id_paciente', async (req, res) => {
+  const idPaciente = parseInt(req.params.id_paciente, 10);
+  if (!Number.isInteger(idPaciente) || idPaciente <= 0) {
+    return res.status(400).json({ mensaje: 'Paciente inválido' });
+  }
+
+  try {
+    const pacienteRows = await queryAsync(`
+      SELECT 
+        u.id AS id_paciente,
+        CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS nombre_completo,
+        NULL AS fecha_nacimiento
+      FROM usuarios u
+      WHERE u.id = ? AND u.rol = 'usuario'
+      LIMIT 1
+    `, [idPaciente]);
+
+    if (!pacienteRows.length) {
+      return res.status(404).json({ mensaje: 'Paciente no encontrado' });
+    }
+
+    const paciente = pacienteRows[0];
+
+    const [medicamentos, alergias, condiciones, citasRows, cumplimientoRows] = await Promise.all([
+      queryAsync(`
+        SELECT 
+          nombre,
+          dosis,
+          frecuencia_horas AS frecuencia
+        FROM Registro_medicamentos
+        WHERE paciente_id = ?
+        ORDER BY id DESC
+      `, [idPaciente]),
+      queryAsync(`
+        SELECT nombre_alergia
+        FROM alergia
+        WHERE id_paciente = ?
+        ORDER BY id ASC
+      `, [idPaciente]),
+      queryAsync(`
+        SELECT nombre_condicion, nivel
+        FROM condicion_medica
+        WHERE id_paciente = ?
+        ORDER BY id ASC
+      `, [idPaciente]),
+      queryAsync(`
+        SELECT estado, COUNT(*) AS total
+        FROM citas
+        WHERE id_paciente = ?
+        GROUP BY estado
+      `, [idPaciente]),
+      queryAsync(`
+        SELECT
+          COUNT(*) AS total_programados,
+          SUM(CASE WHEN estado = 'tomada' THEN 1 ELSE 0 END) AS total_tomados
+        FROM tomas_medicas
+        WHERE id_usuario = ?
+      `, [idPaciente])
+    ]);
+
+    const citasDetalleMap = { programada: 0, cumplida: 0, cancelada: 0, vencida: 0 };
+    citasRows.forEach((row) => {
+      const estado = normalizarEstadoCita(row.estado);
+      citasDetalleMap[estado] = Number(row.total || 0) + Number(citasDetalleMap[estado] || 0);
+    });
+
+    const citasDetalle = Object.keys(citasDetalleMap).map((estado) => ({
+      estado,
+      total: citasDetalleMap[estado]
+    }));
+    const totalCitas = citasDetalle.reduce((acc, item) => acc + Number(item.total || 0), 0);
+
+    const totalProgramados = Number(cumplimientoRows?.[0]?.total_programados || 0);
+    const totalTomados = Number(cumplimientoRows?.[0]?.total_tomados || 0);
+    const porcentaje = totalProgramados > 0
+      ? Math.round((totalTomados / totalProgramados) * 100)
+      : 0;
+
+    res.json({
+      paciente,
+      medicamentos,
+      alergias,
+      condiciones,
+      citas: {
+        total: totalCitas,
+        detalle: citasDetalle
+      },
+      cumplimiento: {
+        total_programados: totalProgramados,
+        total_tomados: totalTomados,
+        porcentaje
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener estadísticas del paciente:', error);
+    res.status(500).json({ mensaje: 'Error al obtener estadísticas del paciente' });
+  }
+});
+
+// Comparación entre pacientes
+app.get('/estadisticas/comparar', async (req, res) => {
+  const idsRaw = String(req.query.ids || '');
+  const ids = [...new Set(idsRaw.split(',').map((id) => parseInt(id, 10)).filter((id) => Number.isInteger(id) && id > 0))];
+
+  if (!ids.length) {
+    return res.status(400).json({ mensaje: 'Debe enviar IDs válidos para comparar' });
+  }
+
+  try {
+    const resultados = [];
+
+    for (const idPaciente of ids) {
+      const pacienteRows = await queryAsync(`
+        SELECT 
+          u.id AS id_paciente,
+          CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS nombre_completo
+        FROM usuarios u
+        WHERE u.id = ? AND u.rol = 'usuario'
+        LIMIT 1
+      `, [idPaciente]);
+
+      if (!pacienteRows.length) continue;
+
+      const [medsRows, condRows, alergRows, citasRows] = await Promise.all([
+        queryAsync(`SELECT COUNT(*) AS total FROM Registro_medicamentos WHERE paciente_id = ?`, [idPaciente]),
+        queryAsync(`SELECT nivel FROM condicion_medica WHERE id_paciente = ?`, [idPaciente]),
+        queryAsync(`SELECT COUNT(*) AS total FROM alergia WHERE id_paciente = ?`, [idPaciente]),
+        queryAsync(`SELECT estado, COUNT(*) AS total FROM citas WHERE id_paciente = ? GROUP BY estado`, [idPaciente])
+      ]);
+
+      const totalMedicamentos = Number(medsRows?.[0]?.total || 0);
+      const totalCondiciones = condRows.length;
+      const totalAlergias = Number(alergRows?.[0]?.total || 0);
+      const totalCitas = citasRows.reduce((acc, row) => acc + Number(row.total || 0), 0);
+      const citasCumplidas = citasRows
+        .filter((row) => normalizarEstadoCita(row.estado) === 'cumplida')
+        .reduce((acc, row) => acc + Number(row.total || 0), 0);
+      const citasCanceladas = citasRows
+        .filter((row) => normalizarEstadoCita(row.estado) === 'cancelada')
+        .reduce((acc, row) => acc + Number(row.total || 0), 0);
+
+      let nivelMax = null;
+      if (condRows.some((c) => String(c.nivel || '').toLowerCase() === 'crítica' || String(c.nivel || '').toLowerCase() === 'critica')) {
+        nivelMax = 'Crítica';
+      } else if (condRows.some((c) => String(c.nivel || '').toLowerCase() === 'moderada')) {
+        nivelMax = 'Moderada';
+      } else if (condRows.length > 0) {
+        nivelMax = 'Leve';
+      }
+
+      resultados.push({
+        id_paciente: idPaciente,
+        nombre_completo: pacienteRows[0].nombre_completo,
+        total_medicamentos: totalMedicamentos,
+        total_condiciones: totalCondiciones,
+        total_alergias: totalAlergias,
+        total_citas: totalCitas,
+        citas_cumplidas: citasCumplidas,
+        citas_canceladas: citasCanceladas,
+        nivel_max: nivelMax
+      });
+    }
+
+    res.json(resultados);
+  } catch (error) {
+    console.error('Error al comparar pacientes:', error);
+    res.status(500).json({ mensaje: 'Error al comparar pacientes' });
+  }
+});
+
+// Reporte semanal por paciente (lunes a domingo)
+app.get('/reporte-semanal/:id_paciente', async (req, res) => {
+  const idPaciente = parseInt(req.params.id_paciente, 10);
+  if (!Number.isInteger(idPaciente) || idPaciente <= 0) {
+    return res.status(400).json({ mensaje: 'Paciente inválido' });
+  }
+
+  const fechaInicio = String(req.query.fecha_inicio || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaInicio)) {
+    return res.status(400).json({ mensaje: 'fecha_inicio inválida. Use formato YYYY-MM-DD' });
+  }
+
+  try {
+    const pacienteRows = await queryAsync(`
+      SELECT 
+        u.id AS id_paciente,
+        CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS nombre_completo
+      FROM usuarios u
+      WHERE u.id = ? AND u.rol = 'usuario'
+      LIMIT 1
+    `, [idPaciente]);
+
+    if (!pacienteRows.length) {
+      return res.status(404).json({ mensaje: 'Paciente no encontrado' });
+    }
+
+    const inicio = new Date(`${fechaInicio}T00:00:00`);
+    const fin = new Date(inicio);
+    fin.setDate(fin.getDate() + 6);
+    const fechaFin = fin.toISOString().slice(0, 10);
+
+    const tomas = await queryAsync(`
+      SELECT
+        DATE(t.fecha_toma) AS fecha,
+        t.nombre_medicamento AS medicamento,
+        r.dosis AS dosis,
+        t.hora_toma AS horario,
+        t.estado
+      FROM tomas_medicas t
+      LEFT JOIN recetas_medicas r ON r.id = t.id_receta
+      WHERE t.id_usuario = ?
+        AND DATE(t.fecha_toma) BETWEEN ? AND ?
+      ORDER BY t.fecha_toma ASC, t.hora_toma ASC, t.id ASC
+    `, [idPaciente, fechaInicio, fechaFin]);
+
+    const porFecha = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(inicio);
+      d.setDate(inicio.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      porFecha[key] = { programados: 0, tomados: 0, detalle: [] };
+    }
+
+    tomas.forEach((toma) => {
+      const key = new Date(toma.fecha).toISOString().slice(0, 10);
+      if (!porFecha[key]) return;
+
+      porFecha[key].programados += 1;
+      if (String(toma.estado || '').toLowerCase() === 'tomada') {
+        porFecha[key].tomados += 1;
+      }
+
+      porFecha[key].detalle.push({
+        medicamento: toma.medicamento || 'Medicamento',
+        dosis: toma.dosis || '',
+        horario: toma.horario || '',
+        tomado: String(toma.estado || '').toLowerCase() === 'tomada'
+      });
+    });
+
+    const dias = Object.keys(porFecha).sort().map((fecha) => {
+      const programados = porFecha[fecha].programados;
+      const tomados = porFecha[fecha].tomados;
+      const porcentaje = programados > 0 ? Math.round((tomados / programados) * 100) : null;
+      return {
+        fecha,
+        programados,
+        tomados,
+        porcentaje,
+        detalle: porFecha[fecha].detalle
+      };
+    });
+
+    const totalProgramados = dias.reduce((acc, d) => acc + d.programados, 0);
+    const totalTomados = dias.reduce((acc, d) => acc + d.tomados, 0);
+    const porcentaje = totalProgramados > 0 ? Math.round((totalTomados / totalProgramados) * 100) : 0;
+    const nivelAdherencia = calcularNivelAdherencia(porcentaje);
+    const resumen = construirResumenSemanal(porcentaje, totalTomados, totalProgramados);
+
+    res.json({
+      paciente: pacienteRows[0],
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+      total_programados: totalProgramados,
+      total_tomados: totalTomados,
+      porcentaje,
+      nivel_adherencia: nivelAdherencia,
+      resumen,
+      dias
+    });
+  } catch (error) {
+    console.error('Error al generar reporte semanal:', error);
+    res.status(500).json({ mensaje: 'Error al generar reporte semanal' });
+  }
+});
+
+// ============================================
 // RUTA DE PRUEBA
 // ============================================
 app.get('/test', (req, res) => {

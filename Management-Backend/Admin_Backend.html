@@ -98,8 +98,18 @@
         <button class="nav-btn" data-section="medicamentos" data-role="administrador,empleado"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
         <button class="nav-btn" data-section="recetas" data-role="administrador,empleado"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
         <button class="nav-btn" data-section="Ficha" data-role="administrador,empleado"><i class="bi bi-clipboard2-check"></i> <span>Verificaci&oacute;n de medicamentos</span></button>
-        <button class="nav-btn" data-section="inventario" data-role="administrador,empleado"><i class="bi bi-box"></i> <span>Inventario</span></button>
-        <button class="nav-btn" data-section="pedidos" data-role="administrador,empleado"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
+        <button class="nav-btn" data-section="estadisticas" data-role="administrador,empleado"><i class="bi bi-bar-chart-line"></i> <span>Estadísticas</span></button>
+        <div class="nav-group nav-accordion" id="farmaciaAccordionAdmin">
+          <button class="nav-btn nav-accordion-toggle" type="button" aria-expanded="false">
+            <i class="bi bi-hospital"></i>
+            <span>Farmacia</span>
+            <i class="bi bi-chevron-down accordion-chevron"></i>
+          </button>
+          <div class="nav-accordion-content">
+            <button class="nav-btn" data-section="inventario" data-role="administrador,empleado"><i class="bi bi-box"></i> <span>Inventario</span></button>
+            <button class="nav-btn" data-section="pedidos" data-role="administrador,empleado"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
+          </div>
+        </div>
         <button class="nav-btn" data-section="usuarios" data-role="administrador"><i class="bi bi-people"></i> <span>Gestión de Usuarios</span></button>
         <button class="nav-btn" id="cerrarSesionBtn" data-role="administrador,empleado"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
       </nav>
@@ -712,6 +722,325 @@
         </div>
       </section>
 
+
+
+
+      <!-- HU-27: ESTADÍSTICAS -->
+      <section id="estadisticas" class="section d-none">
+        <div class="section-header">
+          <h2><i class="bi bi-bar-chart-line me-2"></i> Estadísticas</h2>
+          <p class="muted">Consulta gráficos, compara pacientes y genera reportes de cumplimiento.</p>
+        </div>
+
+        <!-- Pestañas -->
+        <ul class="nav nav-tabs est-tabs mb-4" id="estTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-individual" data-bs-toggle="tab" data-bs-target="#pane-individual" type="button" role="tab"><i class="bi bi-person-lines-fill me-1"></i> Individual</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-comparar" data-bs-toggle="tab" data-bs-target="#pane-comparar" type="button" role="tab"><i class="bi bi-people me-1"></i> Comparar</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-reporte" data-bs-toggle="tab" data-bs-target="#pane-reporte" type="button" role="tab"><i class="bi bi-calendar-week me-1"></i> Reporte Semanal</button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="estTabContent">
+
+        <!-- TAB: Individual -->
+        <div class="tab-pane fade show active" id="pane-individual" role="tabpanel">
+
+        <div class="est-wrapper">
+
+        <!-- SELECTOR DE PACIENTE -->
+        <div class="card mb-3">
+          <h5 class="card-title"><i class="bi bi-person-check me-2"></i> Seleccionar Paciente</h5>
+          <label for="estPacienteSelect" class="form-label">Paciente</label>
+          <div class="d-flex gap-2 align-items-stretch flex-wrap est-toolbar">
+            <select id="estPacienteSelect" class="form-select">
+              <option value="">-- Seleccione un paciente --</option>
+            </select>
+            <button id="estCargarBtn" class="btn btn-primary">
+              <i class="bi bi-search me-1"></i> Ver Estadísticas
+            </button>
+            <button id="estExportarCsvBtn" class="btn btn-outline-success" disabled>
+              <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar CSV
+            </button>
+            <button id="estExportarPdfBtn" class="btn btn-outline-danger" disabled>
+              <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- RESUMEN GENERAL DEL PACIENTE -->
+        <div id="estResumen" class="d-none">
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-heart-pulse fs-2 text-danger"></i>
+                <h3 id="estCumplimientoPct" class="mt-2 mb-0">0%</h3>
+                <small class="text-muted">Cumplimiento</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-capsule fs-2 text-primary"></i>
+                <h3 id="estTotalMeds" class="mt-2 mb-0">0</h3>
+                <small class="text-muted">Medicamentos</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-calendar-check fs-2 text-success"></i>
+                <h3 id="estTotalCitas" class="mt-2 mb-0">0</h3>
+                <small class="text-muted">Citas Totales</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-exclamation-triangle fs-2 text-warning"></i>
+                <h3 id="estTotalCondiciones" class="mt-2 mb-0">0</h3>
+                <small class="text-muted">Condiciones</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- GRÁFICOS -->
+          <div class="row g-3 mb-3">
+            <div class="col-lg-6">
+              <div class="card p-3 h-100">
+                <h6 class="card-title mb-2"><i class="bi bi-pie-chart me-2"></i> Cumplimiento de Medicamentos</h6>
+                <div class="chart-container-sm">
+                  <canvas id="chartCumplimiento"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="card p-3 h-100">
+                <h6 class="card-title mb-2"><i class="bi bi-pie-chart me-2"></i> Estado de Citas</h6>
+                <div class="chart-container-sm">
+                  <canvas id="chartCitas"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-lg-6">
+              <div class="card p-3 h-100">
+                <h6 class="card-title mb-2"><i class="bi bi-bar-chart me-2"></i> Condiciones Médicas por Nivel</h6>
+                <div class="chart-container-sm">
+                  <canvas id="chartCondiciones"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="card p-3 h-100">
+                <h6 class="card-title mb-2"><i class="bi bi-list-ul me-2"></i> Detalle del Paciente</h6>
+                <div id="estDetalle" class="small"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        </div><!-- /.est-wrapper -->
+        </div><!-- /tab-pane individual -->
+
+        <!-- TAB: Comparar -->
+        <div class="tab-pane fade" id="pane-comparar" role="tabpanel">
+        <div class="est-wrapper">
+
+        <div class="card mb-3">
+          <h5 class="card-title"><i class="bi bi-people me-2"></i> Seleccione Pacientes</h5>
+          <p class="text-muted small mb-3">Seleccione un paciente en cada campo para comparar sus estadísticas.</p>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="estCompararSelect1" class="form-label fw-semibold">Primer paciente</label>
+              <select id="estCompararSelect1" class="form-select">
+                <option value="">-- Seleccione primer paciente --</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="estCompararSelect2" class="form-label fw-semibold">Segundo paciente</label>
+              <select id="estCompararSelect2" class="form-select">
+                <option value="">-- Seleccione segundo paciente --</option>
+              </select>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button id="estCompararBtn" class="btn btn-primary">
+              <i class="bi bi-arrow-left-right me-1"></i> Comparar
+            </button>
+            <button id="estLimpiarCompBtn" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle me-1"></i> Limpiar
+            </button>
+          </div>
+        </div>
+
+        <div id="estComparacion" class="d-none">
+          <div class="card p-3 mb-3">
+            <h6 class="card-title"><i class="bi bi-bar-chart me-2"></i> Comparación de Pacientes</h6>
+            <div class="chart-container">
+              <canvas id="chartComparacion"></canvas>
+            </div>
+          </div>
+          <div class="card p-3 mb-3">
+            <h6 class="card-title"><i class="bi bi-table me-2"></i> Tabla Comparativa</h6>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover" id="tablaComparacion">
+                <thead class="table-light">
+                  <tr>
+                    <th>Paciente</th>
+                    <th>Medicamentos</th>
+                    <th>Condiciones</th>
+                    <th>Alergias</th>
+                    <th>Citas Total</th>
+                    <th>Citas Cumplidas</th>
+                    <th>Citas Canceladas</th>
+                    <th>Nivel Máx.</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        </div><!-- /.est-wrapper -->
+        </div><!-- /tab-pane comparar -->
+
+        <!-- TAB: Reporte Semanal -->
+        <div class="tab-pane fade" id="pane-reporte" role="tabpanel">
+        <div class="est-wrapper">
+
+        <div class="card mb-3">
+          <h5 class="card-title"><i class="bi bi-calendar-week me-2"></i> Generar Reporte</h5>
+          <p class="text-muted small mb-3">Seleccione un paciente y una fecha para ver el reporte de adherencia al tratamiento.</p>
+
+          <div class="row g-2 align-items-end mb-3">
+            <div class="col-md-6">
+              <label for="rptPacienteSelect" class="form-label fw-semibold">Paciente</label>
+              <select id="rptPacienteSelect" class="form-select">
+                <option value="">-- Seleccione un paciente --</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="rptSemanaInput" class="form-label fw-semibold">Inicio de semana (lunes)</label>
+              <input type="date" id="rptSemanaInput" class="form-control">
+            </div>
+          </div>
+          <div class="d-flex gap-2 align-items-center">
+            <button id="rptGenerarBtn" class="btn btn-primary">
+              <i class="bi bi-bar-chart-steps me-1"></i> Generar
+            </button>
+            <button id="rptExportarPdfBtn" class="btn btn-outline-danger" disabled>
+              <i class="bi bi-file-earmark-pdf me-1"></i> Exportar
+            </button>
+            <button id="rptLimpiarBtn" class="btn btn-outline-secondary">
+              <i class="bi bi-x-circle me-1"></i> Limpiar
+            </button>
+          </div>
+        </div>
+
+        <!-- Resultados del reporte semanal -->
+        <div id="rptResultados" class="d-none">
+          <!-- Resumen automático -->
+          <div id="rptResumenCard" class="card mb-3 p-3">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              <i class="bi bi-clipboard2-pulse fs-3 text-primary"></i>
+              <div>
+                <h6 class="mb-0 fw-bold">Resumen de la Semana</h6>
+                <small id="rptRangoFechas" class="text-muted"></small>
+              </div>
+            </div>
+            <p id="rptResumenTexto" class="mb-0 mt-2"></p>
+          </div>
+
+          <!-- Tarjetas resumen -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-percent fs-2 text-primary"></i>
+                <h3 id="rptPctSemanal" class="mt-2 mb-0">0%</h3>
+                <small class="text-muted">Cumplimiento</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-check2-circle fs-2 text-success"></i>
+                <h3 id="rptTomados" class="mt-2 mb-0">0</h3>
+                <small class="text-muted">Tomados</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-list-check fs-2 text-info"></i>
+                <h3 id="rptProgramados" class="mt-2 mb-0">0</h3>
+                <small class="text-muted">Programados</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card text-center p-3">
+                <i class="bi bi-trophy fs-2" id="rptNivelIcon"></i>
+                <h3 id="rptNivel" class="mt-2 mb-0">-</h3>
+                <small class="text-muted">Adherencia</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gráfico barras por día -->
+          <div class="row g-3 mb-3">
+            <div class="col-lg-7">
+              <div class="card p-3 h-100">
+                <h6 class="card-title mb-2"><i class="bi bi-bar-chart me-2"></i> Cumplimiento Diario</h6>
+                <div class="chart-container">
+                  <canvas id="chartReporteSemanal"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-5">
+              <div class="card p-3 h-100">
+                <h6 class="card-title mb-2"><i class="bi bi-pie-chart me-2"></i> Resumen Semanal</h6>
+                <div class="chart-container">
+                  <canvas id="chartReporteDonut"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla desglose diario -->
+          <div class="card p-3 mb-3">
+            <h6 class="card-title"><i class="bi bi-table me-2"></i> Desglose Diario</h6>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover table-sm" id="tablaReporteSemanal">
+                <thead class="table-light">
+                  <tr>
+                    <th>Día</th>
+                    <th>Fecha</th>
+                    <th>Programados</th>
+                    <th>Tomados</th>
+                    <th>Cumplimiento</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Detalle por medicamento expandible -->
+          <div class="card p-3 mb-3">
+            <h6 class="card-title"><i class="bi bi-capsule me-2"></i> Detalle por Medicamento</h6>
+            <div id="rptDetalleMeds" class="small"></div>
+          </div>
+        </div>
+        <!-- /HU-42 -->
+
+        </div><!-- /.est-wrapper -->
+        </div><!-- /tab-pane reporte -->
+
+        </div><!-- /tab-content -->
+      </section>
+
       <!-- PEDIDOS FARMACIA -->
       <section id="pedidos" class="section d-none">
         <div class="section-header">
@@ -1192,9 +1521,25 @@ document.addEventListener('DOMContentLoaded', () => {
   <!-- Script para navegación y menús dinámicos por rol -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const navBtns = document.querySelectorAll('.nav-btn');
+      const navBtns = document.querySelectorAll('.nav-btn[data-section]');
       const sections = document.querySelectorAll('.section');
       const userRole = window.userRole || '';
+      const farmaciaAccordion = document.getElementById('farmaciaAccordionAdmin');
+      const farmaciaToggle = farmaciaAccordion?.querySelector('.nav-accordion-toggle');
+
+      function actualizarAccordionFarmacia(sectionId = '') {
+        if (!farmaciaAccordion || !farmaciaToggle) return;
+        const debeAbrir = sectionId === 'inventario' || sectionId === 'pedidos';
+        farmaciaAccordion.classList.toggle('open', !!debeAbrir);
+        farmaciaToggle.setAttribute('aria-expanded', debeAbrir ? 'true' : 'false');
+      }
+
+      if (farmaciaToggle && farmaciaAccordion) {
+        farmaciaToggle.addEventListener('click', () => {
+          const abierto = farmaciaAccordion.classList.toggle('open');
+          farmaciaToggle.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+        });
+      }
 
       // Filtrar menús según el rol del usuario
       function filtrarMenusPorRol() {
@@ -1237,6 +1582,7 @@ document.addEventListener('DOMContentLoaded', () => {
               // Mostrar sección guardada
               targetSection.classList.remove('d-none');
               targetBtn.classList.add('active');
+              actualizarAccordionFarmacia(savedSection);
               
               // Disparar evento personalizado para que otros scripts sepan que la sección cambió
               const event = new CustomEvent('sectionRestored', { detail: { sectionId: savedSection } });
@@ -1266,6 +1612,7 @@ document.addEventListener('DOMContentLoaded', () => {
             navBtns.forEach(b => b.classList.remove('active'));
             const medBtn = document.querySelector('[data-section="medicamentos"]');
             if (medBtn) medBtn.classList.add('active');
+            actualizarAccordionFarmacia('medicamentos');
           }
         }
       }
@@ -1290,6 +1637,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (botonInicial) {
           botonInicial.classList.add('active');
         }
+        actualizarAccordionFarmacia(sectionIdInicial);
 
         guardarSeccionActiva(sectionIdInicial);
       }
@@ -1310,6 +1658,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (targetSection) {
             targetSection.classList.remove('d-none');
             btn.classList.add('active');
+            actualizarAccordionFarmacia(sectionId);
             // Guardar sección en localStorage
             guardarSeccionActiva(sectionId);
             if (sectionId === 'dashboard' && window.cargarDashboard) {
@@ -1323,7 +1672,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       // Reutilizar el mismo flujo del clic para la carga inicial
-      const botonActivoInicial = document.querySelector('.nav-btn.active');
+      const botonActivoInicial = document.querySelector('.nav-btn.active[data-section]');
       if (botonActivoInicial) {
         setTimeout(() => {
           botonActivoInicial.click();
@@ -2159,4 +2508,6 @@ document.addEventListener('DOMContentLoaded', () => {
   </script>
 </body>
 </html>
+
+
 

@@ -1,4 +1,4 @@
-// ===============================
+﻿// ===============================
 /* DASHBOARD ENHANCEMENTS */
 // ===============================
 const hasAOS = typeof window !== "undefined" && typeof window.AOS !== "undefined";
@@ -108,15 +108,37 @@ async function cargarDashboard() {
   
   try {
     // attach token if available
-    const token = localStorage.getItem('auth_token') || 
-                  localStorage.getItem('token') || 
-                  localStorage.getItem('accessToken') ||
-                  sessionStorage.getItem('auth_token') ||
-                  sessionStorage.getItem('token');
+    const token = obtenerTokenSesion();
     const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const [usuariosRes, medsRes, invRes, citasRes] = await Promise.allSettled([
-      fetch('http://localhost:3000/usuarios', { headers: authHeaders }),
+    let usuarios = [];
+    let estadoUsuarios = 'rol-endpoints';
+
+    const [adminsRes, empleadosRes, pacientesRes] = await Promise.allSettled([
+      fetch('http://localhost:3000/usuarios/rol/administrador'),
+      fetch('http://localhost:3000/usuarios/rol/empleado'),
+      fetch('http://localhost:3000/usuarios/rol/usuario')
+    ]);
+
+    const parseRolRes = async (res) => {
+      if (res.status === 'fulfilled' && res.value.ok) return res.value.json();
+      return [];
+    };
+
+    const [admins, empleados, pacientes] = await Promise.all([
+      parseRolRes(adminsRes),
+      parseRolRes(empleadosRes),
+      parseRolRes(pacientesRes)
+    ]);
+
+    usuarios = [...admins, ...empleados, ...pacientes];
+    estadoUsuarios = `roles:${[
+      adminsRes.status === 'fulfilled' ? adminsRes.value.status : adminsRes.status,
+      empleadosRes.status === 'fulfilled' ? empleadosRes.value.status : empleadosRes.status,
+      pacientesRes.status === 'fulfilled' ? pacientesRes.value.status : pacientesRes.status
+    ].join('/')}`;
+
+    const [medsRes, invRes, citasRes] = await Promise.allSettled([
       fetch('http://localhost:3000/Registro_medicamentos', { headers: authHeaders }),
       fetch('http://localhost:3000/inventario', { headers: authHeaders }),
       fetch('http://localhost:3000/obtenerCitas', { headers: authHeaders })
@@ -124,19 +146,18 @@ async function cargarDashboard() {
 
     // log response statuses
     console.log('fetch statuses', {
-      usuarios: usuariosRes.status === 'fulfilled' ? usuariosRes.value.status : usuariosRes.status,
+      usuarios: estadoUsuarios,
       medicamentos: medsRes.status === 'fulfilled' ? medsRes.value.status : medsRes.status,
       inventario: invRes.status === 'fulfilled' ? invRes.value.status : invRes.status,
       citas: citasRes.status === 'fulfilled' ? citasRes.value.status : citasRes.status
     });
 
-    const usuarios = usuariosRes.status === 'fulfilled' && usuariosRes.value.ok ? await usuariosRes.value.json() : [];
     const medicamentos = medsRes.status === 'fulfilled' && medsRes.value.ok ? await medsRes.value.json() : [];
     const inventario = invRes.status === 'fulfilled' && invRes.value.ok ? await invRes.value.json() : [];
     const citas = citasRes.status === 'fulfilled' && citasRes.value.ok ? await citasRes.value.json() : [];
 
     // if any returned ok:false, show toast with server message
-    [usuariosRes, medsRes, invRes, citasRes].forEach(res => {
+    [medsRes, invRes, citasRes].forEach(res => {
       if (res.status === 'fulfilled' && res.value && res.value.ok === false) {
         const msg = res.value.mensaje || res.value.message || 'Error de servidor';
         mostrarToast(msg, 'warning');
@@ -2581,3 +2602,1057 @@ function escapeHtml(str) {
   div.textContent = String(str || "");
   return div.innerHTML;
 }
+
+// ===============================
+// ESTADÍSTICAS DE SALUD (HU-27)
+// Funciones: Gráficos (cumplimiento doughnut, citas pie, condiciones bar),
+//   tarjetas resumen, detalle del paciente, exportar CSV, exportar PDF,
+//   comparar entre pacientes (tabla + gráfico barras agrupadas), limpiar comparación
+// ===============================
+(function(){
+  const API = "http://localhost:3000";
+  const esVistaCuidador = String(window.location.pathname || '').toLowerCase().includes('cuidador_backend.html');
+  const chartDisponible = typeof window !== 'undefined' && typeof window.Chart !== 'undefined';
+
+  // Referencias DOM
+  const pacienteSelect = document.getElementById("estPacienteSelect");
+  const cargarBtn = document.getElementById("estCargarBtn");
+  const exportCsvBtn = document.getElementById("estExportarCsvBtn");
+  const exportPdfBtn = document.getElementById("estExportarPdfBtn");
+  const resumenDiv = document.getElementById("estResumen");
+  const compararSelect1 = document.getElementById("estCompararSelect1");
+  const compararSelect2 = document.getElementById("estCompararSelect2");
+  const compararBtn = document.getElementById("estCompararBtn");
+  const comparacionDiv = document.getElementById("estComparacion");
+
+  const limpiarCompBtn = document.getElementById("estLimpiarCompBtn");
+
+  if (!pacienteSelect) return; // Si la sección no existe, salir
+
+  // Instancias de gráficos para destruir/recrear
+  let chartCumplimiento = null;
+  let chartCitas = null;
+  let chartCondiciones = null;
+  let chartComparacion = null;
+  let datosActuales = null; // Para exportar
+  let pacientesCache = [];
+  let endpointPacientesDisponible = true;
+  let endpointStatsPacienteDisponible = true;
+  let endpointStatsCompararDisponible = true;
+  let endpointStatsReporteDisponible = true;
+
+  function obtenerTokenSesionStats() {
+    let token = localStorage.getItem('auth_token') ||
+                localStorage.getItem('token') ||
+                localStorage.getItem('accessToken') ||
+                sessionStorage.getItem('auth_token') ||
+                sessionStorage.getItem('token');
+
+    if (!token) {
+      const usuarioData = localStorage.getItem('usuario');
+      if (usuarioData) {
+        try {
+          const usuario = JSON.parse(usuarioData);
+          token = usuario.token || usuario.accessToken || usuario.authToken || token;
+        } catch (_) {}
+      }
+    }
+    return token;
+  }
+
+  async function obtenerPacientesEstadisticas() {
+    const token = obtenerTokenSesionStats();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const intentos = esVistaCuidador
+      ? [
+      { url: `${API}/mis-pacientes`, map: (p) => ({ id_paciente: p.id, nombre_completo: `${p.nombres || ''} ${p.apellidos || ''}`.trim() }), withAuth: true },
+      { url: `${API}/usuarios/rol/usuario`, map: (p) => ({ id_paciente: p.id, nombre_completo: `${p.nombres || ''} ${p.apellidos || ''}`.trim() }) },
+      { url: `${API}/pacientes`, map: (p) => ({ id_paciente: p.id_paciente ?? p.id, nombre_completo: p.nombre_completo ?? `${p.nombres || ''} ${p.apellidos || ''}`.trim() }), legacy: true }
+    ]
+      : [
+      { url: `${API}/usuarios/rol/usuario`, map: (p) => ({ id_paciente: p.id, nombre_completo: `${p.nombres || ''} ${p.apellidos || ''}`.trim() }) },
+      { url: `${API}/mis-pacientes`, map: (p) => ({ id_paciente: p.id, nombre_completo: `${p.nombres || ''} ${p.apellidos || ''}`.trim() }), withAuth: true },
+      { url: `${API}/pacientes`, map: (p) => ({ id_paciente: p.id_paciente ?? p.id, nombre_completo: p.nombre_completo ?? `${p.nombres || ''} ${p.apellidos || ''}`.trim() }), legacy: true }
+    ];
+
+    for (const intento of intentos) {
+      if (intento.legacy && !endpointPacientesDisponible) continue;
+      try {
+        const resp = await fetch(intento.url, { headers: intento.withAuth ? headers : {} });
+        if (intento.legacy && resp.status === 404) {
+          endpointPacientesDisponible = false;
+          continue;
+        }
+        if (!resp.ok) continue;
+        const data = await resp.json();
+        if (!Array.isArray(data)) continue;
+        return data
+          .map(intento.map)
+          .filter((p) => p.id_paciente && p.nombre_completo);
+      } catch (_) {}
+    }
+
+    return [];
+  }
+
+  function normalizarEstadoCitaStats(estado) {
+    const valor = String(estado || '').toLowerCase();
+    if (valor === 'completada' || valor === 'cumplida') return 'cumplida';
+    if (valor === 'cancelada') return 'cancelada';
+    if (valor === 'vencida') return 'vencida';
+    return 'programada';
+  }
+
+  async function fetchJsonOrThrow(url, options = {}) {
+    const resp = await fetch(url, options);
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status} en ${url}`);
+    }
+    const contentType = (resp.headers.get('content-type') || '').toLowerCase();
+    if (!contentType.includes('application/json')) {
+      throw new Error(`Respuesta no JSON en ${url}`);
+    }
+    return resp.json();
+  }
+
+  async function construirEstadisticaPacienteFallback(idPaciente) {
+    const [meds, citas, tomas] = await Promise.all([
+      fetchJsonOrThrow(`${API}/Registro_medicamentos`).catch(() => []),
+      fetchJsonOrThrow(`${API}/obtenerCitas`).catch(() => []),
+      fetchJsonOrThrow(`${API}/historialMedicacionEventos/${idPaciente}`).catch(() => [])
+    ]);
+
+    const paciente =
+      pacientesCache.find((p) => String(p.id_paciente) === String(idPaciente)) ||
+      { id_paciente: idPaciente, nombre_completo: `Paciente #${idPaciente}`, fecha_nacimiento: null };
+
+    const medicamentos = (Array.isArray(meds) ? meds : [])
+      .filter((m) => String(m.paciente_id) === String(idPaciente))
+      .map((m) => ({
+        nombre: m.nombre || 'Medicamento',
+        dosis: m.dosis || '',
+        frecuencia: m.frecuencia_horas || m.frecuencia || 0
+      }));
+
+    const citasFiltradas = (Array.isArray(citas) ? citas : []).filter((c) => String(c.id_paciente) === String(idPaciente));
+    const estadoMap = { programada: 0, cumplida: 0, cancelada: 0, vencida: 0 };
+    citasFiltradas.forEach((c) => {
+      const e = normalizarEstadoCitaStats(c.estado);
+      estadoMap[e] = (estadoMap[e] || 0) + 1;
+    });
+    const citasDetalle = Object.keys(estadoMap).map((estado) => ({ estado, total: estadoMap[estado] }));
+
+    const tomasArr = Array.isArray(tomas) ? tomas : [];
+    const totalProgramados = tomasArr.length;
+    const totalTomados = tomasArr.filter((t) => String(t.estado || '').toLowerCase() === 'tomada').length;
+    const porcentaje = totalProgramados > 0 ? Math.round((totalTomados / totalProgramados) * 100) : 0;
+
+    return {
+      paciente: {
+        id_paciente: paciente.id_paciente,
+        nombre_completo: paciente.nombre_completo,
+        fecha_nacimiento: paciente.fecha_nacimiento || null
+      },
+      medicamentos,
+      alergias: [],
+      condiciones: [],
+      citas: {
+        total: citasFiltradas.length,
+        detalle: citasDetalle
+      },
+      cumplimiento: {
+        total_programados: totalProgramados,
+        total_tomados: totalTomados,
+        porcentaje
+      }
+    };
+  }
+
+  async function construirComparacionFallback(ids) {
+    const [meds, citas] = await Promise.all([
+      fetchJsonOrThrow(`${API}/Registro_medicamentos`).catch(() => []),
+      fetchJsonOrThrow(`${API}/obtenerCitas`).catch(() => [])
+    ]);
+    const medsArr = Array.isArray(meds) ? meds : [];
+    const citasArr = Array.isArray(citas) ? citas : [];
+
+    return ids.map((idPaciente) => {
+      const paciente = pacientesCache.find((p) => String(p.id_paciente) === String(idPaciente));
+      const citasPaciente = citasArr.filter((c) => String(c.id_paciente) === String(idPaciente));
+
+      return {
+        id_paciente: idPaciente,
+        nombre_completo: paciente?.nombre_completo || `Paciente #${idPaciente}`,
+        total_medicamentos: medsArr.filter((m) => String(m.paciente_id) === String(idPaciente)).length,
+        total_condiciones: 0,
+        total_alergias: 0,
+        total_citas: citasPaciente.length,
+        citas_cumplidas: citasPaciente.filter((c) => normalizarEstadoCitaStats(c.estado) === 'cumplida').length,
+        citas_canceladas: citasPaciente.filter((c) => normalizarEstadoCitaStats(c.estado) === 'cancelada').length,
+        nivel_max: null
+      };
+    });
+  }
+
+  async function construirReporteSemanalFallback(idPaciente, fechaInicio) {
+    const base = new Date(`${fechaInicio}T00:00:00`);
+    const fechas = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(base);
+      d.setDate(base.getDate() + i);
+      fechas.push(d.toISOString().slice(0, 10));
+    }
+
+    const respuestas = await Promise.all(
+      fechas.map(async (f) => {
+        try {
+          const datos = await fetchJsonOrThrow(`${API}/tomas/${idPaciente}/${f}`);
+          return { fecha: f, tomas: Array.isArray(datos) ? datos : [] };
+        } catch (_) {
+          return { fecha: f, tomas: [] };
+        }
+      })
+    );
+
+    const dias = respuestas.map((r) => {
+      const programados = r.tomas.length;
+      const tomados = r.tomas.filter((t) => String(t.estado || '').toLowerCase() === 'tomada').length;
+      return {
+        fecha: r.fecha,
+        programados,
+        tomados,
+        porcentaje: programados > 0 ? Math.round((tomados / programados) * 100) : null,
+        detalle: r.tomas.map((t) => ({
+          medicamento: t.nombre_medicamento || 'Medicamento',
+          dosis: t.dosis || '',
+          horario: t.hora_toma || '',
+          tomado: String(t.estado || '').toLowerCase() === 'tomada'
+        }))
+      };
+    });
+
+    const totalProgramados = dias.reduce((acc, d) => acc + d.programados, 0);
+    const totalTomados = dias.reduce((acc, d) => acc + d.tomados, 0);
+    const porcentaje = totalProgramados > 0 ? Math.round((totalTomados / totalProgramados) * 100) : 0;
+
+    let nivel = 'Baja';
+    if (porcentaje >= 90) nivel = 'Excelente';
+    else if (porcentaje >= 75) nivel = 'Buena';
+    else if (porcentaje >= 50) nivel = 'Regular';
+
+    const fin = new Date(base);
+    fin.setDate(base.getDate() + 6);
+    const fechaFin = fin.toISOString().slice(0, 10);
+    const paciente = pacientesCache.find((p) => String(p.id_paciente) === String(idPaciente));
+
+    return {
+      paciente: {
+        id_paciente: idPaciente,
+        nombre_completo: paciente?.nombre_completo || `Paciente #${idPaciente}`
+      },
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+      total_programados: totalProgramados,
+      total_tomados: totalTomados,
+      porcentaje,
+      nivel_adherencia: nivel,
+      resumen: totalProgramados
+        ? `Se registraron ${totalTomados} tomas de ${totalProgramados} programadas en la semana.`
+        : 'No se encontraron tomas registradas en la semana seleccionada.',
+      dias
+    };
+  }
+
+  // ---- Cargar lista de pacientes ----
+  async function cargarPacientes() {
+    try {
+      const pacientes = await obtenerPacientesEstadisticas();
+      pacientesCache = pacientes;
+
+      pacienteSelect.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
+      compararSelect1.innerHTML = '<option value="">-- Seleccione primer paciente --</option>';
+      compararSelect2.innerHTML = '<option value="">-- Seleccione segundo paciente --</option>';
+
+      if (!pacientes.length) {
+        mostrarNotificacion('No se pudieron cargar pacientes. Verifica que el backend esté actualizado y activo en el puerto 3000.', 'warning');
+      }
+
+      pacientes.forEach(p => {
+        const opt1 = document.createElement("option");
+        opt1.value = p.id_paciente;
+        opt1.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+        pacienteSelect.appendChild(opt1);
+
+        const optC1 = document.createElement("option");
+        optC1.value = p.id_paciente;
+        optC1.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+        compararSelect1.appendChild(optC1);
+
+        const optC2 = document.createElement("option");
+        optC2.value = p.id_paciente;
+        optC2.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+        compararSelect2.appendChild(optC2);
+      });
+
+      // HU-42: También cargar pacientes en el selector del reporte semanal
+      cargarPacientesReporte(pacientes);
+
+      if (esVistaCuidador && pacientes.length === 1) {
+        const unico = String(pacientes[0].id_paciente);
+        pacienteSelect.value = unico;
+        compararSelect1.value = unico;
+        if (rptPacienteSelect) rptPacienteSelect.value = unico;
+      }
+    } catch (err) {
+      console.error("Error al cargar pacientes:", err);
+    }
+  }
+
+  // ---- Ver estadísticas de un paciente ----
+  cargarBtn.addEventListener("click", async () => {
+    const id = pacienteSelect.value;
+    if (!id) {
+      mostrarNotificacion('Seleccione un paciente.', 'warning');
+      return;
+    }
+
+    try {
+      let data;
+      const urlStatsPaciente = `${API}/estadisticas/paciente/${id}`;
+      try {
+        if (!endpointStatsPacienteDisponible) throw new Error('endpoint deshabilitado por 404 previo');
+        data = await fetchJsonOrThrow(urlStatsPaciente);
+      } catch (errorApi) {
+        if (String(errorApi.message || '').includes('HTTP 404')) {
+          endpointStatsPacienteDisponible = false;
+        }
+        console.warn('Fallback estadísticas paciente activado:', errorApi.message);
+        data = await construirEstadisticaPacienteFallback(id);
+      }
+      datosActuales = data;
+
+      if (!data.paciente) {
+        mostrarNotificacion('Paciente no encontrado.', 'warning');
+        return;
+      }
+
+      if ((!Array.isArray(data.medicamentos) || data.medicamentos.length === 0) &&
+          (!data.cumplimiento || Number(data.cumplimiento.total_programados || 0) === 0) &&
+          (!data.citas || Number(data.citas.total || 0) === 0)) {
+        mostrarNotificacion('Este paciente aún no tiene datos clínicos suficientes para estadísticas.', 'info');
+      }
+
+      // Mostrar resumen
+      resumenDiv.classList.remove("d-none");
+      exportCsvBtn.disabled = false;
+      exportPdfBtn.disabled = false;
+
+      // Tarjetas resumen
+      document.getElementById("estCumplimientoPct").textContent = data.cumplimiento.porcentaje + "%";
+      document.getElementById("estTotalMeds").textContent = data.medicamentos.length;
+      document.getElementById("estTotalCitas").textContent = data.citas.total;
+      document.getElementById("estTotalCondiciones").textContent = data.condiciones.length;
+
+      // Color de cumplimiento
+      const pctEl = document.getElementById("estCumplimientoPct");
+      pctEl.className = "mt-2 mb-0";
+      if (data.cumplimiento.porcentaje >= 80) pctEl.classList.add("text-success");
+      else if (data.cumplimiento.porcentaje >= 50) pctEl.classList.add("text-warning");
+      else pctEl.classList.add("text-danger");
+
+      // ---- Gráficos ----
+      if (chartDisponible) {
+        if (chartCumplimiento) chartCumplimiento.destroy();
+        const ctxCump = document.getElementById("chartCumplimiento").getContext("2d");
+        const tomados = data.cumplimiento.total_tomados;
+        const noTomados = data.cumplimiento.total_programados - tomados;
+
+        chartCumplimiento = new Chart(ctxCump, {
+          type: "doughnut",
+          data: {
+            labels: ["Tomados", "No tomados"],
+            datasets: [{
+              data: [tomados, noTomados],
+              backgroundColor: ["#198754", "#dc3545"],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "bottom" },
+              title: {
+                display: true,
+                text: `Cumplimiento: ${data.cumplimiento.porcentaje}% (${tomados}/${data.cumplimiento.total_programados})`
+              }
+            }
+          }
+        });
+
+        if (chartCitas) chartCitas.destroy();
+        const ctxCitas = document.getElementById("chartCitas").getContext("2d");
+        const estadosCitas = { programada: 0, cumplida: 0, cancelada: 0, vencida: 0 };
+        data.citas.detalle.forEach(c => { estadosCitas[c.estado] = c.total; });
+
+        chartCitas = new Chart(ctxCitas, {
+          type: "pie",
+          data: {
+            labels: ["Programadas", "Cumplidas", "Canceladas", "Vencidas"],
+            datasets: [{
+              data: [estadosCitas.programada, estadosCitas.cumplida, estadosCitas.cancelada, estadosCitas.vencida],
+              backgroundColor: ["#0d6efd", "#198754", "#dc3545", "#6c757d"],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: "bottom" } }
+          }
+        });
+
+        if (chartCondiciones) chartCondiciones.destroy();
+        const ctxCond = document.getElementById("chartCondiciones").getContext("2d");
+        const niveles = { Leve: 0, Moderada: 0, "Crítica": 0 };
+        data.condiciones.forEach(c => { if(niveles[c.nivel] !== undefined) niveles[c.nivel]++; });
+
+        chartCondiciones = new Chart(ctxCond, {
+          type: "bar",
+          data: {
+            labels: ["Leve", "Moderada", "Crítica"],
+            datasets: [{
+              label: "Condiciones médicas",
+              data: [niveles.Leve, niveles.Moderada, niveles["Crítica"]],
+              backgroundColor: ["#ffc107", "#fd7e14", "#dc3545"],
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            },
+            plugins: { legend: { display: false } }
+          }
+        });
+      }
+
+      // ---- Detalle del paciente ----
+      const detDiv = document.getElementById("estDetalle");
+      let html = `<p><strong>Nombre:</strong> ${escapeHtml(data.paciente.nombre_completo)}</p>`;
+      html += `<p><strong>Fecha nacimiento:</strong> ${data.paciente.fecha_nacimiento || "N/A"}</p>`;
+
+      html += `<p class="mt-2 mb-1"><strong>Alergias:</strong></p><ul>`;
+      if (data.alergias.length === 0) html += "<li class='text-muted'>Ninguna registrada</li>";
+      else data.alergias.forEach(a => { html += `<li>${escapeHtml(a.nombre_alergia)}</li>`; });
+      html += "</ul>";
+
+      html += `<p class="mb-1"><strong>Condiciones:</strong></p><ul>`;
+      if (data.condiciones.length === 0) html += "<li class='text-muted'>Ninguna registrada</li>";
+      else data.condiciones.forEach(c => {
+        const badge = c.nivel === "Crítica" ? "bg-danger" : c.nivel === "Moderada" ? "bg-warning text-dark" : "bg-secondary";
+        html += `<li>${escapeHtml(c.nombre_condicion)} <span class="badge ${badge}">${c.nivel}</span></li>`;
+      });
+      html += "</ul>";
+
+      html += `<p class="mb-1"><strong>Medicamentos asignados:</strong></p><ul>`;
+      if (data.medicamentos.length === 0) html += "<li class='text-muted'>Ninguno registrado</li>";
+      else data.medicamentos.forEach(m => { html += `<li>${escapeHtml(m.nombre)} - ${escapeHtml(m.dosis)} (cada ${m.frecuencia}h)</li>`; });
+      html += "</ul>";
+
+      detDiv.innerHTML = html;
+
+    } catch (err) {
+      console.error("Error al cargar estadísticas:", err);
+      mostrarNotificacion('Error al obtener estadísticas del paciente.', 'danger');
+    }
+  });
+
+  // ---- Exportar CSV ----
+  exportCsvBtn.addEventListener("click", () => {
+    if (!datosActuales || !datosActuales.paciente) return;
+    const d = datosActuales;
+    let csv = "Estadísticas de Salud - " + d.paciente.nombre_completo + "\n\n";
+    csv += "Métrica,Valor\n";
+    csv += `Cumplimiento (%),${d.cumplimiento.porcentaje}\n`;
+    csv += `Medicamentos programados,${d.cumplimiento.total_programados}\n`;
+    csv += `Medicamentos tomados,${d.cumplimiento.total_tomados}\n`;
+    csv += `Total medicamentos asignados,${d.medicamentos.length}\n`;
+    csv += `Total citas,${d.citas.total}\n`;
+    csv += `Total condiciones,${d.condiciones.length}\n`;
+    csv += `Total alergias,${d.alergias.length}\n\n`;
+
+    csv += "Condiciones Médicas\nNombre,Nivel\n";
+    d.condiciones.forEach(c => { csv += `${c.nombre_condicion},${c.nivel}\n`; });
+    csv += "\nAlergias\nNombre\n";
+    d.alergias.forEach(a => { csv += `${a.nombre_alergia}\n`; });
+    csv += "\nMedicamentos\nNombre,Dosis,Frecuencia (h)\n";
+    d.medicamentos.forEach(m => { csv += `${m.nombre},${m.dosis},${m.frecuencia}\n`; });
+    csv += "\nCitas por Estado\nEstado,Total\n";
+    d.citas.detalle.forEach(c => { csv += `${c.estado},${c.total}\n`; });
+
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Estadisticas_${d.paciente.nombre_completo.replace(/\s+/g, "_")}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
+
+  // ---- Exportar PDF (usando impresión del navegador) ----
+  exportPdfBtn.addEventListener("click", () => {
+    if (!datosActuales || !datosActuales.paciente) return;
+    const d = datosActuales;
+
+    const ventana = window.open("", "_blank");
+    ventana.document.write(`
+      <html><head><title>Informe - ${escapeHtml(d.paciente.nombre_completo)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1 { color: #333; font-size: 20px; }
+        h2 { font-size: 16px; margin-top: 18px; color: #555; }
+        table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+        th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 13px; }
+        th { background: #f5f5f5; }
+        .badge-critica { color: #dc3545; font-weight: bold; }
+        .badge-moderada { color: #fd7e14; font-weight: bold; }
+        .badge-leve { color: #6c757d; }
+        .resumen { display: flex; gap: 20px; margin: 10px 0; }
+        .resumen div { text-align: center; padding: 10px; border: 1px solid #ddd; border-radius: 6px; flex: 1; }
+        .resumen h3 { margin: 0; font-size: 24px; }
+        .resumen small { color: #888; }
+      </style></head><body>
+      <h1>Informe de Salud: ${escapeHtml(d.paciente.nombre_completo)}</h1>
+      <p>Fecha de nacimiento: ${d.paciente.fecha_nacimiento || "N/A"}</p>
+      <p>Fecha del informe: ${new Date().toLocaleDateString("es-HN")}</p>
+
+      <div class="resumen">
+        <div><h3>${d.cumplimiento.porcentaje}%</h3><small>Cumplimiento</small></div>
+        <div><h3>${d.medicamentos.length}</h3><small>Medicamentos</small></div>
+        <div><h3>${d.citas.total}</h3><small>Citas</small></div>
+        <div><h3>${d.condiciones.length}</h3><small>Condiciones</small></div>
+      </div>
+
+      <h2>Condiciones Médicas</h2>
+      <table><tr><th>Condición</th><th>Nivel</th></tr>
+      ${d.condiciones.length === 0 ? '<tr><td colspan="2">Ninguna</td></tr>' : d.condiciones.map(c => `<tr><td>${escapeHtml(c.nombre_condicion)}</td><td class="badge-${c.nivel.toLowerCase()}">${c.nivel}</td></tr>`).join("")}
+      </table>
+
+      <h2>Alergias</h2>
+      <table><tr><th>Alergia</th></tr>
+      ${d.alergias.length === 0 ? '<tr><td>Ninguna</td></tr>' : d.alergias.map(a => `<tr><td>${escapeHtml(a.nombre_alergia)}</td></tr>`).join("")}
+      </table>
+
+      <h2>Medicamentos Asignados</h2>
+      <table><tr><th>Nombre</th><th>Dosis</th><th>Frecuencia (h)</th></tr>
+      ${d.medicamentos.length === 0 ? '<tr><td colspan="3">Ninguno</td></tr>' : d.medicamentos.map(m => `<tr><td>${escapeHtml(m.nombre)}</td><td>${escapeHtml(m.dosis)}</td><td>${m.frecuencia}</td></tr>`).join("")}
+      </table>
+
+      <h2>Citas Médicas</h2>
+      <table><tr><th>Estado</th><th>Total</th></tr>
+      ${d.citas.detalle.length === 0 ? '<tr><td colspan="2">Sin citas</td></tr>' : d.citas.detalle.map(c => `<tr><td>${c.estado}</td><td>${c.total}</td></tr>`).join("")}
+      </table>
+
+      <h2>Cumplimiento de Medicamentos (Checklist)</h2>
+      <table>
+        <tr><th>Programados</th><td>${d.cumplimiento.total_programados}</td></tr>
+        <tr><th>Tomados</th><td>${d.cumplimiento.total_tomados}</td></tr>
+        <tr><th>Porcentaje</th><td>${d.cumplimiento.porcentaje}%</td></tr>
+      </table>
+
+      <script>window.onload = function(){ window.print(); }<\/script>
+      </body></html>
+    `);
+    ventana.document.close();
+  });
+
+  // ---- Comparar entre pacientes ----
+  compararBtn.addEventListener("click", async () => {
+    const id1 = compararSelect1.value;
+    const id2 = compararSelect2.value;
+
+    if (!id1 || !id2) {
+      mostrarNotificacion('Seleccione un paciente en cada campo.', 'warning');
+      return;
+    }
+    if (id1 === id2) {
+      mostrarNotificacion('Seleccione dos pacientes diferentes.', 'warning');
+      return;
+    }
+    const seleccionados = [id1, id2];
+
+    try {
+      let data;
+      const urlComparar = `${API}/estadisticas/comparar?ids=${seleccionados.join(",")}`;
+      try {
+        if (!endpointStatsCompararDisponible) throw new Error('endpoint deshabilitado por 404 previo');
+        data = await fetchJsonOrThrow(urlComparar);
+      } catch (errorApi) {
+        if (String(errorApi.message || '').includes('HTTP 404')) {
+          endpointStatsCompararDisponible = false;
+        }
+        console.warn('Fallback comparación activado:', errorApi.message);
+        data = await construirComparacionFallback(seleccionados);
+      }
+
+      if (!Array.isArray(data) || data.length === 0) {
+        mostrarNotificacion('No se encontraron datos para estos pacientes.', 'warning');
+        return;
+      }
+
+      comparacionDiv.classList.remove("d-none");
+
+      // Tabla comparativa
+      const tbody = document.querySelector("#tablaComparacion tbody");
+      tbody.innerHTML = "";
+      data.forEach(p => {
+        const nivelBadge = p.nivel_max === "Crítica" ? "bg-danger" : p.nivel_max === "Moderada" ? "bg-warning text-dark" : "bg-secondary";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(p.nombre_completo)}</strong></td>
+          <td>${p.total_medicamentos}</td>
+          <td>${p.total_condiciones}</td>
+          <td>${p.total_alergias}</td>
+          <td>${p.total_citas}</td>
+          <td>${p.citas_cumplidas || 0}</td>
+          <td>${p.citas_canceladas || 0}</td>
+          <td><span class="badge ${nivelBadge}">${p.nivel_max || "N/A"}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (chartDisponible) {
+        if (chartComparacion) chartComparacion.destroy();
+        const ctx = document.getElementById("chartComparacion").getContext("2d");
+
+        chartComparacion = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: data.map(p => p.nombre_completo),
+            datasets: [
+              {
+                label: "Medicamentos",
+                data: data.map(p => p.total_medicamentos),
+                backgroundColor: "#0d6efd"
+              },
+              {
+                label: "Condiciones",
+                data: data.map(p => p.total_condiciones),
+                backgroundColor: "#fd7e14"
+              },
+              {
+                label: "Alergias",
+                data: data.map(p => p.total_alergias),
+                backgroundColor: "#ffc107"
+              },
+              {
+                label: "Citas Total",
+                data: data.map(p => p.total_citas),
+                backgroundColor: "#198754"
+              },
+              {
+                label: "Citas Cumplidas",
+                data: data.map(p => p.citas_cumplidas || 0),
+                backgroundColor: "#20c997"
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            },
+            plugins: {
+              legend: { position: "top" },
+              title: { display: true, text: "Comparación entre Pacientes" }
+            }
+          }
+        });
+      }
+
+    } catch (err) {
+      console.error("Error al comparar:", err);
+      mostrarNotificacion('Error al comparar pacientes.', 'danger');
+    }
+  });
+
+  // ---- Limpiar comparación ----
+  limpiarCompBtn.addEventListener("click", () => {
+    // Ocultar resultados
+    comparacionDiv.classList.add("d-none");
+    // Limpiar tabla
+    const tbody = document.querySelector("#tablaComparacion tbody");
+    if (tbody) tbody.innerHTML = "";
+    // Destruir gráfico
+    if (chartComparacion) { chartComparacion.destroy(); chartComparacion = null; }
+    // Resetear selects
+    compararSelect1.value = '';
+    compararSelect2.value = '';
+  });
+
+  // ===============================
+  // HU-42: REPORTE SEMANAL DE CUMPLIMIENTO
+  // Funciones: Generar reporte semanal, gráfico de barras diario,
+  //   gráfico donut resumen, tabla de desglose, detalle por medicamento,
+  //   exportar a PDF
+  // ===============================
+
+  const rptPacienteSelect = document.getElementById("rptPacienteSelect");
+  const rptSemanaInput = document.getElementById("rptSemanaInput");
+  const rptGenerarBtn = document.getElementById("rptGenerarBtn");
+  const rptExportarPdfBtn = document.getElementById("rptExportarPdfBtn");
+  const rptResultados = document.getElementById("rptResultados");
+
+  let chartReporteSemanal = null;
+  let chartReporteDonut = null;
+  let datosReporteSemanal = null;
+
+  // Helpers para semana
+  function getMondayFromDate(dateStr) {
+    // Dado un date string YYYY-MM-DD, retorna el lunes de esa semana
+    const d = new Date(dateStr + "T00:00:00");
+    const day = d.getDay() || 7; // domingo = 7
+    d.setDate(d.getDate() - day + 1);
+    return d;
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("es-HN", { weekday: "short", day: "numeric", month: "short" });
+  }
+
+  function getDayName(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("es-HN", { weekday: "long" });
+  }
+
+  // Setear fecha actual por defecto (el lunes de esta semana)
+  if (rptSemanaInput) {
+    const monday = getMondayFromDate(new Date().toISOString().slice(0, 10));
+    rptSemanaInput.value = monday.toISOString().slice(0, 10);
+  }
+
+  // Cargar pacientes en el select del reporte
+  function cargarPacientesReporte(pacientes) {
+    if (!rptPacienteSelect) return;
+    rptPacienteSelect.innerHTML = '<option value="">-- Seleccione un paciente --</option>';
+    pacientes.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.id_paciente;
+      opt.textContent = `${p.id_paciente} - ${p.nombre_completo}`;
+      rptPacienteSelect.appendChild(opt);
+    });
+  }
+
+  // Generar reporte
+  if (rptGenerarBtn) {
+    rptGenerarBtn.addEventListener("click", async () => {
+      const idPac = rptPacienteSelect.value;
+      const fechaSeleccionada = rptSemanaInput.value;
+      if (!idPac || !fechaSeleccionada) {
+        mostrarNotificacion('Seleccione un paciente y una fecha.', 'warning');
+        return;
+      }
+
+      const monday = getMondayFromDate(fechaSeleccionada);
+      const fechaInicio = monday.toISOString().slice(0, 10);
+
+      try {
+        let data;
+        const urlReporte = `${API}/reporte-semanal/${idPac}?fecha_inicio=${fechaInicio}`;
+        try {
+          if (!endpointStatsReporteDisponible) throw new Error('endpoint deshabilitado por 404 previo');
+          data = await fetchJsonOrThrow(urlReporte);
+        } catch (errorApi) {
+          if (String(errorApi.message || '').includes('HTTP 404')) {
+            endpointStatsReporteDisponible = false;
+          }
+          console.warn('Fallback reporte semanal activado:', errorApi.message);
+          data = await construirReporteSemanalFallback(idPac, fechaInicio);
+        }
+        datosReporteSemanal = data;
+
+        rptResultados.classList.remove("d-none");
+        rptExportarPdfBtn.disabled = false;
+
+        // Rango de fechas
+        document.getElementById("rptRangoFechas").textContent =
+          `${formatDate(data.fecha_inicio)} — ${formatDate(data.fecha_fin)}`;
+
+        // Resumen textual
+        document.getElementById("rptResumenTexto").innerHTML =
+          `${escapeHtml(data.resumen)} <span class="badge-adherencia ${data.nivel_adherencia.toLowerCase()}">${data.nivel_adherencia}</span>`;
+
+        // Tarjetas resumen
+        document.getElementById("rptPctSemanal").textContent = data.porcentaje + "%";
+        document.getElementById("rptTomados").textContent = data.total_tomados;
+        document.getElementById("rptProgramados").textContent = data.total_programados;
+        document.getElementById("rptNivel").textContent = data.nivel_adherencia;
+
+        const nivelIcon = document.getElementById("rptNivelIcon");
+        const colores = { Excelente: "text-success", Buena: "text-primary", Regular: "text-warning", Baja: "text-danger" };
+        nivelIcon.className = `bi bi-trophy fs-2 ${colores[data.nivel_adherencia] || "text-secondary"}`;
+
+        // Color de la tarjeta del porcentaje
+        const pctEl = document.getElementById("rptPctSemanal");
+        pctEl.className = "mt-2 mb-0";
+        if (data.porcentaje >= 90) pctEl.classList.add("text-success");
+        else if (data.porcentaje >= 75) pctEl.classList.add("text-primary");
+        else if (data.porcentaje >= 50) pctEl.classList.add("text-warning");
+        else pctEl.classList.add("text-danger");
+
+        // ---- Gráficos reporte semanal ----
+        if (chartDisponible) {
+          if (chartReporteSemanal) chartReporteSemanal.destroy();
+          const ctxBar = document.getElementById("chartReporteSemanal").getContext("2d");
+
+          chartReporteSemanal = new Chart(ctxBar, {
+            type: "bar",
+            data: {
+              labels: data.dias.map(d => getDayName(d.fecha)),
+              datasets: [
+                {
+                  label: "Programados",
+                  data: data.dias.map(d => d.programados),
+                  backgroundColor: "rgba(13, 110, 253, 0.3)",
+                  borderColor: "#0d6efd",
+                  borderWidth: 1
+                },
+                {
+                  label: "Tomados",
+                  data: data.dias.map(d => d.tomados),
+                  backgroundColor: "rgba(25, 135, 84, 0.7)",
+                  borderColor: "#198754",
+                  borderWidth: 1
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+              },
+              plugins: {
+                legend: { position: "top" },
+                title: { display: false }
+              }
+            }
+          });
+
+          if (chartReporteDonut) chartReporteDonut.destroy();
+          const ctxDonut = document.getElementById("chartReporteDonut").getContext("2d");
+          const noTomados = data.total_programados - data.total_tomados;
+
+          chartReporteDonut = new Chart(ctxDonut, {
+            type: "doughnut",
+            data: {
+              labels: ["Tomados", "No tomados"],
+              datasets: [{
+                data: [data.total_tomados, noTomados < 0 ? 0 : noTomados],
+                backgroundColor: ["#198754", "#dc3545"],
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { position: "bottom" },
+                title: {
+                  display: true,
+                  text: `${data.porcentaje}% cumplimiento semanal`
+                }
+              }
+            }
+          });
+        }
+
+        // ---- Tabla desglose diario ----
+        const tbody = document.querySelector("#tablaReporteSemanal tbody");
+        tbody.innerHTML = "";
+        data.dias.forEach(dia => {
+          const tr = document.createElement("tr");
+          const pctTxt = dia.porcentaje !== null ? dia.porcentaje + "%" : "Sin datos";
+          let badgeClass = "bg-secondary";
+          if (dia.porcentaje !== null) {
+            if (dia.porcentaje >= 90) badgeClass = "bg-success";
+            else if (dia.porcentaje >= 75) badgeClass = "bg-primary";
+            else if (dia.porcentaje >= 50) badgeClass = "bg-warning text-dark";
+            else badgeClass = "bg-danger";
+          }
+          tr.innerHTML = `
+            <td>${getDayName(dia.fecha)}</td>
+            <td>${dia.fecha}</td>
+            <td>${dia.programados}</td>
+            <td>${dia.tomados}</td>
+            <td><span class="badge ${badgeClass}">${pctTxt}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // ---- Detalle por medicamento ----
+        const detDiv = document.getElementById("rptDetalleMeds");
+        let detHtml = "";
+        data.dias.forEach(dia => {
+          if (dia.detalle.length === 0) return;
+          detHtml += `<div class="dia-grupo">`;
+          detHtml += `<h6><strong>${getDayName(dia.fecha)}</strong> (${dia.fecha})</h6>`;
+          detHtml += `<ul class="list-unstyled mb-0">`;
+          dia.detalle.forEach(med => {
+            const icon = med.tomado
+              ? '<i class="bi bi-check-circle-fill text-success me-1"></i>'
+              : '<i class="bi bi-x-circle-fill text-danger me-1"></i>';
+            detHtml += `<li>${icon} ${escapeHtml(med.medicamento)} — ${escapeHtml(med.dosis || "")} (${med.horario || ""})</li>`;
+          });
+          detHtml += `</ul></div>`;
+        });
+        detDiv.innerHTML = detHtml || '<p class="text-muted">No hay datos para esta semana.</p>';
+
+      } catch (err) {
+        console.error("Error al generar reporte semanal:", err);
+        mostrarNotificacion('Error al generar el reporte semanal.', 'danger');
+      }
+    });
+  }
+
+  // ---- HU-42: Exportar PDF del reporte semanal ----
+  if (rptExportarPdfBtn) {
+    rptExportarPdfBtn.addEventListener("click", () => {
+      if (!datosReporteSemanal) return;
+      const d = datosReporteSemanal;
+
+      const diasNombres = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+      const ventana = window.open("", "_blank");
+      ventana.document.write(`
+        <html><head><title>Reporte Semanal - ${escapeHtml(d.paciente.nombre_completo)}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { color: #333; font-size: 20px; }
+          h2 { font-size: 16px; margin-top: 18px; color: #555; }
+          table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+          th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 13px; }
+          th { background: #f5f5f5; }
+          .resumen { display: flex; gap: 20px; margin: 10px 0; }
+          .resumen div { text-align: center; padding: 10px; border: 1px solid #ddd; border-radius: 6px; flex: 1; }
+          .resumen h3 { margin: 0; font-size: 24px; }
+          .resumen small { color: #888; }
+          .tomado { color: #198754; font-weight: bold; }
+          .no-tomado { color: #dc3545; font-weight: bold; }
+          .alerta { background: #f8f9fa; border-left: 4px solid #0d6efd; padding: 10px 14px; margin: 12px 0; border-radius: 4px; }
+        </style></head><body>
+        <h1>Reporte Semanal de Cumplimiento</h1>
+        <p><strong>Paciente:</strong> ${escapeHtml(d.paciente.nombre_completo)}</p>
+        <p><strong>Semana:</strong> ${d.fecha_inicio} al ${d.fecha_fin}</p>
+        <p><strong>Fecha del reporte:</strong> ${new Date().toLocaleDateString("es-HN")}</p>
+
+        <div class="alerta">${escapeHtml(d.resumen)}</div>
+
+        <div class="resumen">
+          <div><h3>${d.porcentaje}%</h3><small>Cumplimiento</small></div>
+          <div><h3>${d.total_tomados}</h3><small>Tomados</small></div>
+          <div><h3>${d.total_programados}</h3><small>Programados</small></div>
+          <div><h3>${d.nivel_adherencia}</h3><small>Adherencia</small></div>
+        </div>
+
+        <h2>Desglose Diario</h2>
+        <table>
+          <tr><th>Día</th><th>Fecha</th><th>Programados</th><th>Tomados</th><th>Cumplimiento</th></tr>
+          ${d.dias.map(dia => {
+            const dayDate = new Date(dia.fecha + "T00:00:00");
+            const dayName = diasNombres[dayDate.getDay()];
+            const pct = dia.porcentaje !== null ? dia.porcentaje + "%" : "Sin datos";
+            return `<tr><td>${dayName}</td><td>${dia.fecha}</td><td>${dia.programados}</td><td>${dia.tomados}</td><td>${pct}</td></tr>`;
+          }).join("")}
+        </table>
+
+        <h2>Detalle por Medicamento</h2>
+        ${d.dias.map(dia => {
+          if (dia.detalle.length === 0) return "";
+          const dayDate = new Date(dia.fecha + "T00:00:00");
+          const dayName = diasNombres[dayDate.getDay()];
+          return `
+            <h3 style="font-size:14px;margin-top:12px;">${dayName} (${dia.fecha})</h3>
+            <table>
+              <tr><th>Medicamento</th><th>Dosis</th><th>Horario</th><th>Estado</th></tr>
+              ${dia.detalle.map(m => `
+                <tr>
+                  <td>${escapeHtml(m.medicamento)}</td>
+                  <td>${escapeHtml(m.dosis || "-")}</td>
+                  <td>${m.horario || "-"}</td>
+                  <td class="${m.tomado ? "tomado" : "no-tomado"}">${m.tomado ? "✓ Tomado" : "✗ No tomado"}</td>
+                </tr>
+              `).join("")}
+            </table>`;
+        }).join("")}
+
+        <script>window.onload = function(){ window.print(); }<\/script>
+        </body></html>
+      `);
+      ventana.document.close();
+    });
+  }
+
+  // ---- Limpiar reporte semanal ----
+  const rptLimpiarBtn = document.getElementById("rptLimpiarBtn");
+  if (rptLimpiarBtn) {
+    rptLimpiarBtn.addEventListener("click", () => {
+      rptPacienteSelect.value = "";
+      const monday = getMondayFromDate(new Date().toISOString().slice(0, 10));
+      rptSemanaInput.value = monday.toISOString().slice(0, 10);
+      if (rptResultados) rptResultados.classList.add("d-none");
+      if (rptExportarPdfBtn) rptExportarPdfBtn.disabled = true;
+      if (chartReporteSemanal) { chartReporteSemanal.destroy(); chartReporteSemanal = null; }
+      if (chartReporteDonut) { chartReporteDonut.destroy(); chartReporteDonut = null; }
+      datosReporteSemanal = null;
+    });
+  }
+
+  // ---- Inicialización: cargar pacientes al mostrar la sección de estadísticas ----
+  const navBtnEst = document.querySelector('.nav-btn[data-section="estadisticas"]');
+  if (navBtnEst) {
+    navBtnEst.addEventListener("click", () => cargarPacientes());
+  }
+
+  // También cargar al inicio por si ya está visible
+  cargarPacientes();
+})();
+  // --- Función de notificaciones tipo toast (Bootstrap) ---
+  function mostrarNotificacion(mensaje, tipo = 'info') {
+    const container = document.getElementById('toast-container') || (() => {
+      const div = document.createElement('div');
+      div.id = 'toast-container';
+      div.className = 'toast-container position-fixed top-0 end-0 p-3';
+      div.style.zIndex = '9999';
+      document.body.appendChild(div);
+      return div;
+    })();
+
+    const colores = {
+      success: 'bg-success text-white',
+      danger: 'bg-danger text-white',
+      error: 'bg-danger text-white',
+      warning: 'bg-warning text-dark',
+      info: 'bg-info text-dark'
+    };
+
+    const toastEl = document.createElement('div');
+    toastEl.className = `toast align-items-center ${colores[tipo] || colores.info} border-0`;
+    toastEl.setAttribute('role', 'alert');
+    toastEl.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">${mensaje}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>`;
+    container.appendChild(toastEl);
+    const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+    toast.show();
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+  }
+
+
