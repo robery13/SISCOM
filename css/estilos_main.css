@@ -7,9 +7,10 @@
 
     body {
       font-family: "Segoe UI", Arial, sans-serif;
-      background-color: #f7f9fb;
-      color: #222;
+      background: linear-gradient(180deg, #f4f7fb 0%, #eef3f8 100%);
+      color: #1f2937;
       line-height: 1.6;
+      min-height: 100vh;
     }
 
     /* ======== ENCABEZADO ======== */
@@ -24,10 +25,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  max-width: 1200px;
+  gap: 24px;
+  max-width: 1240px;
   margin: auto;
-  padding: 0 30px;
+  padding: 0 32px;
 }
 
 /* Grupo logo + título juntos a la izquierda */
@@ -46,15 +47,16 @@
 }
 
    .logo {
-  width: 80px; /* ← Un poco más pequeño */
-  height: 80px;
-  border-radius: 8px;
+  width: 88px;
+  height: 88px;
+  border-radius: 18px;
   background-color: white;
-  padding: 5px;
+  padding: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0; /* ← Evita que se comprima */
+  flex-shrink: 0;
+  box-shadow: 0 10px 24px rgba(8, 59, 102, 0.18);
 }
 
   .logo-img {
@@ -64,14 +66,16 @@
     border-radius: 8px;
   }
     .titulo h1 {
-      font-size: 2.2em;
-      font-weight: bold;
-      margin-bottom: 5px;
+      font-size: clamp(2rem, 3vw, 2.6rem);
+      font-weight: 700;
+      margin-bottom: 6px;
+      line-height: 1.1;
     }
 
     .titulo p {
-      font-size: 1em;
+      font-size: 1.02rem;
       color: #d0e4f7;
+      max-width: 560px;
     }
 
     /* Grupo de marca (logo + título) */
@@ -89,14 +93,16 @@
 }
 
 .btn-header {
-  padding: 10px 24px;
-  border-radius: 8px;
-  font-size: 0.95em;
+  min-height: 46px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 0.96em;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   border: 2px solid white;
-  white-space: nowrap; /* Evita que el texto se parta */
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
 }
 
 .btn-header-login {
@@ -124,53 +130,61 @@
     /* ======== PRESENTACIÓN ======== */
     .presentacion {
       text-align: center;
-      margin: 40px auto;
-      max-width: 900px;
-      padding: 0 20px;
+      margin: 56px auto 30px;
+      max-width: 980px;
+      padding: 0 24px;
     }
 
     .presentacion h2 {
       color: #083b66;
-      font-size: 1.9em;
-      margin-bottom: 15px;
+      font-size: clamp(2rem, 3.2vw, 2.75rem);
+      margin-bottom: 18px;
+      line-height: 1.15;
     }
 
     .presentacion p {
-      font-size: 1.1em;
-      color: #333;
-      margin-bottom: 30px;
+      font-size: 1.08rem;
+      color: #475569;
+      margin: 0 auto 36px;
+      max-width: 760px;
     }
 
     /* ======== ROLES ======== */
     .roles {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      gap: 60px;
-      flex-wrap: wrap;
-      margin: 50px 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 28px;
+      max-width: 1080px;
+      padding: 0 24px;
+      margin: 0 auto 56px;
     }
 
     .rol {
       text-align: center;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      width: 180px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 22px;
+      padding: 28px 20px;
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
     }
 
     .rol:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      border-radius: 12px;
+      transform: translateY(-8px);
+      box-shadow: 0 18px 40px rgba(8, 59, 102, 0.14);
+      border-color: #bfdbfe;
       background-color: #f9fbff;
     }
 
     .rol img {
-      width: 130px;
-      height: 130px;
+      width: 132px;
+      height: 132px;
       object-fit: cover;
       border-radius: 50%;
-      border: 3px solid #e3efff;
+      border: 5px solid #e3efff;
       transition: transform 0.3s ease, box-shadow 0.3s ease;
+      margin-bottom: 8px;
     }
 
     .rol:hover img {
@@ -179,10 +193,10 @@
     }
 
     .rol h4 {
-      margin-top: 12px;
+      margin-top: 14px;
       color: #083b66;
-      font-weight: 600;
-      font-size: 1.05em;
+      font-weight: 700;
+      font-size: 1.08rem;
     }
 
  
@@ -212,13 +226,14 @@
 
     .modal-content {
       background: white;
-      border-radius: 16px;
-      padding: 40px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-      width: 90%;
-      max-width: 450px;
+      border-radius: 24px;
+      padding: 36px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+      width: min(92%, 500px);
+      max-width: 500px;
       position: relative;
       animation: slideDown 0.3s ease;
+      border: 1px solid #e2e8f0;
     }
 
     @keyframes slideDown {
@@ -248,15 +263,214 @@
       text-align: center;
     }
 
+    /* ======== LOGIN PROFESIONAL ======== */
+    #modalLogin .modal-content {
+      width: min(92%, 520px);
+      max-width: 520px;
+      padding: 34px 34px 30px;
+      border-radius: 22px;
+      border: 1px solid #dbe6f5;
+      box-shadow: 0 26px 60px rgba(8, 28, 64, 0.26);
+    }
+
+    #modalLogin .close {
+      top: 16px;
+      right: 18px;
+      color: #90a4bf;
+    }
+
+    #modalLogin .close:hover {
+      color: #3c5372;
+    }
+
+    .login-subtitle {
+      margin: -10px 0 20px;
+      text-align: center;
+      color: #64748b;
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+
+    .login-field-group {
+      margin-bottom: 14px;
+    }
+
+    .login-label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    #formLogin input[type="email"],
+    #formLogin input[type="password"] {
+      min-height: 50px;
+      border-radius: 12px;
+      border: 1px solid #c9d7ea;
+      background: #f8fbff;
+      margin-bottom: 0;
+    }
+
+    #formLogin input[type="email"]:focus,
+    #formLogin input[type="password"]:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+      background: #ffffff;
+    }
+
+    #formLogin .password-container {
+      margin-bottom: 0;
+    }
+
+    #formLogin .toggle-password {
+      top: 14px;
+      right: 12px;
+    }
+
+    .remember-me-container {
+      margin: 16px 0 8px;
+      text-align: left;
+    }
+
+    .remember-me-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      color: #475569;
+      font-size: 0.92rem;
+    }
+
+    #rememberMe {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: #2563eb;
+      cursor: pointer;
+    }
+
+    #formLogin .btn {
+      margin-top: 14px;
+      min-height: 52px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.1px;
+      box-shadow: 0 12px 28px rgba(70, 84, 228, 0.26);
+    }
+
+    #formLogin .btn-morado {
+      background: linear-gradient(90deg, #4f46e5 0%, #6d28d9 100%);
+    }
+
+    #formLogin .btn-morado:hover {
+      background: linear-gradient(90deg, #4338ca 0%, #5b21b6 100%);
+      transform: translateY(-1px);
+    }
+
+    #formLogin .forgot-link {
+      margin-top: 12px;
+      text-align: left;
+      font-size: 0.92rem;
+      color: #1d4ed8;
+    }
+
+    #formLogin .forgot-link:hover {
+      color: #1e40af;
+      text-decoration: underline;
+    }
+
+    /* ======== REGISTRO COMPACTO Y PROFESIONAL ======== */
+    #modalRegistro .modal-content {
+      width: min(94%, 760px);
+      max-width: 760px;
+      max-height: min(90vh, 820px);
+      overflow-y: auto;
+      padding: 30px 28px 24px;
+      border-radius: 22px;
+      border: 1px solid #dbe6f5;
+      box-shadow: 0 26px 60px rgba(8, 28, 64, 0.24);
+    }
+
+    #modalRegistro .close {
+      top: 14px;
+      right: 16px;
+      color: #90a4bf;
+    }
+
+    #modalRegistro .close:hover {
+      color: #3c5372;
+    }
+
+    .registro-subtitle {
+      margin: -10px 0 16px;
+      text-align: center;
+      color: #64748b;
+      font-size: 0.93rem;
+    }
+
+    #formRegistro {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 14px;
+      align-items: start;
+    }
+
+    #formRegistro > input,
+    #formRegistro > .password-container,
+    #formRegistro > .password-requisitos,
+    #formRegistro > .password-match-message,
+    #formRegistro > .btn {
+      margin-bottom: 0;
+    }
+
+    #emailRegistro,
+    #passwordRequisitos,
+    #passwordMatchMessage,
+    #btnRegistrarse {
+      grid-column: 1 / -1;
+    }
+
+    #formRegistro input {
+      min-height: 46px;
+      background: #f8fbff;
+      border-color: #c9d7ea;
+    }
+
+    #formRegistro input:focus {
+      background: #fff;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
+
+    #formRegistro .password-container input {
+      min-height: 46px;
+    }
+
+    #formRegistro .toggle-password {
+      top: 11px;
+    }
+
+    #btnRegistrarse {
+      min-height: 50px;
+      margin-top: 2px;
+      font-weight: 700;
+      box-shadow: 0 12px 24px rgba(13, 110, 253, 0.25);
+    }
+
     /* ======== FORMULARIOS ======== */
     form input,
     form select {
       width: 100%;
-      padding: 12px;
+      min-height: 48px;
+      padding: 12px 14px;
       margin-bottom: 15px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 1em;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      font-size: 0.98rem;
+      background: #fff;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
     }
 
     .remember-me-container {
@@ -286,15 +500,17 @@
 
     .btn {
       width: 100%;
-      padding: 14px;
+      min-height: 50px;
+      padding: 14px 18px;
       border: none;
-      border-radius: 8px;
+      border-radius: 12px;
       color: white;
-      font-size: 1.1em;
+      font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.3s ease;
+      transition: background 0.3s ease, transform 0.25s ease, box-shadow 0.25s ease;
       margin-top: 10px;
+      box-shadow: 0 10px 24px rgba(13, 110, 253, 0.18);
     }
 
     .btn-azul {
@@ -303,6 +519,7 @@
 
     .btn-azul:hover {
       background: #0b5ed7;
+      transform: translateY(-2px);
     }
 
     .btn-morado {
@@ -311,6 +528,7 @@
 
     .btn-morado:hover {
       background: #6a38ff;
+      transform: translateY(-2px);
     }
 
     /* ===== CAMPOS DE CONTRASEÑA ===== */
@@ -353,28 +571,32 @@
 
     /* ======== EXTRAS ======== */
     .extras {
-      margin: 50px 0;
+      margin: 0 0 60px;
       text-align: center;
+      padding: 0 24px;
     }
 
     .extras-container {
       display: flex;
       justify-content: center;
-      gap: 20px;
+      gap: 16px;
       flex-wrap: wrap;
+      max-width: 900px;
+      margin: 0 auto;
     }
 
     .btn-extra {
       background: #0d6efd;
       color: white;
       border: none;
-      border-radius: 30px;
-      padding: 12px 28px;
-      font-size: 1em;
-      font-weight: 500;
+      border-radius: 999px;
+      min-height: 48px;
+      padding: 12px 26px;
+      font-size: 0.98rem;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.3s ease;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+      box-shadow: 0 10px 20px rgba(13, 110, 253, 0.18);
     }
 
     .btn-extra:hover {
@@ -387,9 +609,9 @@
       background-color: #062c4e;
       color: #e1e8f0;
       text-align: center;
-      padding: 20px;
-      font-size: 0.9em;
-      margin-top: 60px;
+      padding: 24px 20px;
+      font-size: 0.92em;
+      margin-top: 40px;
     }
 
     footer p {
@@ -416,7 +638,9 @@
   }
 
       .roles {
-        gap: 30px;
+        grid-template-columns: 1fr;
+        gap: 18px;
+        padding: 0 16px;
       }
 
       /* ←  ESTO es una prueba / by robert */
@@ -428,7 +652,12 @@
 
       .modal-content {
         width: 95%;
-        padding: 30px 20px;
+        padding: 28px 20px;
+        border-radius: 20px;
+      }
+
+      #modalLogin .modal-content {
+        padding: 26px 20px 22px;
       }
     }
 
@@ -514,31 +743,35 @@
 
 /* ======== REQUISITOS DE CONTRASEÑA ======== */
 .password-requisitos {
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 12px 15px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
   margin-bottom: 15px;
-  font-size: 0.85em;
+  font-size: 0.84em;
 }
 
 .requisitos-titulo {
-  margin: 0 0 8px 0;
-  color: #495057;
+  margin: 0 0 6px 0;
+  color: #334155;
   font-weight: 600;
-  font-size: 0.9em;
+  font-size: 0.86em;
 }
 
 .requisitos-lista {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 10px;
+  row-gap: 3px;
 }
 
 .requisito-item {
   display: flex;
   align-items: center;
-  margin-bottom: 5px;
+  margin-bottom: 0;
   color: #dc3545;
   transition: color 0.3s ease;
 }
@@ -568,13 +801,34 @@
 
 /* ======== MENSAJE DE COINCIDENCIA DE CONTRASEÑAS ======== */
 .password-match-message {
-  margin-bottom: 15px;
+  margin-bottom: 6px;
   padding: 8px 12px;
   border-radius: 6px;
-  font-size: 0.9em;
+  font-size: 0.86em;
   font-weight: 500;
   text-align: center;
   display: none;
+}
+
+@media (max-width: 768px) {
+  #modalRegistro .modal-content {
+    width: min(96%, 560px);
+    max-height: 92vh;
+    padding: 24px 18px 18px;
+  }
+
+  #formRegistro {
+    grid-template-columns: 1fr;
+    gap: 11px;
+  }
+
+  #formRegistro > * {
+    grid-column: 1 / -1;
+  }
+
+  .requisitos-lista {
+    grid-template-columns: 1fr;
+  }
 }
 
 .password-match-message.coincide {

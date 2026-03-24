@@ -10,7 +10,7 @@
   <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
    <!-- Estilos propios -->
-  <link rel="stylesheet" href="estilos.css" />
+  <link rel="stylesheet" href="estilos.css?v=20260312-1" />
   <link rel="stylesheet" href="Estiloficha1.css" />
 
 </head>
@@ -36,17 +36,23 @@
 
       <nav class="nav-menu">
 
-        <!-- HU-26: Botón Panel Consolidado de Pacientes -->
-        <button class="nav-btn" data-section="panel"><i class="bi bi-people"></i> <span>Pacientes</span></button>
         <button class="nav-btn active" data-section="medicamentos"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
-        <button class="nav-btn" data-section="recetas"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
-        <button class="nav-btn" data-section="checklist"><i class="bi bi-check2-square"></i> <span>Checklist</span></button>
+        <button class="nav-btn" data-section="recetas"><i class="bi bi-journal-text"></i> <span>Citas M&eacute;dicas</span></button>
         <button class="nav-btn" data-section="historial-tomas"><i class="bi bi-clock-history"></i> <span>Historial Tomas</span></button>
-        <button class="nav-btn" data-section="Ficha"><i class="bi bi-clipboard2-check"></i> <span>Verificación de medicamentos</span></button>
-        <button class="nav-btn" data-section="inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
-        <!-- HU-27: Botón Estadísticas de Salud con submenú -->
+
+        <button class="nav-btn" data-section="Ficha"><i class="bi bi-clipboard2-check"></i> <span>Verificaci&oacute;n de medicamentos</span></button>
         <button class="nav-btn" data-section="estadisticas"><i class="bi bi-bar-chart-line"></i> <span>Estadísticas</span></button>
-        <button class="nav-btn" data-section="pedidos"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
+        <div class="nav-group nav-accordion" id="farmaciaAccordionCuidador">
+          <button class="nav-btn nav-accordion-toggle" type="button" aria-expanded="false">
+            <i class="bi bi-hospital"></i>
+            <span>Farmacia</span>
+            <i class="bi bi-chevron-down accordion-chevron"></i>
+          </button>
+          <div class="nav-accordion-content">
+            <button class="nav-btn" data-section="inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
+            <button class="nav-btn" data-section="pedidos"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
+          </div>
+        </div>
         <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesi&oacute;n</span></button>
       </nav>
     </aside>
@@ -54,242 +60,251 @@
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main">
 
-      <!-- HU-26: PANEL CONSOLIDADO DE PACIENTES -->
-      <!-- Funciones: Filtros por estatus/estado/fecha, tabla de alertas, conteo de pacientes -->
       <!-- PANEL DE CONTROL -->
-
-      <section id="panel" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-people me-2"></i> Pacientes</h2>
-          <p class="muted">Vista consolidada de pacientes asignados y sus alertas. Filtra por estatus, por estado y por rango de fecha/hora de creación.</p>
-        </div>
-
-        <div class="card form-card mb-4">
-          <h5 class="card-title"><i class="bi bi-funnel me-2"></i> Filtros</h5>
-
-          <div class="row g-3 align-items-end">
-            <div class="col-lg-3 col-md-6">
-              <label for="panelEstatus" class="form-label">Estatus</label>
-              <select id="panelEstatus" class="form-select">
-                <option value="todas" selected>Todos</option>
-                <option value="critico">Críticos</option>
-                <option value="importante">Importantes</option>
-                <option value="normal">Normales</option>
-                <option value="leve">Leves</option>
-              </select>
-            </div>
-            <div class="col-lg-3 col-md-6">
-              <label for="panelEstado" class="form-label">Estado</label>
-              <select id="panelEstado" class="form-select">
-                <option value="todas" selected>Todas</option>
-                <option value="pendiente">Pendientes</option>
-                <option value="atendida">Atendidas</option>
-              </select>
-            </div>
-
-            <div class="col-lg-3 col-md-6">
-              <label for="panelDesde" class="form-label">Desde</label>
-              <input id="panelDesde" type="datetime-local" class="form-control">
-            </div>
-
-            <div class="col-lg-3 col-md-6">
-              <label for="panelHasta" class="form-label">Hasta</label>
-              <input id="panelHasta" type="datetime-local" class="form-control">
-            </div>
-          </div>
-
-          <div class="mt-3 d-flex gap-2 flex-wrap align-items-center">
-            <button id="panelAplicar" class="btn btn-primary btn-sm">
-              <i class="bi bi-search me-1"></i> Aplicar
-            </button>
-            <button id="panelLimpiar" class="btn btn-outline-secondary btn-sm">
-              <i class="bi bi-x-circle me-1"></i> Limpiar
-            </button>
-            <div id="panelMsg" class="ms-auto small text-muted"></div>
-          </div>
-        </div>
-
-        <div id="panelTabla" class="vstack gap-3 mb-4 panel-tabla"></div>
-
-        <div id="panelContenido" class="d-none"></div>
-      </section>
 
 
       <!-- MEDICAMENTOS -->
       <section id="medicamentos" class="section d-none">
         <div class="section-header">
-          <h2>Administración de Medicamentos</h2>
-          <p class="muted">Registra medicamentos y programa recordatorios (notificaciones del navegador).</p>
+          <h2><i class="bi bi-capsule-pill me-2"></i> Administración de Medicamentos</h2>
+          <p class="muted">Gestiona medicamentos, asigna a pacientes y programa tratamientos con recordatorios.</p>
+        </div>
+
+        <!-- Barra de búsqueda y filtros -->
+        <div class="card mb-4">
+          <div class="card-body">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-4">
+                <label class="form-label"><i class="bi bi-search me-1"></i> Buscar medicamento</label>
+                <input type="text" id="buscarMedicamento" class="form-control" placeholder="Nombre del medicamento...">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label"><i class="bi bi-person me-1"></i> Filtrar por paciente</label>
+                <select id="filtroPaciente" class="form-select">
+                  <option value="">Todos los pacientes</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label"><i class="bi bi-filter-circle me-1"></i> Estado</label>
+                <select id="filtroEstado" class="form-select">
+                  <option value="">Todos</option>
+                  <option value="activo">Activos</option>
+                  <option value="inactivo">Inactivos</option>
+                </select>
+              </div>
+              <div class="col-md-2 d-grid">
+                <button id="limpiarFiltros" class="btn btn-outline-secondary">
+                  <i class="bi bi-x-circle me-1"></i> Limpiar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="card table-card">
-          <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <h5 class="card-title mb-0"><i class="bi bi-list-check me-2"></i> Medicamentos Programados</h5>
             <button id="abrirModalMedicamento" class="btn btn-primary">
               <i class="bi bi-plus-circle me-2"></i> Nuevo Medicamento
             </button>
           </div>
+          <div class="datatable-toolbar mb-3">
+            <div class="datatable-length">
+              <select id="entriesMedicamentos" class="form-select form-select-sm">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+              <span>entries per page</span>
+            </div>
+            <div class="datatable-search">
+              <label for="searchMedicamentosTabla">Search:</label>
+              <input type="text" id="searchMedicamentosTabla" class="form-control form-control-sm">
+            </div>
+          </div>
           <div class="table-responsive">
-            <table class="table" id="tablaMedicamentos">
-              <thead>
+            <table class="table table-hover datatable-theme" id="tablaMedicamentos">
+              <thead class="table-light">
                 <tr>
+                  <th>Estado</th>
                   <th>Nombre</th>
                   <th>Dosis</th>
-                  <th>Frecuencia (h)</th>
-                  <th>Horario</th>
+                  <th>Paciente</th>
+                  <th>Frecuencia</th>
+                  <th>Próxima Toma</th>
+                  <th class="text-center">Acciones</th>
                 </tr>
               </thead>
-              <tbody></tbody>
+              <tbody>
+                <tr>
+                  <td colspan="7" class="text-center text-muted py-4">
+                    <i class="bi bi-inbox display-4 d-block mb-2"></i>
+                    No hay medicamentos registrados. Haz clic en "Nuevo Medicamento" para comenzar.
+                  </td>
+                </tr>
+              </tbody>
             </table>
+          </div>
+          <!-- Paginación -->
+          <div id="paginacionMedicamentos" class="custom-pagination d-none">
+            <small class="pagination-info" id="infoPaginacion">Showing 0 to 0 of 0 entries</small>
+            <div class="pagination-controls">
+              <button id="btnAnterior" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-left"></i></button>
+              <div id="pageNumbersMedicamentos" class="pagination-numbers"></div>
+              <button id="btnSiguiente" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-right"></i></button>
+            </div>
           </div>
         </div>
       </section>
+
 
       <!-- CITAS MÉDICAS -->
       <section id="recetas" class="section d-none">
         <div class="section-header">
           <h2><i class="bi bi-calendar-check me-2"></i> Registro de Citas Médicas</h2>
-          <p class="muted">Programa tus citas y recibe notificaciones antes de cada una.</p>
+          <p class="muted">Gestiona citas médicas de pacientes, programa recordatorios y realiza seguimiento de atenciones.</p>
         </div>
 
-        <div class="row">
-          <!-- Columna izquierda: Formulario + Resumen -->
-          <div class="col-lg-5 mb-4">
-            <div class="card form-card mb-3">
-              <h5 class="card-title"><i class="bi bi-plus-circle me-2"></i> Nueva Cita</h5>
-
-              <form id="formCita" class="row g-3">
-                <div class="col-md-6">
-                  <label for="fechaCita" class="form-label">Fecha</label>
-                  <input type="date" id="fechaCita" class="form-control" required>
-                </div>
-
-                <div class="col-md-6">
-                  <label for="horaCita" class="form-label">Hora</label>
-                  <input type="time" id="horaCita" class="form-control" required>
-                </div>
-
-                <div class="col-md-6">
-                  <label for="doctorCita" class="form-label">Doctor</label>
-                  <input type="text" id="doctorCita" class="form-control" placeholder="Ej: Dr. García">
-                </div>
-
-                <div class="col-md-6">
-                  <label for="especialidadCita" class="form-label">Especialidad</label>
-                  <input type="text" id="especialidadCita" class="form-control" placeholder="Ej: Cardiología">
-                </div>
-
-                <div class="col-md-6">
-                  <label for="ubicacionCita" class="form-label">Ubicación</label>
-                  <input type="text" id="ubicacionCita" class="form-control" placeholder="Ej: Hospital General">
-                </div>
-
-                <div class="col-md-6">
-                  <label for="anticipacion" class="form-label">Notificar antes</label>
-                  <select id="anticipacion" class="form-select">
-                    <option value="1440">1 día (1440 min)</option>
-                    <option value="60" selected>1 hora</option>
-                    <option value="30">30 minutos</option>
-                    <option value="15">15 minutos</option>
-                    <option value="5">5 minutos</option>
-                  </select>
-                </div>
-
-                <div class="col-12">
-                  <label for="motivoCita" class="form-label">Motivo de la cita</label>
-                  <input type="text" id="motivoCita" class="form-control" placeholder="Ej: Consulta con cardiólogo" required>
-                </div>
-
-                <div class="col-12 d-flex gap-2">
-                  <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save me-2"></i> Guardar Cita
-                  </button>
-                  <button type="button" id="limpiarCitaBtn" class="btn btn-outline-secondary">
-                    <i class="bi bi-x-circle me-2"></i> Limpiar
-                  </button>
-                </div>
-              </form>
+        <!-- Formulario de Nueva Cita -->
+        <div class="card form-card mb-4">
+          <h5 class="card-title"><i class="bi bi-plus-circle me-2"></i> <span id="tituloFormCita">Nueva Cita Médica</span></h5>
+          
+          <form id="formCita" class="row g-3">
+            <input type="hidden" id="citaId">
+            
+            <!-- Fila 1: Paciente, Fecha, Hora -->
+            <div class="col-md-4">
+              <label for="pacienteCita" class="form-label"><i class="bi bi-person me-1"></i> Paciente *</label>
+              <select id="pacienteCita" class="form-select" required>
+                <option value="" selected disabled>Seleccione un paciente</option>
+              </select>
             </div>
 
-            <div class="card">
-              <div class="card-header">
-                <i class="bi bi-info-circle me-2"></i> Resumen
+            <div class="col-md-4">
+              <label for="fechaCita" class="form-label"><i class="bi bi-calendar me-1"></i> Fecha *</label>
+              <input type="date" id="fechaCita" class="form-control" required>
+            </div>
+
+            <div class="col-md-4">
+              <label for="horaCita" class="form-label"><i class="bi bi-clock me-1"></i> Hora *</label>
+              <input type="time" id="horaCita" class="form-control" required>
+            </div>
+
+            <!-- Fila 2: Doctor, Especialidad, Ubicación -->
+            <div class="col-md-4">
+              <label for="doctorCita" class="form-label"><i class="bi bi-person-badge me-1"></i> Doctor</label>
+              <input type="text" id="doctorCita" class="form-control" placeholder="Ej: Dr. Juan Pérez">
+            </div>
+
+            <div class="col-md-4">
+              <label for="especialidadCita" class="form-label"><i class="bi bi-hospital me-1"></i> Especialidad</label>
+              <input type="text" id="especialidadCita" class="form-control" placeholder="Ej: Cardiología">
+            </div>
+
+            <div class="col-md-4">
+              <label for="ubicacionCita" class="form-label"><i class="bi bi-geo-alt me-1"></i> Ubicación/Clínica</label>
+              <input type="text" id="ubicacionCita" class="form-control" placeholder="Ej: Hospital General">
+            </div>
+
+            <!-- Fila 3: Motivo, Estado, Notificación -->
+            <div class="col-md-5">
+              <label for="motivoCita" class="form-label"><i class="bi bi-clipboard-pulse me-1"></i> Motivo de la cita *</label>
+              <input type="text" id="motivoCita" class="form-control" placeholder="Ej: Consulta de control" required>
+            </div>
+
+            <div class="col-md-3">
+              <label for="estadoCita" class="form-label"><i class="bi bi-tag me-1"></i> Estado</label>
+              <select id="estadoCita" class="form-select">
+                <option value="programada" selected>Programada</option>
+                <option value="completada">Completada</option>
+                <option value="cancelada">Cancelada</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label for="anticipacion" class="form-label"><i class="bi bi-bell me-1"></i> Notificar antes</label>
+              <select id="anticipacion" class="form-select">
+                <option value="1440">1 día antes</option>
+                <option value="120">2 horas antes</option>
+                <option value="60" selected>1 hora antes</option>
+                <option value="30">30 minutos antes</option>
+                <option value="15">15 minutos antes</option>
+              </select>
+            </div>
+
+            <!-- Fila 4: Notas -->
+            <div class="col-12">
+              <label for="notasCita" class="form-label"><i class="bi bi-sticky me-1"></i> Notas adicionales</label>
+              <textarea id="notasCita" class="form-control" rows="2" placeholder="Instrucciones especiales, preparación previa, etc."></textarea>
+            </div>
+
+            <!-- Botones -->
+            <div class="col-12 d-flex gap-2">
+              <button type="submit" class="btn btn-primary" id="btnGuardarCita">
+                <i class="bi bi-save me-2"></i> Guardar Cita
+              </button>
+              <button type="button" id="btnCancelarEdicion" class="btn btn-outline-secondary d-none">
+                <i class="bi bi-x-circle me-2"></i> Cancelar Edición
+              </button>
+              <button type="button" id="limpiarCitaBtn" class="btn btn-outline-secondary">
+                <i class="bi bi-eraser me-2"></i> Limpiar
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Filtros de Citas -->
+        <div class="card mb-4">
+          <div class="card-body">
+            <h6 class="card-subtitle mb-3 text-muted"><i class="bi bi-funnel me-2"></i> Filtros de Búsqueda</h6>
+            <div class="row g-3 align-items-end">
+              <div class="col-md-3">
+                <label class="form-label">Paciente</label>
+                <select id="filtroPacienteCita" class="form-select">
+                  <option value="">Todos los pacientes</option>
+                </select>
               </div>
-              <div class="card-body">
-                <p id="resumenCitas" class="mb-3">No hay citas registradas.</p>
-                <button id="borrarTodasCitasBtn" class="btn btn-danger btn-sm">
-                  <i class="bi bi-trash me-2"></i> Borrar todas las citas
+              <div class="col-md-2">
+                <label class="form-label">Estado</label>
+                <select id="filtroEstadoCita" class="form-select">
+                  <option value="">Todos</option>
+                  <option value="programada">Programada</option>
+                  <option value="completada">Completada</option>
+                  <option value="cancelada">Cancelada</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Desde</label>
+                <input type="date" id="filtroFechaDesde" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Hasta</label>
+                <input type="date" id="filtroFechaHasta" class="form-control">
+              </div>
+              <div class="col-md-1 d-grid">
+                <button id="limpiarFiltrosCitas" class="btn btn-outline-secondary" title="Limpiar filtros">
+                  <i class="bi bi-x-lg"></i>
                 </button>
               </div>
             </div>
           </div>
-
-          <!-- Columna derecha: Lista de Próximas Citas -->
-          <div class="col-lg-7 mb-4">
-            <div class="card h-100">
-              <div class="card-header">
-                <i class="bi bi-calendar3 me-2"></i> Próximas Citas
-              </div>
-              <div class="card-body p-0">
-                <div id="listaCitas" class="list-group list-group-flush"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-   <!-- CHECKLIST -->
-      <section id="checklist" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-check2-square me-2"></i> Checklist de Medicamentos</h2>
-          <p class="muted">Confirma la toma de medicamentos diaria con registro de auditoría.</p>
         </div>
 
-        <div class="card form-card mb-4">
-          <h5 class="card-title"><i class="bi bi-person-check me-2"></i> Seleccionar Paciente y Fecha</h5>
-
-          <div class="row g-3 align-items-end">
-            <div class="col-md-4">
-              <label class="form-label">Paciente ID / Nombre</label>
-              <select id="patientInput" class="form-select">
-                <option value="">-- Seleccione un paciente --</option>
-              </select>
-            </div>
-            <div class="col-md-4">
-              <label for="dateInput" class="form-label">Fecha</label>
-              <input id="dateInput" type="date" class="form-control">
-            </div>
-            <div class="col-md-4 d-grid">
-              <button id="loadBtn" class="btn btn-primary">
-                <i class="bi bi-download me-2"></i> Cargar Datos
-              </button>
-            </div>
-          </div>
-
-          <div class="mt-3 d-flex gap-2 flex-wrap">
-            <button id="addSampleBtn" class="btn btn-outline-secondary btn-sm">
-              <i class="bi bi-plus-circle me-1"></i> Cargar Medicamentos Ejemplo
-            </button>
-            <button id="clearDayBtn" class="btn btn-outline-danger btn-sm">
-              <i class="bi bi-trash me-1"></i> Limpiar Día
-            </button>
-            <button id="exportCsvBtn" class="btn btn-outline-success btn-sm ms-auto">
-              <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar CSV
-            </button>
-          </div>
-
-          <div id="statusMsg" class="alert alert-info mt-3 d-none"></div>
-        </div>
-
-        <div class="row checklist-row">
+        <!-- Lista de Citas y Resumen -->
+        <div class="row">
           <div class="col-lg-8 mb-4">
             <div class="card">
-              <div class="card-header">
-                <i class="bi bi-clipboard-check me-2"></i> Lista de Medicamentos del Día
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-calendar3 me-2"></i> Lista de Citas</span>
+                <span id="contadorCitas" class="badge bg-secondary">0 citas</span>
               </div>
               <div class="card-body p-0">
-                <div id="medList" class="list-group list-group-flush">
-                  <div class="text-center text-muted p-4">Selecciona paciente y fecha, luego presiona "Cargar Datos"</div>
+                <div id="listaCitas" class="list-group list-group-flush">
+                  <div class="text-center text-muted p-4">
+                    <i class="bi bi-calendar-x display-4 d-block mb-2"></i>
+                    No hay citas registradas. Crea una nueva cita usando el formulario.
+                  </div>
                 </div>
               </div>
             </div>
@@ -298,121 +313,157 @@
           <div class="col-lg-4 mb-4">
             <div class="card">
               <div class="card-header">
-                <i class="bi bi-clock-history me-2"></i> Registro de Auditoría
+                <i class="bi bi-graph-up me-2"></i> Resumen de Citas
               </div>
               <div class="card-body">
-                <p class="small text-muted mb-2">Últimas acciones del día:</p>
-                <ul id="auditList" class="list-unstyled small">
-                  <li class="text-muted">Sin acciones registradas hoy.</li>
-                </ul>
+                <div class="row text-center mb-3">
+                  <div class="col-4">
+                    <div class="p-2 bg-primary bg-opacity-10 rounded">
+                      <h4 id="totalProgramadas" class="mb-0 text-primary">0</h4>
+                      <small class="text-muted">Programadas</small>
+                    </div>
+                  </div>
+                  <div class="col-4">
+                    <div class="p-2 bg-success bg-opacity-10 rounded">
+                      <h4 id="totalCompletadas" class="mb-0 text-success">0</h4>
+                      <small class="text-muted">Completadas</small>
+                    </div>
+                  </div>
+                  <div class="col-4">
+                    <div class="p-2 bg-danger bg-opacity-10 rounded">
+                      <h4 id="totalCanceladas" class="mb-0 text-danger">0</h4>
+                      <small class="text-muted">Canceladas</small>
+                    </div>
+                  </div>
+                </div>
+                
+                <hr>
+                
+                <div class="mb-3">
+                  <small class="text-muted d-block mb-1"><i class="bi bi-clock me-1"></i> Próxima cita:</small>
+                  <p id="proximaCita" class="mb-0 fw-semibold">No hay citas programadas</p>
+                </div>
+                
+                <div class="mb-3">
+                  <small class="text-muted d-block mb-1"><i class="bi bi-calendar-week me-1"></i> Esta semana:</small>
+                  <p id="citasSemana" class="mb-0">0 citas</p>
+                </div>
+                
+                <button id="borrarTodasCitasBtn" class="btn btn-outline-danger btn-sm w-100">
+                  <i class="bi bi-trash me-2"></i> Borrar todas las citas
+                </button>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-  <!-- HU-32: Modal Confirmación Eliminar Medicamento -->
-  <!-- Funciones: Solicitar confirmación antes de eliminar, cancelar recordatorios, actualizar inventario -->
-  <div class="modal fade" id="modalEliminarMed" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header bg-danger text-white">
-          <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i> Eliminar Medicamento</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <p>¿Está seguro que desea eliminar el siguiente medicamento del tratamiento?</p>
-          <div class="alert alert-warning mb-3">
-            <strong id="elimMedNombre"></strong><br>
-            <small id="elimMedDetalle" class="text-muted"></small>
-          </div>
-          <p class="small text-muted mb-0"><i class="bi bi-info-circle me-1"></i> Esta acción eliminará el medicamento, cancelará sus recordatorios/confirmaciones y actualizará el inventario.</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-danger" id="confirmarEliminarMedBtn">
-            <i class="bi bi-trash me-1"></i> Sí, Eliminar
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- HISTORIAL TOMAS -->
-  <section id="historial-tomas" class="section d-none">
-    <!-- HU-37 - Historial diario de tomas -->
-    <div class="section-header">
-      <h2><i class="bi bi-clock-history me-2"></i> Historial Diario de Tomas</h2>
-      <p class="muted">Consulta el historial de tomas de medicamentos para evaluar el cumplimiento del tratamiento.</p>
-    </div>
+      <!-- HISTORIAL TOMAS -->
 
-    <div class="card form-card mb-4">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-          <h5 class="card-title mb-0"><i class="bi bi-bell-fill text-warning me-2"></i> Alertas automáticas de dosis omitidas</h5>
-          <button id="actualizarAlertasOmisionesBtn" class="btn btn-sm btn-outline-warning">
-            <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
-          </button>
+      <section id="historial-tomas" class="section d-none">
+        <!-- No Historia HU-37 - Como cuidador, quiero consultar el historial diario de tomas para evaluar el cumplimiento del tratamiento. -->
+        <div class="section-header">
+          <h2><i class="bi bi-clock-history me-2"></i> Historial Diario de Tomas</h2>
+          <p class="muted">Consulta el historial de tomas de medicamentos para evaluar el cumplimiento del tratamiento.</p>
         </div>
-        <div id="alertasOmisionesCuidador" class="list-group">
-          <div class="list-group-item text-center text-muted">No hay omisiones registradas hoy</div>
-        </div>
-      </div>
-    </div>
 
-    <div class="card form-card mb-4">
-      <h5 class="card-title"><i class="bi bi-person-check me-2"></i> Seleccionar Paciente y Fecha</h5>
-      <div class="row g-3 align-items-end">
-        <div class="col-md-4">
-          <label class="form-label">Paciente</label>
-          <select id="pacienteHistorial" class="form-select">
-            <option value="">Selecciona un paciente</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Fecha</label>
-          <input id="fechaHistorial" type="date" class="form-control">
-        </div>
-        <div class="col-md-2 d-grid">
-          <button id="cargarHistorialBtn" class="btn btn-primary">
-            <i class="bi bi-search me-2"></i> Consultar Historial
-          </button>
-        </div>
-        <div class="col-md-2 d-grid">
-          <button id="generarReporteSemanalBtn" class="btn btn-outline-primary">
-            <i class="bi bi-calendar-week me-2"></i> Reporte Semanal
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <h5 class="card-title mb-0"><i class="bi bi-list-check me-2"></i> Historial de Tomas del Día</h5>
-      </div>
-      <div class="card-body">
-        <div id="historialTomasContainer">
-          <div class="text-center text-muted p-4">
-            Selecciona un paciente y una fecha para ver el historial de tomas
+        <div class="card form-card mb-4">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+              <h5 class="card-title mb-0"><i class="bi bi-bell-fill text-warning me-2"></i> Alertas automaticas de dosis omitidas</h5>
+              <button id="actualizarAlertasOmisionesBtn" class="btn btn-sm btn-outline-warning">
+                <i class="bi bi-arrow-clockwise me-1"></i> Actualizar
+              </button>
+            </div>
+            <div id="alertasOmisionesCuidador" class="list-group">
+              <div class="list-group-item text-center text-muted">No hay omisiones registradas hoy</div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <div class="card mt-4">
-      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <h5 class="card-title mb-0"><i class="bi bi-clipboard2-pulse me-2"></i>Reporte Semanal de Cumplimiento</h5>
-        <button id="exportarReporteSemanalBtn" class="btn btn-sm btn-outline-danger" disabled>
-          <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
-        </button>
-      </div>
-      <div class="card-body">
-        <div id="reporteSemanalContainer" class="text-muted">
-          Selecciona un paciente y una fecha, luego presiona "Reporte Semanal" para generar el informe.
+        <div class="card form-card mb-4">
+          <h5 class="card-title"><i class="bi bi-person-check me-2"></i> Seleccionar Paciente y Fecha</h5>
+
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label">Paciente</label>
+              <select id="pacienteHistorial" class="form-select">
+                <option value="">Selecciona un paciente</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Fecha</label>
+              <input id="fechaHistorial" type="date" class="form-control">
+            </div>
+            <div class="col-md-2 d-grid">
+              <button id="cargarHistorialBtn" class="btn btn-primary">
+                <i class="bi bi-search me-2"></i> Consultar Historial
+              </button>
+            </div>
+            <div class="col-md-2 d-grid">
+              <button id="generarReporteSemanalBtn" class="btn btn-outline-primary">
+                <i class="bi bi-calendar-week me-2"></i> Reporte Semanal
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </section>
+
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-list-check me-2"></i> Historial de Tomas del Día</h5>
+          </div>
+          <div class="card-body">
+            <div id="historialTomasContainer">
+              <div class="text-center text-muted p-4">
+                Selecciona un paciente y una fecha para ver el historial de tomas
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-4">
+          <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="card-title mb-0"><i class="bi bi-journal-richtext me-2"></i>Observaciones del Cuidador</h5>
+            <small class="text-muted">Registro diario asociado al historial del paciente</small>
+          </div>
+          <div class="card-body">
+            <form id="formObservacionCuidador" class="mb-3">
+              <input type="hidden" id="observacionCuidadorId">
+              <div class="mb-3">
+                <label for="textoObservacionCuidador" class="form-label">Observación del día</label>
+                <textarea id="textoObservacionCuidador" class="form-control" rows="3" placeholder="Ej. Paciente con buen apetito, ligera somnolencia en la tarde, sin reacciones adversas."></textarea>
+              </div>
+              <div class="d-flex gap-2 flex-wrap">
+                <button id="guardarObservacionCuidadorBtn" type="submit" class="btn btn-primary">
+                  <i class="bi bi-save me-2"></i>Guardar observación
+                </button>
+                <button id="cancelarEdicionObservacionBtn" type="button" class="btn btn-outline-secondary d-none">
+                  <i class="bi bi-x-circle me-2"></i>Cancelar edición
+                </button>
+              </div>
+            </form>
+
+            <div id="observacionesCuidadorContainer" class="text-muted">
+              Selecciona un paciente y una fecha para registrar observaciones del día.
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-4">
+          <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="card-title mb-0"><i class="bi bi-clipboard2-pulse me-2"></i>Reporte Semanal de Cumplimiento</h5>
+            <button id="exportarReporteSemanalBtn" class="btn btn-sm btn-outline-danger" disabled>
+              <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+            </button>
+          </div>
+          <div class="card-body">
+            <div id="reporteSemanalContainer" class="text-muted">
+              Selecciona un paciente y una fecha, luego presiona "Reporte Semanal" para generar el informe.
+            </div>
+          </div>
+        </div>
+      </section>
 
   <!-- INVENTARIO -->
 <section id="inventario" class="section d-none">
@@ -421,6 +472,8 @@
     <p class="muted">Registra stock, consume dosis y recibe alertas de bajo inventario.</p>
   </div>
 
+
+  <!-- No Historia HU-36 - Como cuidador, quiero recibir alertas cuando un medicamento esté por agotarse para solicitar reposición a tiempo. -->
   <!-- ALERTAS DE STOCK BAJO -->
   <div class="card mb-4">
     <div class="card-header">
@@ -433,6 +486,11 @@
       <div id="alertasStock" class="list-group">
         <!-- Se poblará dinámicamente con JavaScript -->
         <div class="list-group-item text-center text-muted">No hay alertas de stock bajo</div>
+      </div>
+      <div class="mt-3">
+        <button id="sugerirPedidoBtn" class="btn btn-primary">
+          <i class="bi bi-cart-plus me-2"></i> Sugerir pedido a farmacia
+        </button>
       </div>
     </div>
   </div>
@@ -450,10 +508,25 @@
         <i class="bi bi-plus-circle me-2"></i> Registrar o Actualizar Medicamento
       </button>
     </div>
+    <div class="datatable-toolbar mb-3">
+      <div class="datatable-length">
+        <select id="entriesInventario" class="form-select form-select-sm">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+        </select>
+        <span>entries per page</span>
+      </div>
+      <div class="datatable-search">
+        <label for="searchInventario">Search:</label>
+        <input type="text" id="searchInventario" class="form-control form-control-sm">
+      </div>
+    </div>
 
     <!-- TABLA -->
     <div class="table-responsive">
-      <table class="table" id="tablaInventario">
+      <table class="table datatable-theme" id="tablaInventario">
         <thead>
           <tr>
             <th>Medicamento</th>
@@ -465,6 +538,14 @@
         <tbody></tbody>
       </table>
     </div>
+    <div id="paginacionInventario" class="custom-pagination d-none">
+      <small class="pagination-info" id="infoPaginacionInventario">Showing 0 to 0 of 0 entries</small>
+      <div class="pagination-controls">
+        <button id="btnAnteriorInventario" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-left"></i></button>
+        <div id="pageNumbersInventario" class="pagination-numbers"></div>
+        <button id="btnSiguienteInventario" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
   </div>
 </section>
 <!-- Modal Registrar Inventario -->
@@ -473,7 +554,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i> Gestionar Inventario</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" title="Cerrar"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
       <div class="modal-body">
@@ -486,7 +567,7 @@
           </div>
         </div>
 
-        <div class="form-row d-none" id="selectMedicamentoRow">
+        <div class="form-row" id="selectMedicamentoRow" style="display: none;">
           <label for="selectMedicamento">Seleccionar Medicamento Existente</label>
           <select id="selectMedicamento" class="form-select">
             <option value="">Selecciona un medicamento</option>
@@ -564,33 +645,12 @@
             </table>
           </div>
 
-            <div class="form-row">
-              <label for="condiciones">Registrar condiciones</label>
-              <div class="input-group mb-2">
-                <input type="text" id="condicionesInput" class="form-control" placeholder="Ej: Diabetes, Hipertensión...">
-                <select id="nivelCondicion" class="form-select nivel-condicion-select">
-                  <option value="Leve">Leve</option>
-                  <option value="Moderada">Moderada</option>
-                  <option value="Crítica">Crítica</option>
-                </select>
-                <button type="button" id="btnAgregarCondicion" class="btn btn-outline-secondary">Agregar</button>
-              </div>
-              <ul id="listaCondiciones" class="list-group"></ul>
-            </div>
-
-            <div id="alertaCritica" class="alerta-critica oculto">
-              Atención: el paciente presenta condiciones o alergias críticas.
-            </div>
-
-            <div class="d-flex gap-2 mt-4">
-              <button type="button" id="btnGuardar" class="btn btn-primary">Guardar Ficha</button>
-              <button type="button" id="btnLimpiar" class="btn btn-danger">Limpiar</button>
-            </div>
-          </form>
-
           <div id="resumenVerificacionMedicamentos" class="mt-2 text-muted"></div>
         </div>
       </section>
+
+
+
 
       <!-- HU-27: ESTADÍSTICAS -->
       <section id="estadisticas" class="section d-none">
@@ -807,7 +867,6 @@
               <i class="bi bi-x-circle me-1"></i> Limpiar
             </button>
           </div>
-          </div>
         </div>
 
         <!-- Resultados del reporte semanal -->
@@ -945,50 +1004,114 @@
     </main>
   </div>
 
-  <!-- Modal Registrar Medicamento -->
+  <!-- Modal Registrar/Editar Medicamento -->
   <div class="modal fade" id="modalMedicamento" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i> Registrar Medicamento</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" title="Cerrar"></button>
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i> <span id="modalTitle">Registrar Medicamento</span></h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="const modalEl = document.getElementById('modalMedicamento'); const modalInstance = bootstrap.Modal.getInstance(modalEl); if(modalInstance) modalInstance.hide();"></button>
+
+
         </div>
         <div class="modal-body">
-          <div class="form-row">
-            <label for="nombre">Nombre del medicamento</label>
-            <input id="nombre" type="text" class="form-control" placeholder="Ej. Paracetamol">
+          <input type="hidden" id="medicamentoId">
+          
+          <!-- Fila 1: Paciente y Estado -->
+          <div class="row mb-3">
+            <div class="col-md-8">
+              <label for="pacienteMedicamento" class="form-label"><i class="bi bi-person me-1"></i> Paciente *</label>
+              <select id="pacienteMedicamento" class="form-select" required>
+                <option value="" selected disabled>Seleccione un paciente</option>
+              </select>
+              <div class="invalid-feedback">Por favor seleccione un paciente.</div>
+            </div>
+            <div class="col-md-4">
+              <label for="estadoMedicamento" class="form-label"><i class="bi bi-toggle-on me-1"></i> Estado</label>
+              <select id="estadoMedicamento" class="form-select">
+                <option value="activo" selected>Activo</option>
+                <option value="inactivo">Inactivo</option>
+              </select>
+            </div>
           </div>
 
-          <div class="form-row">
-            <label for="dosis">Dosis</label>
-            <input id="dosis" type="text" class="form-control" placeholder="Ej. 500 mg">
+          <!-- Fila 2: Nombre y Dosis -->
+          <div class="row mb-3">
+            <div class="col-md-7">
+              <label for="nombre" class="form-label"><i class="bi bi-capsule me-1"></i> Nombre del medicamento *</label>
+              <input id="nombre" type="text" class="form-control" placeholder="Ej. Paracetamol" required>
+              <div class="invalid-feedback">Ingrese el nombre del medicamento.</div>
+            </div>
+            <div class="col-md-5">
+              <label for="dosis" class="form-label"><i class="bi bi-123 me-1"></i> Dosis *</label>
+              <input id="dosis" type="text" class="form-control" placeholder="Ej. 500 mg, 1 tableta" required>
+              <div class="invalid-feedback">Ingrese la dosis.</div>
+            </div>
           </div>
 
-          <div class="form-row">
-            <label for="frecuencia">Frecuencia (horas)</label>
-            <select id="frecuencia" class="form-select">
-              <option value="" selected disabled>Seleccione frecuencia</option>
-              <option value="2">Cada 2 horas</option>
-              <option value="4">Cada 4 horas</option>
-              <option value="6">Cada 6 horas</option>
-              <option value="8">Cada 8 horas</option>
-              <option value="12">Cada 12 horas</option>
-              <option value="24">Cada 24 horas</option>
-            </select>
+          <!-- Fila 3: Frecuencia y Horario -->
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="frecuencia" class="form-label"><i class="bi bi-clock-history me-1"></i> Frecuencia *</label>
+              <select id="frecuencia" class="form-select" required>
+                <option value="" selected disabled>Seleccione frecuencia</option>
+                <option value="2">Cada 2 horas</option>
+                <option value="4">Cada 4 horas</option>
+                <option value="6">Cada 6 horas</option>
+                <option value="8">Cada 8 horas</option>
+                <option value="12">Cada 12 horas</option>
+                <option value="24">Cada 24 horas</option>
+              </select>
+              <div class="invalid-feedback">Seleccione la frecuencia.</div>
+            </div>
+            <div class="col-md-6">
+              <label for="hora" class="form-label"><i class="bi bi-clock me-1"></i> Horario de inicio *</label>
+              <input id="hora" type="time" class="form-control" required>
+              <div class="form-text text-muted">Hora de la primera toma del día</div>
+            </div>
           </div>
 
-          <div class="form-row">
-            <label for="hora">Horario</label>
-            <input id="hora" type="time" class="form-control">
+          <!-- Fila 4: Fechas de tratamiento -->
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="fechaInicio" class="form-label"><i class="bi bi-calendar-check me-1"></i> Fecha inicio tratamiento</label>
+              <input id="fechaInicio" type="date" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label for="fechaFin" class="form-label"><i class="bi bi-calendar-x me-1"></i> Fecha fin tratamiento</label>
+              <input id="fechaFin" type="date" class="form-control">
+              <div class="form-text text-muted">Dejar en blanco si es tratamiento continuo</div>
+            </div>
+          </div>
+
+          <!-- Fila 5: Notas -->
+          <div class="mb-3">
+            <label for="notasMedicamento" class="form-label"><i class="bi bi-sticky me-1"></i> Notas adicionales</label>
+            <textarea id="notasMedicamento" class="form-control" rows="2" placeholder="Instrucciones especiales, efectos secundarios observados, etc."></textarea>
+          </div>
+
+          <!-- Indicador de campos obligatorios -->
+          <div class="form-text text-muted">
+            <i class="bi bi-info-circle me-1"></i> Los campos marcados con * son obligatorios
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button id="guardarBtn" class="btn btn-primary">Guardar Medicamento</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="const modalCancel = bootstrap.Modal.getInstance(document.getElementById('modalMedicamento')); if(modalCancel) modalCancel.hide();">
+
+            <i class="bi bi-x-circle me-1"></i> Cancelar
+          </button>
+          <button type="button" id="guardarBtn" class="btn btn-primary">
+            <i class="bi bi-save me-1"></i> Guardar Medicamento
+          </button>
+          <button type="button" id="guardarYOtroBtn" class="btn btn-outline-primary d-none">
+            <i class="bi bi-plus-circle me-1"></i> Guardar y Crear Otro
+          </button>
         </div>
+
       </div>
     </div>
   </div>
+
 
   <!-- Modal Crear Pedido -->
   <div class="modal fade" id="createOrderModal" tabindex="-1">
@@ -996,7 +1119,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Crear pedido a farmacia</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" title="Cerrar"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <form id="orderForm">
@@ -1055,7 +1178,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Detalle del pedido</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" title="Cerrar"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body" id="detailBody"></div>
       </div>
@@ -1064,16 +1187,55 @@
 
 
  <!-- Contenedor para los toasts -->
-<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3 toast-container-custom"></div>
+<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;"></div>
 
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Scripts propios -->
-  <script src="scriptregistro.js?v=20260209"></script>
+  <script src="scriptregistro.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <script>
+    function obtenerTokenCuidador() {
+      let token = localStorage.getItem('auth_token') ||
+                  localStorage.getItem('token') ||
+                  localStorage.getItem('accessToken') ||
+                  sessionStorage.getItem('auth_token') ||
+                  sessionStorage.getItem('token');
+
+      if (!token) {
+        const usuarioData = localStorage.getItem('usuario');
+        if (usuarioData) {
+          try {
+            const usuario = JSON.parse(usuarioData);
+            token = usuario.token || usuario.accessToken || usuario.authToken || token;
+          } catch (e) {
+            console.warn('No se pudo recuperar el token del cuidador', e);
+          }
+        }
+      }
+
+      return token;
+    }
+
+    function obtenerHeadersCuidador() {
+      const headers = {};
+      const token = obtenerTokenCuidador();
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      return headers;
+    }
+
+    function obtenerPacientesCuidador() {
+      return fetch('http://localhost:3000/mis-pacientes', {
+        headers: obtenerHeadersCuidador()
+      });
+    }
+  </script>
 
   <!-- Script para abrir modal de medicamentos -->
   <script>
@@ -1106,8 +1268,24 @@ document.addEventListener('DOMContentLoaded', () => {
   <!-- Script para navegación -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const navBtns = document.querySelectorAll('.nav-btn');
+      const navBtns = document.querySelectorAll('.nav-btn[data-section]');
       const sections = document.querySelectorAll('.section');
+      const farmaciaAccordion = document.getElementById('farmaciaAccordionCuidador');
+      const farmaciaToggle = farmaciaAccordion?.querySelector('.nav-accordion-toggle');
+
+      function actualizarAccordionFarmacia(sectionId = '') {
+        if (!farmaciaAccordion || !farmaciaToggle) return;
+        const debeAbrir = sectionId === 'inventario' || sectionId === 'pedidos';
+        farmaciaAccordion.classList.toggle('open', !!debeAbrir);
+        farmaciaToggle.setAttribute('aria-expanded', debeAbrir ? 'true' : 'false');
+      }
+
+      if (farmaciaToggle && farmaciaAccordion) {
+        farmaciaToggle.addEventListener('click', () => {
+          const abierto = farmaciaAccordion.classList.toggle('open');
+          farmaciaToggle.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+        });
+      }
 
       // Función para guardar sección activa en localStorage
       function guardarSeccionActiva(sectionId) {
@@ -1129,10 +1307,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // Mostrar sección guardada
             targetSection.classList.remove('d-none');
             targetBtn.classList.add('active');
+            actualizarAccordionFarmacia(savedSection);
             
             // Cargar verificacion cuando se muestra la seccion
             if (savedSection === 'Ficha' && window.cargarVerificacionMedicamentos) {
               window.cargarVerificacionMedicamentos();
+            }
+            if (savedSection === 'inventario') {
+              if (window.cargarInventario) window.cargarInventario();
+              if (window.verificarAlertasStock) window.verificarAlertasStock();
             }
             return true;
           }
@@ -1142,7 +1325,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Restaurar sección guardada al cargar
       restaurarSeccion();
-
 
       navBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1159,26 +1341,77 @@ document.addEventListener('DOMContentLoaded', () => {
           if (targetSection) {
             targetSection.classList.remove('d-none');
             btn.classList.add('active');
+            actualizarAccordionFarmacia(sectionId);
+            // Guardar sección en localStorage
+            guardarSeccionActiva(sectionId);
 
             // Cargar verificacion cuando se muestra la seccion
             if (sectionId === 'Ficha' && window.cargarVerificacionMedicamentos) {
               window.cargarVerificacionMedicamentos();
             }
+            if (sectionId === 'inventario') {
+              if (window.cargarInventario) window.cargarInventario();
+              if (window.verificarAlertasStock) window.verificarAlertasStock();
+            }
           }
         });
+      });
+
+      if (!document.querySelector('.nav-btn.active[data-section="inventario"], .nav-btn.active[data-section="pedidos"]')) {
+        actualizarAccordionFarmacia('');
+      }
+    });
+  </script>
+
+
+  <!-- Script para preservar posición de scroll -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const mainContent = document.querySelector('.main');
+      
+      // Restaurar posición de scroll después de que el contenido se haya cargado
+      const savedScroll = localStorage.getItem('cuidadorBackend_scroll');
+      if (savedScroll && mainContent) {
+        // Usar setTimeout para esperar a que el contenido se renderice
+        setTimeout(() => {
+          mainContent.scrollTop = parseInt(savedScroll);
+        }, 100);
+      }
+      
+      // Guardar posición de scroll antes de salir
+      window.addEventListener('beforeunload', () => {
+        if (mainContent) {
+          localStorage.setItem('cuidadorBackend_scroll', mainContent.scrollTop);
+        }
       });
     });
   </script>
 
+
   <!-- Script para mostrar información del usuario -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+
       const userNameElement = document.getElementById('userName');
       const userRoleElement = document.getElementById('userRole');
 
-      // Obtener datos del usuario desde localStorage (asumiendo que se guardan al iniciar sesión)
-      const userName = localStorage.getItem('userName') || 'Usuario Desconocido';
-      const userRole = localStorage.getItem('userRole') || 'Rol Desconocido';
+      // Obtener datos del usuario desde localStorage (almacenado como objeto 'usuario' al iniciar sesión)
+      const usuarioData = localStorage.getItem('usuario');
+      let userName = 'Usuario Desconocido';
+      let userRole = 'Rol Desconocido';
+
+      if (usuarioData) {
+        try {
+          const usuario = JSON.parse(usuarioData);
+          // Combinar nombres y apellidos para mostrar el nombre completo
+          const nombres = usuario.nombres || '';
+          const apellidos = usuario.apellidos || '';
+          userName = (nombres + ' ' + apellidos).trim() || 'Usuario Desconocido';
+          userRole = usuario.rol || 'Rol Desconocido';
+        } catch (e) {
+          console.error('Error al parsear datos del usuario:', e);
+        }
+      }
 
       // Actualizar los elementos en la interfaz
       if (userNameElement) {
@@ -1195,8 +1428,10 @@ document.addEventListener('DOMContentLoaded', () => {
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const sugerirPedidoBtn = document.getElementById('sugerirPedidoBtn');
-      const navBtns = document.querySelectorAll('.nav-btn');
+      const navBtns = document.querySelectorAll('.nav-btn[data-section]');
       const sections = document.querySelectorAll('.section');
+      const farmaciaAccordion = document.getElementById('farmaciaAccordionCuidador');
+      const farmaciaToggle = farmaciaAccordion?.querySelector('.nav-accordion-toggle');
 
       if (sugerirPedidoBtn) {
         sugerirPedidoBtn.addEventListener('click', () => {
@@ -1216,6 +1451,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const navBtn = document.querySelector(`.nav-btn[data-section="${sectionId}"]`);
             if (navBtn) {
               navBtn.classList.add('active');
+            }
+            if (farmaciaAccordion && farmaciaToggle) {
+              farmaciaAccordion.classList.add('open');
+              farmaciaToggle.setAttribute('aria-expanded', 'true');
             }
           }
         });
@@ -1262,15 +1501,19 @@ document.addEventListener('DOMContentLoaded', () => {
       let modoEdicion = false;
       let citaEditandoId = null;
       let citasGlobales = []; // Variable global para almacenar citas
+      let pacientesCitasMap = new Map();
 
       // Cargar pacientes en los selects
 
       async function cargarPacientesCitas() {
         try {
-          const response = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          const response = await obtenerPacientesCuidador();
           if (!response.ok) throw new Error('Error al cargar pacientes');
           
           const pacientes = await response.json();
+          pacientesCitasMap = new Map(
+            pacientes.map((paciente) => [String(paciente.id), `${paciente.nombres} ${paciente.apellidos}`])
+          );
           
           // Limpiar y poblar selects
           const opcionDefault = '<option value="" selected disabled>Seleccione un paciente</option>';
@@ -1298,12 +1541,54 @@ document.addEventListener('DOMContentLoaded', () => {
           
           const citas = await response.json();
           citasGlobales = citas; // Guardar en variable global
-          mostrarCitas();
-          actualizarResumen(citas);
+          aplicarFiltrosCitas();
         } catch (error) {
           console.error('Error al cargar citas:', error);
           mostrarToast('Error al cargar citas desde el servidor', 'danger');
         }
+      }
+
+      function obtenerFechaLocalISO(fechaValor) {
+        if (!fechaValor) return '';
+        const fechaNormalizada =
+          typeof fechaValor === 'string'
+            ? fechaValor.replace(' ', 'T')
+            : fechaValor;
+
+        const fecha = new Date(fechaNormalizada);
+        if (Number.isNaN(fecha.getTime())) return '';
+
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      function obtenerCitasFiltradas(citas = []) {
+        const filtroPaciente = filtroPacienteCita.value;
+        const filtroEstado = filtroEstadoCita.value;
+        const fechaDesde = filtroFechaDesde.value;
+        const fechaHasta = filtroFechaHasta.value;
+
+        return citas
+          .filter((cita) => {
+            let incluir = true;
+            const fechaCitaActual = obtenerFechaLocalISO(cita.fecha_hora);
+
+            if (filtroPaciente && String(cita.id_paciente) !== String(filtroPaciente)) incluir = false;
+            if (filtroEstado && String(cita.estado || 'programada') !== filtroEstado) incluir = false;
+            if (fechaDesde && fechaCitaActual < fechaDesde) incluir = false;
+            if (fechaHasta && fechaCitaActual > fechaHasta) incluir = false;
+
+            return incluir;
+          })
+          .sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
+      }
+
+      function aplicarFiltrosCitas() {
+        const citasFiltradas = obtenerCitasFiltradas(citasGlobales || []);
+        mostrarCitas(citasFiltradas);
+        actualizarResumen(citasFiltradas);
       }
 
 
@@ -1351,49 +1636,20 @@ document.addEventListener('DOMContentLoaded', () => {
       function mostrarCitas(citas = null) {
         // Usar citasGlobales si no se pasan citas como parámetro
         const citasAMostrar = citas || citasGlobales || [];
-        
-        // Debug: ver qué campos tiene la primera cita
-        if (citasAMostrar.length > 0) {
-          console.log('Primera cita recibida:', citasAMostrar[0]);
-          console.log('Campos disponibles:', Object.keys(citasAMostrar[0]));
-        }
 
-        const filtroPaciente = filtroPacienteCita.value;
-        const filtroEstado = filtroEstadoCita.value;
-        const fechaDesde = filtroFechaDesde.value;
-        const fechaHasta = filtroFechaHasta.value;
+        contadorCitas.textContent = `${citasAMostrar.length} citas`;
 
-        let citasFiltradas = citasAMostrar.filter(cita => {
-
-          let incluir = true;
-          const fechaCita = cita.fecha_hora ? new Date(cita.fecha_hora).toISOString().split('T')[0] : '';
-          
-          if (filtroPaciente && cita.id_paciente != filtroPaciente) incluir = false;
-          if (filtroEstado && cita.estado !== filtroEstado) incluir = false;
-          if (fechaDesde && fechaCita < fechaDesde) incluir = false;
-          if (fechaHasta && fechaCita > fechaHasta) incluir = false;
-          
-          return incluir;
-        });
-
-        // Ordenar por fecha y hora
-        citasFiltradas.sort((a, b) => {
-          return new Date(a.fecha_hora) - new Date(b.fecha_hora);
-        });
-
-        contadorCitas.textContent = `${citasFiltradas.length} citas`;
-
-        if (citasFiltradas.length === 0) {
+        if (citasAMostrar.length === 0) {
           listaCitas.innerHTML = `
             <div class="text-center text-muted p-4">
               <i class="bi bi-calendar-x display-4 d-block mb-2"></i>
-              No hay citas registradas. Crea una nueva cita usando el formulario.
+              No hay citas que coincidan con los filtros seleccionados.
             </div>
           `;
           return;
         }
 
-        listaCitas.innerHTML = citasFiltradas.map(cita => {
+        listaCitas.innerHTML = citasAMostrar.map(cita => {
           // Intentar obtener el ID de diferentes campos posibles
           const citaId = cita.id || cita.id_cita || cita.cita_id || cita.ID;
           
@@ -1407,6 +1663,7 @@ document.addEventListener('DOMContentLoaded', () => {
           
           const fechaStr = fechaHora.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
           const horaStr = fechaHora.toTimeString().slice(0, 5);
+          const nombrePaciente = pacientesCitasMap.get(String(cita.id_paciente)) || `Paciente #${cita.id_paciente}`;
           
           const badgeClass = {
             'programada': 'bg-primary',
@@ -1432,7 +1689,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   </div>
                   <h6 class="mb-1">${cita.motivo}</h6>
                   <p class="mb-1 text-muted">
-                    <i class="bi bi-person me-1"></i> Paciente #${cita.id_paciente}<br>
+                    <i class="bi bi-person me-1"></i> ${nombrePaciente}<br>
                     <i class="bi bi-calendar me-1"></i> ${fechaStr} 
                     <i class="bi bi-clock ms-2 me-1"></i> ${horaStr}
                   </p>
@@ -1528,7 +1785,7 @@ document.addEventListener('DOMContentLoaded', () => {
           
           // Parsear fecha y hora del formato datetime
           const fechaHora = new Date(cita.fecha_hora);
-          const fechaStr = fechaHora.toISOString().split('T')[0];
+          const fechaStr = obtenerFechaLocalISO(cita.fecha_hora);
           const horaStr = fechaHora.toTimeString().slice(0, 5);
           
           modoEdicion = true;
@@ -1631,17 +1888,19 @@ document.addEventListener('DOMContentLoaded', () => {
       
       limpiarCitaBtn.addEventListener('click', limpiarFormulario);
       
-      filtroPacienteCita.addEventListener('change', mostrarCitas);
-      filtroEstadoCita.addEventListener('change', mostrarCitas);
-      filtroFechaDesde.addEventListener('change', mostrarCitas);
-      filtroFechaHasta.addEventListener('change', mostrarCitas);
+      filtroPacienteCita.addEventListener('change', aplicarFiltrosCitas);
+      filtroEstadoCita.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaDesde.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaHasta.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaDesde.addEventListener('input', aplicarFiltrosCitas);
+      filtroFechaHasta.addEventListener('input', aplicarFiltrosCitas);
       
       limpiarFiltrosCitas.addEventListener('click', () => {
         filtroPacienteCita.value = '';
         filtroEstadoCita.value = '';
         filtroFechaDesde.value = '';
         filtroFechaHasta.value = '';
-        mostrarCitas();
+        aplicarFiltrosCitas();
       });
       
       // Botón eliminar todas las citas
@@ -1758,10 +2017,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const exportarReporteSemanalBtn = document.getElementById('exportarReporteSemanalBtn');
       const container = document.getElementById('historialTomasContainer');
       const reporteSemanalContainer = document.getElementById('reporteSemanalContainer');
+      const formObservacion = document.getElementById('formObservacionCuidador');
+      const observacionIdInput = document.getElementById('observacionCuidadorId');
+      const textoObservacionInput = document.getElementById('textoObservacionCuidador');
+      const guardarObservacionBtn = document.getElementById('guardarObservacionCuidadorBtn');
+      const cancelarEdicionObservacionBtn = document.getElementById('cancelarEdicionObservacionBtn');
+      const observacionesContainer = document.getElementById('observacionesCuidadorContainer');
       const alertasContainer = document.getElementById('alertasOmisionesCuidador');
       const actualizarAlertasBtn = document.getElementById('actualizarAlertasOmisionesBtn');
       const ALERTAS_STORAGE_KEY = 'cuidador_ultima_alerta_omision';
       let ultimoReporteSemanal = null;
+      let observacionesDiaActual = [];
 
       // Verificar que los elementos existan
       if (!pacienteSelect || !fechaInput || !cargarBtn || !container) {
@@ -1779,6 +2045,122 @@ document.addEventListener('DOMContentLoaded', () => {
         const month = String(fecha.getMonth() + 1).padStart(2, '0');
         const day = String(fecha.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+      }
+
+      function escapeHtml(valor) {
+        return String(valor || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function formatearFechaHora(valor) {
+        if (!valor) return 'Sin fecha';
+        const fecha = new Date(valor);
+        if (Number.isNaN(fecha.getTime())) return String(valor);
+        return fecha.toLocaleString('es-HN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+
+      function obtenerContextoObservacionSeleccionado() {
+        const pacienteId = pacienteSelect.value;
+        const fecha = fechaInput.value;
+
+        if (!pacienteId || !fecha) {
+          return null;
+        }
+
+        return {
+          pacienteId,
+          fecha,
+          nombrePaciente: pacienteSelect.options[pacienteSelect.selectedIndex]?.text || 'Paciente'
+        };
+      }
+
+      function limpiarFormularioObservacion() {
+        if (observacionIdInput) observacionIdInput.value = '';
+        if (textoObservacionInput) textoObservacionInput.value = '';
+        if (guardarObservacionBtn) {
+          guardarObservacionBtn.innerHTML = '<i class="bi bi-save me-2"></i>Guardar observación';
+        }
+        if (cancelarEdicionObservacionBtn) {
+          cancelarEdicionObservacionBtn.classList.add('d-none');
+        }
+      }
+
+      function renderizarObservaciones() {
+        if (!observacionesContainer) return;
+
+        const contexto = obtenerContextoObservacionSeleccionado();
+        if (!contexto) {
+          observacionesContainer.innerHTML = 'Selecciona un paciente y una fecha para registrar observaciones del día.';
+          return;
+        }
+
+        if (!observacionesDiaActual.length) {
+          observacionesContainer.innerHTML = `<div class="alert alert-light border mb-0">No hay observaciones registradas para ${escapeHtml(contexto.nombrePaciente)} el ${escapeHtml(contexto.fecha)}.</div>`;
+          return;
+        }
+
+        observacionesContainer.innerHTML = observacionesDiaActual.map((item) => `
+          <div class="border rounded p-3 mb-3 bg-light-subtle">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+              <div>
+                <div class="fw-semibold">${escapeHtml(item.cuidador_nombre || 'Cuidador')}</div>
+                <small class="text-muted d-block">Registrada: ${escapeHtml(formatearFechaHora(item.created_at))}</small>
+                ${item.updated_at && item.updated_at !== item.created_at ? `<small class="text-muted d-block">Actualizada: ${escapeHtml(formatearFechaHora(item.updated_at))}</small>` : ''}
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary btn-editar-observacion" data-id="${item.id}">
+                  <i class="bi bi-pencil me-1"></i>Editar
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-observacion" data-id="${item.id}">
+                  <i class="bi bi-trash me-1"></i>Eliminar
+                </button>
+              </div>
+            </div>
+            <p class="mb-0 mt-3">${escapeHtml(item.observacion)}</p>
+          </div>
+        `).join('');
+      }
+
+      async function cargarObservacionesDia() {
+        if (!observacionesContainer) return;
+
+        const contexto = obtenerContextoObservacionSeleccionado();
+        limpiarFormularioObservacion();
+
+        if (!contexto) {
+          observacionesDiaActual = [];
+          renderizarObservaciones();
+          return;
+        }
+
+        observacionesContainer.innerHTML = '<div class="text-muted">Cargando observaciones del día...</div>';
+
+        try {
+          const response = await fetch(`http://localhost:3000/observaciones-cuidador/${contexto.pacienteId}/${contexto.fecha}`, {
+            headers: obtenerHeadersCuidador()
+          });
+
+          if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+          }
+
+          observacionesDiaActual = await response.json();
+          renderizarObservaciones();
+        } catch (error) {
+          console.error('Error al cargar observaciones:', error);
+          observacionesDiaActual = [];
+          observacionesContainer.innerHTML = `<div class="alert alert-danger mb-0">Error al cargar observaciones: ${escapeHtml(error.message)}</div>`;
+        }
       }
 
       function obtenerRangoSemana(fechaReferencia) {
@@ -1902,7 +2284,7 @@ document.addEventListener('DOMContentLoaded', () => {
       async function cargarPacientes() {
         try {
           console.log('Obteniendo pacientes de http://localhost:3000/usuarios/rol/usuario');
-          const response = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          const response = await obtenerPacientesCuidador();
           
           if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
@@ -1963,12 +2345,112 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // Mostrar el historial
           mostrarHistorialActualizado(tomas, recetas, fecha);
+          await cargarObservacionesDia();
           await generarReporteSemanal(pacienteId, fecha, pacienteSelect.options[pacienteSelect.selectedIndex]?.text || 'Paciente');
         } catch (error) {
           console.error('Error al cargar historial:', error);
           container.innerHTML = `<div class="alert alert-danger">Error al cargar el historial: ${error.message}</div>`;
         }
       });
+
+      async function guardarObservacionCuidador(event) {
+        event.preventDefault();
+
+        const contexto = obtenerContextoObservacionSeleccionado();
+        if (!contexto) {
+          mostrarToast('Selecciona un paciente y una fecha antes de registrar observaciones.', 'warning');
+          return;
+        }
+
+        const observacion = textoObservacionInput?.value.trim() || '';
+        if (!observacion) {
+          mostrarToast('La observación no puede estar vacía.', 'warning');
+          return;
+        }
+
+        const observacionId = observacionIdInput?.value;
+        const url = observacionId
+          ? `http://localhost:3000/observaciones-cuidador/${observacionId}`
+          : 'http://localhost:3000/observaciones-cuidador';
+        const method = observacionId ? 'PUT' : 'POST';
+        const body = observacionId
+          ? { observacion }
+          : { paciente_id: Number(contexto.pacienteId), fecha_observacion: contexto.fecha, observacion };
+
+        try {
+          const response = await fetch(url, {
+            method,
+            headers: {
+              ...obtenerHeadersCuidador(),
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.mensaje || 'No se pudo guardar la observación');
+          }
+
+          mostrarToast(data.mensaje || 'Observación guardada correctamente.', 'success');
+          limpiarFormularioObservacion();
+          await cargarObservacionesDia();
+          await generarReporteSemanal(contexto.pacienteId, contexto.fecha, contexto.nombrePaciente);
+        } catch (error) {
+          console.error('Error al guardar observación:', error);
+          mostrarToast(error.message || 'No se pudo guardar la observación.', 'danger');
+        }
+      }
+
+      async function eliminarObservacionCuidador(id) {
+        if (!confirm('¿Deseas eliminar esta observación?')) {
+          return;
+        }
+
+        const contexto = obtenerContextoObservacionSeleccionado();
+
+        try {
+          const response = await fetch(`http://localhost:3000/observaciones-cuidador/${id}`, {
+            method: 'DELETE',
+            headers: obtenerHeadersCuidador()
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.mensaje || 'No se pudo eliminar la observación');
+          }
+
+          mostrarToast(data.mensaje || 'Observación eliminada correctamente.', 'success');
+          limpiarFormularioObservacion();
+          await cargarObservacionesDia();
+          if (contexto) {
+            await generarReporteSemanal(contexto.pacienteId, contexto.fecha, contexto.nombrePaciente);
+          }
+        } catch (error) {
+          console.error('Error al eliminar observación:', error);
+          mostrarToast(error.message || 'No se pudo eliminar la observación.', 'danger');
+        }
+      }
+
+      function editarObservacionCuidador(id) {
+        const observacion = observacionesDiaActual.find((item) => Number(item.id) === Number(id));
+        if (!observacion) {
+          mostrarToast('No se encontró la observación seleccionada.', 'warning');
+          return;
+        }
+
+        if (observacionIdInput) observacionIdInput.value = String(observacion.id);
+        if (textoObservacionInput) {
+          textoObservacionInput.value = observacion.observacion || '';
+          textoObservacionInput.focus();
+        }
+        if (guardarObservacionBtn) {
+          guardarObservacionBtn.innerHTML = '<i class="bi bi-pencil-square me-2"></i>Actualizar observación';
+        }
+        if (cancelarEdicionObservacionBtn) {
+          cancelarEdicionObservacionBtn.classList.remove('d-none');
+        }
+      }
 
       async function generarReporteSemanal(pacienteId, fechaReferencia, nombrePaciente) {
         if (!reporteSemanalContainer) return;
@@ -1982,68 +2464,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
           const rango = obtenerRangoSemana(fechaReferencia);
-          const recetasResponse = await fetch(`http://localhost:3000/recetas/${pacienteId}`);
-          if (!recetasResponse.ok) {
-            throw new Error(`No se pudieron cargar recetas (${recetasResponse.status})`);
-          }
-          const recetas = await recetasResponse.json();
-
-          if (!recetas.length) {
-            reporteSemanalContainer.innerHTML = '<div class="alert alert-info mb-0">El paciente no tiene recetas para calcular el reporte semanal.</div>';
-            ultimoReporteSemanal = null;
-            if (exportarReporteSemanalBtn) exportarReporteSemanalBtn.disabled = true;
-            return;
+          const response = await fetch(`http://localhost:3000/reporte-semanal/${pacienteId}?fecha_inicio=${rango.inicio}`);
+          if (!response.ok) {
+            throw new Error(`No se pudo generar el reporte semanal (${response.status})`);
           }
 
-          const tomasPorDia = await Promise.all(
-            rango.fechas.map(async (fechaDia) => {
-              const response = await fetch(`http://localhost:3000/tomas/${pacienteId}/${fechaDia}`);
-              if (!response.ok) {
-                throw new Error(`No se pudieron cargar tomas del ${fechaDia} (${response.status})`);
-              }
-              const tomas = await response.json();
-              return { fecha: fechaDia, tomas };
-            })
-          );
-
-          const filas = [];
-          let totalEsperadasSemana = 0;
-          let totalTomadasSemana = 0;
-          let totalOmitidasSemana = 0;
-
-          tomasPorDia.forEach(({ fecha, tomas }) => {
-            let tomadasDia = 0;
-            let omitidasDia = 0;
-            const esperadasDia = recetas.length;
-            totalEsperadasSemana += esperadasDia;
-
-            recetas.forEach((receta) => {
-              const eventosReceta = tomas.filter((t) => t.id_receta === receta.id);
-              const ultimoEvento = eventosReceta.length ? eventosReceta[eventosReceta.length - 1] : null;
-              if (ultimoEvento?.estado === 'no_tomada') {
-                omitidasDia += 1;
-              } else if (ultimoEvento) {
-                tomadasDia += 1;
-              }
-            });
-
-            totalTomadasSemana += tomadasDia;
-            totalOmitidasSemana += omitidasDia;
-            const porcentajeDia = esperadasDia > 0 ? Math.round((tomadasDia / esperadasDia) * 100) : 0;
-
-            filas.push({
-              fecha,
+          const data = await response.json();
+          const filas = (data.dias || []).map((dia) => {
+            const esperadasDia = Number(dia.programados || 0);
+            const tomadasDia = Number(dia.tomados || 0);
+            const omitidasDia = Math.max(esperadasDia - tomadasDia, 0);
+            return {
+              fecha: dia.fecha,
               tomadasDia,
-              omitidasDia,
               esperadasDia,
-              porcentajeDia
-            });
+              omitidasDia,
+              porcentajeDia: dia.porcentaje ?? 0,
+              observaciones: Array.isArray(dia.observaciones) ? dia.observaciones : []
+            };
           });
 
-          const porcentajeSemanal = totalEsperadasSemana > 0
-            ? Math.round((totalTomadasSemana / totalEsperadasSemana) * 100)
-            : 0;
-          const resumenAutomatico = construirResumenSemanal(
+          const porcentajeSemanal = Number(data.porcentaje || 0);
+          const totalTomadasSemana = Number(data.total_tomados || 0);
+          const totalEsperadasSemana = Number(data.total_programados || 0);
+          const totalOmitidasSemana = Math.max(totalEsperadasSemana - totalTomadasSemana, 0);
+          const totalObservacionesSemana = Number(data.total_observaciones || 0);
+          const resumenAutomatico = data.resumen || construirResumenSemanal(
             porcentajeSemanal,
             totalTomadasSemana,
             totalEsperadasSemana,
@@ -2065,7 +2511,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="p-3 border rounded">
                   <div class="text-muted small">Resumen automatico (${rango.inicio} a ${rango.fin})</div>
                   <p class="mb-1">${resumenAutomatico}</p>
-                  <small class="text-muted">Dosis tomadas: ${totalTomadasSemana}/${totalEsperadasSemana}. Omitidas: ${totalOmitidasSemana}.</small>
+                  <small class="text-muted">Dosis tomadas: ${totalTomadasSemana}/${totalEsperadasSemana}. Omitidas: ${totalOmitidasSemana}. Observaciones registradas: ${totalObservacionesSemana}.</small>
                 </div>
               </div>
             </div>
@@ -2078,6 +2524,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <th>Esperadas</th>
                     <th>Omitidas</th>
                     <th>Cumplimiento</th>
+                    <th>Observaciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2088,6 +2535,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       <td>${fila.esperadasDia}</td>
                       <td>${fila.omitidasDia}</td>
                       <td><span class="badge ${fila.porcentajeDia >= 70 ? 'bg-success' : 'bg-warning text-dark'}">${fila.porcentajeDia}%</span></td>
+                      <td>${fila.observaciones.length ? fila.observaciones.map((item) => `<div class="small mb-1"><i class="bi bi-journal-text me-1"></i>${escapeHtml(item.observacion)}</div>`).join('') : '<span class="text-muted small">Sin observaciones</span>'}</td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -2104,6 +2552,7 @@ document.addEventListener('DOMContentLoaded', () => {
             totalTomadasSemana,
             totalEsperadasSemana,
             totalOmitidasSemana,
+            totalObservacionesSemana,
             filas
           };
 
@@ -2167,6 +2616,18 @@ document.addEventListener('DOMContentLoaded', () => {
           const linea = `${fila.fecha}  |  Tomadas: ${fila.tomadasDia}  |  Esperadas: ${fila.esperadasDia}  |  Omitidas: ${fila.omitidasDia}  |  ${fila.porcentajeDia}%`;
           doc.text(linea, 14, y);
           y += 6;
+
+          if (fila.observaciones?.length) {
+            fila.observaciones.forEach((obs) => {
+              if (y > 275) {
+                doc.addPage();
+                y = 14;
+              }
+              const lineasObs = doc.splitTextToSize(`Observación: ${obs.observacion}`, ancho - 8);
+              doc.text(lineasObs, 18, y);
+              y += (lineasObs.length * 5);
+            });
+          }
         });
 
         doc.save(`reporte_semanal_${r.pacienteId}_${r.rango.fin}.pdf`);
@@ -2190,6 +2651,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (exportarReporteSemanalBtn) {
         exportarReporteSemanalBtn.addEventListener('click', exportarReporteSemanalPDF);
+      }
+
+      if (formObservacion) {
+        formObservacion.addEventListener('submit', guardarObservacionCuidador);
+      }
+
+      if (cancelarEdicionObservacionBtn) {
+        cancelarEdicionObservacionBtn.addEventListener('click', () => {
+          limpiarFormularioObservacion();
+        });
+      }
+
+      if (observacionesContainer) {
+        observacionesContainer.addEventListener('click', (event) => {
+          const editBtn = event.target.closest('.btn-editar-observacion');
+          const deleteBtn = event.target.closest('.btn-eliminar-observacion');
+
+          if (editBtn) {
+            editarObservacionCuidador(editBtn.dataset.id);
+          }
+
+          if (deleteBtn) {
+            eliminarObservacionCuidador(deleteBtn.dataset.id);
+          }
+        });
+      }
+
+      if (pacienteSelect) {
+        pacienteSelect.addEventListener('change', () => {
+          observacionesDiaActual = [];
+          limpiarFormularioObservacion();
+          renderizarObservaciones();
+        });
+      }
+
+      if (fechaInput) {
+        fechaInput.addEventListener('change', () => {
+          observacionesDiaActual = [];
+          limpiarFormularioObservacion();
+          renderizarObservaciones();
+        });
       }
 
       function mostrarHistorialActualizado(tomas, recetas, fecha) {
@@ -2369,7 +2871,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       async function cargarPacientesVerificacion() {
         try {
-          const resp = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          const resp = await obtenerPacientesCuidador();
           if (!resp.ok) throw new Error('No se pudieron cargar pacientes');
           const pacientes = await resp.json();
 
@@ -2398,7 +2900,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resumen.textContent = '';
 
         try {
-          const pacientesResp = await fetch('http://localhost:3000/usuarios/rol/usuario');
+          const pacientesResp = await obtenerPacientesCuidador();
           if (!pacientesResp.ok) throw new Error('No se pudieron cargar pacientes');
           const pacientes = await pacientesResp.json();
 
@@ -2475,7 +2977,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   </script>
 
+
 </body>
 </html>
+
+
 
 

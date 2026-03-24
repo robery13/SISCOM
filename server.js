@@ -62,6 +62,48 @@ db.connect(err => {
         ensureTomasMedicasColumn('motivo_omision', "ALTER TABLE tomas_medicas ADD COLUMN motivo_omision TEXT NULL AFTER estado");
       }
     });
+
+    const createAsignacionesSql = `
+      CREATE TABLE IF NOT EXISTS cuidador_pacientes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        cuidador_id INT NOT NULL,
+        paciente_id INT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_cuidador_paciente (cuidador_id, paciente_id),
+        INDEX idx_cuidador_id (cuidador_id),
+        INDEX idx_paciente_id (paciente_id)
+      )
+    `;
+
+    db.query(createAsignacionesSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla cuidador_pacientes:', err);
+      } else {
+        console.log('Tabla cuidador_pacientes verificada/creada correctamente');
+      }
+    });
+
+    const createObservacionesSql = `
+      CREATE TABLE IF NOT EXISTS cuidador_observaciones (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        cuidador_id INT NOT NULL,
+        paciente_id INT NOT NULL,
+        fecha_observacion DATE NOT NULL,
+        observacion TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_obs_cuidador (cuidador_id),
+        INDEX idx_obs_paciente_fecha (paciente_id, fecha_observacion)
+      )
+    `;
+
+    db.query(createObservacionesSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla cuidador_observaciones:', err);
+      } else {
+        console.log('Tabla cuidador_observaciones verificada/creada correctamente');
+      }
+    });
   }
 });
 
@@ -1909,6 +1951,709 @@ app.get('/usuarios/rol/:rol', (req, res) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar usuarios' });
     res.json(results);
   });
+});
+
+app.get('/asignaciones-cuidador', verificarRol(['administrador']), (req, res) => {
+  const sqlCuidadores = "SELECT id, nombres, apellidos, email FROM usuarios WHERE rol = 'empleado' ORDER BY nombres, apellidos";
+  const sqlPacientes = "SELECT id, nombres, apellidos, email FROM usuarios WHERE rol = 'usuario' ORDER BY nombres, apellidos";
+  const sqlAsignaciones = `
+    SELECT cp.cuidador_id, cp.paciente_id,
+           c.nombres AS cuidador_nombres, c.apellidos AS cuidador_apellidos,
+           p.nombres AS paciente_nombres, p.apellidos AS paciente_apellidos
+    FROM cuidador_pacientes cp
+    INNER JOIN usuarios c ON c.id = cp.cuidador_id
+    INNER JOIN usuarios p ON p.id = cp.paciente_id
+    ORDER BY c.nombres, c.apellidos, p.nombres, p.apellidos
+  `;
+
+  db.query(sqlCuidadores, (errCuidadores, cuidadores) => {
+    if (errCuidadores) {
+      return res.status(500).json({ mensaje: 'Error al cargar cuidadores' });
+    }
+
+    db.query(sqlPacientes, (errPacientes, pacientes) => {
+      if (errPacientes) {
+        return res.status(500).json({ mensaje: 'Error al cargar pacientes' });
+      }
+
+      db.query(sqlAsignaciones, (errAsignaciones, asignaciones) => {
+        if (errAsignaciones) {
+          return res.status(500).json({ mensaje: 'Error al cargar asignaciones' });
+        }
+
+        res.json({ cuidadores, pacientes, asignaciones });
+      });
+    });
+  });
+});
+
+app.get('/asignaciones-cuidador/:cuidadorId', verificarRol(['administrador']), (req, res) => {
+  const { cuidadorId } = req.params;
+  const sql = `
+    SELECT paciente_id
+    FROM cuidador_pacientes
+    WHERE cuidador_id = ?
+    ORDER BY paciente_id
+  `;
+
+  db.query(sql, [cuidadorId], (err, results) => {
+    if (err) {
+      return res.status(500).json({ mensaje: 'Error al cargar asignaciones del cuidador' });
+    }
+
+    res.json(results.map((row) => row.paciente_id));
+  });
+});
+
+app.post('/asignaciones-cuidador/:cuidadorId', verificarRol(['administrador']), (req, res) => {
+  const { cuidadorId } = req.params;
+  const { pacientes } = req.body;
+
+  const cuidadorIdNum = parseInt(cuidadorId, 10);
+  const pacientesIds = Array.isArray(pacientes)
+    ? [...new Set(pacientes.map((id) => parseInt(id, 10)).filter((id) => Number.isInteger(id) && id > 0))]
+    : [];
+
+  if (!Number.isInteger(cuidadorIdNum) || cuidadorIdNum <= 0) {
+    return res.status(400).json({ mensaje: 'Cuidador inválido' });
+  }
+
+  const sqlValidarCuidador = "SELECT id FROM usuarios WHERE id = ? AND rol = 'empleado' LIMIT 1";
+  db.query(sqlValidarCuidador, [cuidadorIdNum], (errValidar, cuidadores) => {
+    if (errValidar) {
+      return res.status(500).json({ mensaje: 'Error al validar cuidador' });
+    }
+
+    if (!cuidadores.length) {
+      return res.status(404).json({ mensaje: 'Cuidador no encontrado' });
+    }
+
+    const sqlDelete = 'DELETE FROM cuidador_pacientes WHERE cuidador_id = ?';
+    db.query(sqlDelete, [cuidadorIdNum], (errDelete) => {
+      if (errDelete) {
+        return res.status(500).json({ mensaje: 'Error al actualizar asignaciones' });
+      }
+
+      if (!pacientesIds.length) {
+        return res.json({ mensaje: 'Asignaciones actualizadas correctamente' });
+      }
+
+      const sqlInsert = 'INSERT INTO cuidador_pacientes (cuidador_id, paciente_id) VALUES ?';
+      const values = pacientesIds.map((pacienteId) => [cuidadorIdNum, pacienteId]);
+
+      db.query(sqlInsert, [values], (errInsert) => {
+        if (errInsert) {
+          return res.status(500).json({ mensaje: 'Error al guardar asignaciones' });
+        }
+
+        res.json({ mensaje: 'Asignaciones actualizadas correctamente' });
+      });
+    });
+  });
+});
+
+app.get('/mis-pacientes', verificarRol(['administrador', 'empleado']), (req, res) => {
+  if (req.user.rol === 'administrador') {
+    const sqlAdmin = "SELECT id, nombres, apellidos, email FROM usuarios WHERE rol = 'usuario' ORDER BY nombres, apellidos";
+    db.query(sqlAdmin, (err, results) => {
+      if (err) return res.status(500).json({ mensaje: 'Error al cargar pacientes' });
+      res.json(results);
+    });
+    return;
+  }
+
+  const sql = `
+    SELECT u.id, u.nombres, u.apellidos, u.email
+    FROM cuidador_pacientes cp
+    INNER JOIN usuarios u ON u.id = cp.paciente_id
+    WHERE cp.cuidador_id = ? AND u.rol = 'usuario'
+    ORDER BY u.nombres, u.apellidos
+  `;
+
+  db.query(sql, [req.user.id], (err, results) => {
+    if (err) {
+      return res.status(500).json({ mensaje: 'Error al cargar pacientes asignados' });
+    }
+
+    res.json(results);
+  });
+});
+
+app.get('/mi-cuidador', verificarRol(['usuario']), (req, res) => {
+  const sql = `
+    SELECT u.id, u.nombres, u.apellidos, u.email, u.telefono
+    FROM cuidador_pacientes cp
+    INNER JOIN usuarios u ON u.id = cp.cuidador_id
+    WHERE cp.paciente_id = ? AND u.rol = 'empleado'
+    ORDER BY cp.created_at ASC, u.nombres ASC, u.apellidos ASC
+    LIMIT 1
+  `;
+
+  db.query(sql, [req.user.id], (err, results) => {
+    if (err) {
+      return res.status(500).json({ mensaje: 'Error al cargar el cuidador asignado' });
+    }
+
+    res.json(results[0] || null);
+  });
+});
+
+app.get('/observaciones-cuidador/:pacienteId/:fecha', verificarRol(['administrador', 'empleado']), async (req, res) => {
+  const pacienteId = parseInt(req.params.pacienteId, 10);
+  const fecha = String(req.params.fecha || '').trim();
+
+  if (!Number.isInteger(pacienteId) || pacienteId <= 0) {
+    return res.status(400).json({ mensaje: 'Paciente inválido' });
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    return res.status(400).json({ mensaje: 'Fecha inválida. Use formato YYYY-MM-DD' });
+  }
+
+  try {
+    const tieneAcceso = await usuarioPuedeGestionarPaciente(req.user, pacienteId);
+    if (!tieneAcceso) {
+      return res.status(403).json({ mensaje: 'No tienes permisos para consultar observaciones de este paciente' });
+    }
+
+    const observaciones = await queryAsync(
+      `SELECT o.id, o.cuidador_id, o.paciente_id, o.fecha_observacion, o.observacion, o.created_at, o.updated_at,
+              CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS cuidador_nombre
+       FROM cuidador_observaciones o
+       INNER JOIN usuarios u ON u.id = o.cuidador_id
+       WHERE o.paciente_id = ? AND o.fecha_observacion = ?
+       ORDER BY o.created_at DESC, o.id DESC`,
+      [pacienteId, fecha]
+    );
+
+    res.json(observaciones);
+  } catch (error) {
+    console.error('Error al cargar observaciones del cuidador:', error);
+    res.status(500).json({ mensaje: 'Error al cargar observaciones del cuidador' });
+  }
+});
+
+app.post('/observaciones-cuidador', verificarRol(['administrador', 'empleado']), async (req, res) => {
+  const pacienteId = parseInt(req.body.paciente_id, 10);
+  const fecha = String(req.body.fecha_observacion || '').trim();
+  const observacion = String(req.body.observacion || '').trim();
+
+  if (!Number.isInteger(pacienteId) || pacienteId <= 0) {
+    return res.status(400).json({ mensaje: 'Paciente inválido' });
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    return res.status(400).json({ mensaje: 'Fecha inválida. Use formato YYYY-MM-DD' });
+  }
+
+  if (!observacion) {
+    return res.status(400).json({ mensaje: 'La observación es obligatoria' });
+  }
+
+  try {
+    const tieneAcceso = await usuarioPuedeGestionarPaciente(req.user, pacienteId);
+    if (!tieneAcceso) {
+      return res.status(403).json({ mensaje: 'No tienes permisos para registrar observaciones de este paciente' });
+    }
+
+    const result = await queryAsync(
+      `INSERT INTO cuidador_observaciones (cuidador_id, paciente_id, fecha_observacion, observacion)
+       VALUES (?, ?, ?, ?)`,
+      [req.user.id, pacienteId, fecha, observacion]
+    );
+
+    const nuevaObservacion = await queryAsync(
+      `SELECT o.id, o.cuidador_id, o.paciente_id, o.fecha_observacion, o.observacion, o.created_at, o.updated_at,
+              CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS cuidador_nombre
+       FROM cuidador_observaciones o
+       INNER JOIN usuarios u ON u.id = o.cuidador_id
+       WHERE o.id = ?
+       LIMIT 1`,
+      [result.insertId]
+    );
+
+    res.status(201).json({
+      mensaje: 'Observación registrada correctamente',
+      observacion: nuevaObservacion[0] || null
+    });
+  } catch (error) {
+    console.error('Error al registrar observación del cuidador:', error);
+    res.status(500).json({ mensaje: 'Error al registrar observación del cuidador' });
+  }
+});
+
+app.put('/observaciones-cuidador/:id', verificarRol(['administrador', 'empleado']), async (req, res) => {
+  const observacionId = parseInt(req.params.id, 10);
+  const observacionTexto = String(req.body.observacion || '').trim();
+
+  if (!Number.isInteger(observacionId) || observacionId <= 0) {
+    return res.status(400).json({ mensaje: 'Observación inválida' });
+  }
+
+  if (!observacionTexto) {
+    return res.status(400).json({ mensaje: 'La observación es obligatoria' });
+  }
+
+  try {
+    const observacionActual = await obtenerObservacionPorId(observacionId);
+    if (!observacionActual) {
+      return res.status(404).json({ mensaje: 'Observación no encontrada' });
+    }
+
+    const tieneAccesoPaciente = await usuarioPuedeGestionarPaciente(req.user, observacionActual.paciente_id);
+    const puedeEditar = req.user.rol === 'administrador' || (tieneAccesoPaciente && req.user.id === observacionActual.cuidador_id);
+
+    if (!puedeEditar) {
+      return res.status(403).json({ mensaje: 'No tienes permisos para editar esta observación' });
+    }
+
+    await queryAsync('UPDATE cuidador_observaciones SET observacion = ? WHERE id = ?', [observacionTexto, observacionId]);
+
+    const actualizada = await queryAsync(
+      `SELECT o.id, o.cuidador_id, o.paciente_id, o.fecha_observacion, o.observacion, o.created_at, o.updated_at,
+              CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS cuidador_nombre
+       FROM cuidador_observaciones o
+       INNER JOIN usuarios u ON u.id = o.cuidador_id
+       WHERE o.id = ?
+       LIMIT 1`,
+      [observacionId]
+    );
+
+    res.json({
+      mensaje: 'Observación actualizada correctamente',
+      observacion: actualizada[0] || null
+    });
+  } catch (error) {
+    console.error('Error al actualizar observación del cuidador:', error);
+    res.status(500).json({ mensaje: 'Error al actualizar observación del cuidador' });
+  }
+});
+
+app.delete('/observaciones-cuidador/:id', verificarRol(['administrador', 'empleado']), async (req, res) => {
+  const observacionId = parseInt(req.params.id, 10);
+
+  if (!Number.isInteger(observacionId) || observacionId <= 0) {
+    return res.status(400).json({ mensaje: 'Observación inválida' });
+  }
+
+  try {
+    const observacionActual = await obtenerObservacionPorId(observacionId);
+    if (!observacionActual) {
+      return res.status(404).json({ mensaje: 'Observación no encontrada' });
+    }
+
+    const tieneAccesoPaciente = await usuarioPuedeGestionarPaciente(req.user, observacionActual.paciente_id);
+    const puedeEliminar = req.user.rol === 'administrador' || (tieneAccesoPaciente && req.user.id === observacionActual.cuidador_id);
+
+    if (!puedeEliminar) {
+      return res.status(403).json({ mensaje: 'No tienes permisos para eliminar esta observación' });
+    }
+
+    await queryAsync('DELETE FROM cuidador_observaciones WHERE id = ?', [observacionId]);
+    res.json({ mensaje: 'Observación eliminada correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar observación del cuidador:', error);
+    res.status(500).json({ mensaje: 'Error al eliminar observación del cuidador' });
+  }
+});
+
+// ============================================
+// RUTAS DE ESTADÍSTICAS (HU-27 / HU-42)
+// ============================================
+
+function queryAsync(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+}
+
+async function usuarioPuedeGestionarPaciente(user, pacienteId) {
+  if (user.rol === 'administrador') {
+    return true;
+  }
+
+  const rows = await queryAsync(
+    `SELECT 1
+     FROM cuidador_pacientes
+     WHERE cuidador_id = ? AND paciente_id = ?
+     LIMIT 1`,
+    [user.id, pacienteId]
+  );
+
+  return rows.length > 0;
+}
+
+async function obtenerObservacionPorId(observacionId) {
+  const rows = await queryAsync(
+    `SELECT id, cuidador_id, paciente_id, fecha_observacion, observacion, created_at, updated_at
+     FROM cuidador_observaciones
+     WHERE id = ?
+     LIMIT 1`,
+    [observacionId]
+  );
+
+  return rows[0] || null;
+}
+
+function normalizarEstadoCita(estado) {
+  const valor = String(estado || '').toLowerCase();
+  if (valor === 'completada' || valor === 'cumplida') return 'cumplida';
+  if (valor === 'cancelada') return 'cancelada';
+  if (valor === 'vencida') return 'vencida';
+  return 'programada';
+}
+
+function calcularNivelAdherencia(porcentaje) {
+  if (porcentaje >= 90) return 'Excelente';
+  if (porcentaje >= 75) return 'Buena';
+  if (porcentaje >= 50) return 'Regular';
+  return 'Baja';
+}
+
+function construirResumenSemanal(porcentaje, totalTomados, totalProgramados) {
+  if (totalProgramados === 0) {
+    return 'No se encontraron tomas registradas en la semana seleccionada.';
+  }
+  if (porcentaje >= 90) {
+    return `Adherencia excelente. Se registraron ${totalTomados} tomas de ${totalProgramados} programadas.`;
+  }
+  if (porcentaje >= 75) {
+    return `Adherencia buena. Se registraron ${totalTomados} tomas de ${totalProgramados} programadas.`;
+  }
+  if (porcentaje >= 50) {
+    return `Adherencia regular. Se recomienda reforzar el seguimiento de tomas del paciente.`;
+  }
+  return 'Adherencia baja. Se recomienda revisar el plan de tratamiento y recordatorios.';
+}
+
+// Lista simple de pacientes para el selector de estadísticas
+app.get('/pacientes', async (req, res) => {
+  try {
+    const pacientes = await queryAsync(`
+      SELECT 
+        u.id AS id_paciente,
+        CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS nombre_completo,
+        NULL AS fecha_nacimiento
+      FROM usuarios u
+      WHERE u.rol = 'usuario'
+      ORDER BY u.nombres, u.apellidos
+    `);
+
+    res.json(pacientes);
+  } catch (error) {
+    console.error('Error al cargar pacientes para estadísticas:', error);
+    res.status(500).json({ mensaje: 'Error al cargar pacientes' });
+  }
+});
+
+// Estadísticas individuales por paciente
+app.get('/estadisticas/paciente/:id_paciente', async (req, res) => {
+  const idPaciente = parseInt(req.params.id_paciente, 10);
+  if (!Number.isInteger(idPaciente) || idPaciente <= 0) {
+    return res.status(400).json({ mensaje: 'Paciente inválido' });
+  }
+
+  try {
+    const pacienteRows = await queryAsync(`
+      SELECT 
+        u.id AS id_paciente,
+        CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS nombre_completo,
+        NULL AS fecha_nacimiento
+      FROM usuarios u
+      WHERE u.id = ? AND u.rol = 'usuario'
+      LIMIT 1
+    `, [idPaciente]);
+
+    if (!pacienteRows.length) {
+      return res.status(404).json({ mensaje: 'Paciente no encontrado' });
+    }
+
+    const paciente = pacienteRows[0];
+
+    const [medicamentos, alergias, condiciones, citasRows, cumplimientoRows] = await Promise.all([
+      queryAsync(`
+        SELECT 
+          nombre,
+          dosis,
+          frecuencia_horas AS frecuencia
+        FROM Registro_medicamentos
+        WHERE paciente_id = ?
+        ORDER BY id DESC
+      `, [idPaciente]),
+      queryAsync(`
+        SELECT nombre_alergia
+        FROM alergia
+        WHERE id_paciente = ?
+        ORDER BY id ASC
+      `, [idPaciente]),
+      queryAsync(`
+        SELECT nombre_condicion, nivel
+        FROM condicion_medica
+        WHERE id_paciente = ?
+        ORDER BY id ASC
+      `, [idPaciente]),
+      queryAsync(`
+        SELECT estado, COUNT(*) AS total
+        FROM citas
+        WHERE id_paciente = ?
+        GROUP BY estado
+      `, [idPaciente]),
+      queryAsync(`
+        SELECT
+          COUNT(*) AS total_programados,
+          SUM(CASE WHEN estado = 'tomada' THEN 1 ELSE 0 END) AS total_tomados
+        FROM tomas_medicas
+        WHERE id_usuario = ?
+      `, [idPaciente])
+    ]);
+
+    const citasDetalleMap = { programada: 0, cumplida: 0, cancelada: 0, vencida: 0 };
+    citasRows.forEach((row) => {
+      const estado = normalizarEstadoCita(row.estado);
+      citasDetalleMap[estado] = Number(row.total || 0) + Number(citasDetalleMap[estado] || 0);
+    });
+
+    const citasDetalle = Object.keys(citasDetalleMap).map((estado) => ({
+      estado,
+      total: citasDetalleMap[estado]
+    }));
+    const totalCitas = citasDetalle.reduce((acc, item) => acc + Number(item.total || 0), 0);
+
+    const totalProgramados = Number(cumplimientoRows?.[0]?.total_programados || 0);
+    const totalTomados = Number(cumplimientoRows?.[0]?.total_tomados || 0);
+    const porcentaje = totalProgramados > 0
+      ? Math.round((totalTomados / totalProgramados) * 100)
+      : 0;
+
+    res.json({
+      paciente,
+      medicamentos,
+      alergias,
+      condiciones,
+      citas: {
+        total: totalCitas,
+        detalle: citasDetalle
+      },
+      cumplimiento: {
+        total_programados: totalProgramados,
+        total_tomados: totalTomados,
+        porcentaje
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener estadísticas del paciente:', error);
+    res.status(500).json({ mensaje: 'Error al obtener estadísticas del paciente' });
+  }
+});
+
+// Comparación entre pacientes
+app.get('/estadisticas/comparar', async (req, res) => {
+  const idsRaw = String(req.query.ids || '');
+  const ids = [...new Set(idsRaw.split(',').map((id) => parseInt(id, 10)).filter((id) => Number.isInteger(id) && id > 0))];
+
+  if (!ids.length) {
+    return res.status(400).json({ mensaje: 'Debe enviar IDs válidos para comparar' });
+  }
+
+  try {
+    const resultados = [];
+
+    for (const idPaciente of ids) {
+      const pacienteRows = await queryAsync(`
+        SELECT 
+          u.id AS id_paciente,
+          CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS nombre_completo
+        FROM usuarios u
+        WHERE u.id = ? AND u.rol = 'usuario'
+        LIMIT 1
+      `, [idPaciente]);
+
+      if (!pacienteRows.length) continue;
+
+      const [medsRows, condRows, alergRows, citasRows] = await Promise.all([
+        queryAsync(`SELECT COUNT(*) AS total FROM Registro_medicamentos WHERE paciente_id = ?`, [idPaciente]),
+        queryAsync(`SELECT nivel FROM condicion_medica WHERE id_paciente = ?`, [idPaciente]),
+        queryAsync(`SELECT COUNT(*) AS total FROM alergia WHERE id_paciente = ?`, [idPaciente]),
+        queryAsync(`SELECT estado, COUNT(*) AS total FROM citas WHERE id_paciente = ? GROUP BY estado`, [idPaciente])
+      ]);
+
+      const totalMedicamentos = Number(medsRows?.[0]?.total || 0);
+      const totalCondiciones = condRows.length;
+      const totalAlergias = Number(alergRows?.[0]?.total || 0);
+      const totalCitas = citasRows.reduce((acc, row) => acc + Number(row.total || 0), 0);
+      const citasCumplidas = citasRows
+        .filter((row) => normalizarEstadoCita(row.estado) === 'cumplida')
+        .reduce((acc, row) => acc + Number(row.total || 0), 0);
+      const citasCanceladas = citasRows
+        .filter((row) => normalizarEstadoCita(row.estado) === 'cancelada')
+        .reduce((acc, row) => acc + Number(row.total || 0), 0);
+
+      let nivelMax = null;
+      if (condRows.some((c) => String(c.nivel || '').toLowerCase() === 'crítica' || String(c.nivel || '').toLowerCase() === 'critica')) {
+        nivelMax = 'Crítica';
+      } else if (condRows.some((c) => String(c.nivel || '').toLowerCase() === 'moderada')) {
+        nivelMax = 'Moderada';
+      } else if (condRows.length > 0) {
+        nivelMax = 'Leve';
+      }
+
+      resultados.push({
+        id_paciente: idPaciente,
+        nombre_completo: pacienteRows[0].nombre_completo,
+        total_medicamentos: totalMedicamentos,
+        total_condiciones: totalCondiciones,
+        total_alergias: totalAlergias,
+        total_citas: totalCitas,
+        citas_cumplidas: citasCumplidas,
+        citas_canceladas: citasCanceladas,
+        nivel_max: nivelMax
+      });
+    }
+
+    res.json(resultados);
+  } catch (error) {
+    console.error('Error al comparar pacientes:', error);
+    res.status(500).json({ mensaje: 'Error al comparar pacientes' });
+  }
+});
+
+// Reporte semanal por paciente (lunes a domingo)
+app.get('/reporte-semanal/:id_paciente', async (req, res) => {
+  const idPaciente = parseInt(req.params.id_paciente, 10);
+  if (!Number.isInteger(idPaciente) || idPaciente <= 0) {
+    return res.status(400).json({ mensaje: 'Paciente inválido' });
+  }
+
+  const fechaInicio = String(req.query.fecha_inicio || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaInicio)) {
+    return res.status(400).json({ mensaje: 'fecha_inicio inválida. Use formato YYYY-MM-DD' });
+  }
+
+  try {
+    const pacienteRows = await queryAsync(`
+      SELECT 
+        u.id AS id_paciente,
+        CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS nombre_completo
+      FROM usuarios u
+      WHERE u.id = ? AND u.rol = 'usuario'
+      LIMIT 1
+    `, [idPaciente]);
+
+    if (!pacienteRows.length) {
+      return res.status(404).json({ mensaje: 'Paciente no encontrado' });
+    }
+
+    const inicio = new Date(`${fechaInicio}T00:00:00`);
+    const fin = new Date(inicio);
+    fin.setDate(fin.getDate() + 6);
+    const fechaFin = fin.toISOString().slice(0, 10);
+
+    const tomas = await queryAsync(`
+      SELECT
+        DATE(t.fecha_toma) AS fecha,
+        t.nombre_medicamento AS medicamento,
+        r.dosis AS dosis,
+        t.hora_toma AS horario,
+        t.estado
+      FROM tomas_medicas t
+      LEFT JOIN recetas_medicas r ON r.id = t.id_receta
+      WHERE t.id_usuario = ?
+        AND DATE(t.fecha_toma) BETWEEN ? AND ?
+      ORDER BY t.fecha_toma ASC, t.hora_toma ASC, t.id ASC
+    `, [idPaciente, fechaInicio, fechaFin]);
+
+    const observaciones = await queryAsync(`
+      SELECT
+        o.id,
+        o.fecha_observacion AS fecha,
+        o.observacion,
+        o.created_at,
+        o.updated_at,
+        CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS cuidador_nombre
+      FROM cuidador_observaciones o
+      INNER JOIN usuarios u ON u.id = o.cuidador_id
+      WHERE o.paciente_id = ?
+        AND o.fecha_observacion BETWEEN ? AND ?
+      ORDER BY o.fecha_observacion ASC, o.created_at ASC, o.id ASC
+    `, [idPaciente, fechaInicio, fechaFin]);
+
+    const porFecha = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(inicio);
+      d.setDate(inicio.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      porFecha[key] = { programados: 0, tomados: 0, detalle: [], observaciones: [] };
+    }
+
+    tomas.forEach((toma) => {
+      const key = new Date(toma.fecha).toISOString().slice(0, 10);
+      if (!porFecha[key]) return;
+
+      porFecha[key].programados += 1;
+      if (String(toma.estado || '').toLowerCase() === 'tomada') {
+        porFecha[key].tomados += 1;
+      }
+
+      porFecha[key].detalle.push({
+        medicamento: toma.medicamento || 'Medicamento',
+        dosis: toma.dosis || '',
+        horario: toma.horario || '',
+        tomado: String(toma.estado || '').toLowerCase() === 'tomada'
+      });
+    });
+
+    observaciones.forEach((item) => {
+      const key = String(item.fecha || '').slice(0, 10);
+      if (!porFecha[key]) return;
+
+      porFecha[key].observaciones.push({
+        id: item.id,
+        observacion: item.observacion,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        cuidador_nombre: item.cuidador_nombre || 'Cuidador'
+      });
+    });
+
+    const dias = Object.keys(porFecha).sort().map((fecha) => {
+      const programados = porFecha[fecha].programados;
+      const tomados = porFecha[fecha].tomados;
+      const porcentaje = programados > 0 ? Math.round((tomados / programados) * 100) : null;
+      return {
+        fecha,
+        programados,
+        tomados,
+        porcentaje,
+        detalle: porFecha[fecha].detalle,
+        observaciones: porFecha[fecha].observaciones
+      };
+    });
+
+    const totalProgramados = dias.reduce((acc, d) => acc + d.programados, 0);
+    const totalTomados = dias.reduce((acc, d) => acc + d.tomados, 0);
+    const porcentaje = totalProgramados > 0 ? Math.round((totalTomados / totalProgramados) * 100) : 0;
+    const nivelAdherencia = calcularNivelAdherencia(porcentaje);
+    const resumen = construirResumenSemanal(porcentaje, totalTomados, totalProgramados);
+
+    res.json({
+      paciente: pacienteRows[0],
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+      total_programados: totalProgramados,
+      total_tomados: totalTomados,
+      total_observaciones: observaciones.length,
+      porcentaje,
+      nivel_adherencia: nivelAdherencia,
+      resumen,
+      dias
+    });
+  } catch (error) {
+    console.error('Error al generar reporte semanal:', error);
+    res.status(500).json({ mensaje: 'Error al generar reporte semanal' });
+  }
 });
 
 // ============================================

@@ -7,8 +7,8 @@
 
 body {
   font-family: "Segoe UI", Arial, sans-serif;
-  background-color: #f7f9fb;
-  color: #222;
+  background: linear-gradient(180deg, #f4f7fb 0%, #eef3f8 100%);
+  color: #1f2937;
   line-height: 1.6;
 }
 
@@ -24,78 +24,90 @@ header {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  max-width: 1000px;
+  gap: 22px;
+  max-width: 1120px;
   margin: auto;
+  padding: 0 24px;
 }
 
 .logo {
-  width: 100px;
-  height: auto;
-  border-radius: 8px;
+  width: 92px;
+  height: 92px;
+  border-radius: 18px;
   background-color: white;
-  padding: 5px;
+  padding: 8px;
+  object-fit: cover;
+  box-shadow: 0 10px 24px rgba(8, 59, 102, 0.18);
 }
 
 .titulo h1 {
-  font-size: 2.2em;
-  font-weight: bold;
-  margin-bottom: 5px;
+  font-size: clamp(2rem, 3vw, 2.6rem);
+  font-weight: 700;
+  margin-bottom: 6px;
+  line-height: 1.1;
 }
 
 .titulo p {
-  font-size: 1em;
+  font-size: 1rem;
   color: #d0e4f7;
 }
 
 /* ======== PRESENTACIÓN ======== */
 .presentacion {
   text-align: center;
-  margin: 40px auto;
-  max-width: 900px;
+  margin: 52px auto 28px;
+  max-width: 980px;
+  padding: 0 24px;
 }
 
 .presentacion h2 {
   color: #083b66;
-  font-size: 1.9em;
-  margin-bottom: 15px;
+  font-size: clamp(1.95rem, 3vw, 2.5rem);
+  margin-bottom: 16px;
 }
 
 .presentacion p {
-  font-size: 1.1em;
-  color: #333;
+  font-size: 1.05rem;
+  color: #475569;
+  max-width: 760px;
+  margin: 0 auto;
 }
 
 /* ======== FORMULARIOS ======== */
 .formularios {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 40px;
-  margin: 40px auto;
-  max-width: 900px;
+  gap: 28px;
+  margin: 40px auto 56px;
+  max-width: 1100px;
+  padding: 0 24px;
 }
 
 .form-card {
   background: white;
-  border-radius: 12px;
-  padding: 30px 40px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  width: 320px;
+  border-radius: 22px;
+  padding: 32px 28px;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+  width: 100%;
+  border: 1px solid #e2e8f0;
 }
 
 .form-card h3 {
   color: #083b66;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
+  font-size: 1.4rem;
 }
 
 form input, form select {
   width: 100%;
-  padding: 10px;
+  min-height: 48px;
+  padding: 12px 14px;
   margin-bottom: 15px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 1em;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 0.98rem;
+  background: #fff;
 }
 
 form select {
@@ -131,13 +143,16 @@ form select:focus {
 /* ======== BOTONES ======== */
 .btn {
   width: 100%;
-  padding: 12px;
+  min-height: 48px;
+  padding: 12px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   color: white;
-  font-size: 1em;
+  font-size: 0.98rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: background 0.3s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  box-shadow: 0 10px 20px rgba(13, 110, 253, 0.14);
 }
 
 .btn-azul {
@@ -146,6 +161,7 @@ form select:focus {
 
 .btn-azul:hover {
   background: #0b5ed7;
+  transform: translateY(-2px);
 }
 
 .btn-morado {
@@ -154,11 +170,12 @@ form select:focus {
 
 .btn-morado:hover {
   background: #6a38ff;
+  transform: translateY(-2px);
 }
 
 .btn-secundario {
   background: #1064b0;
-  margin: 10px;
+  margin: 10px 0 0;
 }
 
 .btn-secundario:hover {
@@ -176,8 +193,8 @@ footer {
   background-color: #062c4e;
   color: #e1e8f0;
   text-align: center;
-  padding: 15px;
-  font-size: 0.9em;
+  padding: 22px 16px;
+  font-size: 0.92em;
 }
 
 /* ======== RESPONSIVE ======== */
@@ -193,7 +210,7 @@ footer {
   }
 
   .form-card {
-    width: 90%;
+    width: 100%;
   }
 }
 
