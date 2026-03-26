@@ -143,26 +143,26 @@ document.addEventListener("DOMContentLoaded", () => {
       const rememberMe = document.getElementById("rememberMe")?.checked || false;
 
       // Validación de campos
-      if (!correo) {
-        showToast("Por favor, ingresa tu correo electrónico.", "warning");
+      const correoValido = /^(?=.{6,254}$)(?=.{1,64}@)[A-Za-z0-9](?:[A-Za-z0-9._%+-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+$/.test(correo.toLowerCase());
+      const passwordPresente = contra.length > 0;
+
+      if (!correoValido && !passwordPresente) {
+        showToast("Credenciales incorrectas.", "warning");
         document.getElementById("emailLogin")?.focus();
         return;
       }
 
-      if (!contra) {
-        showToast("Por favor, ingresa tu contraseña.", "warning");
+      if (!correoValido) {
+        showToast("Correo incorrecto.", "warning");
+        document.getElementById("emailLogin")?.focus();
+        return;
+      }
+
+      if (!passwordPresente) {
+        showToast("Contraseña incorrecta.", "warning");
         document.getElementById("passwordLogin")?.focus();
         return;
       }
-
-      // Validación de formato de correo
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(correo)) {
-        showToast("Por favor, ingresa un correo electrónico válido.", "warning");
-        document.getElementById("emailLogin")?.focus();
-        return;
-      }
-
       //  Deshabilitar el botón para evitar spam
       if (btnLogin) {
         btnLogin.disabled = true;
@@ -233,18 +233,24 @@ document.addEventListener("DOMContentLoaded", () => {
           }, 1500);
 
         } else {
-          // Manejo específico de errores de autenticación
-          let errorMessage = data.message || "Correo o contraseña incorrectos.";
-          
-          if (respuesta.status === 401) {
-            errorMessage = "Credenciales inválidas. Verifica tu correo y contraseña.";
+          // Manejo espec�fico de errores de autenticaci�n
+          const ambosInvalidos = data.code === "AMBOS_INVALIDOS";
+          const correoInvalido = data.code === "EMAIL_INVALIDO";
+          const passwordInvalida = data.code === "PASSWORD_INVALIDA";
+
+          if (ambosInvalidos) {
+            showToast("Credenciales incorrectas.", "error");
+          } else if (correoInvalido) {
+            showToast("Correo incorrecto.", "error");
+          } else if (passwordInvalida) {
+            showToast("Contrase�a incorrecta.", "error");
           } else if (respuesta.status === 403) {
-            errorMessage = "Cuenta bloqueada. Contacta al administrador.";
+            showToast("Cuenta bloqueada. Contacta al administrador.", "error");
           } else if (respuesta.status === 429) {
-            errorMessage = "Demasiados intentos. Por favor, espera unos minutos.";
+            showToast("Demasiados intentos. Por favor, espera unos minutos.", "error");
+          } else {
+            showToast(String(data.mensaje || data.message || "Credenciales incorrectas."), "error");
           }
-          
-          showToast(errorMessage, "error");
           
           // Restaurar botón
           setTimeout(() => {
@@ -430,6 +436,31 @@ if (formNuevaPassword) {
 }
 
 // ================== REGISTRO ==================
+function esNombrePersonaValido(valor) {
+  const nombreRegex = /^[A-Za-z\u00C0-\u017F]+(?:[ '\-][A-Za-z\u00C0-\u017F]+)*$/;
+  return nombreRegex.test((valor || "").trim());
+}
+
+function esCorreoValido(valor) {
+  const emailRegex = /^(?=.{6,254}$)(?=.{1,64}@)[A-Za-z0-9](?:[A-Za-z0-9._%+-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+$/;
+  const correo = (valor || "").trim().toLowerCase();
+  if (!emailRegex.test(correo)) return false;
+
+  const dominiosPermitidos = new Set([
+    "gmail.com",
+    "outlook.com",
+    "hotmail.com",
+    "live.com",
+    "yahoo.com",
+    "icloud.com",
+    "proton.me",
+    "protonmail.com"
+  ]);
+
+  const dominio = correo.split("@")[1] || "";
+  return dominiosPermitidos.has(dominio);
+}
+
 const formRegistro = document.getElementById("formRegistro");
 if (formRegistro) {
   formRegistro.addEventListener("submit", async (e) => {
@@ -442,10 +473,37 @@ if (formRegistro) {
     const email = document.getElementById("emailRegistro").value.trim();
     const password = document.getElementById("passwordRegistro").value.trim();
     const confirmarPassword = document.getElementById("confirmarPassword").value.trim();
+    const nombresValidos = esNombrePersonaValido(nombres);
+    const apellidosValidos = esNombrePersonaValido(apellidos);
+    const correoValido = esCorreoValido(email);
+    const passwordValida = passwordEsValida();
 
-    // Validar que todos los requisitos de contraseña se cumplan
-    if (!passwordEsValida()) {
-      showToast("La contraseña no cumple con todos los requisitos de seguridad", "warning");
+    if (!nombresValidos) {
+      showToast("El campo nombres solo permite letras y espacios v�lidos.", "warning");
+      document.getElementById("nombres").focus();
+      return;
+    }
+
+    if (!apellidosValidos) {
+      showToast("El campo apellidos solo permite letras y espacios v�lidos.", "warning");
+      document.getElementById("apellidos").focus();
+      return;
+    }
+
+    if (!correoValido && !passwordValida) {
+      showToast("Correo y contrase�a incorrectos. Verifica ambos campos.", "warning");
+      document.getElementById("emailRegistro").focus();
+      return;
+    }
+
+    if (!correoValido) {
+      showToast("Correo no valido o dominio no permitido. Usa: gmail.com, outlook.com, hotmail.com, live.com, yahoo.com, icloud.com, proton.me o protonmail.com.", "warning");
+      document.getElementById("emailRegistro").focus();
+      return;
+    }
+
+    if (!passwordValida) {
+      showToast("La contrase�a no cumple con los requisitos de seguridad.", "warning");
       document.getElementById("passwordRegistro").focus();
       return;
     }
@@ -459,7 +517,7 @@ if (formRegistro) {
       const res = await fetch("http://localhost:3000/registrar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombres, apellidos, identidad, telefono, email, password })
+        body: JSON.stringify({ nombres, apellidos, identidad, telefono, email: email.toLowerCase(), password })
       });
 
       const data = await res.json();
@@ -481,3 +539,11 @@ if (formRegistro) {
     }
   });
 }
+
+
+
+
+
+
+
+

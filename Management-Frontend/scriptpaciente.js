@@ -778,34 +778,54 @@ document.addEventListener("DOMContentLoaded", () => {
 // ===============================
 async function cargarEstadisticasInicio() {
   const idUsuario = getUsuarioId();
-  
+
+  if (!idUsuario) {
+    console.error('No se encontro ID de usuario para cargar estadisticas');
+    return;
+  }
+
+  // Cargar secciones de Inicio en paralelo para que una falla no bloquee las demas.
+  const tareasInicio = [
+    cargarMedicamentosHoy(),
+    cargarTomasRegistradasHoy(),
+    cargarProximaCita(),
+    cargarUltimoLogro()
+  ];
+
   try {
-    const recetasRes = await fetch(`${API_URL}/recetas/${idUsuario}`);
-    const recetas = await recetasRes.json();
-    const statRecetas = document.getElementById('stat-recetas');
-    if (statRecetas) statRecetas.textContent = recetas.length;
+    const [recetasRes, citasRes, recompensasRes] = await Promise.all([
+      fetch(`${API_URL}/recetas/${idUsuario}`),
+      fetch(`${API_URL}/citas/${idUsuario}`),
+      fetch(`${API_URL}/recompensas/${idUsuario}`)
+    ]);
 
-    const citasRes = await fetch(`${API_URL}/citas/${idUsuario}`);
-    const citas = await citasRes.json();
-    const citasProximas = citas.filter(c => new Date(c.fecha_hora) > new Date());
-    const statCitas = document.getElementById('stat-citas');
-    if (statCitas) statCitas.textContent = citasProximas.length;
+    if (recetasRes.ok) {
+      const recetas = await recetasRes.json();
+      const statRecetas = document.getElementById('stat-recetas');
+      if (statRecetas) statRecetas.textContent = Array.isArray(recetas) ? recetas.length : 0;
+    }
 
-    const recompensasRes = await fetch(`${API_URL}/recompensas/${idUsuario}`);
-    const recompensas = await recompensasRes.json();
-    const statPuntos = document.getElementById('stat-puntos');
-    const statCumplimiento = document.getElementById('stat-cumplimiento');
-    if (statPuntos) statPuntos.textContent = recompensas.puntos_totales || 0;
-    if (statCumplimiento) statCumplimiento.textContent = (recompensas.porcentaje_cumplimiento || 0) + '%';
+    if (citasRes.ok) {
+      const citas = await citasRes.json();
+      const citasProximas = Array.isArray(citas)
+        ? citas.filter(c => new Date(c.fecha_hora) > new Date())
+        : [];
+      const statCitas = document.getElementById('stat-citas');
+      if (statCitas) statCitas.textContent = citasProximas.length;
+    }
 
-    await cargarMedicamentosHoy();
-    await cargarTomasRegistradasHoy();
-    await cargarProximaCita();
-    await cargarUltimoLogro();
-    
+    if (recompensasRes.ok) {
+      const recompensas = await recompensasRes.json();
+      const statPuntos = document.getElementById('stat-puntos');
+      const statCumplimiento = document.getElementById('stat-cumplimiento');
+      if (statPuntos) statPuntos.textContent = recompensas.puntos_totales || 0;
+      if (statCumplimiento) statCumplimiento.textContent = (recompensas.porcentaje_cumplimiento || 0) + '%';
+    }
   } catch (error) {
     console.error('Error al cargar estadisticas:', error);
   }
+
+  await Promise.allSettled(tareasInicio);
 }
 
 // ===============================

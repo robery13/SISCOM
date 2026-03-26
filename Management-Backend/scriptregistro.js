@@ -2040,6 +2040,31 @@ function mostrarToast(mensaje, tipo = 'info') {
   const emailUsuario = document.getElementById("emailUsuario");
   const passwordUsuario = document.getElementById("passwordUsuario");
   const rolUsuario = document.getElementById("rolUsuario");
+
+  function esNombrePersonaValido(valor) {
+    const nombreRegex = /^[A-Za-z\u00C0-\u017F]+(?:[ '\-][A-Za-z\u00C0-\u017F]+)*$/;
+    return nombreRegex.test((valor || "").trim());
+  }
+
+  function esCorreoValido(valor) {
+    const emailRegex = /^(?=.{6,254}$)(?=.{1,64}@)[A-Za-z0-9](?:[A-Za-z0-9._%+-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+$/;
+    const correo = (valor || "").trim().toLowerCase();
+    if (!emailRegex.test(correo)) return false;
+
+    const dominiosPermitidos = new Set([
+      "gmail.com",
+      "outlook.com",
+      "hotmail.com",
+      "live.com",
+      "yahoo.com",
+      "icloud.com",
+      "proton.me",
+      "protonmail.com"
+    ]);
+
+    const dominio = correo.split("@")[1] || "";
+    return dominiosPermitidos.has(dominio);
+  }
   
   let usuariosData = [];
   let usuariosFiltrados = [];
@@ -2406,24 +2431,64 @@ function mostrarToast(mensaje, tipo = 'info') {
       return;
     }
 
-    // Validar contraseña solo si es nuevo usuario o se proporcionó una
-    const password = passwordUsuario.value;
-    if (!editingUserId && !password) {
-      mostrarToast("La contraseña es obligatoria para nuevos usuarios", "warning");
+    const nombres = nombresUsuario.value.trim();
+    const apellidos = apellidosUsuario.value.trim();
+    const correo = emailUsuario.value.trim();
+
+    if (!esNombrePersonaValido(nombres)) {
+      mostrarToast("El campo nombres solo permite letras y espacios válidos.", "warning");
+      nombresUsuario.focus();
       return;
     }
 
-    if (password && !passwordUsuarioEsValida()) {
-      mostrarToast("La contraseña no cumple con los requisitos mínimos", "warning");
+    if (!esNombrePersonaValido(apellidos)) {
+      mostrarToast("El campo apellidos solo permite letras y espacios válidos.", "warning");
+      apellidosUsuario.focus();
+      return;
+    }
+
+    // Validar correo/contraseña con mensajes específicos
+    const password = passwordUsuario.value;
+    const passwordIngresada = password.trim().length > 0;
+    const correoValido = esCorreoValido(correo);
+    const passwordValida = passwordIngresada && passwordUsuarioEsValida();
+
+    if (!editingUserId && !correoValido && !passwordValida) {
+      mostrarToast("Correo y contraseña incorrectos. Verifica ambos campos.", "warning");
+      emailUsuario.focus();
+      return;
+    }
+
+    if (!editingUserId && !passwordIngresada) {
+      mostrarToast("La contraseña es obligatoria para nuevos usuarios.", "warning");
+      passwordUsuario.focus();
+      return;
+    }
+
+    if (!correoValido && passwordIngresada && !passwordValida) {
+      mostrarToast("Correo y contraseña incorrectos. Verifica ambos campos.", "warning");
+      emailUsuario.focus();
+      return;
+    }
+
+    if (!correoValido) {
+      mostrarToast("Correo no valido o dominio no permitido. Usa: gmail.com, outlook.com, hotmail.com, live.com, yahoo.com, icloud.com, proton.me o protonmail.com.", "warning");
+      emailUsuario.focus();
+      return;
+    }
+
+    if (passwordIngresada && !passwordValida) {
+      mostrarToast("La contraseña no cumple con los requisitos mínimos.", "warning");
+      passwordUsuario.focus();
       return;
     }
 
     const datos = {
-      nombres: nombresUsuario.value.trim(),
-      apellidos: apellidosUsuario.value.trim(),
+      nombres,
+      apellidos,
       identidad: identidadUsuario.value.trim(),
       telefono: telefonoUsuario.value.trim(),
-      email: emailUsuario.value.trim(),
+      email: correo.toLowerCase(),
       password: password || undefined,
       rol: rolUsuario.value
     };

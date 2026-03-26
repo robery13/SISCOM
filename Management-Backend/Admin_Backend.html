@@ -1404,11 +1404,11 @@
           <form id="formUsuario" class="row g-3">
             <div class="col-md-6">
               <label for="nombresUsuario" class="form-label">Nombres</label>
-              <input type="text" id="nombresUsuario" class="form-control" required>
+              <input type="text" id="nombresUsuario" class="form-control" required pattern="[A-Za-z\u00C0-\u017F]+(?:[ '-][A-Za-z\u00C0-\u017F]+)*" title="Solo letras y espacios validos en nombres">
             </div>
             <div class="col-md-6">
               <label for="apellidosUsuario" class="form-label">Apellidos</label>
-              <input type="text" id="apellidosUsuario" class="form-control" required>
+              <input type="text" id="apellidosUsuario" class="form-control" required pattern="[A-Za-z\u00C0-\u017F]+(?:[ '-][A-Za-z\u00C0-\u017F]+)*" title="Solo letras y espacios validos en apellidos">
             </div>
             <div class="col-md-6">
               <label for="identidadUsuario" class="form-label">Identidad</label>
@@ -1420,7 +1420,7 @@
             </div>
             <div class="col-md-6">
               <label for="emailUsuario" class="form-label">Email</label>
-              <input type="email" id="emailUsuario" class="form-control" required>
+              <input type="email" id="emailUsuario" class="form-control" required pattern="^[A-Za-z0-9](?:[A-Za-z0-9._%+-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+$" title="Ingrese un correo valido, por ejemplo: usuario@dominio.com">
             </div>
             <div class="col-md-6">
               <label for="passwordUsuario" class="form-label">Contraseña</label>

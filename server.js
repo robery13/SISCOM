@@ -99,6 +99,26 @@ function ensureTomasMedicasColumn(columnName, alterSql) {
 }
 
 
+
+function esCorreoDominioPermitido(email) {
+  const emailRegex = /^(?=.{6,254}$)(?=.{1,64}@)[A-Za-z0-9](?:[A-Za-z0-9._%+-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+$/;
+  const correo = String(email || '').trim().toLowerCase();
+  if (!emailRegex.test(correo)) return false;
+
+  const dominiosPermitidos = new Set([
+    'gmail.com',
+    'outlook.com',
+    'hotmail.com',
+    'live.com',
+    'yahoo.com',
+    'icloud.com',
+    'proton.me',
+    'protonmail.com'
+  ]);
+
+  const dominio = correo.split('@')[1] || '';
+  return dominiosPermitidos.has(dominio);
+}
 // Puntero de guardado de medicamentos que ejecute el codigo
 app.post('/guardarMedicamento', (req, res) => {
   //datos de los formularios
@@ -129,33 +149,48 @@ app.post('/guardarMedicamento', (req, res) => {
 // Verificar correo y contraseña al iniciar sesión
 app.post('/login', (req, res) => {
   const { email, password, rememberMe } = req.body;
-  
+  const correoNormalizado = String(email || '').trim().toLowerCase();
+  const passwordTexto = String(password || '').trim();
+
+  const correoValido = /^(?=.{6,254}$)(?=.{1,64}@)[A-Za-z0-9](?:[A-Za-z0-9._%+-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+$/.test(correoNormalizado);
+  const passwordPresente = passwordTexto.length > 0;
+
+  if (!correoValido && !passwordPresente) {
+    return res.status(400).json({ code: 'AMBOS_INVALIDOS', mensaje: 'Correo y contrase�a incorrectos.' });
+  }
+  if (!correoValido) {
+    return res.status(400).json({ code: 'EMAIL_INVALIDO', mensaje: 'Correo incorrecto.' });
+  }
+  if (!passwordPresente) {
+    return res.status(400).json({ code: 'PASSWORD_INVALIDA', mensaje: 'Contrase�a incorrecta.' });
+  }
+
   // Consulta SQL para buscar el usuario por email
   const sql = 'SELECT * FROM usuarios WHERE email = ?';
 
-  db.query(sql, [email], async (err, results) => {
+  db.query(sql, [correoNormalizado], async (err, results) => {
 
     if (err) {
       return res.status(500).json({ mensaje: 'Error interno del servidor' });
     }
 
-    // Si no se encontró ningún usuario con ese email
+    // Si no se encontr� ning�n usuario con ese email
     if (results.length === 0) {
-      return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos' });
+      return res.status(401).json({ code: 'EMAIL_INVALIDO', mensaje: 'Correo incorrecto.' });
     }
 
     const usuario = results[0];
 
-    // Comparar contraseñas usando bcrypt
-    const passwordValida = await bcrypt.compare(password, usuario.password);
+    // Comparar contrase�as usando bcrypt
+    const passwordValida = await bcrypt.compare(passwordTexto, usuario.password);
     if (!passwordValida) {
-      return res.status(401).json({ mensaje: 'Correo o contraseña incorrectos' });
+      return res.status(401).json({ code: 'PASSWORD_INVALIDA', mensaje: 'Contrase�a incorrecta.' });
     }
 
 
-    // Generar token de autenticación
+    // Generar token de autenticaci�n
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresIn = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 30 * 60 * 1000; // 7 días o 30 minutos
+    const expiresIn = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 30 * 60 * 1000; // 7 d�as o 30 minutos
     const expiresAt = Date.now() + expiresIn;
     
     // Guardar token en memoria
@@ -166,16 +201,15 @@ app.post('/login', (req, res) => {
       rememberMe: rememberMe || false
     };
 
-    // Si todo está correcto
+    // Si todo est� correcto
     res.status(200).json({
       ok: true,
-      mensaje: 'Inicio de sesión exitoso',
+      mensaje: 'Inicio de sesi�n exitoso',
       usuario,
       token
     });
   });
 });
-
 // Verificar sesión
 app.post('/verificar-sesion', (req, res) => {
   const authHeader = req.headers['authorization'];
@@ -325,10 +359,15 @@ function verificarRol(rolesPermitidos) {
 // Registro
 app.post("/registrar", (req, res) => {
   const { nombres, apellidos, identidad, telefono, email, password } = req.body;
+  const correoNormalizado = String(email || '').trim().toLowerCase();
+
+  if (!esCorreoDominioPermitido(correoNormalizado)) {
+    return res.status(400).json({ ok: false, mensaje: "El correo no pertenece a un dominio permitido." });
+  }
 
   // Verificar si el correo o identidad ya existen
   const verificarSql = "SELECT * FROM usuarios WHERE email = ? OR identidad = ?";
-  db.query(verificarSql, [email, identidad], async (err, resultados) => {
+  db.query(verificarSql, [correoNormalizado, identidad], async (err, resultados) => {
 
     if (err) {
       //console.error("Error al verificar duplicados:", err);
@@ -337,7 +376,7 @@ app.post("/registrar", (req, res) => {
 
     if (resultados.length > 0) {
       // Verificar cuál campo está duplicado
-      const correoExiste = resultados.some((r) => r.email === email);
+      const correoExiste = resultados.some((r) => String(r.email || '').toLowerCase() === correoNormalizado);
       const identidadExiste = resultados.some((r) => r.identidad === identidad);
 
       if (correoExiste && identidadExiste) {
@@ -358,7 +397,7 @@ app.post("/registrar", (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?)
     `;
 
-    db.query(sql, [nombres, apellidos, identidad, telefono, email, hashedPassword], (err, result) => {
+    db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashedPassword], (err, result) => {
 
       if (err) {
         //console.error("Error al registrar usuario:", err); 
@@ -378,10 +417,15 @@ app.post("/registrar", (req, res) => {
 app.post("/registraradm", verificarRol(['administrador']), async (req, res) => {
 
   const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
+  const correoNormalizado = String(email || '').trim().toLowerCase();
 
   // Validación básica
   if (!nombres || !apellidos || !identidad || !telefono || !email || !password || !rol) {
     return res.status(400).json({ error: "Todos los campos son obligatorios." });
+  }
+
+  if (!esCorreoDominioPermitido(correoNormalizado)) {
+    return res.status(400).json({ error: "El correo no pertenece a un dominio permitido." });
   }
 
   // Hashear la contraseña antes de insertar
@@ -394,7 +438,7 @@ app.post("/registraradm", verificarRol(['administrador']), async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
 
-db.query(sql, [nombres, apellidos, identidad, telefono, email, hashedPassword, rol], (err, result) => {
+db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashedPassword, rol], (err, result) => {
 
 
   if (err) {
@@ -1201,6 +1245,7 @@ app.get('/usuarios', verificarRol(['administrador']), (req, res) => {
 app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
   const { id } = req.params;
   const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
+  const correoNormalizado = String(email || '').trim().toLowerCase();
 
 
   // Validación básica
@@ -1208,9 +1253,13 @@ app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
     return res.status(400).json({ mensaje: 'Todos los campos son obligatorios.' });
   }
 
+  if (!esCorreoDominioPermitido(correoNormalizado)) {
+    return res.status(400).json({ mensaje: 'El correo no pertenece a un dominio permitido.' });
+  }
+
   // Verificar si el correo o identidad ya existen en otro usuario
   const verificarSql = "SELECT * FROM usuarios WHERE (email = ? OR identidad = ?) AND id != ?";
-  db.query(verificarSql, [email, identidad, id], async (err, resultados) => {
+  db.query(verificarSql, [correoNormalizado, identidad, id], async (err, resultados) => {
 
     if (err) {
       console.error('Error al verificar duplicados:', err);
@@ -1219,7 +1268,7 @@ app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
 
     if (resultados.length > 0) {
       // Verificar cuál campo está duplicado
-      const correoExiste = resultados.some((r) => r.email === email);
+      const correoExiste = resultados.some((r) => String(r.email || '').toLowerCase() === correoNormalizado);
       const identidadExiste = resultados.some((r) => r.identidad === identidad);
 
       if (correoExiste && identidadExiste) {
@@ -1236,7 +1285,7 @@ app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     
     const sql = 'UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ?, email = ?, password = ?, rol = ? WHERE id = ?';
-    db.query(sql, [nombres, apellidos, identidad, telefono, email, hashedPassword, rol, id], (err, result) => {
+    db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashedPassword, rol, id], (err, result) => {
 
       if (err) {
         console.error('Error al actualizar usuario:', err);
@@ -2488,3 +2537,8 @@ app.listen(3000, () => {
   console.log('Servidor corriendo en http://localhost:3000');
   console.log('CORS habilitado para todas las solicitudes');
 });
+
+
+
+
+

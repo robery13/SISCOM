@@ -133,11 +133,11 @@
       <h3>Crear cuenta</h3>
       <p class="registro-subtitle">Completa tus datos para registrarte en SISCOM.</p>
       <form id="formRegistro">
-        <input type="text" id="nombres" placeholder="Nombres" required>
-        <input type="text" id="apellidos" placeholder="Apellidos" required>
+        <input type="text" id="nombres" placeholder="Nombres" required pattern="[A-Za-z\u00C0-\u017F]+(?:[ '-][A-Za-z\u00C0-\u017F]+)*" title="Solo letras y espacios validos en nombres">
+        <input type="text" id="apellidos" placeholder="Apellidos" required pattern="[A-Za-z\u00C0-\u017F]+(?:[ '-][A-Za-z\u00C0-\u017F]+)*" title="Solo letras y espacios validos en apellidos">
         <input type="text" id="identidad" placeholder="Número de identidad" required pattern="[0-9]{13}" title="Debe contener 13 dígitos">
         <input type="tel" id="telefono" placeholder="Número de teléfono" required pattern="[0-9]{8}" title="Debe contener 8 dígitos">
-        <input type="email" id="emailRegistro" placeholder="Correo electrónico" required>
+        <input type="email" id="emailRegistro" placeholder="Correo electronico" required pattern="^[A-Za-z0-9](?:[A-Za-z0-9._%+-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+$" title="Ingrese un correo valido, por ejemplo: usuario@dominio.com">
 
         <div class="password-container">
           <input type="password" id="passwordRegistro" placeholder="Contraseña" required oninput="validarPasswordEnTiempo()">
@@ -237,3 +237,4 @@
 
 </body>
 </html>
+
