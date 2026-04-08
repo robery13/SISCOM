@@ -159,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (!passwordPresente) {
-        showToast("ContraseÃ±a incorrecta.", "warning");
+        showToast("Contrase\u00f1a incorrecta.", "warning");
         document.getElementById("passwordLogin")?.focus();
         return;
       }
@@ -243,7 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
           } else if (correoInvalido) {
             showToast("Correo incorrecto.", "error");
           } else if (passwordInvalida) {
-            showToast("Contraseña incorrecta.", "error");
+            showToast("Contrase\u00f1a incorrecta.", "error");
           } else if (respuesta.status === 403) {
             showToast("Cuenta bloqueada. Contacta al administrador.", "error");
           } else if (respuesta.status === 429) {
