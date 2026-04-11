@@ -468,7 +468,7 @@
                 <input type="date" id="filtroFechaHasta" class="form-control">
               </div>
               <div class="col-md-1 d-grid">
-                <button id="limpiarFiltrosCitas" class="btn btn-outline-secondary" title="Limpiar filtros">
+                <button type="button" id="limpiarFiltrosCitas" class="btn btn-outline-secondary" title="Limpiar filtros">
                   <i class="bi bi-x-lg"></i>
                 </button>
               </div>
@@ -1160,7 +1160,7 @@
                   <h5 class="card-title mb-1"><i class="bi bi-diagram-3 me-2"></i>Asignación de Pacientes por Cuidador</h5>
                   <p class="text-muted mb-0">Selecciona un cuidador, agrega pacientes y guarda la relación para <code>cuidador_backend.html</code>.</p>
                 </div>
-                <button id="guardarAsignacionesBtn" class="btn btn-primary">
+                <button id="guardarAsignacionesBtn" type="button" class="btn btn-primary">
                   <i class="bi bi-save me-2"></i>Guardar Asignaciones
                 </button>
               </div>
@@ -1941,6 +1941,8 @@ document.addEventListener('DOMContentLoaded', () => {
       let modoEdicion = false;
       let citaEditandoId = null;
       let citasGlobales = [];
+      const normalizarEstado = (valor) => String(valor || '').trim().toLowerCase();
+      const obtenerIdCita = (cita) => cita?.id ?? cita?.id_cita ?? cita?.cita_id ?? cita?.ID ?? null;
 
       // Cargar pacientes en los selects
       async function cargarPacientesCitas() {
@@ -1975,12 +1977,20 @@ document.addEventListener('DOMContentLoaded', () => {
           
           const citas = await response.json();
           citasGlobales = citas;
-          mostrarCitas();
-          actualizarResumen(citas);
+          aplicarFiltrosCitas();
         } catch (error) {
           console.error('Error al cargar citas:', error);
           mostrarToast('Error al cargar citas desde el servidor', 'danger');
         }
+      }
+
+      function obtenerFechaLocalISO(fechaInput) {
+        const fecha = new Date(fechaInput);
+        if (Number.isNaN(fecha.getTime())) return '';
+        const y = fecha.getFullYear();
+        const m = String(fecha.getMonth() + 1).padStart(2, '0');
+        const d = String(fecha.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
       }
 
       // Guardar cita
@@ -2005,8 +2015,9 @@ document.addEventListener('DOMContentLoaded', () => {
           let url = 'http://localhost:3000/guardarCita';
           let method = 'POST';
           
-          if (modoEdicion && citaEditandoId) {
-            url = `http://localhost:3000/actualizarCita/${citaEditandoId}`;
+          const idEdicion = Number(citaEditandoId || citaIdInput.value);
+          if (modoEdicion && Number.isFinite(idEdicion) && idEdicion > 0) {
+            url = `http://localhost:3000/actualizarCita/${idEdicion}`;
             method = 'PUT';
           }
 
@@ -2042,10 +2053,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let citasFiltradas = citasAMostrar.filter(cita => {
           let incluir = true;
-          const fechaCita = cita.fecha_hora ? new Date(cita.fecha_hora).toISOString().split('T')[0] : '';
+          const fechaCita = cita.fecha_hora ? obtenerFechaLocalISO(cita.fecha_hora) : '';
           
-          if (filtroPaciente && cita.id_paciente != filtroPaciente) incluir = false;
-          if (filtroEstado && cita.estado !== filtroEstado) incluir = false;
+          if (filtroPaciente && String(cita.id_paciente) !== String(filtroPaciente)) incluir = false;
+          if (filtroEstado && normalizarEstado(cita.estado || 'programada') !== normalizarEstado(filtroEstado)) incluir = false;
           if (fechaDesde && fechaCita < fechaDesde) incluir = false;
           if (fechaHasta && fechaCita > fechaHasta) incluir = false;
           
@@ -2066,7 +2077,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         listaCitas.innerHTML = citasFiltradas.map(cita => {
-          const citaId = cita.id || cita.id_cita || cita.cita_id || cita.ID;
+          const citaId = obtenerIdCita(cita);
           const fechaHora = new Date(cita.fecha_hora);
           const ahora = new Date();
           const esProxima = fechaHora > ahora && (fechaHora - ahora) < 24 * 60 * 60 * 1000;
@@ -2119,6 +2130,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
       }
 
+      function aplicarFiltrosCitas() {
+        const filtroPaciente = filtroPacienteCita.value;
+        const filtroEstado = filtroEstadoCita.value;
+        const fechaDesde = filtroFechaDesde.value;
+        const fechaHasta = filtroFechaHasta.value;
+
+        const citasFiltradas = (citasGlobales || []).filter((cita) => {
+          let incluir = true;
+          const fechaCitaActual = cita.fecha_hora ? obtenerFechaLocalISO(cita.fecha_hora) : '';
+
+          if (filtroPaciente && String(cita.id_paciente) !== String(filtroPaciente)) incluir = false;
+          if (filtroEstado && normalizarEstado(cita.estado || 'programada') !== normalizarEstado(filtroEstado)) incluir = false;
+          if (fechaDesde && fechaCitaActual < fechaDesde) incluir = false;
+          if (fechaHasta && fechaCitaActual > fechaHasta) incluir = false;
+          return incluir;
+        });
+
+        mostrarCitas(citasFiltradas);
+        actualizarResumen(citasFiltradas);
+      }
+
       // Actualizar resumen
       function actualizarResumen(citas = []) {
         const ahora = new Date();
@@ -2161,22 +2193,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Editar cita
       window.editarCita = async function(id) {
-        if (!id || isNaN(id)) {
+        const idNumerico = Number(id);
+        if (!Number.isFinite(idNumerico) || idNumerico <= 0) {
           mostrarToast('Error: ID de cita inválido', 'danger');
           return;
         }
         
         try {
-          const response = await fetch('http://localhost:3000/obtenerCitas');
-          if (!response.ok) throw new Error('Error al cargar citas');
-          
-          const citas = await response.json();
-          const cita = citas.find(c => 
-            (c.id === id) || 
-            (c.id_cita === id) || 
-            (c.cita_id === id) || 
-            (c.ID === id)
-          );
+          let cita = (citasGlobales || []).find((c) => String(obtenerIdCita(c)) === String(idNumerico));
+          if (!cita) {
+            const response = await fetch('http://localhost:3000/obtenerCitas');
+            if (!response.ok) throw new Error('Error al cargar citas');
+            const citas = await response.json();
+            cita = citas.find((c) => String(obtenerIdCita(c)) === String(idNumerico));
+          }
           
           if (!cita) {
             mostrarToast('Cita no encontrada', 'danger');
@@ -2184,12 +2214,14 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           const fechaHora = new Date(cita.fecha_hora);
-          const fechaStr = fechaHora.toISOString().split('T')[0];
+          const fechaStr = obtenerFechaLocalISO(cita.fecha_hora);
           const horaStr = fechaHora.toTimeString().slice(0, 5);
           
           modoEdicion = true;
-          citaEditandoId = id;
-          pacienteCita.value = cita.id_paciente;
+          const citaIdReal = Number(obtenerIdCita(cita));
+          citaEditandoId = Number.isFinite(citaIdReal) ? citaIdReal : idNumerico;
+          citaIdInput.value = String(citaEditandoId);
+          pacienteCita.value = String(cita.id_paciente || '');
           fechaCita.value = fechaStr;
           horaCita.value = horaStr;
           doctorCita.value = cita.doctor || '';
@@ -2253,13 +2285,22 @@ document.addEventListener('DOMContentLoaded', () => {
       // Mostrar toast
       function mostrarToast(mensaje, tipo = 'info') {
         const toastContainer = document.getElementById('toast-container');
+        const tipoNormalizado = ({
+          error: 'danger',
+          danger: 'danger',
+          success: 'success',
+          warning: 'warning',
+          info: 'info'
+        })[String(tipo).toLowerCase()] || 'info';
+        const textoClase = (tipoNormalizado === 'warning' || tipoNormalizado === 'info') ? 'text-dark' : 'text-white';
+        const closeClase = (tipoNormalizado === 'warning' || tipoNormalizado === 'info') ? 'btn-close' : 'btn-close btn-close-white';
         const toast = document.createElement('div');
-        toast.className = `toast align-items-center text-white bg-${tipo} border-0 show`;
+        toast.className = `toast align-items-center ${textoClase} bg-${tipoNormalizado} border-0 show`;
         toast.setAttribute('role', 'alert');
         toast.innerHTML = `
           <div class="d-flex">
             <div class="toast-body">${mensaje}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            <button type="button" class="${closeClase} me-2 m-auto" data-bs-dismiss="toast"></button>
           </div>
         `;
         toastContainer.appendChild(toast);
@@ -2275,17 +2316,19 @@ document.addEventListener('DOMContentLoaded', () => {
       
       limpiarCitaBtn.addEventListener('click', limpiarFormulario);
       
-      filtroPacienteCita.addEventListener('change', mostrarCitas);
-      filtroEstadoCita.addEventListener('change', mostrarCitas);
-      filtroFechaDesde.addEventListener('change', mostrarCitas);
-      filtroFechaHasta.addEventListener('change', mostrarCitas);
+      filtroPacienteCita.addEventListener('change', aplicarFiltrosCitas);
+      filtroEstadoCita.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaDesde.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaHasta.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaDesde.addEventListener('input', aplicarFiltrosCitas);
+      filtroFechaHasta.addEventListener('input', aplicarFiltrosCitas);
       
       limpiarFiltrosCitas.addEventListener('click', () => {
         filtroPacienteCita.value = '';
         filtroEstadoCita.value = '';
         filtroFechaDesde.value = '';
         filtroFechaHasta.value = '';
-        mostrarCitas();
+        aplicarFiltrosCitas();
       });
       
       // Botón eliminar todas las citas

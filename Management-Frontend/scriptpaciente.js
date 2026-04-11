@@ -3,6 +3,15 @@
 // ============================================
 const API_URL = 'http://localhost:3000';
 
+function toLocalISODate(dateInput = new Date()) {
+  const date = dateInput instanceof Date ? new Date(dateInput) : new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // Configuración de sesión
 const SESSION_CONFIG = {
   timeout: 30 * 60 * 1000, // 30 minutos de inactividad
@@ -897,6 +906,152 @@ async function cargarMedicamentosHoy() {
 // ===============================
 // CARGAR TOMAS REGISTRADAS HOY
 // ===============================
+function renderListaPaginada({ container, items, renderItem, emptyHtml, itemsPorPagina = 8 }) {
+  if (!container) return;
+
+  const data = Array.isArray(items) ? items : [];
+  let paginaActual = 1;
+  let pageSize = Number(itemsPorPagina) || 8;
+  let terminoBusqueda = '';
+
+  function renderPagina() {
+    container.innerHTML = '';
+
+    if (!data.length) {
+      container.innerHTML = emptyHtml || '<p class="text-muted">Sin resultados</p>';
+      return;
+    }
+
+    const filtrados = data.filter((item) => {
+      if (!terminoBusqueda) return true;
+      const texto = JSON.stringify(item || {}).toLowerCase();
+      return texto.includes(terminoBusqueda);
+    });
+
+    const total = filtrados.length;
+    const totalPaginas = Math.max(1, Math.ceil(total / pageSize));
+    if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+
+    const inicio = (paginaActual - 1) * pageSize;
+    const fin = Math.min(inicio + pageSize, total);
+    const paginaItems = filtrados.slice(inicio, fin);
+
+    const opcionesEntries = [5, 10, 25, 50];
+    if (!opcionesEntries.includes(pageSize)) {
+      opcionesEntries.unshift(pageSize);
+    }
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'datatable-toolbar mb-3';
+    toolbar.innerHTML = `
+      <div class="datatable-length">
+        <select class="form-select form-select-sm pag-entries-select">
+          ${opcionesEntries.map((n) => `<option value="${n}" ${pageSize === n ? 'selected' : ''}>${n}</option>`).join('')}
+        </select>
+        <span>entries per page</span>
+      </div>
+      <div class="datatable-search">
+        <label>Search:</label>
+        <input type="text" class="form-control form-control-sm pag-search-input" value="${(terminoBusqueda || '').replace(/"/g, '&quot;')}">
+      </div>
+    `;
+    container.appendChild(toolbar);
+
+    const selectEntries = toolbar.querySelector('.pag-entries-select');
+    const inputSearch = toolbar.querySelector('.pag-search-input');
+    if (selectEntries) {
+      selectEntries.addEventListener('change', () => {
+        pageSize = Number(selectEntries.value || pageSize);
+        paginaActual = 1;
+        renderPagina();
+      });
+    }
+    if (inputSearch) {
+      inputSearch.addEventListener('input', () => {
+        terminoBusqueda = String(inputSearch.value || '').trim().toLowerCase();
+        paginaActual = 1;
+        renderPagina();
+      });
+    }
+
+    if (!total) {
+      container.insertAdjacentHTML('beforeend', emptyHtml || '<p class="text-muted">Sin resultados</p>');
+      return;
+    }
+
+    const lista = document.createElement('div');
+    if (!container.classList.contains('list-group')) {
+      lista.className = 'list-group';
+    }
+
+    paginaItems.forEach((item) => {
+      const html = renderItem(item);
+      if (typeof html === 'string') {
+        lista.insertAdjacentHTML('beforeend', html);
+      }
+    });
+
+    container.appendChild(lista);
+
+    const paginacion = document.createElement('div');
+    paginacion.className = 'custom-pagination mt-3';
+
+    const pageNumbersHtml = Array.from({ length: totalPaginas }, (_, i) => {
+      const p = i + 1;
+      return `<button type="button" class="page-number-btn ${p === paginaActual ? 'active' : ''}" data-page="${p}">${p}</button>`;
+    }).join('');
+
+    paginacion.innerHTML = `
+      <small class="pagination-info">Showing ${inicio + 1} to ${fin} of ${total} entries</small>
+      <div class="pagination-controls">
+        <button type="button" class="btn btn-outline-secondary pagination-nav-btn btn-pag-prev" ${paginaActual <= 1 ? 'disabled' : ''}>
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <div class="pagination-numbers">${pageNumbersHtml}</div>
+        <button type="button" class="btn btn-outline-secondary pagination-nav-btn btn-pag-next" ${paginaActual >= totalPaginas ? 'disabled' : ''}>
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    `;
+
+    const btnPrev = paginacion.querySelector('.btn-pag-prev');
+    const btnNext = paginacion.querySelector('.btn-pag-next');
+    const btnNumbers = paginacion.querySelector('.pagination-numbers');
+
+    if (btnPrev) {
+      btnPrev.addEventListener('click', () => {
+        if (paginaActual > 1) {
+          paginaActual--;
+          renderPagina();
+        }
+      });
+    }
+    if (btnNext) {
+      btnNext.addEventListener('click', () => {
+        if (paginaActual < totalPaginas) {
+          paginaActual++;
+          renderPagina();
+        }
+      });
+    }
+    if (btnNumbers) {
+      btnNumbers.addEventListener('click', (e) => {
+        const btn = e.target.closest('.page-number-btn');
+        if (!btn) return;
+        const p = Number(btn.dataset.page);
+        if (!Number.isNaN(p) && p >= 1 && p <= totalPaginas) {
+          paginaActual = p;
+          renderPagina();
+        }
+      });
+    }
+
+    container.appendChild(paginacion);
+  }
+
+  renderPagina();
+}
+
 async function cargarTomasRegistradasHoy() {
   const idUsuario = getUsuarioId();
   
@@ -912,38 +1067,37 @@ async function cargarTomasRegistradasHoy() {
     const listaTomas = document.getElementById('listaTomasHoy');
     if (!listaTomas) return;
     
-    listaTomas.innerHTML = '';
-    
-    if (tomas.length === 0) {
-      listaTomas.innerHTML = `
+    renderListaPaginada({
+      container: listaTomas,
+      items: Array.isArray(tomas) ? tomas : [],
+      itemsPorPagina: 5,
+      emptyHtml: `
         <div class="list-group-item text-center text-muted">
           Aun no has registrado ninguna toma hoy
         </div>
-      `;
-      return;
-    }
-    
-    tomas.forEach(toma => {
-      const esTomada = toma.estado !== 'no_tomada';
-      const icono = esTomada ? 'check-circle-fill text-success' : 'x-circle-fill text-warning';
-      const badgeClass = esTomada ? 'bg-success' : 'bg-warning text-dark';
-      const estadoTexto = esTomada ? toma.hora_toma : 'No tomada';
-      const motivoHtml = !esTomada && toma.motivo_omision
-        ? `<small class="text-muted d-block mt-1">Motivo: ${toma.motivo_omision}</small>`
-        : '';
-      const div = document.createElement('div');
-      div.className = 'list-group-item';
-      div.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <i class="bi bi-${icono} me-2"></i>
-            <strong>${toma.nombre_medicamento}</strong>
-            ${motivoHtml}
+      `,
+      renderItem: (toma) => {
+        const esTomada = toma.estado !== 'no_tomada';
+        const icono = esTomada ? 'check-circle-fill text-success' : 'x-circle-fill text-warning';
+        const badgeClass = esTomada ? 'bg-success' : 'bg-warning text-dark';
+        const estadoTexto = esTomada ? toma.hora_toma : 'No tomada';
+        const motivoHtml = !esTomada && toma.motivo_omision
+          ? `<small class="text-muted d-block mt-1">Motivo: ${toma.motivo_omision}</small>`
+          : '';
+
+        return `
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <i class="bi bi-${icono} me-2"></i>
+                <strong>${toma.nombre_medicamento}</strong>
+                ${motivoHtml}
+              </div>
+              <span class="badge ${badgeClass}">${estadoTexto}</span>
+            </div>
           </div>
-          <span class="badge ${badgeClass}">${estadoTexto}</span>
-        </div>
-      `;
-      listaTomas.appendChild(div);
+        `;
+      }
     });
   } catch (error) {
     console.error('Error al cargar tomas:', error);
@@ -1082,7 +1236,7 @@ async function registrarEventoMedicamento(id_receta, nombre_medicamento, estado 
   const idUsuario = getUsuarioId();
   const ahora = new Date();
   const horaActual = ahora.toTimeString().slice(0, 8);
-  const fechaActual = ahora.toISOString().slice(0, 10);
+  const fechaActual = toLocalISODate(ahora);
 
   const response = await fetch(`${API_URL}/registrarTomaMedicamento`, {
     method: 'POST',
@@ -1379,44 +1533,30 @@ async function cargarHistorialMedicacion() {
     const historialContainer = document.getElementById('historialMedicacion');
     if (!historialContainer) return;
     
-    historialContainer.innerHTML = '';
-    
-    if (eventos.length === 0) {
-      historialContainer.innerHTML = '<p class="text-muted">No hay historial de medicacion</p>';
-      return;
-    }
-    
-    const porMes = {};
-    eventos.forEach(r => {
-      const fecha = new Date(r.fecha_toma);
-      const mesAnio = `${fecha.toLocaleString('es', {month: 'long'})} ${fecha.getFullYear()}`;
-      if (!porMes[mesAnio]) porMes[mesAnio] = [];
-      porMes[mesAnio].push(r);
-    });
-    
-    Object.keys(porMes).forEach(mes => {
-      const seccion = document.createElement('div');
-      seccion.className = 'mb-4';
-      seccion.innerHTML = `
-        <h6 class="text-primary mb-3"><i class="bi bi-calendar3"></i> ${mes}</h6>
-        <div class="list-group">
-          ${porMes[mes].map(r => `
-            <div class="list-group-item">
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <h6 class="mb-1">${r.nombre_medicamento}</h6>
-                  <p class="mb-1"><strong>Estado:</strong> ${r.estado === 'no_tomada' ? 'No tomada' : 'Tomada'}</p>
-                  <p class="mb-1"><strong>Hora:</strong> ${r.hora_toma || 'Sin hora'}</p>
-                  ${r.motivo_omision ? `<p class="mb-1"><strong>Motivo:</strong> ${r.motivo_omision}</p>` : ''}
-                  <small class="text-muted">Fecha: ${new Date(r.fecha_toma).toLocaleDateString()}</small>
-                </div>
-                <span class="badge ${r.estado === 'no_tomada' ? 'bg-warning text-dark' : 'bg-success'}">${r.estado === 'no_tomada' ? 'No tomada' : 'Tomada'}</span>
+    renderListaPaginada({
+      container: historialContainer,
+      items: Array.isArray(eventos) ? eventos : [],
+      itemsPorPagina: 5,
+      emptyHtml: '<p class="text-muted">No hay historial de medicacion</p>',
+      renderItem: (r) => {
+        const fechaEvento = new Date(r.fecha_toma);
+        const fechaTxt = Number.isNaN(fechaEvento.getTime()) ? 'Sin fecha' : fechaEvento.toLocaleDateString();
+        const estadoNoTomada = r.estado === 'no_tomada';
+        return `
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h6 class="mb-1">${r.nombre_medicamento}</h6>
+                <p class="mb-1"><strong>Estado:</strong> ${estadoNoTomada ? 'No tomada' : 'Tomada'}</p>
+                <p class="mb-1"><strong>Hora:</strong> ${r.hora_toma || 'Sin hora'}</p>
+                ${r.motivo_omision ? `<p class="mb-1"><strong>Motivo:</strong> ${r.motivo_omision}</p>` : ''}
+                <small class="text-muted">Fecha: ${fechaTxt}</small>
               </div>
+              <span class="badge ${estadoNoTomada ? 'bg-warning text-dark' : 'bg-success'}">${estadoNoTomada ? 'No tomada' : 'Tomada'}</span>
             </div>
-          `).join('')}
-        </div>
-      `;
-      historialContainer.appendChild(seccion);
+          </div>
+        `;
+      }
     });
     
   } catch (error) {
@@ -2405,7 +2545,7 @@ function mostrarNotificacionMedicamento(receta) {
 
 async function verificarSiYaSeTomoHoy(id_receta) {
   const idUsuario = getUsuarioId();
-  const fechaHoy = new Date().toISOString().slice(0, 10);
+  const fechaHoy = toLocalISODate(new Date());
   
   try {
     const response = await fetch(`${API_URL}/tomasHoy/${idUsuario}`);
@@ -2703,7 +2843,129 @@ function renderizarPersonalizacion() {
         align-items: center;
         justify-content: center;
       }
+
+      .perfil-datos-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+      }
+
+      .perfil-resumen-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+      }
+
+      .perfil-resumen-item {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.65rem;
+        padding: 0.7rem 0.85rem;
+      }
+
+      .perfil-resumen-item.full {
+        grid-column: 1 / -1;
+      }
+
+      .perfil-resumen-label {
+        font-size: 0.82rem;
+        color: #64748b;
+        margin-bottom: 0.1rem;
+      }
+
+      .perfil-resumen-value {
+        font-weight: 600;
+        color: #0f172a;
+        word-break: break-word;
+      }
+
+      @media (max-width: 768px) {
+        .perfil-resumen-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .perfil-resumen-item.full {
+          grid-column: auto;
+        }
+
+        .perfil-datos-grid {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
+
+    <div class="card mb-4 border-0 shadow-sm">
+      <h4 class="mb-3"><i class="bi bi-person-lines-fill"></i> Mis Datos Personales</h4>
+      <p class="text-muted mb-3">Consulta tus datos registrados y editalos solo cuando lo necesites.</p>
+
+      <div id="perfilResumenBloque">
+        <div class="perfil-resumen-grid">
+          <div class="perfil-resumen-item">
+            <div class="perfil-resumen-label">Nombres</div>
+            <div class="perfil-resumen-value" id="perfilResumenNombres">-</div>
+          </div>
+          <div class="perfil-resumen-item">
+            <div class="perfil-resumen-label">Apellidos</div>
+            <div class="perfil-resumen-value" id="perfilResumenApellidos">-</div>
+          </div>
+          <div class="perfil-resumen-item">
+            <div class="perfil-resumen-label">Identidad</div>
+            <div class="perfil-resumen-value" id="perfilResumenIdentidad">-</div>
+          </div>
+          <div class="perfil-resumen-item">
+            <div class="perfil-resumen-label">Telefono</div>
+            <div class="perfil-resumen-value" id="perfilResumenTelefono">-</div>
+          </div>
+          <div class="perfil-resumen-item full">
+            <div class="perfil-resumen-label">Correo electronico</div>
+            <div class="perfil-resumen-value" id="perfilResumenEmail">-</div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-outline-primary" onclick="habilitarEdicionPerfilPaciente()">
+            <i class="bi bi-pencil-square"></i> Modificar datos
+          </button>
+        </div>
+      </div>
+
+      <div id="perfilFormBloque" class="d-none">
+        <div class="perfil-datos-grid">
+          <div>
+            <label for="perfilNombres" class="form-label">Nombres</label>
+            <input id="perfilNombres" type="text" class="form-control" placeholder="Tus nombres">
+          </div>
+          <div>
+            <label for="perfilApellidos" class="form-label">Apellidos</label>
+            <input id="perfilApellidos" type="text" class="form-control" placeholder="Tus apellidos">
+          </div>
+          <div>
+            <label for="perfilIdentidad" class="form-label">Identidad</label>
+            <input id="perfilIdentidad" type="text" class="form-control" maxlength="13" placeholder="13 digitos">
+          </div>
+          <div>
+            <label for="perfilTelefono" class="form-label">Telefono</label>
+            <input id="perfilTelefono" type="text" class="form-control" maxlength="8" placeholder="8 digitos">
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <label for="perfilEmail" class="form-label">Correo electronico</label>
+            <input id="perfilEmail" type="email" class="form-control" placeholder="correo@dominio.com">
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-primary" onclick="guardarDatosPerfilPaciente()">
+            <i class="bi bi-save"></i> Guardar Cambios
+          </button>
+          <button class="btn btn-outline-secondary" onclick="cancelarEdicionPerfilPaciente()">
+            <i class="bi bi-x-circle"></i> Cancelar
+          </button>
+          <button class="btn btn-outline-secondary" onclick="cargarDatosPerfilPaciente()">
+            <i class="bi bi-arrow-clockwise"></i> Recargar
+          </button>
+        </div>
+      </div>
+    </div>
 
     <div class="row">
       <div class="col-md-6">
@@ -2753,6 +3015,8 @@ function renderizarPersonalizacion() {
 
   inicializarEventosPersonalizacion();
   cargarPreferenciasGuardadas();
+  setModoEdicionPerfilPaciente(false);
+  cargarDatosPerfilPaciente();
 }
 
 function generarAvatares() {
@@ -2802,6 +3066,7 @@ function generarTemas() {
 
 let avatarActual = 'default';
 let temaActual = 'azul';
+let perfilModoEdicion = false;
 
 function inicializarEventosPersonalizacion() {
   document.querySelector('[data-avatar="default"]')?.classList.add('selected');
@@ -2909,6 +3174,168 @@ async function cargarPreferenciasGuardadas() {
 
   } catch (error) {
     console.log('No hay preferencias guardadas');
+  }
+}
+
+function obtenerDatosPerfilDesdeInputs() {
+  return {
+    nombres: String(document.getElementById('perfilNombres')?.value || '').trim(),
+    apellidos: String(document.getElementById('perfilApellidos')?.value || '').trim(),
+    identidad: String(document.getElementById('perfilIdentidad')?.value || '').replace(/\D/g, ''),
+    telefono: String(document.getElementById('perfilTelefono')?.value || '').replace(/\D/g, ''),
+    email: String(document.getElementById('perfilEmail')?.value || '').trim().toLowerCase()
+  };
+}
+
+function actualizarResumenPerfil(usuario = {}) {
+  const setText = (id, valor) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = valor || 'No registrado';
+  };
+
+  setText('perfilResumenNombres', usuario.nombres || '');
+  setText('perfilResumenApellidos', usuario.apellidos || '');
+  setText('perfilResumenIdentidad', usuario.identidad || '');
+  setText('perfilResumenTelefono', usuario.telefono || '');
+  setText('perfilResumenEmail', usuario.email || '');
+}
+
+function setModoEdicionPerfilPaciente(enEdicion) {
+  perfilModoEdicion = !!enEdicion;
+  const resumen = document.getElementById('perfilResumenBloque');
+  const formulario = document.getElementById('perfilFormBloque');
+  if (resumen) resumen.classList.toggle('d-none', perfilModoEdicion);
+  if (formulario) formulario.classList.toggle('d-none', !perfilModoEdicion);
+}
+
+function habilitarEdicionPerfilPaciente() {
+  setModoEdicionPerfilPaciente(true);
+}
+
+function cancelarEdicionPerfilPaciente() {
+  const usuarioLocal = JSON.parse(localStorage.getItem('usuario') || '{}');
+  poblarInputsPerfil(usuarioLocal);
+  setModoEdicionPerfilPaciente(false);
+}
+
+function poblarInputsPerfil(usuario = {}) {
+  const nombresInput = document.getElementById('perfilNombres');
+  const apellidosInput = document.getElementById('perfilApellidos');
+  const identidadInput = document.getElementById('perfilIdentidad');
+  const telefonoInput = document.getElementById('perfilTelefono');
+  const emailInput = document.getElementById('perfilEmail');
+
+  if (nombresInput) nombresInput.value = usuario.nombres || '';
+  if (apellidosInput) apellidosInput.value = usuario.apellidos || '';
+  if (identidadInput) identidadInput.value = usuario.identidad || '';
+  if (telefonoInput) telefonoInput.value = usuario.telefono || '';
+  if (emailInput) emailInput.value = usuario.email || '';
+  actualizarResumenPerfil(usuario);
+}
+
+async function leerRespuestaApiSegura(response) {
+  const texto = await response.text();
+  if (!texto) return {};
+
+  try {
+    return JSON.parse(texto);
+  } catch (_error) {
+    const pareceHtml = texto.trim().startsWith('<');
+    return {
+      __parseError: true,
+      mensaje: pareceHtml
+        ? 'Respuesta invalida del servidor. Reinicia el backend para aplicar los ultimos cambios.'
+        : 'Respuesta invalida del servidor.'
+    };
+  }
+}
+
+async function cargarDatosPerfilPaciente() {
+  const usuarioLocal = JSON.parse(localStorage.getItem('usuario') || '{}');
+  poblarInputsPerfil(usuarioLocal);
+
+  const token = getAuthToken();
+  if (!token) return;
+
+  try {
+    const response = await fetch(`${API_URL}/mi-perfil`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const data = await leerRespuestaApiSegura(response);
+    if (data.__parseError) return;
+    if (!data || !data.usuario) return;
+
+    const merged = { ...usuarioLocal, ...data.usuario };
+    localStorage.setItem('usuario', JSON.stringify(merged));
+    poblarInputsPerfil(merged);
+    cargarAvatarYNombre();
+    if (!perfilModoEdicion) setModoEdicionPerfilPaciente(false);
+  } catch (error) {
+    console.error('Error al cargar perfil del paciente:', error);
+  }
+}
+
+async function guardarDatosPerfilPaciente() {
+  const token = getAuthToken();
+  if (!token) {
+    mostrarNotificacion('Sesion no valida. Inicia sesion nuevamente.', 'error');
+    return;
+  }
+
+  const payload = obtenerDatosPerfilDesdeInputs();
+
+  if (!payload.nombres || !payload.apellidos || !payload.identidad || !payload.telefono || !payload.email) {
+    mostrarNotificacion('Completa todos los campos obligatorios.', 'warning');
+    return;
+  }
+
+  if (!/^\d{13}$/.test(payload.identidad)) {
+    mostrarNotificacion('La identidad debe tener 13 digitos.', 'warning');
+    return;
+  }
+
+  if (!/^\d{8}$/.test(payload.telefono)) {
+    mostrarNotificacion('El telefono debe tener 8 digitos.', 'warning');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/mi-perfil`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await leerRespuestaApiSegura(response);
+    if (data.__parseError) {
+      throw new Error(data.mensaje || 'Respuesta invalida del servidor.');
+    }
+
+    if (!response.ok) {
+      throw new Error(data.mensaje || 'No se pudo actualizar tu perfil');
+    }
+
+    const usuarioLocal = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const merged = { ...usuarioLocal, ...data.usuario };
+    localStorage.setItem('usuario', JSON.stringify(merged));
+
+    poblarInputsPerfil(merged);
+    cargarAvatarYNombre();
+    mostrarNotificacion(data.mensaje || 'Datos actualizados correctamente.', 'success');
+    setModoEdicionPerfilPaciente(false);
+  } catch (error) {
+    console.error('Error al actualizar perfil:', error);
+    mostrarNotificacion(error.message || 'No se pudieron actualizar los datos.', 'error');
   }
 }
 

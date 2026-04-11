@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SISCOM | Sistema de Control de Medicación</title>
   <link rel="stylesheet" href="../css/estilos_main.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
 <body>
@@ -82,7 +83,7 @@
 
   // Botón "Más información" → redirige a archivo local info_main.html
   document.getElementById("btnInfo").addEventListener("click", function () {
-    window.location.href = "info_main.html";
+    window.location.href = "html/info_main.html";
   });
 </script>
 
@@ -120,8 +121,9 @@
         </div>
 
         <button type="submit" class="btn btn-morado">Entrar</button>
+        <div id="googleLoginButton" class="google-auth-button"></div>
 
-      <a href="../html/rec_contra.html" class="forgot-link">¿Olvidaste tu contraseña?</a>
+      <a href="html/rec_contra.html" class="forgot-link">¿Olvidaste tu contraseña?</a>
       </form>
     </div>
   </div>
@@ -190,6 +192,7 @@
         <div id="passwordMatchMessage" class="password-match-message"></div>
 
         <button type="submit" class="btn btn-azul" id="btnRegistrarse">Registrarse</button>
+        <div id="googleRegistroButton" class="google-auth-button"></div>
       </form>
     </div>
   </div>

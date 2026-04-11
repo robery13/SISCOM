@@ -4,6 +4,24 @@
 const hasAOS = typeof window !== "undefined" && typeof window.AOS !== "undefined";
 const hasChart = typeof window !== "undefined" && typeof window.Chart !== "undefined";
 
+function toLocalISODate(dateInput = new Date()) {
+  const date = dateInput instanceof Date ? new Date(dateInput) : new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function toLocalSQLDateTime(dateInput = new Date()) {
+  const date = dateInput instanceof Date ? new Date(dateInput) : new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return '';
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  const ss = String(date.getSeconds()).padStart(2, '0');
+  return `${toLocalISODate(date)} ${hh}:${mm}:${ss}`;
+}
+
 function obtenerTokenSesion() {
   let token = localStorage.getItem('auth_token') ||
               localStorage.getItem('token') ||
@@ -185,13 +203,13 @@ async function cargarDashboard() {
     if (kpiUsuarios) animateCounter(kpiUsuarios, usuarios.length);
     if (kpiMeds) animateCounter(kpiMeds, medicamentos.filter(m => m.estado === 'activo').length);
     if (kpiStock) animateCounter(kpiStock, inventario.filter(i => Number(i.cantidad || 0) <= 10).length);
-    if (kpiCitas) animateCounter(kpiCitas, citas.filter(c => (c.fecha_hora || '').split('T')[0] === new Date().toISOString().split('T')[0]).length);
+    if (kpiCitas) animateCounter(kpiCitas, citas.filter(c => (c.fecha_hora || '').split('T')[0] === toLocalISODate()).length);
     
     console.log('KPI values', {
       usuarios: usuarios.length,
       medicamentos: medicamentos.filter(m => m.estado === 'activo').length,
       stockBajo: inventario.filter(i => Number(i.cantidad||0) <= 10).length,
-      citasHoy: citas.filter(c => (c.fecha_hora || '').split('T')[0] === new Date().toISOString().split('T')[0]).length
+      citasHoy: citas.filter(c => (c.fecha_hora || '').split('T')[0] === toLocalISODate()).length
     });
 
     // Update last update time
@@ -213,7 +231,7 @@ async function cargarDashboard() {
       createSparkline('sparkline-users', [10, 15, 20, 25, 30, usuarios.length]);
       createSparkline('sparkline-meds', [5, 8, 12, 15, 18, medicamentos.filter(m => m.estado === 'activo').length]);
       createSparkline('sparkline-stock', [3, 2, 4, 1, 2, inventario.filter(i => Number(i.cantidad || 0) <= 10).length]);
-      createSparkline('sparkline-citas', [1, 3, 2, 4, 5, citas.filter(c => (c.fecha_hora || '').split('T')[0] === new Date().toISOString().split('T')[0]).length]);
+      createSparkline('sparkline-citas', [1, 3, 2, 4, 5, citas.filter(c => (c.fecha_hora || '').split('T')[0] === toLocalISODate()).length]);
     }
     
     // Existing render functions...
@@ -665,7 +683,13 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch (error) {
       console.error("Error al cargar pacientes:", error);
-      mostrarToast("Error al cargar lista de pacientes", "error");
+      pacientesData = [];
+      if (pacienteSelect) {
+        pacienteSelect.innerHTML = '<option value="" selected disabled>Seleccione un paciente</option>';
+      }
+      if (filtroPaciente) {
+        filtroPaciente.innerHTML = '<option value="">Todos los pacientes</option>';
+      }
     }
   }
 
@@ -1135,6 +1159,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // ===============================
 (function(){
   const registrarBtn = document.getElementById("registrarBtn");
+  const modalInventarioEl = document.getElementById("modalInventario");
   const tablaInv = document.querySelector("#tablaInventario tbody");
   const searchInventarioInput = document.getElementById("searchInventario");
   const entriesInventario = document.getElementById("entriesInventario");
@@ -1184,6 +1209,32 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       console.error("Error al cargar medicamentos:", error);
     }
+  }
+
+  function cerrarModalInventario() {
+    if (!modalInventarioEl || typeof bootstrap === "undefined") return;
+    const modal = bootstrap.Modal.getInstance(modalInventarioEl) || new bootstrap.Modal(modalInventarioEl);
+    modal.hide();
+  }
+
+  async function abrirModalActualizarStock(medicamentoId = "") {
+    if (!modoActualizarCheckbox) return;
+
+    modoActualizarCheckbox.checked = true;
+    modoActualizarCheckbox.dispatchEvent(new Event("change"));
+    await cargarMedicamentosParaSeleccion();
+
+    if (selectMedicamento) {
+      selectMedicamento.value = medicamentoId ? String(medicamentoId) : "";
+    }
+
+    if (modalInventarioEl && typeof bootstrap !== "undefined") {
+      const modal = bootstrap.Modal.getInstance(modalInventarioEl) || new bootstrap.Modal(modalInventarioEl);
+      modal.show();
+    }
+
+    const cantidadInput = document.getElementById("cantidadInv");
+    if (cantidadInput) cantidadInput.focus();
   }
 
   if (registrarBtn) {
@@ -1241,6 +1292,7 @@ document.addEventListener("DOMContentLoaded", () => {
         mostrarToast(resultado.mensaje || (esModoActualizar ? "Stock actualizado correctamente." : "Medicamento agregado al inventario."), "success");
         await cargarInventario();
         await verificarAlertasStock();
+        cerrarModalInventario();
         clearInvForm();
 
       } catch (error) {
@@ -1363,6 +1415,10 @@ document.addEventListener("DOMContentLoaded", () => {
     selectMedicamento.value = "";
   }
 
+  if (modalInventarioEl) {
+    modalInventarioEl.addEventListener("hidden.bs.modal", clearInvForm);
+  }
+
   if (searchInventarioInput) {
     searchInventarioInput.addEventListener("input", () => {
       aplicarFiltrosInventario();
@@ -1410,6 +1466,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.cargarInventario = cargarInventario;
   window.verificarAlertasStock = verificarAlertasStock;
+  window.abrirModalActualizarStock = abrirModalActualizarStock;
 
   cargarInventario();
   verificarAlertasStock();
@@ -1645,10 +1702,22 @@ function mostrarAlertasStock(alertas) {
         </div>
         <div class="text-end">
           <span class="badge bg-${nivel}">${mensaje}</span>
+          <button type="button" class="btn btn-sm btn-outline-primary mt-2 btn-actualizar-stock-alerta" data-id="${item.id}">
+            <i class="bi bi-plus-circle me-1"></i> Actualizar stock
+          </button>
         </div>
       </div>
     `;
     container.appendChild(itemDiv);
+  });
+
+  container.querySelectorAll(".btn-actualizar-stock-alerta").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const idMedicamento = btn.dataset.id;
+      if (typeof window.abrirModalActualizarStock === "function") {
+        await window.abrirModalActualizarStock(idMedicamento);
+      }
+    });
   });
 }
 
@@ -1897,7 +1966,7 @@ function mostrarAlertasStock(alertas) {
     }
 
     const id_paciente = 1;
-    const fecha_hora = dt.toISOString().slice(0, 19).replace('T', ' ');
+    const fecha_hora = toLocalSQLDateTime(dt);
 
     try {
       const res = await fetch('http://localhost:3000/guardarCita', {
@@ -1983,12 +2052,27 @@ function mostrarToast(mensaje, tipo = 'info') {
     return;
   }
 
+  const tipoNormalizado = ({
+    error: 'danger',
+    danger: 'danger',
+    success: 'success',
+    warning: 'warning',
+    info: 'info'
+  })[String(tipo).toLowerCase()] || 'info';
+
+  const textoClase = (tipoNormalizado === 'warning' || tipoNormalizado === 'info')
+    ? 'text-dark'
+    : 'text-white';
+  const closeClase = (tipoNormalizado === 'warning' || tipoNormalizado === 'info')
+    ? 'btn-close'
+    : 'btn-close btn-close-white';
+
   const toastId = 'toast-' + Date.now();
   const toastHTML = `
-    <div id="${toastId}" class="toast align-items-center text-bg-${tipo} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div id="${toastId}" class="toast align-items-center ${textoClase} bg-${tipoNormalizado} border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body">${escapeHtml(mensaje)}</div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        <button type="button" class="${closeClase} me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>
     </div>
   `;
@@ -2076,6 +2160,7 @@ function mostrarToast(mensaje, tipo = 'info') {
   let asignacionesActuales = [];
   let pacientesSeleccionadosAsignacion = [];
   let cuidadorAsignacionActual = "";
+  let asignacionesOriginalesPorCuidador = new Map();
 
   function obtenerTokenAuth() {
     let token = localStorage.getItem('auth_token') || 
@@ -2129,8 +2214,28 @@ function mostrarToast(mensaje, tipo = 'info') {
       await cargarAsignacionesCuidadores();
     } catch (error) {
       console.error("Error al cargar usuarios:", error);
-      mostrarToast("Error al cargar usuarios: " + error.message, "error");
+      mostrarToast("No fue posible cargar la lista de usuarios. Intenta nuevamente en unos momentos.", "error");
+      mostrarEstadoErrorUsuarios("No fue posible cargar la lista de usuarios. Verifica la conexion e intenta nuevamente.");
     }
+  }
+
+  function mostrarEstadoErrorUsuarios(mensaje) {
+    if (!tablaUsuarios) return;
+
+    if (noUsuariosDiv) noUsuariosDiv.classList.add("d-none");
+    if (paginacionUsuarios) paginacionUsuarios.classList.add("d-none");
+
+    tablaUsuarios.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center py-4">
+          <div class="text-danger fw-semibold mb-1">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            No se pudieron cargar los usuarios
+          </div>
+          <div class="text-muted small">${escapeHtml(mensaje || "Ocurrio un problema inesperado.")}</div>
+        </td>
+      </tr>
+    `;
   }
 
   function renderListaPacientesAsignacion() {
@@ -2216,6 +2321,14 @@ function mostrarToast(mensaje, tipo = 'info') {
       cuidadoresAsignacion = Array.isArray(data.cuidadores) ? data.cuidadores : [];
       pacientesAsignacion = Array.isArray(data.pacientes) ? data.pacientes : [];
       asignacionesActuales = Array.isArray(data.asignaciones) ? data.asignaciones : [];
+      asignacionesOriginalesPorCuidador = new Map();
+      asignacionesActuales.forEach((item) => {
+        const key = String(item.cuidador_id);
+        if (!asignacionesOriginalesPorCuidador.has(key)) {
+          asignacionesOriginalesPorCuidador.set(key, []);
+        }
+        asignacionesOriginalesPorCuidador.get(key).push(Number(item.paciente_id));
+      });
 
       const valorActual = selectCuidadorAsignacion.value;
       selectCuidadorAsignacion.innerHTML = '<option value="">Selecciona un cuidador</option>';
@@ -2251,6 +2364,21 @@ function mostrarToast(mensaje, tipo = 'info') {
     const cuidadorId = selectCuidadorAsignacion?.value;
     if (!cuidadorId) {
       mostrarToast("Selecciona un cuidador para guardar sus asignaciones", "warning");
+      return;
+    }
+
+    const original = [...(asignacionesOriginalesPorCuidador.get(String(cuidadorId)) || [])]
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0)
+      .sort((a, b) => a - b);
+    const actual = [...pacientesSeleccionadosAsignacion]
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0)
+      .sort((a, b) => a - b);
+
+    const sinCambios = original.length === actual.length && original.every((id, idx) => id === actual[idx]);
+    if (sinCambios) {
+      mostrarToast("No hay cambios en las asignaciones para guardar.", "info");
       return;
     }
 
@@ -2555,6 +2683,20 @@ function mostrarToast(mensaje, tipo = 'info') {
 
   // Eliminar usuario
   window.eliminarUsuario = async function(id) {
+    // Evitar alerta nativa si intenta eliminar su propio usuario
+    const usuarioActualRaw = localStorage.getItem("usuario");
+    if (usuarioActualRaw) {
+      try {
+        const usuarioActual = JSON.parse(usuarioActualRaw);
+        if (Number(usuarioActual?.id) === Number(id)) {
+          mostrarToast("No puedes eliminar tu propio usuario.", "warning");
+          return;
+        }
+      } catch (e) {
+        // Ignorar errores de parseo y continuar flujo normal
+      }
+    }
+
     if (!confirm("¿Está seguro de que desea eliminar este usuario?")) return;
     
     try {
@@ -2705,6 +2847,35 @@ function escapeHtml(str) {
   let endpointStatsPacienteDisponible = true;
   let endpointStatsCompararDisponible = true;
   let endpointStatsReporteDisponible = true;
+
+  function sincronizarOpcionesComparacion() {
+    if (!compararSelect1 || !compararSelect2) return;
+
+    const id1 = String(compararSelect1.value || '');
+    const id2 = String(compararSelect2.value || '');
+
+    Array.from(compararSelect1.options).forEach((opt) => {
+      const valor = String(opt.value || '');
+      opt.disabled = Boolean(valor && valor === id2);
+    });
+
+    Array.from(compararSelect2.options).forEach((opt) => {
+      const valor = String(opt.value || '');
+      opt.disabled = Boolean(valor && valor === id1);
+    });
+  }
+
+  function manejarCambioComparacion(origen, destino) {
+    if (!origen || !destino) return;
+
+    if (origen.value && destino.value && String(origen.value) === String(destino.value)) {
+      mostrarNotificacion('Ese paciente ya está seleccionado. Elige uno diferente.', 'warning');
+      origen.value = '';
+      origen.focus();
+    }
+
+    sincronizarOpcionesComparacion();
+  }
 
   function obtenerTokenSesionStats() {
     let token = localStorage.getItem('auth_token') ||
@@ -2866,7 +3037,7 @@ function escapeHtml(str) {
     for (let i = 0; i < 7; i++) {
       const d = new Date(base);
       d.setDate(base.getDate() + i);
-      fechas.push(d.toISOString().slice(0, 10));
+      fechas.push(toLocalISODate(d));
     }
 
     const respuestas = await Promise.all(
@@ -2908,7 +3079,7 @@ function escapeHtml(str) {
 
     const fin = new Date(base);
     fin.setDate(base.getDate() + 6);
-    const fechaFin = fin.toISOString().slice(0, 10);
+    const fechaFin = toLocalISODate(fin);
     const paciente = pacientesCache.find((p) => String(p.id_paciente) === String(idPaciente));
 
     return {
@@ -2939,10 +3110,6 @@ function escapeHtml(str) {
       compararSelect1.innerHTML = '<option value="">-- Seleccione primer paciente --</option>';
       compararSelect2.innerHTML = '<option value="">-- Seleccione segundo paciente --</option>';
 
-      if (!pacientes.length) {
-        mostrarNotificacion('No se pudieron cargar pacientes. Verifica que el backend esté actualizado y activo en el puerto 3000.', 'warning');
-      }
-
       pacientes.forEach(p => {
         const opt1 = document.createElement("option");
         opt1.value = p.id_paciente;
@@ -2967,8 +3134,10 @@ function escapeHtml(str) {
         const unico = String(pacientes[0].id_paciente);
         pacienteSelect.value = unico;
         compararSelect1.value = unico;
+        compararSelect2.value = '';
         if (rptPacienteSelect) rptPacienteSelect.value = unico;
       }
+      sincronizarOpcionesComparacion();
     } catch (err) {
       console.error("Error al cargar pacientes:", err);
     }
@@ -3235,6 +3404,11 @@ function escapeHtml(str) {
   });
 
   // ---- Comparar entre pacientes ----
+  if (compararSelect1 && compararSelect2) {
+    compararSelect1.addEventListener('change', () => manejarCambioComparacion(compararSelect1, compararSelect2));
+    compararSelect2.addEventListener('change', () => manejarCambioComparacion(compararSelect2, compararSelect1));
+  }
+
   compararBtn.addEventListener("click", async () => {
     const id1 = compararSelect1.value;
     const id2 = compararSelect2.value;
@@ -3357,6 +3531,7 @@ function escapeHtml(str) {
     // Resetear selects
     compararSelect1.value = '';
     compararSelect2.value = '';
+    sincronizarOpcionesComparacion();
   });
 
   // ===============================
@@ -3397,8 +3572,8 @@ function escapeHtml(str) {
 
   // Setear fecha actual por defecto (el lunes de esta semana)
   if (rptSemanaInput) {
-    const monday = getMondayFromDate(new Date().toISOString().slice(0, 10));
-    rptSemanaInput.value = monday.toISOString().slice(0, 10);
+    const monday = getMondayFromDate(toLocalISODate(new Date()));
+    rptSemanaInput.value = toLocalISODate(monday);
   }
 
   // Cargar pacientes en el select del reporte
@@ -3424,7 +3599,7 @@ function escapeHtml(str) {
       }
 
       const monday = getMondayFromDate(fechaSeleccionada);
-      const fechaInicio = monday.toISOString().slice(0, 10);
+      const fechaInicio = toLocalISODate(monday);
 
       try {
         let data;
@@ -3668,8 +3843,8 @@ function escapeHtml(str) {
   if (rptLimpiarBtn) {
     rptLimpiarBtn.addEventListener("click", () => {
       rptPacienteSelect.value = "";
-      const monday = getMondayFromDate(new Date().toISOString().slice(0, 10));
-      rptSemanaInput.value = monday.toISOString().slice(0, 10);
+      const monday = getMondayFromDate(toLocalISODate(new Date()));
+      rptSemanaInput.value = toLocalISODate(monday);
       if (rptResultados) rptResultados.classList.add("d-none");
       if (rptExportarPdfBtn) rptExportarPdfBtn.disabled = true;
       if (chartReporteSemanal) { chartReporteSemanal.destroy(); chartReporteSemanal = null; }

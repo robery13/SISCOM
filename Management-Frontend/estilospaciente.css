@@ -1223,3 +1223,121 @@ canvas {
     letter-spacing: 2px;
   }
 }
+
+/* Paginación y toolbar estilo cuidador/backend */
+.custom-pagination {
+  margin-top: 0.9rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid #c7d6f4;
+  background: linear-gradient(90deg, #eff4ff 0%, #e6efff 55%, #dce8ff 100%);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.custom-pagination .pagination-info {
+  margin: 0;
+  color: #1e3a8a !important;
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+.custom-pagination .pagination-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+}
+
+.custom-pagination .pagination-numbers {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.custom-pagination .pagination-nav-btn,
+.custom-pagination .page-number-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  border: 1px solid #9bb8ee;
+  background: #ffffff;
+  color: #1f3f83;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.custom-pagination .pagination-nav-btn:hover:not(:disabled),
+.custom-pagination .page-number-btn:hover {
+  background: #eaf1ff;
+  border-color: #6f97dd;
+  color: #0f2e68;
+}
+
+.custom-pagination .page-number-btn.active {
+  background: #1e40af;
+  border-color: #1d4ed8;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16);
+}
+
+.custom-pagination .pagination-nav-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.datatable-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #c8d8f6;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f4f8ff 0%, #ecf3ff 100%);
+}
+
+.datatable-length {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #1f3f83;
+  font-size: 0.9rem;
+}
+
+.datatable-length .form-select {
+  width: 74px;
+  background: #ffffff;
+  color: #1f3f83;
+  border-color: #aac3ef;
+}
+
+.datatable-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.datatable-search label {
+  margin: 0;
+  color: #1f3f83;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.datatable-search .form-control {
+  min-width: 200px;
+  background: #ffffff;
+  border-color: #aac3ef;
+  color: #1f3f83;
+}

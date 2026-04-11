@@ -362,8 +362,27 @@
       transform: translateY(-1px);
     }
 
-    #formLogin .forgot-link {
+    .google-auth-button {
+      width: 100%;
+      min-height: 44px;
+      margin: 12px 0 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .google-auth-button > div,
+    .google-auth-button iframe {
+      max-width: 100%;
+    }
+
+    #googleLoginButton {
       margin-top: 12px;
+      margin-bottom: 2px;
+    }
+
+    #formLogin .forgot-link {
+      margin-top: 10px;
       text-align: left;
       font-size: 0.92rem;
       color: #1d4ed8;
@@ -414,14 +433,16 @@
     #formRegistro > .password-container,
     #formRegistro > .password-requisitos,
     #formRegistro > .password-match-message,
-    #formRegistro > .btn {
+    #formRegistro > .btn,
+    #formRegistro > .google-auth-button {
       margin-bottom: 0;
     }
 
     #emailRegistro,
     #passwordRequisitos,
     #passwordMatchMessage,
-    #btnRegistrarse {
+    #btnRegistrarse,
+    #googleRegistroButton {
       grid-column: 1 / -1;
     }
 
@@ -450,6 +471,11 @@
       margin-top: 2px;
       font-weight: 700;
       box-shadow: 0 12px 24px rgba(13, 110, 253, 0.25);
+    }
+
+    #googleRegistroButton {
+      margin-top: 8px;
+      margin-bottom: 0;
     }
 
     /* ======== FORMULARIOS ======== */

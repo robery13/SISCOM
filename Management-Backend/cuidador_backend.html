@@ -59,6 +59,10 @@
 
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main">
+      <div id="alertaSinPacientesCuidador" class="alert alert-warning d-none" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        No tienes pacientes asignados por el administrador. Por ahora no veras datos en Citas, Historial, Verificacion y Estadisticas.
+      </div>
 
       <!-- PANEL DE CONTROL -->
 
@@ -283,7 +287,7 @@
                 <input type="date" id="filtroFechaHasta" class="form-control">
               </div>
               <div class="col-md-1 d-grid">
-                <button id="limpiarFiltrosCitas" class="btn btn-outline-secondary" title="Limpiar filtros">
+                <button type="button" id="limpiarFiltrosCitas" class="btn btn-outline-secondary" title="Limpiar filtros">
                   <i class="bi bi-x-lg"></i>
                 </button>
               </div>
@@ -1207,6 +1211,33 @@
         headers: obtenerHeadersCuidador()
       });
     }
+
+    async function actualizarAlertaPacientesAsignados() {
+      const alerta = document.getElementById('alertaSinPacientesCuidador');
+      if (!alerta) return;
+
+      try {
+        const response = await obtenerPacientesCuidador();
+        if (!response.ok) {
+          alerta.classList.remove('d-none');
+          alerta.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>No se pudo verificar la asignacion de pacientes. Intenta nuevamente.';
+          return;
+        }
+
+        const pacientes = await response.json();
+        const tienePacientes = Array.isArray(pacientes) && pacientes.length > 0;
+        alerta.classList.toggle('d-none', tienePacientes);
+      } catch (error) {
+        alerta.classList.remove('d-none');
+        alerta.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>No se pudo verificar la asignacion de pacientes. Intenta nuevamente.';
+      }
+    }
+
+    window.actualizarAlertaPacientesAsignados = actualizarAlertaPacientesAsignados;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      actualizarAlertaPacientesAsignados();
+    });
   </script>
 
   <!-- Script para abrir modal de medicamentos -->
@@ -1289,6 +1320,9 @@ document.addEventListener('DOMContentLoaded', () => {
               if (window.cargarInventario) window.cargarInventario();
               if (window.verificarAlertasStock) window.verificarAlertasStock();
             }
+            if (window.actualizarAlertaPacientesAsignados) {
+              window.actualizarAlertaPacientesAsignados();
+            }
             return true;
           }
         }
@@ -1324,6 +1358,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (sectionId === 'inventario') {
               if (window.cargarInventario) window.cargarInventario();
               if (window.verificarAlertasStock) window.verificarAlertasStock();
+            }
+            if (window.actualizarAlertaPacientesAsignados) {
+              window.actualizarAlertaPacientesAsignados();
             }
           }
         });
@@ -1474,6 +1511,9 @@ document.addEventListener('DOMContentLoaded', () => {
       let citaEditandoId = null;
       let citasGlobales = []; // Variable global para almacenar citas
       let pacientesCitasMap = new Map();
+      let pacientesAsignadosIds = new Set();
+      const normalizarEstado = (valor) => String(valor || '').trim().toLowerCase();
+      const obtenerIdCita = (cita) => cita?.id ?? cita?.id_cita ?? cita?.cita_id ?? cita?.ID ?? null;
 
       // Cargar pacientes en los selects
 
@@ -1486,6 +1526,7 @@ document.addEventListener('DOMContentLoaded', () => {
           pacientesCitasMap = new Map(
             pacientes.map((paciente) => [String(paciente.id), `${paciente.nombres} ${paciente.apellidos}`])
           );
+          pacientesAsignadosIds = new Set(pacientes.map((paciente) => String(paciente.id)));
           
           // Limpiar y poblar selects
           const opcionDefault = '<option value="" selected disabled>Seleccione un paciente</option>';
@@ -1500,19 +1541,31 @@ document.addEventListener('DOMContentLoaded', () => {
             pacienteCita.insertAdjacentHTML('beforeend', option);
             filtroPacienteCita.insertAdjacentHTML('beforeend', option);
           });
+
+          if (!pacientes.length) {
+            citasGlobales = [];
+            aplicarFiltrosCitas();
+          }
         } catch (error) {
           console.error('Error al cargar pacientes:', error);
+          pacientesAsignadosIds = new Set();
+          citasGlobales = [];
+          aplicarFiltrosCitas();
         }
       }
 
       // Cargar citas desde el servidor
       async function cargarCitas() {
         try {
-          const response = await fetch('http://localhost:3000/obtenerCitas');
+          const response = await fetch('http://localhost:3000/obtenerCitas', {
+            headers: obtenerHeadersCuidador()
+          });
           if (!response.ok) throw new Error('Error al cargar citas');
           
           const citas = await response.json();
-          citasGlobales = citas; // Guardar en variable global
+          citasGlobales = (Array.isArray(citas) ? citas : []).filter((cita) =>
+            pacientesAsignadosIds.has(String(cita.id_paciente))
+          );
           aplicarFiltrosCitas();
         } catch (error) {
           console.error('Error al cargar citas:', error);
@@ -1548,7 +1601,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const fechaCitaActual = obtenerFechaLocalISO(cita.fecha_hora);
 
             if (filtroPaciente && String(cita.id_paciente) !== String(filtroPaciente)) incluir = false;
-            if (filtroEstado && String(cita.estado || 'programada') !== filtroEstado) incluir = false;
+            if (filtroEstado && normalizarEstado(cita.estado || 'programada') !== normalizarEstado(filtroEstado)) incluir = false;
             if (fechaDesde && fechaCitaActual < fechaDesde) incluir = false;
             if (fechaHasta && fechaCitaActual > fechaHasta) incluir = false;
 
@@ -1570,19 +1623,32 @@ document.addEventListener('DOMContentLoaded', () => {
       async function guardarCita(e) {
         e.preventDefault();
         
-        // Combinar fecha y hora en formato datetime
         const fechaHora = `${fechaCita.value}T${horaCita.value}:00`;
         
         const cita = {
           id_paciente: parseInt(pacienteCita.value),
           fecha_hora: fechaHora,
           motivo: motivoCita.value,
-          anticipacion_min: parseInt(anticipacion.value)
+          doctor: doctorCita.value || null,
+          especialidad: especialidadCita.value || null,
+          ubicacion: ubicacionCita.value || null,
+          estado: estadoCita.value,
+          anticipacion_min: parseInt(anticipacion.value),
+          notas: notasCita.value || null
         };
 
         try {
-          const response = await fetch('http://localhost:3000/guardarCita', {
-            method: 'POST',
+          let url = 'http://localhost:3000/guardarCita';
+          let method = 'POST';
+
+          const idEdicion = Number(citaEditandoId || citaIdInput.value);
+          if (modoEdicion && Number.isFinite(idEdicion) && idEdicion > 0) {
+            url = `http://localhost:3000/actualizarCita/${idEdicion}`;
+            method = 'PUT';
+          }
+
+          const response = await fetch(url, {
+            method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(cita)
           });
@@ -1592,7 +1658,7 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error(error.mensaje || 'Error al guardar cita');
           }
 
-          mostrarToast('Cita guardada correctamente', 'success');
+          mostrarToast(modoEdicion ? 'Cita actualizada correctamente' : 'Cita guardada correctamente', 'success');
           limpiarFormulario();
           await cargarCitas();
           
@@ -1623,7 +1689,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         listaCitas.innerHTML = citasAMostrar.map(cita => {
           // Intentar obtener el ID de diferentes campos posibles
-          const citaId = cita.id || cita.id_cita || cita.cita_id || cita.ID;
+          const citaId = obtenerIdCita(cita);
           
           if (!citaId) {
             console.error('Cita sin ID:', cita);
@@ -1729,25 +1795,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Editar cita - Cargar datos desde la lista mostrada
       window.editarCita = async function(id) {
-        if (!id || isNaN(id)) {
+        const idNumerico = Number(id);
+        if (!Number.isFinite(idNumerico) || idNumerico <= 0) {
           mostrarToast('Error: ID de cita inválido', 'danger');
           console.error('ID inválido recibido:', id);
           return;
         }
         
         try {
-          // Obtener todas las citas y buscar la que corresponde
-          const response = await fetch('http://localhost:3000/obtenerCitas');
-          if (!response.ok) throw new Error('Error al cargar citas');
-          
-          const citas = await response.json();
-          // Buscar por diferentes posibles nombres de campo ID
-          const cita = citas.find(c => 
-            (c.id === id) || 
-            (c.id_cita === id) || 
-            (c.cita_id === id) || 
-            (c.ID === id)
-          );
+          let cita = (citasGlobales || []).find((c) => String(obtenerIdCita(c)) === String(idNumerico));
+          if (!cita) {
+            const response = await fetch('http://localhost:3000/obtenerCitas', {
+              headers: obtenerHeadersCuidador()
+            });
+            if (!response.ok) throw new Error('Error al cargar citas');
+            const citas = await response.json();
+            cita = (Array.isArray(citas) ? citas : [])
+              .filter((c) => pacientesAsignadosIds.has(String(c.id_paciente)))
+              .find((c) => String(obtenerIdCita(c)) === String(idNumerico));
+          }
           
           if (!cita) {
             mostrarToast('Cita no encontrada', 'danger');
@@ -1761,8 +1827,10 @@ document.addEventListener('DOMContentLoaded', () => {
           const horaStr = fechaHora.toTimeString().slice(0, 5);
           
           modoEdicion = true;
-          citaEditandoId = id;
-          pacienteCita.value = cita.id_paciente;
+          const citaIdReal = Number(obtenerIdCita(cita));
+          citaEditandoId = Number.isFinite(citaIdReal) ? citaIdReal : idNumerico;
+          citaIdInput.value = String(citaEditandoId);
+          pacienteCita.value = String(cita.id_paciente || '');
           fechaCita.value = fechaStr;
           horaCita.value = horaStr;
           doctorCita.value = cita.doctor || '';
@@ -1838,13 +1906,22 @@ document.addEventListener('DOMContentLoaded', () => {
       // Mostrar toast
       function mostrarToast(mensaje, tipo = 'info') {
         const toastContainer = document.getElementById('toast-container');
+        const tipoNormalizado = ({
+          error: 'danger',
+          danger: 'danger',
+          success: 'success',
+          warning: 'warning',
+          info: 'info'
+        })[String(tipo).toLowerCase()] || 'info';
+        const textoClase = (tipoNormalizado === 'warning' || tipoNormalizado === 'info') ? 'text-dark' : 'text-white';
+        const closeClase = (tipoNormalizado === 'warning' || tipoNormalizado === 'info') ? 'btn-close' : 'btn-close btn-close-white';
         const toast = document.createElement('div');
-        toast.className = `toast align-items-center text-white bg-${tipo} border-0 show`;
+        toast.className = `toast align-items-center ${textoClase} bg-${tipoNormalizado} border-0 show`;
         toast.setAttribute('role', 'alert');
         toast.innerHTML = `
           <div class="d-flex">
             <div class="toast-body">${mensaje}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            <button type="button" class="${closeClase} me-2 m-auto" data-bs-dismiss="toast"></button>
           </div>
         `;
         toastContainer.appendChild(toast);
@@ -1962,16 +2039,18 @@ document.addEventListener('DOMContentLoaded', () => {
       // Cargar pacientes al mostrar la sección de citas
       const citasBtn = document.querySelector('.nav-btn[data-section="recetas"]');
       if (citasBtn) {
-        citasBtn.addEventListener('click', () => {
-          cargarPacientesCitas();
-          cargarCitas();
+        citasBtn.addEventListener('click', async () => {
+          await cargarPacientesCitas();
+          await cargarCitas();
         });
       }
 
       // Inicializar si la sección está activa al cargar
       if (!document.getElementById('recetas').classList.contains('d-none')) {
-        cargarPacientesCitas();
-        cargarCitas();
+        (async () => {
+          await cargarPacientesCitas();
+          await cargarCitas();
+        })();
       }
 
     });
@@ -2119,6 +2198,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
+      // Si la sección ya está activa al recargar, cargar pacientes sin requerir clic
+      const historialSection = document.getElementById('historial-tomas');
+      if (historialSection && !historialSection.classList.contains('d-none')) {
+        cargarPacientes();
+      }
+
       if (actualizarAlertasBtn) {
         actualizarAlertasBtn.addEventListener('click', () => cargarAlertasOmisiones(true));
       }
@@ -2151,7 +2236,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         } catch (error) {
           console.error('Error al cargar pacientes:', error);
-          pacienteSelect.innerHTML = '<option value="">Error al cargar pacientes</option>';
+          pacienteSelect.innerHTML = '<option value="">Selecciona un paciente</option>';
         }
       }
 

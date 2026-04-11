@@ -4,7 +4,6 @@ const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
-const crypto = require('crypto');
 
 const app = express();
 
@@ -28,7 +27,7 @@ db.connect(err => {
   if (err) {
     console.error('Error al conectar a MySQL:', err);
   } else {
-    console.log('ConexiÃ³n a MySQL exitosa');
+    console.log('Conexión a MySQL exitosa');
     
     // Crear tabla tomas_medicas si no existe
     const createTableSql = `
@@ -120,163 +119,6 @@ function esCorreoDominioPermitido(email) {
   const dominio = correo.split('@')[1] || '';
   return dominiosPermitidos.has(dominio);
 }
-
-function separarNombreCompleto(nombreCompleto = '') {
-  const limpio = String(nombreCompleto || '').trim().replace(/\s+/g, ' ');
-  if (!limpio) {
-    return { nombres: 'Usuario', apellidos: 'Google' };
-  }
-
-  const partes = limpio.split(' ');
-  if (partes.length === 1) {
-    return { nombres: partes[0], apellidos: 'Google' };
-  }
-
-  return {
-    nombres: partes.slice(0, -1).join(' '),
-    apellidos: partes.slice(-1).join(' ')
-  };
-}
-
-function generarSoloNumeros(longitud) {
-  let salida = '';
-  while (salida.length < longitud) {
-    salida += crypto.randomInt(0, 10).toString();
-  }
-  return salida.slice(0, longitud);
-}
-
-async function generarIdentidadUnica() {
-  for (let intento = 0; intento < 20; intento++) {
-    const candidata = generarSoloNumeros(13);
-    const existe = await queryAsync('SELECT id FROM usuarios WHERE identidad = ? LIMIT 1', [candidata]);
-    if (existe.length === 0) {
-      return candidata;
-    }
-  }
-  throw new Error('No se pudo generar una identidad unica');
-}
-
-async function verificarIdTokenGoogle(idToken) {
-  const respuesta = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
-  if (!respuesta.ok) {
-    throw new Error('Token de Google invalido o expirado');
-  }
-
-  const payload = await respuesta.json();
-  const clientId = String(process.env.GOOGLE_CLIENT_ID || '').trim();
-
-  if (!clientId) {
-    throw new Error('GOOGLE_CLIENT_ID no configurado');
-  }
-
-  if (payload.aud !== clientId) {
-    throw new Error('El token no pertenece a esta aplicacion');
-  }
-
-  if (String(payload.email_verified) !== 'true') {
-    throw new Error('La cuenta de Google no tiene correo verificado');
-  }
-
-  return payload;
-}
-
-app.get('/auth/config', (req, res) => {
-  res.json({
-    ok: true,
-    googleClientId: process.env.GOOGLE_CLIENT_ID || null
-  });
-});
-
-app.post('/auth/google', async (req, res) => {
-  try {
-    const { idToken, rememberMe, nombres, apellidos, identidad, telefono, googleFlow } = req.body || {};
-    const tokenGoogle = String(idToken || '').trim();
-
-    if (!tokenGoogle) {
-      return res.status(400).json({ ok: false, mensaje: 'idToken es requerido' });
-    }
-
-    const payload = await verificarIdTokenGoogle(tokenGoogle);
-    const correo = String(payload.email || '').trim().toLowerCase();
-    if (!correo) {
-      return res.status(400).json({ ok: false, mensaje: 'No se pudo obtener el correo de Google' });
-    }
-
-    const existentes = await queryAsync('SELECT * FROM usuarios WHERE email = ? LIMIT 1', [correo]);
-    let usuario = existentes[0];
-    let usuarioCreado = false;
-
-    if (!usuario) {
-      const nombreSugerido = separarNombreCompleto(payload.name || '');
-      const nombresFinal = String(nombres || '').trim() || String(payload.given_name || '').trim() || nombreSugerido.nombres;
-      const apellidosFinal = String(apellidos || '').trim() || String(payload.family_name || '').trim() || nombreSugerido.apellidos;
-      const identidadLimpia = String(identidad || '').replace(/\D/g, '');
-      const telefonoLimpio = String(telefono || '').replace(/\D/g, '');
-
-      const identidadValida = /^\d{13}$/.test(identidadLimpia);
-      const telefonoValido = /^\d{8}$/.test(telefonoLimpio);
-      const flujoGoogle = String(googleFlow || '').toLowerCase();
-      const intentoRegistro = flujoGoogle === 'register' || identidadLimpia.length > 0 || telefonoLimpio.length > 0;
-
-      if (!identidadValida || !telefonoValido) {
-        if (!intentoRegistro || flujoGoogle === 'login') {
-          return res.status(400).json({
-            ok: false,
-            mensaje: 'No encontramos una cuenta para este correo. Primero registrate y luego inicia sesion con Google.'
-          });
-        }
-
-        return res.status(400).json({
-          ok: false,
-          mensaje: 'Para registrarte con Google hazlo con identidad y telefono llenos (identidad de 13 digitos y telefono de 8 digitos).'
-        });
-      }
-
-      const identidadDuplicada = await queryAsync('SELECT id FROM usuarios WHERE identidad = ? LIMIT 1', [identidadLimpia]);
-      if (identidadDuplicada.length > 0) {
-        return res.status(400).json({ ok: false, mensaje: 'La identidad ya esta registrada.' });
-      }
-
-      const passwordTemporal = crypto.randomBytes(32).toString('hex');
-      const hashedPassword = await bcrypt.hash(passwordTemporal, 10);
-
-      const resultadoInsert = await queryAsync(`INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password) VALUES (?, ?, ?, ?, ?, ?)`,
-        [nombresFinal, apellidosFinal, identidadLimpia, telefonoLimpio, correo, hashedPassword]
-      );
-
-      const nuevos = await queryAsync('SELECT * FROM usuarios WHERE id = ? LIMIT 1', [resultadoInsert.insertId]);
-      usuario = nuevos[0];
-      usuarioCreado = true;
-    }
-
-    if (!usuario) {
-      return res.status(500).json({ ok: false, mensaje: 'No se pudo obtener el usuario autenticado' });
-    }
-
-    const token = crypto.randomBytes(32).toString('hex');
-    const duracion = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 30 * 60 * 1000;
-    authTokens[token] = {
-      userId: usuario.id,
-      email: usuario.email,
-      expires: Date.now() + duracion,
-      rememberMe: Boolean(rememberMe)
-    };
-
-    return res.status(200).json({
-      ok: true,
-      usuario,
-      token,
-      usuarioCreado,
-      mensaje: usuarioCreado ? 'Cuenta creada con Google e inicio de sesion exitoso' : 'Inicio de sesion con Google exitoso'
-    });
-  } catch (error) {
-    const mensaje = String(error?.message || '').includes('GOOGLE_CLIENT_ID')
-      ? 'El inicio de sesion con Google no esta configurado en el servidor'
-      : 'No se pudo autenticar con Google';
-    return res.status(400).json({ ok: false, mensaje, detalle: error?.message || null });
-  }
-});
 // Puntero de guardado de medicamentos que ejecute el codigo
 app.post('/guardarMedicamento', (req, res) => {
   //datos de los formularios
@@ -304,7 +146,7 @@ app.post('/guardarMedicamento', (req, res) => {
 
 //script login
 
-// Verificar correo y contraseÃ±a al iniciar sesiÃ³n
+// Verificar correo y contraseña al iniciar sesión
 app.post('/login', (req, res) => {
   const { email, password, rememberMe } = req.body;
   const correoNormalizado = String(email || '').trim().toLowerCase();
@@ -314,13 +156,13 @@ app.post('/login', (req, res) => {
   const passwordPresente = passwordTexto.length > 0;
 
   if (!correoValido && !passwordPresente) {
-    return res.status(400).json({ code: 'AMBOS_INVALIDOS', mensaje: 'Correo y contraseña incorrectos.' });
+    return res.status(400).json({ code: 'AMBOS_INVALIDOS', mensaje: 'Correo y contrase?a incorrectos.' });
   }
   if (!correoValido) {
     return res.status(400).json({ code: 'EMAIL_INVALIDO', mensaje: 'Correo incorrecto.' });
   }
   if (!passwordPresente) {
-    return res.status(400).json({ code: 'PASSWORD_INVALIDA', mensaje: 'Contraseña incorrecta.' });
+    return res.status(400).json({ code: 'PASSWORD_INVALIDA', mensaje: 'Contrase?a incorrecta.' });
   }
 
   // Consulta SQL para buscar el usuario por email
@@ -332,23 +174,23 @@ app.post('/login', (req, res) => {
       return res.status(500).json({ mensaje: 'Error interno del servidor' });
     }
 
-    // Si no se encontró ningún usuario con ese email
+    // Si no se encontr? ning?n usuario con ese email
     if (results.length === 0) {
       return res.status(401).json({ code: 'EMAIL_INVALIDO', mensaje: 'Correo incorrecto.' });
     }
 
     const usuario = results[0];
 
-    // Comparar contraseñas usando bcrypt
+    // Comparar contrase?as usando bcrypt
     const passwordValida = await bcrypt.compare(passwordTexto, usuario.password);
     if (!passwordValida) {
-      return res.status(401).json({ code: 'PASSWORD_INVALIDA', mensaje: 'Contraseña incorrecta.' });
+      return res.status(401).json({ code: 'PASSWORD_INVALIDA', mensaje: 'Contrase?a incorrecta.' });
     }
 
 
-    // Generar token de autenticación
+    // Generar token de autenticaci?n
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresIn = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 30 * 60 * 1000; // 7 días o 30 minutos
+    const expiresIn = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 30 * 60 * 1000; // 7 d?as o 30 minutos
     const expiresAt = Date.now() + expiresIn;
     
     // Guardar token en memoria
@@ -359,16 +201,16 @@ app.post('/login', (req, res) => {
       rememberMe: rememberMe || false
     };
 
-    // Si todo está correcto
+    // Si todo est? correcto
     res.status(200).json({
       ok: true,
-      mensaje: 'Inicio de sesión exitoso',
+      mensaje: 'Inicio de sesi?n exitoso',
       usuario,
       token
     });
   });
 });
-// Verificar sesiÃ³n
+// Verificar sesión
 app.post('/verificar-sesion', (req, res) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
@@ -380,17 +222,17 @@ app.post('/verificar-sesion', (req, res) => {
   const session = authTokens[token];
   
   if (!session) {
-    return res.status(401).json({ ok: false, mensaje: 'SesiÃ³n no vÃ¡lida' });
+    return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
   }
 
   if (Date.now() > session.expires) {
     delete authTokens[token];
-    return res.status(401).json({ ok: false, mensaje: 'SesiÃ³n expirada' });
+    return res.status(401).json({ ok: false, mensaje: 'Sesión expirada' });
   }
 
   res.json({ 
     ok: true, 
-    mensaje: 'SesiÃ³n vÃ¡lida',
+    mensaje: 'Sesión válida',
     userId: session.userId,
     expiresIn: session.expires - Date.now()
   });
@@ -408,7 +250,7 @@ app.post('/renovar-token', (req, res) => {
   const session = authTokens[oldToken];
   
   if (!session) {
-    return res.status(401).json({ ok: false, mensaje: 'SesiÃ³n no vÃ¡lida' });
+    return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
   }
 
   // Generar nuevo token
@@ -444,11 +286,11 @@ app.post('/logout', (req, res) => {
     delete authTokens[token];
   }
 
-  res.json({ ok: true, mensaje: 'SesiÃ³n cerrada correctamente' });
+  res.json({ ok: true, mensaje: 'Sesión cerrada correctamente' });
 });
 
 // ============================================
-// MIDDLEWARE DE VERIFICACIÃ“N DE ROLES
+// MIDDLEWARE DE VERIFICACIÓN DE ROLES
 // ============================================
 
 /**
@@ -467,12 +309,12 @@ function verificarRol(rolesPermitidos) {
     const session = authTokens[token];
     
     if (!session) {
-      return res.status(401).json({ ok: false, mensaje: 'SesiÃ³n no vÃ¡lida' });
+      return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
     }
 
     if (Date.now() > session.expires) {
       delete authTokens[token];
-      return res.status(401).json({ ok: false, mensaje: 'SesiÃ³n expirada' });
+      return res.status(401).json({ ok: false, mensaje: 'Sesión expirada' });
     }
 
     // Obtener el usuario de la base de datos para verificar su rol actual
@@ -492,13 +334,13 @@ function verificarRol(rolesPermitidos) {
       if (!rolesPermitidos.includes(userRol)) {
         return res.status(403).json({ 
           ok: false, 
-          mensaje: 'Acceso denegado. No tienes permisos para realizar esta acciÃ³n.',
+          mensaje: 'Acceso denegado. No tienes permisos para realizar esta acción.',
           rolRequerido: rolesPermitidos,
           rolActual: userRol
         });
       }
 
-      // Guardar informaciÃ³n del usuario en la request para uso posterior
+      // Guardar información del usuario en la request para uso posterior
       req.user = {
         id: session.userId,
         email: session.email,
@@ -533,20 +375,20 @@ app.post("/registrar", (req, res) => {
     }
 
     if (resultados.length > 0) {
-      // Verificar cuÃ¡l campo estÃ¡ duplicado
+      // Verificar cuál campo está duplicado
       const correoExiste = resultados.some((r) => String(r.email || '').toLowerCase() === correoNormalizado);
       const identidadExiste = resultados.some((r) => r.identidad === identidad);
 
       if (correoExiste && identidadExiste) {
-        return res.json({ ok: false, mensaje: "El correo y la identidad ya estÃ¡n registrados" });
+        return res.json({ ok: false, mensaje: "El correo y la identidad ya están registrados" });
       } else if (correoExiste) {
-        return res.json({ ok: false, mensaje: "El correo ya estÃ¡ registrado" });
+        return res.json({ ok: false, mensaje: "El correo ya está registrado" });
       } else if (identidadExiste) {
-        return res.json({ ok: false, mensaje: "La identidad ya estÃ¡ registrada" });
+        return res.json({ ok: false, mensaje: "La identidad ya está registrada" });
       }
     }
 
-    // Si no hay duplicados, hashear la contraseÃ±a e insertar el nuevo usuario
+    // Si no hay duplicados, hashear la contraseña e insertar el nuevo usuario
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     
@@ -562,7 +404,7 @@ app.post("/registrar", (req, res) => {
         return res.json({ ok: false, mensaje: "Error al registrar usuario" });
       }
 
-      res.json({ ok: true, mensaje: "Usuario registrado con Ã©xito" });
+      res.json({ ok: true, mensaje: "Usuario registrado con éxito" });
     });
   });
 });
@@ -577,7 +419,7 @@ app.post("/registraradm", verificarRol(['administrador']), async (req, res) => {
   const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
   const correoNormalizado = String(email || '').trim().toLowerCase();
 
-  // ValidaciÃ³n bÃ¡sica
+  // Validación básica
   if (!nombres || !apellidos || !identidad || !telefono || !email || !password || !rol) {
     return res.status(400).json({ error: "Todos los campos son obligatorios." });
   }
@@ -586,7 +428,7 @@ app.post("/registraradm", verificarRol(['administrador']), async (req, res) => {
     return res.status(400).json({ error: "El correo no pertenece a un dominio permitido." });
   }
 
-  // Hashear la contraseÃ±a antes de insertar
+  // Hashear la contraseña antes de insertar
   const saltRounds = 10;
   const hashedPassword = await bcrypt.hash(password, saltRounds);
 
@@ -603,7 +445,7 @@ db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashe
     //console.error("Error SQL completo:", err); // <-- imprime todo
     return res.status(500).json({ error: "Error al registrar usuario en la base de datos.", detalle: err.message });
   }
-  res.status(200).json({ mensaje: "Usuario registrado con Ã©xito." });
+  res.status(200).json({ mensaje: "Usuario registrado con éxito." });
 });
 
 });
@@ -705,7 +547,7 @@ app.post('/inventario', (req, res) => {
   if (id) {
     // Modo actualizar stock existente
     if (isNaN(cantidadNum)) {
-      return res.status(400).json({ mensaje: 'Cantidad debe ser un nÃºmero vÃ¡lido' });
+      return res.status(400).json({ mensaje: 'Cantidad debe ser un número válido' });
     }
     if (cantidadNum < 1) {
       return res.status(400).json({ mensaje: 'Cantidad debe ser mayor a 0' });
@@ -760,124 +602,90 @@ app.get('/inventario', (req, res) => {
 });
 
 const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 
-let tokens = {}; // tokens de recuperaciÃ³n de contraseÃ±a
-let authTokens = {}; // tokens de autenticaciÃ³n de sesiÃ³n
+let tokens = {}; // tokens de recuperación de contraseña
+let authTokens = {}; // tokens de autenticación de sesión
 
 
 // 1?? Enviar token
 app.post("/enviar-token", (req, res) => {
   const { correo } = req.body;
-  const correoNormalizado = String(correo || "").trim().toLowerCase();
-  const allowDevRecovery = String(process.env.ALLOW_DEV_RECOVERY || "").toLowerCase() === "true";
-
-  if (!correoNormalizado) {
-    return res.json({ ok: false, message: "Correo requerido" });
-  }
+  if (!correo) return res.json({ ok: false, message: "Correo requerido" });
 
   const sql = "SELECT * FROM usuarios WHERE email = ?";
-  db.query(sql, [correoNormalizado], async (err, results) => {
-    if (err) return res.json({ ok: false, message: "Error DB" });
-    if (results.length === 0) {
+  db.query(sql, [correo], async (err, results) => {
+    if (err) return res.json({ ok: false, message: "Error DB"});
+    if (results.length === 0)
       return res.json({ ok: false, message: "No existe una cuenta con ese correo" });
-    }
 
     const token = crypto.randomBytes(4).toString("hex");
-    tokens[correoNormalizado] = { token, expires: Date.now() + 15 * 60 * 1000 }; // 15 min
+    tokens[correo] = { token, expires: Date.now() + 15 * 60 * 1000 }; // 15 min
 
-    if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-      if (!allowDevRecovery) {
-        return res.json({
-          ok: false,
-          message: "SMTP no configurado. Define MAIL_USER y MAIL_PASS en el servidor."
-        });
-      }
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+    });
 
-      console.warn("MAIL_USER / MAIL_PASS no configurados. Token de recuperacion para pruebas:", token);
-      return res.json({
-        ok: true,
-        message: "Codigo generado en modo local. Revisa la consola del servidor.",
-        devToken: token
-      });
-    }
+   
 
-    try {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
-      });
 
-      await transporter.sendMail({
-        from: `"SISCOM" <${process.env.MAIL_USER}>`,
-        to: correoNormalizado,
-        subject: "Recuperacion de contrasena",
-        html: `
-          <p>Tu codigo de verificacion es:</p>
-          <h3>${token}</h3>
-          <p>El codigo expira en 15 minutos.</p>
-        `,
-      });
 
-      return res.json({ ok: true, message: "Correo de verificacion enviado" });
-    } catch (mailErr) {
-      console.error("Error al enviar correo de recuperacion:", mailErr.message || mailErr);
 
-      if (!allowDevRecovery) {
-        return res.json({
-          ok: false,
-          message: "No se pudo enviar el correo de verificacion",
-          mailError: String(mailErr?.message || "Error SMTP")
-        });
-      }
+    await transporter.sendMail({
+      from: `"SISCOM" <${process.env.MAIL_USER}>`,
+      to: correo,
+      subject: "Recuperación de contraseña",
+      html: `
+        <p>Tu código de verificación es:</p>
+        <h3>${token}</h3>
+        <p>O haz clic aquí para continuar:</p>
+    
+        <p>El código expira en 15 minutos.</p>
+      `,
+    });
 
-      console.warn("Usando modo local de recuperacion. Codigo:", token);
-      return res.json({
-        ok: true,
-        message: "No se pudo enviar el correo. Usa el codigo mostrado para continuar.",
-        devToken: token,
-        mailError: String(mailErr?.message || "Error SMTP")
-      });
-    }
+    res.json({ ok: true, message: "Correo de verificación enviado" });
   });
 });
 
 // 2?? Verificar token
 app.post("/verificar-token", (req, res) => {
   const { correo, tokenIngresado } = req.body;
-  const correoNormalizado = String(correo || "").trim().toLowerCase();
-  const record = tokens[correoNormalizado];
+  const record = tokens[correo];
 
   if (!record) return res.json({ ok: false, message: "Token no encontrado" });
-  if (Date.now() > record.expires) return res.json({ ok: false, message: "Token expirado" });
-  if (record.token !== tokenIngresado) return res.json({ ok: false, message: "Token incorrecto" });
+  if (Date.now() > record.expires)
+    return res.json({ ok: false, message: "Token expirado" });
+  if (record.token !== tokenIngresado)
+    return res.json({ ok: false, message: "Token incorrecto" });
 
-  return res.json({ ok: true, message: "Token verificado" });
+  res.json({ ok: true, message: "Token verificado" });
 });
 
-// 3?? Actualizar contrasena
+// 3?? Actualizar contraseña
 app.post("/actualizar-password", async (req, res) => {
   const { correo, nuevaPassword } = req.body;
-  const correoNormalizado = String(correo || "").trim().toLowerCase();
-  const allowDevRecovery = String(process.env.ALLOW_DEV_RECOVERY || "").toLowerCase() === "true";
-
-  if (!correoNormalizado || !nuevaPassword) {
+  if (!correo || !nuevaPassword)
     return res.json({ ok: false, message: "Datos incompletos" });
-  }
 
+  // Hashear la nueva contraseña
   const saltRounds = 10;
   const hashedPassword = await bcrypt.hash(nuevaPassword, saltRounds);
 
   const sql = "UPDATE usuarios SET password = ? WHERE email = ?";
-  db.query(sql, [hashedPassword, correoNormalizado], (err) => {
-    if (err) return res.json({ ok: false, message: "Error al actualizar" });
+  db.query(sql, [hashedPassword, correo], (err, result) => {
 
-    delete tokens[correoNormalizado];
-    return res.json({ ok: true, message: "Contrasena actualizada correctamente" });
+    if (err) return res.json({ ok: false, message: "Error al actualizar" });
+    delete tokens[correo]; // limpiar token
+    res.json({ ok: true, message: "Contraseña actualizada correctamente" });
   });
 });
 
+
+
 // ============================================
-// RUTAS DE FICHA MÃ‰DICA
+// RUTAS DE FICHA MÉDICA
 // ============================================
 
 app.post('/guardarFichaMedica', (req, res) => {
@@ -912,12 +720,12 @@ app.post('/guardarFichaMedica', (req, res) => {
       });
     }
 
-    res.json({ mensaje: 'Ficha mÃ©dica guardada correctamente en la base de datos' });
+    res.json({ mensaje: 'Ficha médica guardada correctamente en la base de datos' });
   });
 });
 
 // ============================================
-// RUTAS DE CITAS MÃ‰DICAS
+// RUTAS DE CITAS MÉDICAS
 // ============================================
 
 app.post('/guardarCita', (req, res) => {
@@ -963,7 +771,7 @@ app.post('/guardarCita', (req, res) => {
     if (err) {
       console.error('=== ERROR AL GUARDAR CITA ===');
       console.error('Error SQL:', err);
-      console.error('CÃ³digo de error:', err.code);
+      console.error('Código de error:', err.code);
       console.error('Mensaje de error:', err.message);
       console.error('SQL State:', err.sqlState);
       console.error('Datos recibidos:', { id_paciente, fecha_hora, motivo, anticipacion_min, doctor, especialidad, ubicacion, estado, notas });
@@ -1061,7 +869,7 @@ app.delete('/eliminarCita/:id', (req, res) => {
   db.query(sql, [id], (err, result) => {
     if (err) {
       console.error('Error SQL al eliminar cita:', err);
-      console.error('CÃ³digo de error:', err.code);
+      console.error('Código de error:', err.code);
       console.error('Mensaje de error:', err.message);
       return res.status(500).json({ 
         mensaje: 'Error al eliminar la cita.', 
@@ -1069,7 +877,7 @@ app.delete('/eliminarCita/:id', (req, res) => {
         code: err.code 
       });
     }
-    console.log('Resultado de la eliminaciÃ³n:', result);
+    console.log('Resultado de la eliminación:', result);
     console.log('Filas afectadas:', result.affectedRows);
     res.status(200).json({ mensaje: 'Cita eliminada correctamente.' });
   });
@@ -1188,10 +996,10 @@ app.post('/guardarChecklist', (req, res) => {
 
   db.query(sql, [paciente_id, fecha, medicamento_id, medicamento_nombre, tomado, hora_toma, actor], (err) => {
     if (err) {
-     // console.error('Error al guardar confirmaciÃ³n:', err);
+     // console.error('Error al guardar confirmación:', err);
       return res.status(500).json({ mensaje: 'Error al guardar' });
     }
-    res.json({ mensaje: 'ConfirmaciÃ³n guardada' });
+    res.json({ mensaje: 'Confirmación guardada' });
   });
 });
 
@@ -1205,7 +1013,7 @@ app.delete('/eliminarChecklist/:paciente_id/:fecha/:medicamento_id', (req, res) 
     //  console.error('Error al eliminar:', err);
       return res.status(500).json({ mensaje: 'Error al eliminar' });
     }
-    res.json({ mensaje: 'ConfirmaciÃ³n eliminada' });
+    res.json({ mensaje: 'Confirmación eliminada' });
   });
 });
 
@@ -1216,10 +1024,10 @@ app.delete('/limpiarDiaChecklist/:paciente_id/:fecha', (req, res) => {
   
   db.query(sql, [paciente_id, fecha], (err) => {
     if (err) {
-      //console.error('Error al limpiar dÃ­a:', err);
+      //console.error('Error al limpiar día:', err);
       return res.status(500).json({ mensaje: 'Error al limpiar' });
     }
-    res.json({ mensaje: 'DÃ­a limpiado correctamente' });
+    res.json({ mensaje: 'Día limpiado correctamente' });
   });
 });
 
@@ -1361,7 +1169,7 @@ app.delete('/eliminarTodosPedidos', verificarRol(['administrador']), (req, res) 
 
 
 // ============================================
-// RUTAS DE RECETAS MÃ‰DICAS
+// RUTAS DE RECETAS MÉDICAS
 // ============================================
 
 app.post('/recetas', (req, res) => {
@@ -1389,7 +1197,7 @@ app.get('/recetas/:id_usuario', (req, res) => {
 
   const sql = 'SELECT * FROM recetas_medicas WHERE id_usuario = ? ORDER BY fecha_subida DESC';
   console.log('SQL Query:', sql);
-  console.log('ParÃ¡metros:', [id_usuario]);
+  console.log('Parámetros:', [id_usuario]);
   
   db.query(sql, [id_usuario], (err, results) => {
     if (err) {
@@ -1438,11 +1246,11 @@ app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
   const { id } = req.params;
   const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
   const correoNormalizado = String(email || '').trim().toLowerCase();
-  const passwordTexto = String(password || '').trim();
 
-  // Validacion basica (password opcional al editar)
-  if (!nombres || !apellidos || !identidad || !telefono || !email || !rol) {
-    return res.status(400).json({ mensaje: 'Todos los campos obligatorios deben completarse.' });
+
+  // Validación básica
+  if (!nombres || !apellidos || !identidad || !telefono || !email || !password || !rol) {
+    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios.' });
   }
 
   if (!esCorreoDominioPermitido(correoNormalizado)) {
@@ -1452,46 +1260,41 @@ app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
   // Verificar si el correo o identidad ya existen en otro usuario
   const verificarSql = "SELECT * FROM usuarios WHERE (email = ? OR identidad = ?) AND id != ?";
   db.query(verificarSql, [correoNormalizado, identidad, id], async (err, resultados) => {
+
     if (err) {
       console.error('Error al verificar duplicados:', err);
       return res.status(500).json({ mensaje: 'Error al verificar datos duplicados' });
     }
 
     if (resultados.length > 0) {
+      // Verificar cuál campo está duplicado
       const correoExiste = resultados.some((r) => String(r.email || '').toLowerCase() === correoNormalizado);
       const identidadExiste = resultados.some((r) => r.identidad === identidad);
 
       if (correoExiste && identidadExiste) {
-        return res.status(400).json({ mensaje: 'El correo y la identidad ya estan registrados en otro usuario' });
+        return res.status(400).json({ mensaje: 'El correo y la identidad ya están registrados en otro usuario' });
       } else if (correoExiste) {
-        return res.status(400).json({ mensaje: 'El correo ya esta registrado en otro usuario' });
+        return res.status(400).json({ mensaje: 'El correo ya está registrado en otro usuario' });
       } else if (identidadExiste) {
-        return res.status(400).json({ mensaje: 'La identidad ya esta registrada en otro usuario' });
+        return res.status(400).json({ mensaje: 'La identidad ya está registrada en otro usuario' });
       }
     }
 
-    // Construir UPDATE dinamico: password solo si se envio una nueva
-    const campos = ['nombres = ?', 'apellidos = ?', 'identidad = ?', 'telefono = ?', 'email = ?', 'rol = ?'];
-    const valores = [nombres, apellidos, identidad, telefono, correoNormalizado, rol];
+    // Si no hay duplicados, hashear la contraseña y actualizar el usuario
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    
+    const sql = 'UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ?, email = ?, password = ?, rol = ? WHERE id = ?';
+    db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashedPassword, rol, id], (err, result) => {
 
-    if (passwordTexto.length > 0) {
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(passwordTexto, saltRounds);
-      campos.push('password = ?');
-      valores.push(hashedPassword);
-    }
-
-    valores.push(id);
-
-    const sql = `UPDATE usuarios SET ${campos.join(', ')} WHERE id = ?`;
-    db.query(sql, valores, (err, result) => {
       if (err) {
         console.error('Error al actualizar usuario:', err);
+        // Proporcionar mensaje más específico según el tipo de error
         if (err.code === 'ER_DUP_ENTRY') {
           if (err.message.includes('email')) {
-            return res.status(400).json({ mensaje: 'El correo electronico ya esta registrado' });
+            return res.status(400).json({ mensaje: 'El correo electrónico ya está registrado' });
           } else if (err.message.includes('identidad')) {
-            return res.status(400).json({ mensaje: 'La identidad ya esta registrada' });
+            return res.status(400).json({ mensaje: 'La identidad ya está registrada' });
           }
           return res.status(400).json({ mensaje: 'Ya existe un registro con estos datos' });
         }
@@ -1507,103 +1310,11 @@ app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
   });
 });
 
-// Obtener perfil del paciente autenticado
-app.get('/mi-perfil', verificarRol(['usuario']), (req, res) => {
-  const sql = 'SELECT id, nombres, apellidos, identidad, telefono, email, rol FROM usuarios WHERE id = ? LIMIT 1';
-  db.query(sql, [req.user.id], (err, results) => {
-    if (err) {
-      return res.status(500).json({ mensaje: 'Error al cargar tu perfil' });
-    }
-
-    if (!results.length) {
-      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
-    }
-
-    return res.json({ usuario: results[0] });
-  });
-});
-
-// Actualizar perfil del paciente autenticado
-app.put('/mi-perfil', verificarRol(['usuario']), (req, res) => {
-  const { nombres, apellidos, identidad, telefono, email } = req.body || {};
-
-  const nombresTxt = String(nombres || '').trim();
-  const apellidosTxt = String(apellidos || '').trim();
-  const identidadTxt = String(identidad || '').replace(/\D/g, '');
-  const telefonoTxt = String(telefono || '').replace(/\D/g, '');
-  const correoNormalizado = String(email || '').trim().toLowerCase();
-
-  if (!nombresTxt || !apellidosTxt || !identidadTxt || !telefonoTxt || !correoNormalizado) {
-    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios.' });
-  }
-
-  if (!/^\d{13}$/.test(identidadTxt)) {
-    return res.status(400).json({ mensaje: 'La identidad debe contener 13 digitos.' });
-  }
-
-  if (!/^\d{8}$/.test(telefonoTxt)) {
-    return res.status(400).json({ mensaje: 'El telefono debe contener 8 digitos.' });
-  }
-
-  if (!esCorreoDominioPermitido(correoNormalizado)) {
-    return res.status(400).json({ mensaje: 'El correo no pertenece a un dominio permitido.' });
-  }
-
-  const sqlDuplicados = 'SELECT id, email, identidad FROM usuarios WHERE (email = ? OR identidad = ?) AND id != ?';
-  db.query(sqlDuplicados, [correoNormalizado, identidadTxt, req.user.id], (errDup, duplicados) => {
-    if (errDup) {
-      return res.status(500).json({ mensaje: 'Error al validar datos duplicados' });
-    }
-
-    if (Array.isArray(duplicados) && duplicados.length > 0) {
-      const correoExiste = duplicados.some((r) => String(r.email || '').toLowerCase() === correoNormalizado);
-      const identidadExiste = duplicados.some((r) => String(r.identidad || '') === identidadTxt);
-
-      if (correoExiste && identidadExiste) {
-        return res.status(400).json({ mensaje: 'El correo y la identidad ya estan registrados.' });
-      }
-      if (correoExiste) {
-        return res.status(400).json({ mensaje: 'El correo ya esta registrado.' });
-      }
-      if (identidadExiste) {
-        return res.status(400).json({ mensaje: 'La identidad ya esta registrada.' });
-      }
-    }
-
-    const sqlUpdate = 'UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ?, email = ? WHERE id = ?';
-    db.query(sqlUpdate, [nombresTxt, apellidosTxt, identidadTxt, telefonoTxt, correoNormalizado, req.user.id], (errUpd) => {
-      if (errUpd) {
-        return res.status(500).json({ mensaje: 'Error al actualizar tu perfil' });
-      }
-
-      const sqlUsuario = 'SELECT id, nombres, apellidos, identidad, telefono, email, rol FROM usuarios WHERE id = ? LIMIT 1';
-      db.query(sqlUsuario, [req.user.id], (errUser, users) => {
-        if (errUser) {
-          return res.status(500).json({ mensaje: 'Perfil actualizado, pero no se pudo recargar la informacion.' });
-        }
-
-        return res.json({
-          mensaje: 'Datos actualizados correctamente.',
-          usuario: users && users[0] ? users[0] : {
-            id: req.user.id,
-            nombres: nombresTxt,
-            apellidos: apellidosTxt,
-            identidad: identidadTxt,
-            telefono: telefonoTxt,
-            email: correoNormalizado,
-            rol: 'usuario'
-          }
-        });
-      });
-    });
-  });
-});
-
 // Eliminar usuario - Solo administrador
 app.delete('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
   const { id } = req.params;
   
-  // Evitar que un administrador se elimine a sÃ­ mismo
+  // Evitar que un administrador se elimine a sí mismo
   if (parseInt(id) === req.user.id) {
     return res.status(400).json({ mensaje: 'No puedes eliminar tu propio usuario' });
   }
@@ -1757,7 +1468,7 @@ app.get('/alertasOmisiones', (req, res) => {
 // RUTAS DE HORARIOS PERSONALIZADOS DE MEDICAMENTOS
 // ============================================
 
-// FunciÃ³n auxiliar para parsear dÃ­as de la semana (soporta JSON o texto separado por comas)
+// Función auxiliar para parsear días de la semana (soporta JSON o texto separado por comas)
 function parseDiasSemana(diasSemanaRaw) {
   if (!diasSemanaRaw) {
     return ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
@@ -1786,7 +1497,7 @@ function parseDiasSemana(diasSemanaRaw) {
   return ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 }
 
-// Obtener horarios de un medicamento especÃ­fico
+// Obtener horarios de un medicamento específico
 
 app.get('/horarios/:id_receta', (req, res) => {
   const { id_receta } = req.params;
@@ -1810,7 +1521,7 @@ app.get('/horarios/:id_receta', (req, res) => {
       return res.status(500).json({ mensaje: 'Error al cargar horarios', error: err.message });
     }
     
-    // Si no hay configuraciÃ³n, devolver estructura vacÃ­a
+    // Si no hay configuración, devolver estructura vacía
     if (results.length === 0) {
       return res.json({
         horarios: [],
@@ -1823,7 +1534,7 @@ app.get('/horarios/:id_receta', (req, res) => {
       });
     }
 
-    // Extraer configuraciÃ³n del primer resultado
+    // Extraer configuración del primer resultado
     const configuracion = {
       notificaciones_activas: results[0].notificaciones_activas !== null ? results[0].notificaciones_activas : true,
       minutos_anticipacion: results[0].minutos_anticipacion || 15,
@@ -1832,7 +1543,7 @@ app.get('/horarios/:id_receta', (req, res) => {
     };
 
 
-    // Limpiar campos de configuraciÃ³n de los horarios
+    // Limpiar campos de configuración de los horarios
     const horarios = results.map(h => ({
       id: h.id,
       id_receta: h.id_receta,
@@ -1861,17 +1572,17 @@ app.post('/horarios', (req, res) => {
     return res.status(400).json({ mensaje: 'Datos incompletos. Se requiere id_receta, id_usuario y horarios (array)' });
   }
 
-  // Validar que los horarios no estÃ©n vacÃ­os
+  // Validar que los horarios no estén vacíos
   if (horarios.length === 0) {
-    console.log('Error: Horarios vacÃ­os');
+    console.log('Error: Horarios vacíos');
     return res.status(400).json({ mensaje: 'Debe proporcionar al menos un horario' });
   }
 
   // Validar formato de horarios
   for (const hora of horarios) {
     if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/.test(hora)) {
-      console.log('Error: Formato de hora invÃ¡lido:', hora);
-      return res.status(400).json({ mensaje: `Formato de hora invÃ¡lido: ${hora}. Use HH:MM o HH:MM:SS` });
+      console.log('Error: Formato de hora inválido:', hora);
+      return res.status(400).json({ mensaje: `Formato de hora inválido: ${hora}. Use HH:MM o HH:MM:SS` });
     }
   }
 
@@ -2230,7 +1941,7 @@ app.post('/asignaciones-cuidador/:cuidadorId', verificarRol(['administrador']), 
     : [];
 
   if (!Number.isInteger(cuidadorIdNum) || cuidadorIdNum <= 0) {
-    return res.status(400).json({ mensaje: 'Cuidador invÃ¡lido' });
+    return res.status(400).json({ mensaje: 'Cuidador inválido' });
   }
 
   const sqlValidarCuidador = "SELECT id FROM usuarios WHERE id = ? AND rol = 'empleado' LIMIT 1";
@@ -2314,7 +2025,7 @@ app.get('/mi-cuidador', verificarRol(['usuario']), (req, res) => {
 });
 
 // ============================================
-// RUTAS DE ESTADÃSTICAS (HU-27 / HU-42)
+// RUTAS DE ESTADÍSTICAS (HU-27 / HU-42)
 // ============================================
 
 function queryAsync(sql, params = []) {
@@ -2357,7 +2068,7 @@ function construirResumenSemanal(porcentaje, totalTomados, totalProgramados) {
   return 'Adherencia baja. Se recomienda revisar el plan de tratamiento y recordatorios.';
 }
 
-// Lista simple de pacientes para el selector de estadÃ­sticas
+// Lista simple de pacientes para el selector de estadísticas
 app.get('/pacientes', async (req, res) => {
   try {
     const pacientes = await queryAsync(`
@@ -2372,16 +2083,16 @@ app.get('/pacientes', async (req, res) => {
 
     res.json(pacientes);
   } catch (error) {
-    console.error('Error al cargar pacientes para estadÃ­sticas:', error);
+    console.error('Error al cargar pacientes para estadísticas:', error);
     res.status(500).json({ mensaje: 'Error al cargar pacientes' });
   }
 });
 
-// EstadÃ­sticas individuales por paciente
+// Estadísticas individuales por paciente
 app.get('/estadisticas/paciente/:id_paciente', async (req, res) => {
   const idPaciente = parseInt(req.params.id_paciente, 10);
   if (!Number.isInteger(idPaciente) || idPaciente <= 0) {
-    return res.status(400).json({ mensaje: 'Paciente invÃ¡lido' });
+    return res.status(400).json({ mensaje: 'Paciente inválido' });
   }
 
   try {
@@ -2472,18 +2183,18 @@ app.get('/estadisticas/paciente/:id_paciente', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error al obtener estadÃ­sticas del paciente:', error);
-    res.status(500).json({ mensaje: 'Error al obtener estadÃ­sticas del paciente' });
+    console.error('Error al obtener estadísticas del paciente:', error);
+    res.status(500).json({ mensaje: 'Error al obtener estadísticas del paciente' });
   }
 });
 
-// ComparaciÃ³n entre pacientes
+// Comparación entre pacientes
 app.get('/estadisticas/comparar', async (req, res) => {
   const idsRaw = String(req.query.ids || '');
   const ids = [...new Set(idsRaw.split(',').map((id) => parseInt(id, 10)).filter((id) => Number.isInteger(id) && id > 0))];
 
   if (!ids.length) {
-    return res.status(400).json({ mensaje: 'Debe enviar IDs vÃ¡lidos para comparar' });
+    return res.status(400).json({ mensaje: 'Debe enviar IDs válidos para comparar' });
   }
 
   try {
@@ -2520,8 +2231,8 @@ app.get('/estadisticas/comparar', async (req, res) => {
         .reduce((acc, row) => acc + Number(row.total || 0), 0);
 
       let nivelMax = null;
-      if (condRows.some((c) => String(c.nivel || '').toLowerCase() === 'crÃ­tica' || String(c.nivel || '').toLowerCase() === 'critica')) {
-        nivelMax = 'CrÃ­tica';
+      if (condRows.some((c) => String(c.nivel || '').toLowerCase() === 'crítica' || String(c.nivel || '').toLowerCase() === 'critica')) {
+        nivelMax = 'Crítica';
       } else if (condRows.some((c) => String(c.nivel || '').toLowerCase() === 'moderada')) {
         nivelMax = 'Moderada';
       } else if (condRows.length > 0) {
@@ -2548,24 +2259,16 @@ app.get('/estadisticas/comparar', async (req, res) => {
   }
 });
 
-function formatLocalDateYMD(dateInput) {
-  const date = dateInput instanceof Date ? new Date(dateInput) : new Date(dateInput);
-  if (Number.isNaN(date.getTime())) return '';
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 // Reporte semanal por paciente (lunes a domingo)
 app.get('/reporte-semanal/:id_paciente', async (req, res) => {
   const idPaciente = parseInt(req.params.id_paciente, 10);
   if (!Number.isInteger(idPaciente) || idPaciente <= 0) {
-    return res.status(400).json({ mensaje: 'Paciente invÃ¡lido' });
+    return res.status(400).json({ mensaje: 'Paciente inválido' });
   }
 
   const fechaInicio = String(req.query.fecha_inicio || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaInicio)) {
-    return res.status(400).json({ mensaje: 'fecha_inicio invÃ¡lida. Use formato YYYY-MM-DD' });
+    return res.status(400).json({ mensaje: 'fecha_inicio inválida. Use formato YYYY-MM-DD' });
   }
 
   try {
@@ -2585,7 +2288,7 @@ app.get('/reporte-semanal/:id_paciente', async (req, res) => {
     const inicio = new Date(`${fechaInicio}T00:00:00`);
     const fin = new Date(inicio);
     fin.setDate(fin.getDate() + 6);
-    const fechaFin = formatLocalDateYMD(fin);
+    const fechaFin = fin.toISOString().slice(0, 10);
 
     const tomas = await queryAsync(`
       SELECT
@@ -2605,12 +2308,12 @@ app.get('/reporte-semanal/:id_paciente', async (req, res) => {
     for (let i = 0; i < 7; i++) {
       const d = new Date(inicio);
       d.setDate(inicio.getDate() + i);
-      const key = formatLocalDateYMD(d);
+      const key = d.toISOString().slice(0, 10);
       porFecha[key] = { programados: 0, tomados: 0, detalle: [] };
     }
 
     tomas.forEach((toma) => {
-      const key = formatLocalDateYMD(toma.fecha);
+      const key = new Date(toma.fecha).toISOString().slice(0, 10);
       if (!porFecha[key]) return;
 
       porFecha[key].programados += 1;
@@ -2670,10 +2373,10 @@ app.get('/test', (req, res) => {
 });
 
 // ============================================
-// RUTA DE MIGRACIÃ“N - Actualizar tabla citas
+// RUTA DE MIGRACIÓN - Actualizar tabla citas
 // ============================================
 app.get('/migrar-citas', (req, res) => {
-  // Primero verificar quÃ© columnas existen
+  // Primero verificar qué columnas existen
   const checkColumnsSql = `
     SELECT COLUMN_NAME 
     FROM INFORMATION_SCHEMA.COLUMNS 
@@ -2703,9 +2406,9 @@ app.get('/migrar-citas', (req, res) => {
 
     if (columnsToAdd.length === 0) {
       return res.json({ 
-        mensaje: 'âœ… Todas las columnas ya existen en la tabla citas',
+        mensaje: '? Todas las columnas ya existen en la tabla citas',
         columnas_agregadas: 0,
-        nota: 'No se requiere ninguna migraciÃ³n'
+        nota: 'No se requiere ninguna migración'
       });
     }
 
@@ -2723,7 +2426,7 @@ app.get('/migrar-citas', (req, res) => {
           console.error(`Error al agregar columna ${column.name}:`, err.message);
           errors.push({ columna: column.name, error: err.message });
         } else {
-          console.log(`âœ… Columna '${column.name}' agregada correctamente`);
+          console.log(`? Columna '${column.name}' agregada correctamente`);
           added.push(column.name);
         }
 
@@ -2731,14 +2434,14 @@ app.get('/migrar-citas', (req, res) => {
         if (completed === columnsToAdd.length) {
           if (errors.length === 0) {
             res.json({ 
-              mensaje: 'âœ… MigraciÃ³n completada exitosamente', 
+              mensaje: '? Migración completada exitosamente', 
               columnas_agregadas: added.length,
               columnas: added,
               nota: 'La tabla citas ahora tiene todas las columnas necesarias'
             });
           } else {
             res.status(500).json({ 
-              mensaje: 'âš ï¸ MigraciÃ³n completada con algunos errores', 
+              mensaje: '?? Migración completada con algunos errores', 
               columnas_agregadas: added.length,
               columnas: added,
               errores: errors,
@@ -2756,7 +2459,7 @@ app.get('/migrar-citas', (req, res) => {
 // RUTA PARA ELIMINAR FOREIGN KEY CONSTRAINT
 // ============================================
 app.get('/fix-citas-foreign-key', (req, res) => {
-  // Obtener informaciÃ³n sobre las foreign keys de la tabla citas
+  // Obtener información sobre las foreign keys de la tabla citas
   const getFkSql = `
     SELECT CONSTRAINT_NAME 
     FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
@@ -2776,8 +2479,8 @@ app.get('/fix-citas-foreign-key', (req, res) => {
 
     if (constraints.length === 0) {
       return res.json({ 
-        mensaje: 'âœ… No hay foreign key constraints que eliminar',
-        nota: 'La tabla citas ya permite guardar citas sin validaciÃ³n de paciente'
+        mensaje: '? No hay foreign key constraints que eliminar',
+        nota: 'La tabla citas ya permite guardar citas sin validación de paciente'
       });
     }
 
@@ -2797,7 +2500,7 @@ app.get('/fix-citas-foreign-key', (req, res) => {
           console.error(`Error al eliminar constraint ${constraint.CONSTRAINT_NAME}:`, err.message);
           errors.push({ constraint: constraint.CONSTRAINT_NAME, error: err.message });
         } else {
-          console.log(`âœ… Foreign key '${constraint.CONSTRAINT_NAME}' eliminada correctamente`);
+          console.log(`? Foreign key '${constraint.CONSTRAINT_NAME}' eliminada correctamente`);
           removed.push(constraint.CONSTRAINT_NAME);
         }
 
@@ -2805,18 +2508,18 @@ app.get('/fix-citas-foreign-key', (req, res) => {
         if (completed === constraints.length) {
           if (errors.length === 0) {
             res.json({ 
-              mensaje: 'âœ… Restricciones eliminadas exitosamente', 
+              mensaje: '? Restricciones eliminadas exitosamente', 
               constraints_eliminadas: removed.length,
               constraints: removed,
               nota: 'Ahora puedes guardar citas sin necesidad de que el paciente exista previamente'
             });
           } else {
             res.status(500).json({ 
-              mensaje: 'âš ï¸ Algunas restricciones no pudieron eliminarse', 
+              mensaje: '?? Algunas restricciones no pudieron eliminarse', 
               constraints_eliminadas: removed.length,
               constraints: removed,
               errores: errors,
-              nota: 'Revisa los errores para mÃ¡s detalles'
+              nota: 'Revisa los errores para más detalles'
             });
           }
         }
@@ -2834,15 +2537,6 @@ app.listen(3000, () => {
   console.log('Servidor corriendo en http://localhost:3000');
   console.log('CORS habilitado para todas las solicitudes');
 });
-
-
-
-
-
-
-
-
-
 
 
 

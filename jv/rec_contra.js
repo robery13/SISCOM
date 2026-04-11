@@ -48,9 +48,14 @@ document.addEventListener("DOMContentLoaded", () => {
           correoGlobal = correo;
           formCorreo.style.display = "none";
           formToken.style.display = "flex";
-          showMessage("Código enviado a tu correo", "green");
+          if (data.devToken) {
+            showMessage(`Código generado (modo local): ${data.devToken}`, "green");
+          } else {
+            showMessage("Código enviado a tu correo", "green");
+          }
         } else {
-          showMessage(data.message);
+          const detalle = data.mailError ? `${data.message} (${data.mailError})` : data.message;
+          showMessage(detalle);
         }
       } catch (err) {
        // console.error("Error fetch enviar-token:", err);
@@ -124,7 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
           showMessage("Contraseña actualizada. Redirigiendo al login...", "green");
        
             setTimeout(() => {
-    window.location.href = "index.html";
+    window.location.href = "../index.html";
 
 
           }, 2000);

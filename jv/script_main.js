@@ -172,7 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
-        const respuesta = await fetch("http://localhost:3000/login", {
+        const respuesta = await fetch(`${API_URL}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: correo, password: contra, rememberMe: rememberMe })
@@ -288,9 +288,205 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ================== RECUPERAR CONTRASEÑA ==================
 const API_URL = "http://localhost:3000";
+const GOOGLE_CLIENT_ID_FALLBACK = "635878229812-0s9plecinj5aoufagei6rl0dk0bl1998.apps.googleusercontent.com";
+let googleInitIntentos = 0;
+
+function guardarSesionGoogle(data, rememberMe) {
+  if (data.usuario) {
+    localStorage.setItem('usuario', JSON.stringify(data.usuario));
+  }
+
+  if (!data.token) return;
+
+  if (rememberMe) {
+    localStorage.setItem('auth_token', data.token);
+    localStorage.setItem('remember_me', 'true');
+    localStorage.setItem('session_start', Date.now().toString());
+  } else {
+    sessionStorage.setItem('auth_token', data.token);
+    localStorage.setItem('remember_me', 'false');
+  }
+}
+
+function redirigirPorRolGoogle(usuario) {
+  if (!usuario || !usuario.rol) {
+    showToast("No se pudo obtener el rol del usuario.", "error");
+    return;
+  }
+
+  const rol = String(usuario.rol).toLowerCase();
+  if (rol === 'usuario') {
+    window.location.href = "../Management-Frontend/main_paciente.html";
+  } else if (rol === 'empleado') {
+    window.location.href = "../Management-Backend/cuidador_backend.html";
+  } else if (rol === 'administrador') {
+    window.location.href = "../Management-Backend/Admin_Backend.html";
+  } else {
+    showToast("Rol de usuario no reconocido.", "error");
+  }
+}
+
+function obtenerDatosRegistroGoogle() {
+  return {
+    nombres: document.getElementById("nombres")?.value?.trim() || "",
+    apellidos: document.getElementById("apellidos")?.value?.trim() || "",
+    identidad: document.getElementById("identidad")?.value?.trim() || "",
+    telefono: document.getElementById("telefono")?.value?.trim() || ""
+  };
+}
+
+function limpiarMensajesCamposGoogle() {
+  const identidadInput = document.getElementById("identidad");
+  const telefonoInput = document.getElementById("telefono");
+  if (identidadInput) identidadInput.setCustomValidity("");
+  if (telefonoInput) telefonoInput.setCustomValidity("");
+}
+
+function validarCamposGoogleRegistro(datos) {
+  const identidadInput = document.getElementById("identidad");
+  const telefonoInput = document.getElementById("telefono");
+
+  const identidadLimpia = String(datos.identidad || "").replace(/\D/g, "");
+  const telefonoLimpio = String(datos.telefono || "").replace(/\D/g, "");
+
+  const identidadValida = /^\d{13}$/.test(identidadLimpia);
+  const telefonoValido = /^\d{8}$/.test(telefonoLimpio);
+
+  if (identidadInput) {
+    identidadInput.setCustomValidity(identidadValida ? "" : "Para Google, completa identidad con 13 digitos.");
+  }
+
+  if (telefonoInput) {
+    telefonoInput.setCustomValidity(telefonoValido ? "" : "Para Google, completa telefono con 8 digitos.");
+  }
+
+  if (!identidadValida && identidadInput) {
+    identidadInput.reportValidity();
+    identidadInput.focus();
+    return false;
+  }
+
+  if (!telefonoValido && telefonoInput) {
+    telefonoInput.reportValidity();
+    telefonoInput.focus();
+    return false;
+  }
+
+  return true;
+}
+
+async function autenticarConGoogle(credentialResponse) {
+  const idToken = credentialResponse?.credential;
+  if (!idToken) {
+    showToast("No se pudo obtener credencial de Google.", "error");
+    return;
+  }
+
+  const rememberMe = document.getElementById("rememberMe")?.checked || false;
+  const datosRegistroGoogle = obtenerDatosRegistroGoogle();
+  const modalRegistroActivo = document.getElementById("modalRegistro")?.classList.contains("active");
+  const googleFlow = modalRegistroActivo ? "register" : "login";
+
+  // Solo exigir identidad/telefono cuando el flujo viene del formulario de registro
+  if (modalRegistroActivo) {
+    limpiarMensajesCamposGoogle();
+    if (!validarCamposGoogleRegistro(datosRegistroGoogle)) {
+      showToast("Para continuar con Google, completa los campos sugeridos.", "warning");
+      return;
+    }
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        idToken,
+        rememberMe,
+        googleFlow,
+        ...datosRegistroGoogle
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      showToast(data.mensaje || "No se pudo autenticar con Google.", "error");
+      return;
+    }
+
+    guardarSesionGoogle(data, rememberMe);
+    showToast(data.usuarioCreado ? "Cuenta creada con Google. Redirigiendo..." : "Inicio con Google exitoso. Redirigiendo...", "success");
+    setTimeout(() => redirigirPorRolGoogle(data.usuario), 1200);
+  } catch (error) {
+    showToast("Error de conexion con el servidor.", "error");
+  }
+}
+
+async function inicializarGoogleSignIn() {
+  const loginContainer = document.getElementById("googleLoginButton");
+  const registroContainer = document.getElementById("googleRegistroButton");
+  if (!loginContainer && !registroContainer) return;
+
+  if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+    if (googleInitIntentos < 12) {
+      googleInitIntentos += 1;
+      setTimeout(inicializarGoogleSignIn, 300);
+      return;
+    }
+
+    showToast("No se pudo cargar Google Sign-In.", "warning");
+    return;
+  }
+
+  googleInitIntentos = 0;
+
+  let clientId = GOOGLE_CLIENT_ID_FALLBACK;
+
+  try {
+    const res = await fetch(`${API_URL}/auth/config`);
+    const data = await res.json();
+    if (res.ok && data?.googleClientId) {
+      clientId = data.googleClientId;
+    }
+  } catch (error) {
+    // Si el backend no responde, usamos el client id de respaldo.
+  }
+
+  if (!clientId) {
+    showToast("No se encontro GOOGLE_CLIENT_ID para Google Sign-In.", "warning");
+    return;
+  }
+
+  window.google.accounts.id.initialize({
+    client_id: clientId,
+    callback: autenticarConGoogle
+  });
+
+  if (loginContainer) {
+    window.google.accounts.id.renderButton(loginContainer, {
+      theme: "outline",
+      size: "large",
+      text: "signin_with",
+      shape: "pill",
+      width: 300
+    });
+  }
+
+  if (registroContainer) {
+    window.google.accounts.id.renderButton(registroContainer, {
+      theme: "filled_blue",
+      size: "large",
+      text: "signup_with",
+      shape: "pill",
+      width: 300
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", inicializarGoogleSignIn);
 
 const linkForgot = document.querySelector(".forgot-link");
-const formLoginCard = document.querySelector("#formLogin").closest(".form-card");
+const formLoginCard = document.querySelector("#formLogin")?.closest(".form-card");
 
 const formRecuperar = document.getElementById("formRecuperar");
 const volverLogin = document.getElementById("volverLogin");
@@ -306,7 +502,7 @@ function showForm(form) {
 }
 
 // Mostrar formulario de recuperación
-if (linkForgot) {
+if (linkForgot && formRecuperar && formLoginCard && document.getElementById("formCorreo")) {
   linkForgot.addEventListener("click", (e) => {
     e.preventDefault();
     formLoginCard.style.display = "none";
@@ -497,7 +693,7 @@ if (formRegistro) {
     }
 
     if (!correoValido) {
-      showToast("Correo no valido o dominio no permitido. Usa: gmail.com, outlook.com, hotmail.com, live.com, yahoo.com, icloud.com, proton.me o protonmail.com.", "warning");
+      showToast("Correo invalido.", "warning");
       document.getElementById("emailRegistro").focus();
       return;
     }
@@ -514,7 +710,7 @@ if (formRegistro) {
     }
 
     try {
-      const res = await fetch("http://localhost:3000/registrar", {
+      const res = await fetch(`${API_URL}/registrar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nombres, apellidos, identidad, telefono, email: email.toLowerCase(), password })
@@ -522,7 +718,7 @@ if (formRegistro) {
 
       const data = await res.json();
       if (res.ok && data.ok) {
-        showToast("Registro exitoso", "success");
+        showToast("Registro exitoso. Ahora puedes iniciar sesion.", "success");
         formRegistro.reset();
         // Resetear validación visual de contraseña
         document.querySelectorAll(".requisito-item").forEach(item => {
@@ -530,6 +726,16 @@ if (formRegistro) {
           item.querySelector(".requisito-icono").textContent = "✗";
         });
         document.getElementById("passwordMatchMessage").style.display = "none";
+        // Abrir formulario de inicio de sesión tras registro exitoso
+        setTimeout(() => {
+          if (typeof cerrarModal === "function") cerrarModal("modalRegistro");
+          if (typeof abrirModal === "function") abrirModal("modalLogin");
+          const emailLogin = document.getElementById("emailLogin");
+          if (emailLogin) {
+            emailLogin.value = email.toLowerCase();
+            emailLogin.focus();
+          }
+        }, 1200);
       } else {  
         showToast(data.message || "Error en el registro", "error");
       }
@@ -539,6 +745,14 @@ if (formRegistro) {
     }
   });
 }
+
+
+
+
+
+
+
+
 
 
 
