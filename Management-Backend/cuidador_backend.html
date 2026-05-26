@@ -12,6 +12,70 @@
    <!-- Estilos propios -->
   <link rel="stylesheet" href="estilos.css?v=20260312-1" />
   <link rel="stylesheet" href="Estiloficha1.css" />
+  <style>
+    .ui-zoom-control {
+      display: inline-flex;
+      align-items: stretch;
+      border: 1px solid rgba(0, 0, 0, 0.18);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .ui-zoom-strip {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin: 0 0 1rem;
+      padding: 0.75rem 1rem;
+      background: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .ui-zoom-btn {
+      width: 42px;
+      height: 42px;
+      border: 0;
+      background: #f8f9fa;
+      color: #495057;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.15rem;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .ui-zoom-btn:hover:not(:disabled) {
+      background: #e9ecef;
+    }
+
+    .ui-zoom-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .ui-zoom-value {
+      min-width: 80px;
+      height: 42px;
+      padding: 0 14px;
+      border-inline: 1px solid rgba(0, 0, 0, 0.12);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #495057;
+      background: #fff;
+      user-select: none;
+    }
+
+    body {
+      padding: 0 !important;
+    }
+  </style>
 
 </head>
 <body>
@@ -59,6 +123,17 @@
 
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main">
+      <div class="ui-zoom-strip">
+        <div class="ui-zoom-control" id="uiZoomControl" role="group" aria-label="Tamaño de la interfaz">
+          <button type="button" class="ui-zoom-btn" id="zoomOutBtn" aria-label="Disminuir tamaño">
+            <i class="bi bi-dash-lg"></i>
+          </button>
+          <div class="ui-zoom-value" id="zoomValue">100%</div>
+          <button type="button" class="ui-zoom-btn" id="zoomInBtn" aria-label="Aumentar tamaño">
+            <i class="bi bi-plus-lg"></i>
+          </button>
+        </div>
+      </div>
       <div id="alertaSinPacientesCuidador" class="alert alert-warning d-none" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
         No tienes pacientes asignados por el administrador. Por ahora no veras datos en Citas, Historial, Verificacion y Estadisticas.
@@ -1173,6 +1248,41 @@
   <!-- Scripts propios -->
   <script src="scriptregistro.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const root = document.documentElement;
+      const zoomOutBtn = document.getElementById('zoomOutBtn');
+      const zoomInBtn = document.getElementById('zoomInBtn');
+      const zoomValue = document.getElementById('zoomValue');
+      const storageKey = 'cuidadorBackend_uiZoom';
+      const minZoom = 0.8;
+      const maxZoom = 1.3;
+      const zoomStep = 0.1;
+
+      if (!root || !zoomOutBtn || !zoomInBtn || !zoomValue) return;
+
+      function applyZoom(nextZoom) {
+        const zoom = Math.max(minZoom, Math.min(maxZoom, Math.round(nextZoom * 100) / 100));
+        root.style.setProperty('--ui-scale', String(zoom));
+        zoomValue.textContent = `${Math.round(zoom * 100)}%`;
+        zoomOutBtn.disabled = zoom <= minZoom;
+        zoomInBtn.disabled = zoom >= maxZoom;
+        localStorage.setItem(storageKey, String(zoom));
+      }
+
+      const savedZoom = parseFloat(localStorage.getItem(storageKey));
+      applyZoom(Number.isFinite(savedZoom) ? savedZoom : 1);
+
+      zoomOutBtn.addEventListener('click', () => {
+        applyZoom(parseFloat(getComputedStyle(root).getPropertyValue('--ui-scale')) - zoomStep);
+      });
+
+      zoomInBtn.addEventListener('click', () => {
+        applyZoom(parseFloat(getComputedStyle(root).getPropertyValue('--ui-scale')) + zoomStep);
+      });
+    });
+  </script>
 
   <script>
     function obtenerTokenCuidador() {

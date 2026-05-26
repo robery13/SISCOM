@@ -2564,13 +2564,13 @@ function mostrarToast(mensaje, tipo = 'info') {
     const correo = emailUsuario.value.trim();
 
     if (!esNombrePersonaValido(nombres)) {
-      mostrarToast("El campo nombres solo permite letras y espacios válidos.", "warning");
+      mostrarToast("El campo nombres solo permite letras y espacios validos.", "warning");
       nombresUsuario.focus();
       return;
     }
 
     if (!esNombrePersonaValido(apellidos)) {
-      mostrarToast("El campo apellidos solo permite letras y espacios válidos.", "warning");
+      mostrarToast("El campo apellidos solo permite letras y espacios validos.", "warning");
       apellidosUsuario.focus();
       return;
     }
