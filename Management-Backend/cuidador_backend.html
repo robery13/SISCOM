@@ -1366,7 +1366,7 @@
     }
 
     function obtenerPacientesCuidador() {
-      return fetch('http://localhost:3000/mis-pacientes', {
+      return fetch('https://siscom-4lbe.onrender.com/mis-pacientes', {
         headers: obtenerHeadersCuidador()
       });
     }
@@ -1722,7 +1722,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Cargar citas desde el servidor
       async function cargarCitas() {
         try {
-          const response = await fetch('http://localhost:3000/obtenerCitas', {
+          const response = await fetch('https://siscom-4lbe.onrender.com/obtenerCitas', {
             headers: obtenerHeadersCuidador()
           });
           if (!response.ok) throw new Error('Error al cargar citas');
@@ -1803,12 +1803,12 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         try {
-          let url = 'http://localhost:3000/guardarCita';
+          let url = 'https://siscom-4lbe.onrender.com/guardarCita';
           let method = 'POST';
 
           const idEdicion = Number(citaEditandoId || citaIdInput.value);
           if (modoEdicion && Number.isFinite(idEdicion) && idEdicion > 0) {
-            url = `http://localhost:3000/actualizarCita/${idEdicion}`;
+            url = `https://siscom-4lbe.onrender.com/actualizarCita/${idEdicion}`;
             method = 'PUT';
           }
 
@@ -1970,7 +1970,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           let cita = (citasGlobales || []).find((c) => String(obtenerIdCita(c)) === String(idNumerico));
           if (!cita) {
-            const response = await fetch('http://localhost:3000/obtenerCitas', {
+            const response = await fetch('https://siscom-4lbe.onrender.com/obtenerCitas', {
               headers: obtenerHeadersCuidador()
             });
             if (!response.ok) throw new Error('Error al cargar citas');
@@ -2031,7 +2031,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
           console.log('Eliminando cita con ID:', id);
-          const response = await fetch(`http://localhost:3000/eliminarCita/${id}`, {
+          const response = await fetch(`https://siscom-4lbe.onrender.com/eliminarCita/${id}`, {
             method: 'DELETE'
           });
 
@@ -2158,7 +2158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             
-            const response = await fetch('http://localhost:3000/eliminarTodasCitas', {
+            const response = await fetch('https://siscom-4lbe.onrender.com/eliminarTodasCitas', {
               method: 'DELETE',
               headers: headers
             });
@@ -2323,7 +2323,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!alertasContainer) return;
 
         try {
-          const response = await fetch('http://localhost:3000/alertasOmisiones');
+          const response = await fetch('https://siscom-4lbe.onrender.com/alertasOmisiones');
 
           if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
@@ -2382,7 +2382,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       async function cargarPacientes() {
         try {
-          console.log('Obteniendo pacientes de http://localhost:3000/usuarios/rol/usuario');
+          console.log('Obteniendo pacientes de https://siscom-4lbe.onrender.com/usuarios/rol/usuario');
           const response = await obtenerPacientesCuidador();
           
           if (!response.ok) {
@@ -2421,8 +2421,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
           // Obtener tomas del día y
-          console.log(`Consultando tomas: http://localhost:3000/tomas/${pacienteId}/${fecha}`);
-          const tomasResponse = await fetch(`http://localhost:3000/tomas/${pacienteId}/${fecha}`);
+          console.log(`Consultando tomas: https://siscom-4lbe.onrender.com/tomas/${pacienteId}/${fecha}`);
+          const tomasResponse = await fetch(`https://siscom-4lbe.onrender.com/tomas/${pacienteId}/${fecha}`);
           
           if (!tomasResponse.ok) {
             throw new Error(`Error al cargar tomas: ${tomasResponse.status}`);
@@ -2432,8 +2432,8 @@ document.addEventListener('DOMContentLoaded', () => {
           console.log('Tomas obtenidas:', tomas.length);
 
           // Obtener recetas del paciente
-          console.log(`Consultando recetas: http://localhost:3000/recetas/${pacienteId}`);
-          const recetasResponse = await fetch(`http://localhost:3000/recetas/${pacienteId}`);
+          console.log(`Consultando recetas: https://siscom-4lbe.onrender.com/recetas/${pacienteId}`);
+          const recetasResponse = await fetch(`https://siscom-4lbe.onrender.com/recetas/${pacienteId}`);
           
           if (!recetasResponse.ok) {
             throw new Error(`Error al cargar recetas: ${recetasResponse.status}`);
@@ -2463,7 +2463,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
           const rango = obtenerRangoSemana(fechaReferencia);
-          const recetasResponse = await fetch(`http://localhost:3000/recetas/${pacienteId}`);
+          const recetasResponse = await fetch(`https://siscom-4lbe.onrender.com/recetas/${pacienteId}`);
           if (!recetasResponse.ok) {
             throw new Error(`No se pudieron cargar recetas (${recetasResponse.status})`);
           }
@@ -2478,7 +2478,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           const tomasPorDia = await Promise.all(
             rango.fechas.map(async (fechaDia) => {
-              const response = await fetch(`http://localhost:3000/tomas/${pacienteId}/${fechaDia}`);
+              const response = await fetch(`https://siscom-4lbe.onrender.com/tomas/${pacienteId}/${fechaDia}`);
               if (!response.ok) {
                 throw new Error(`No se pudieron cargar tomas del ${fechaDia} (${response.status})`);
               }
@@ -2891,8 +2891,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
           for (const paciente of pacientesFiltrados) {
             const [recetasResp, tomasResp] = await Promise.all([
-              fetch(`http://localhost:3000/recetas/${paciente.id}`),
-              fetch(`http://localhost:3000/tomas/${paciente.id}/${fecha}`)
+              fetch(`https://siscom-4lbe.onrender.com/recetas/${paciente.id}`),
+              fetch(`https://siscom-4lbe.onrender.com/tomas/${paciente.id}/${fecha}`)
             ]);
 
             if (!recetasResp.ok || !tomasResp.ok) {
