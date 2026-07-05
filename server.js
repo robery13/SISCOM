@@ -314,13 +314,13 @@ app.post('/login', (req, res) => {
   const passwordPresente = passwordTexto.length > 0;
 
   if (!correoValido && !passwordPresente) {
-    return res.status(400).json({ code: 'AMBOS_INVALIDOS', mensaje: 'Correo y contraseÒa incorrectos.' });
+    return res.status(400).json({ code: 'AMBOS_INVALIDOS', mensaje: 'Correo y contraseÔøΩa incorrectos.' });
   }
   if (!correoValido) {
     return res.status(400).json({ code: 'EMAIL_INVALIDO', mensaje: 'Correo incorrecto.' });
   }
   if (!passwordPresente) {
-    return res.status(400).json({ code: 'PASSWORD_INVALIDA', mensaje: 'ContraseÒa incorrecta.' });
+    return res.status(400).json({ code: 'PASSWORD_INVALIDA', mensaje: 'ContraseÔøΩa incorrecta.' });
   }
 
   // Consulta SQL para buscar el usuario por email
@@ -332,23 +332,23 @@ app.post('/login', (req, res) => {
       return res.status(500).json({ mensaje: 'Error interno del servidor' });
     }
 
-    // Si no se encontrÛ ning˙n usuario con ese email
+    // Si no se encontrÔøΩ ningÔøΩn usuario con ese email
     if (results.length === 0) {
       return res.status(401).json({ code: 'EMAIL_INVALIDO', mensaje: 'Correo incorrecto.' });
     }
 
     const usuario = results[0];
 
-    // Comparar contraseÒas usando bcrypt
+    // Comparar contraseÔøΩas usando bcrypt
     const passwordValida = await bcrypt.compare(passwordTexto, usuario.password);
     if (!passwordValida) {
-      return res.status(401).json({ code: 'PASSWORD_INVALIDA', mensaje: 'ContraseÒa incorrecta.' });
+      return res.status(401).json({ code: 'PASSWORD_INVALIDA', mensaje: 'ContraseÔøΩa incorrecta.' });
     }
 
 
-    // Generar token de autenticaciÛn
+    // Generar token de autenticaciÔøΩn
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresIn = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 30 * 60 * 1000; // 7 dÌas o 30 minutos
+    const expiresIn = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 30 * 60 * 1000; // 7 dÔøΩas o 30 minutos
     const expiresAt = Date.now() + expiresIn;
     
     // Guardar token en memoria
@@ -359,10 +359,10 @@ app.post('/login', (req, res) => {
       rememberMe: rememberMe || false
     };
 
-    // Si todo est· correcto
+    // Si todo estÔøΩ correcto
     res.status(200).json({
       ok: true,
-      mensaje: 'Inicio de sesiÛn exitoso',
+      mensaje: 'Inicio de sesiÔøΩn exitoso',
       usuario,
       token
     });
@@ -1249,8 +1249,13 @@ app.post('/guardarPedido', (req, res) => {
   }
 
   const sqlPedido = 'INSERT INTO pedidos_farmacia (id, farmacia, notas, estado, fecha_creacion, id_usuario) VALUES (?, ?, ?, ?, ?, ?)';
-  
-  db.query(sqlPedido, [id, farmacia, notas || null, estado || 'Pendiente', fecha_creacion, id_usuario || null], (err, result) => {
+
+  // fecha_creacion puede no venir del cliente; el servidor siempre debe
+  // enviar un valor definido a mysql (undefined revienta el driver con
+  // "Bind parameters must not contain undefined").
+  const fechaCreacionFinal = fecha_creacion || new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  db.query(sqlPedido, [id, farmacia, notas || null, estado || 'Pendiente', fechaCreacionFinal, id_usuario || null], (err, result) => {
     if (err) {
       //console.error('Error al guardar pedido:', err);
       return res.status(500).json({ 
@@ -1875,16 +1880,16 @@ app.post('/horarios', (req, res) => {
     }
   }
 
-  console.log('Validaciones pasadas. Iniciando transacciÛn...');
+  console.log('Validaciones pasadas. Iniciando transacciÔøΩn...');
 
-  // Iniciar transacciÛn
+  // Iniciar transacciÔøΩn
   db.beginTransaction(err => {
     if (err) {
-      console.error('Error al iniciar transacciÛn:', err);
-      return res.status(500).json({ mensaje: 'Error al iniciar transacciÛn', error: err.message });
+      console.error('Error al iniciar transacciÔøΩn:', err);
+      return res.status(500).json({ mensaje: 'Error al iniciar transacciÔøΩn', error: err.message });
     }
 
-    console.log('TransacciÛn iniciada. Desactivando horarios existentes...');
+    console.log('TransacciÔøΩn iniciada. Desactivando horarios existentes...');
 
     // 1. Desactivar horarios existentes
     const sqlDesactivar = 'UPDATE horarios_medicamentos SET activo = FALSE WHERE id_receta = ? AND id_usuario = ?';
@@ -1920,7 +1925,7 @@ app.post('/horarios', (req, res) => {
 
         console.log('Horarios insertados:', result.affectedRows);
 
-        // 3. Guardar configuraciÛn
+        // 3. Guardar configuraciÔøΩn
         const sqlConfig = `
           INSERT INTO configuracion_horarios 
           (id_usuario, id_receta, notificaciones_activas, minutos_anticipacion, dias_semana, notas) 
@@ -1935,7 +1940,7 @@ app.post('/horarios', (req, res) => {
         
         const diasSemana = configuracion?.dias_semana ? JSON.stringify(configuracion.dias_semana) : JSON.stringify(['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']);
         
-        console.log('Guardando configuraciÛn:', {
+        console.log('Guardando configuraciÔøΩn:', {
           id_usuario,
           id_receta,
           notificaciones_activas: configuracion?.notificaciones_activas !== false,
@@ -1953,24 +1958,24 @@ app.post('/horarios', (req, res) => {
           configuracion?.notas || null
         ], (err) => {
           if (err) {
-            console.error('Error al guardar configuraciÛn:', err);
+            console.error('Error al guardar configuraciÔøΩn:', err);
             return db.rollback(() => {
-              res.status(500).json({ mensaje: 'Error al guardar configuraciÛn', error: err.message });
+              res.status(500).json({ mensaje: 'Error al guardar configuraciÔøΩn', error: err.message });
             });
           }
 
-          console.log('ConfiguraciÛn guardada. Confirmando transacciÛn...');
+          console.log('ConfiguraciÔøΩn guardada. Confirmando transacciÔøΩn...');
 
-          // Confirmar transacciÛn
+          // Confirmar transacciÔøΩn
           db.commit(err => {
             if (err) {
-              console.error('Error al confirmar transacciÛn:', err);
+              console.error('Error al confirmar transacciÔøΩn:', err);
               return db.rollback(() => {
-                res.status(500).json({ mensaje: 'Error al confirmar transacciÛn', error: err.message });
+                res.status(500).json({ mensaje: 'Error al confirmar transacciÔøΩn', error: err.message });
               });
             }
 
-            console.log('=== TransacciÛn completada exitosamente ===');
+            console.log('=== TransacciÔøΩn completada exitosamente ===');
 
             res.json({ 
               mensaje: 'Horarios guardados correctamente',
@@ -1985,7 +1990,7 @@ app.post('/horarios', (req, res) => {
 });
 
 
-// Actualizar un horario especÌfico
+// Actualizar un horario especÔøΩfico
 app.put('/horarios/:id', (req, res) => {
   const { id } = req.params;
   const { hora, activo } = req.body;
@@ -1999,7 +2004,7 @@ app.put('/horarios/:id', (req, res) => {
 
   if (hora) {
     if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/.test(hora)) {
-      return res.status(400).json({ mensaje: 'Formato de hora inv·lido. Use HH:MM o HH:MM:SS' });
+      return res.status(400).json({ mensaje: 'Formato de hora invÔøΩlido. Use HH:MM o HH:MM:SS' });
     }
     campos.push('hora = ?');
     valores.push(hora);
@@ -2028,7 +2033,7 @@ app.put('/horarios/:id', (req, res) => {
   });
 });
 
-// Eliminar un horario especÌfico
+// Eliminar un horario especÔøΩfico
 app.delete('/horarios/:id', (req, res) => {
   const { id } = req.params;
 
@@ -2056,7 +2061,7 @@ app.post('/validar-conflictos', (req, res) => {
     return res.status(400).json({ mensaje: 'Datos incompletos. Se requiere id_usuario y horarios_propuestos' });
   }
 
-  // Obtener todos los horarios activos del usuario, excluyendo la receta actual si se est· editando
+  // Obtener todos los horarios activos del usuario, excluyendo la receta actual si se estÔøΩ editando
   let sql = `
     SELECT h.id, h.id_receta, h.hora, r.nombre_medicamento
     FROM horarios_medicamentos h
@@ -2078,7 +2083,7 @@ app.post('/validar-conflictos', (req, res) => {
     }
 
     const conflictos = [];
-    const margenMinutos = 30; // Margen mÌnimo entre medicamentos
+    const margenMinutos = 30; // Margen mÔøΩnimo entre medicamentos
 
     for (const propuesto of horarios_propuestos) {
       const horaPropuesta = new Date(`2000-01-01T${propuesto}`);
@@ -2140,7 +2145,7 @@ app.get('/horarios-usuario/:id_usuario', (req, res) => {
       return res.status(500).json({ mensaje: 'Error al cargar horarios', error: err.message });
     }
 
-    // Procesar resultados para incluir dÌas de la semana como array
+    // Procesar resultados para incluir dÔøΩas de la semana como array
     const horariosProcesados = results.map(h => ({
       ...h,
       dias_semana: parseDiasSemana(h.dias_semana)
@@ -2663,6 +2668,243 @@ app.get('/reporte-semanal/:id_paciente', async (req, res) => {
 });
 
 // ============================================
+// M√ìDULO DE EMERGENCIA (Bot√≥n SOS + WhatsApp)
+// ============================================
+//
+// Requiere las siguientes variables de entorno (.env):
+//   WHATSAPP_TOKEN              -> Token permanente/temporal de Meta (System User Token)
+//   WHATSAPP_PHONE_NUMBER_ID    -> Phone Number ID del n√∫mero de WhatsApp Business
+//   WHATSAPP_API_VERSION        -> Ej: v20.0 (opcional, por defecto v20.0)
+//   WHATSAPP_DEFAULT_COUNTRY_CODE -> Ej: 504 (Honduras), se antepone si el tel√©fono
+//                                    guardado en BD no incluye c√≥digo de pa√≠s
+//   WHATSAPP_TEMPLATE_NAME      -> Nombre de la plantilla aprobada en Meta para
+//                                  alertas de emergencia (ej: "alerta_emergencia")
+//   WHATSAPP_TEMPLATE_LANG      -> C√≥digo de idioma de la plantilla (ej: "es" o "es_HN")
+//   WHATSAPP_USE_TEMPLATE       -> "true"/"false". Si es "false" se env√≠a texto libre
+//                                  (solo funciona si el contacto ya escribi√≥ al n√∫mero
+//                                  de negocio en las √∫ltimas 24h; Meta lo exige as√≠).
+//
+// IMPORTANTE (regla de negocio de Meta/WhatsApp):
+// Un mensaje enviado por iniciativa del NEGOCIO (como esta alerta de emergencia)
+// hacia un contacto que no ha escrito antes, o fuera de la ventana de 24 horas,
+// SOLO puede enviarse usando una plantilla ("template") previamente aprobada por Meta.
+// Por eso esta implementaci√≥n env√≠a por defecto un mensaje de plantilla. El texto
+// libre (`type: text`) se deja como m√©todo alterno solo para pruebas/sandbox.
+
+function normalizarTelefonoWhatsApp(telefono) {
+  if (!telefono) return null;
+  let soloDigitos = String(telefono).replace(/\D/g, '');
+  const codigoPais = process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || '504';
+
+  // Si el n√∫mero guardado ya trae c√≥digo de pa√≠s (>= 11 d√≠gitos aprox), se respeta.
+  if (soloDigitos.length <= 8) {
+    soloDigitos = `${codigoPais}${soloDigitos}`;
+  }
+  return soloDigitos;
+}
+
+async function enviarAlertaWhatsApp({ telefono, nombrePaciente, tipoActivacion, lat, lng }) {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const apiVersion = process.env.WHATSAPP_API_VERSION || 'v20.0';
+  const usarPlantilla = String(process.env.WHATSAPP_USE_TEMPLATE || 'true').toLowerCase() !== 'false';
+
+  if (!token || !phoneNumberId) {
+    return { ok: false, telefono, error: 'WHATSAPP_TOKEN o WHATSAPP_PHONE_NUMBER_ID no configurados en el servidor' };
+  }
+
+  const numeroDestino = normalizarTelefonoWhatsApp(telefono);
+  if (!numeroDestino) {
+    return { ok: false, telefono, error: 'N√∫mero de contacto inv√°lido' };
+  }
+
+  const enlaceUbicacion = (lat != null && lng != null)
+    ? `https://maps.google.com/?q=${lat},${lng}`
+    : 'Ubicaci√≥n no disponible';
+
+  const url = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
+
+  let body;
+  if (usarPlantilla) {
+    // La plantilla debe existir y estar APROBADA en Meta Business Manager.
+    // Se asume una plantilla con 3 variables: {{1}} nombre paciente, {{2}} tipo de activaci√≥n, {{3}} enlace ubicaci√≥n.
+    body = {
+      messaging_product: 'whatsapp',
+      to: numeroDestino,
+      type: 'template',
+      template: {
+        name: process.env.WHATSAPP_TEMPLATE_NAME || 'alerta_emergencia',
+        language: { code: process.env.WHATSAPP_TEMPLATE_LANG || 'es' },
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: nombrePaciente || 'Paciente SISCOM' },
+              { type: 'text', text: tipoActivacion || 'bot√≥n' },
+              { type: 'text', text: enlaceUbicacion }
+            ]
+          }
+        ]
+      }
+    };
+  } else {
+    body = {
+      messaging_product: 'whatsapp',
+      to: numeroDestino,
+      type: 'text',
+      text: {
+        body: `üö® ALERTA DE EMERGENCIA SISCOM üö®\n${nombrePaciente || 'Un paciente'} activ√≥ el protocolo de emergencia (${tipoActivacion || 'bot√≥n'}).\nUbicaci√≥n: ${enlaceUbicacion}`
+      }
+    };
+  }
+
+  try {
+    const respuesta = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await respuesta.json();
+
+    if (!respuesta.ok) {
+      console.error('Error de WhatsApp API:', JSON.stringify(data));
+      return { ok: false, telefono: numeroDestino, error: data?.error?.message || 'Error al enviar WhatsApp' };
+    }
+
+    return { ok: true, telefono: numeroDestino, messageId: data?.messages?.[0]?.id || null };
+  } catch (error) {
+    console.error('Error de red al enviar WhatsApp:', error.message || error);
+    return { ok: false, telefono: numeroDestino, error: error.message || 'Error de red' };
+  }
+}
+
+// Activar protocolo de emergencia: registra el evento y notifica por WhatsApp
+app.post('/activarEmergencia', async (req, res) => {
+  const { id_usuario, tipo_activacion, ubicacion_lat, ubicacion_lng } = req.body;
+
+  if (!id_usuario) {
+    return res.status(400).json({ ok: false, mensaje: 'id_usuario es requerido' });
+  }
+
+  const sqlInsert = `
+    INSERT INTO historial_emergencias (id_usuario, tipo_activacion, ubicacion_lat, ubicacion_lng, fecha_hora, estado)
+    VALUES (?, ?, ?, ?, NOW(), 'activa')
+  `;
+
+  db.query(sqlInsert, [id_usuario, tipo_activacion || 'boton', ubicacion_lat || null, ubicacion_lng || null], (err, resultInsert) => {
+    if (err) {
+      console.error('Error al registrar emergencia:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al registrar la emergencia' });
+    }
+
+    const idEmergencia = resultInsert.insertId;
+
+    // Obtener nombre del paciente
+    db.query('SELECT nombres, apellidos FROM usuarios WHERE id = ?', [id_usuario], async (errUsuario, resultUsuario) => {
+      const nombrePaciente = (!errUsuario && resultUsuario.length > 0)
+        ? `${resultUsuario[0].nombres} ${resultUsuario[0].apellidos}`.trim()
+        : 'Paciente SISCOM';
+
+      // Obtener contactos de emergencia del paciente
+      db.query(
+        'SELECT * FROM contactos_emergencia WHERE id_usuario = ? ORDER BY prioridad ASC',
+        [id_usuario],
+        async (errContactos, contactos) => {
+          if (errContactos) {
+            console.error('Error al obtener contactos de emergencia:', errContactos);
+          }
+
+          const listaContactos = contactos || [];
+          let resultadosEnvio = [];
+
+          if (listaContactos.length > 0) {
+            resultadosEnvio = await Promise.all(
+              listaContactos.map(contacto => enviarAlertaWhatsApp({
+                telefono: contacto.telefono,
+                nombrePaciente,
+                tipoActivacion: tipo_activacion || 'boton',
+                lat: ubicacion_lat,
+                lng: ubicacion_lng
+              }))
+            );
+          }
+
+          const exitosos = resultadosEnvio.filter(r => r.ok).length;
+          const total = resultadosEnvio.length;
+          const notas = total === 0
+            ? 'Sin contactos de emergencia registrados. No se envi√≥ ninguna alerta.'
+            : `Notificados ${exitosos}/${total} contactos por WhatsApp.`;
+
+          db.query('UPDATE historial_emergencias SET notas = ? WHERE id = ?', [notas, idEmergencia], () => {});
+
+          return res.json({
+            ok: true,
+            mensaje: 'Emergencia activada',
+            id_emergencia: idEmergencia,
+            notificaciones: resultadosEnvio
+          });
+        }
+      );
+    });
+  });
+});
+
+// Listar contactos de emergencia de un usuario
+app.get('/contactosEmergencia/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+  db.query(
+    'SELECT * FROM contactos_emergencia WHERE id_usuario = ? ORDER BY prioridad ASC',
+    [id_usuario],
+    (err, results) => {
+      if (err) {
+        console.error('Error al obtener contactos de emergencia:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al obtener contactos de emergencia' });
+      }
+      res.json(results);
+    }
+  );
+});
+
+// Historial de emergencias de un usuario
+app.get('/historialEmergencias/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+  db.query(
+    'SELECT * FROM historial_emergencias WHERE id_usuario = ? ORDER BY fecha_hora DESC',
+    [id_usuario],
+    (err, results) => {
+      if (err) {
+        console.error('Error al obtener historial de emergencias:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al obtener historial de emergencias' });
+      }
+      res.json(results);
+    }
+  );
+});
+
+// Cancelar una emergencia activa
+app.put('/cancelarEmergencia/:id', (req, res) => {
+  const { id } = req.params;
+  db.query(
+    "UPDATE historial_emergencias SET estado = 'cancelada' WHERE id = ?",
+    [id],
+    (err, result) => {
+      if (err) {
+        console.error('Error al cancelar emergencia:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al cancelar la emergencia' });
+      }
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ ok: false, mensaje: 'Emergencia no encontrada' });
+      }
+      res.json({ ok: true, mensaje: 'Emergencia cancelada' });
+    }
+  );
+});
+
+// ============================================
 // RUTA DE PRUEBA
 // ============================================
 app.get('/test', (req, res) => {
@@ -2834,17 +3076,3 @@ app.listen(3000, () => {
   console.log('Servidor corriendo en http://localhost:3000');
   console.log('CORS habilitado para todas las solicitudes');
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-

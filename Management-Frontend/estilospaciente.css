@@ -1365,3 +1365,371 @@ canvas {
   border-color: #aac3ef;
   color: #1f3f83;
 }
+
+
+/* ================================================================
+   DARK MODE — PORTAL DEL PACIENTE (SISCOM)
+   Activado con [data-theme="dark"] en <html>
+   ================================================================ */
+
+/* ── Botón modo oscuro en zoom strip ────────────────────────────── */
+.dark-mode-toggle-btn {
+  margin-left: 0.75rem;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.18);
+  background: #f8f9fa;
+  color: #495057;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.dark-mode-toggle-btn:hover {
+  background: #e9ecef;
+}
+
+/* ── Variables ──────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-base:       #0f0f0f;
+  --bg-surface:    #1a1a1a;
+  --bg-surface-2:  #242424;
+  --border:        rgba(255,255,255,0.10);
+  --text-primary:  #e8e8e8;
+  --text-secondary:#aaaaaa;
+  --text-muted:    #777777;
+  --input-bg:      #2a2a2a;
+  --shadow:        0 2px 16px rgba(0,0,0,.5);
+  --card-bg:       #1a1a1a;
+}
+
+/* ── Base ───────────────────────────────────────────────────────── */
+[data-theme="dark"] body {
+  background: #0f0f0f !important;
+  color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .main {
+  background: #0f0f0f !important;
+}
+
+/* ── Zoom strip y su botón ──────────────────────────────────────── */
+[data-theme="dark"] .ui-zoom-strip {
+  background: #1a1a1a !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
+}
+
+[data-theme="dark"] .ui-zoom-control {
+  background: #2a2a2a !important;
+  border-color: rgba(255,255,255,0.10) !important;
+}
+
+[data-theme="dark"] .ui-zoom-btn {
+  background: #2a2a2a !important;
+  color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .ui-zoom-btn:hover:not(:disabled) {
+  background: #333333 !important;
+}
+
+[data-theme="dark"] .ui-zoom-value {
+  background: #1a1a1a !important;
+  color: #e8e8e8 !important;
+  border-color: rgba(255,255,255,0.10) !important;
+}
+
+/* ── Cards ──────────────────────────────────────────────────────── */
+[data-theme="dark"] .card {
+  background: #1a1a1a !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4) !important;
+  color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .card-title {
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5 {
+  color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .section-header h2 {
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .muted,
+[data-theme="dark"] .text-muted {
+  color: #777777 !important;
+}
+
+/* ── Welcome header ─────────────────────────────────────────────── */
+[data-theme="dark"] .welcome-header {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%) !important;
+}
+
+[data-theme="dark"] .welcome-title,
+[data-theme="dark"] .welcome-subtitle {
+  color: #ffffff !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+/* ── Panel de control (tarjetas estadísticas) ───────────────────── */
+/* Las tarjetas bg-primary/success/warning/info mantienen su color de fondo,
+   solo necesitamos asegurar texto blanco visible */
+[data-theme="dark"] .bg-primary,
+[data-theme="dark"] .bg-success,
+[data-theme="dark"] .bg-warning,
+[data-theme="dark"] .bg-info,
+[data-theme="dark"] .bg-danger {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .bg-primary *,
+[data-theme="dark"] .bg-success *,
+[data-theme="dark"] .bg-warning *,
+[data-theme="dark"] .bg-info *,
+[data-theme="dark"] .bg-danger * {
+  color: #ffffff !important;
+}
+
+/* ── Tablas ─────────────────────────────────────────────────────── */
+[data-theme="dark"] table,
+[data-theme="dark"] .table {
+  --bs-table-bg: #1a1a1a !important;
+  --bs-table-color: #e8e8e8 !important;
+  --bs-table-border-color: rgba(255,255,255,0.08) !important;
+  --bs-table-striped-bg: #1e1e1e !important;
+  --bs-table-hover-bg: #252525 !important;
+  --bs-table-hover-color: #ffffff !important;
+  color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] table td,
+[data-theme="dark"] table th,
+[data-theme="dark"] .table td,
+[data-theme="dark"] .table th,
+[data-theme="dark"] .table > :not(caption) > * > * {
+  background-color: #1a1a1a !important;
+  color: #e8e8e8 !important;
+  border-color: rgba(255,255,255,0.07) !important;
+}
+
+[data-theme="dark"] table thead th,
+[data-theme="dark"] .table thead th {
+  background-color: #242424 !important;
+  color: #aaaaaa !important;
+}
+
+[data-theme="dark"] table tbody tr:hover td,
+[data-theme="dark"] .table-hover > tbody > tr:hover > * {
+  background-color: #252525 !important;
+  color: #ffffff !important;
+}
+
+/* ── Inputs, selects, textareas ─────────────────────────────────── */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+  background-color: #2a2a2a !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #666666 !important;
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+  background-color: #333333 !important;
+  border-color: #3d7eff !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(61,126,255,0.2) !important;
+}
+
+[data-theme="dark"] label,
+[data-theme="dark"] .form-label {
+  color: #aaaaaa !important;
+}
+
+/* ── List groups ────────────────────────────────────────────────── */
+[data-theme="dark"] .list-group-item {
+  background: #1a1a1a !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .list-group-item:hover {
+  background: #242424 !important;
+}
+
+[data-theme="dark"] .list-group-flush .list-group-item {
+  border-color: rgba(255,255,255,0.06) !important;
+}
+
+/* ── Modales ────────────────────────────────────────────────────── */
+[data-theme="dark"] .modal-content {
+  background: #1a1a1a !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .modal-header {
+  background: #242424 !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .modal-body {
+  background: #1a1a1a !important;
+  color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .modal-footer {
+  background: #242424 !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+
+[data-theme="dark"] .modal-title,
+[data-theme="dark"] .modal-header * {
+  color: #e8e8e8 !important;
+}
+
+[data-theme="dark"] .btn-close {
+  filter: invert(1) !important;
+}
+
+/* ── Botones outline ────────────────────────────────────────────── */
+[data-theme="dark"] .btn-outline-primary {
+  color: #60a5fa !important;
+  border-color: #60a5fa !important;
+}
+
+[data-theme="dark"] .btn-outline-primary:hover {
+  background: #3d7eff !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+  color: #aaaaaa !important;
+  border-color: #444 !important;
+}
+
+[data-theme="dark"] .btn-outline-danger {
+  color: #f87171 !important;
+  border-color: #f87171 !important;
+}
+
+[data-theme="dark"] .btn-outline-danger:hover {
+  background: #dc2626 !important;
+  color: #fff !important;
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: #333 !important;
+  border-color: #444 !important;
+  color: #ddd !important;
+}
+
+/* ── Alertas ────────────────────────────────────────────────────── */
+[data-theme="dark"] .alert-info {
+  background: #0f2d4a !important;
+  border-color: #1d4ed8 !important;
+  color: #bfdbfe !important;
+}
+
+[data-theme="dark"] .alert-success {
+  background: #0a2e1a !important;
+  border-color: #16a34a !important;
+  color: #86efac !important;
+}
+
+[data-theme="dark"] .alert-warning {
+  background: #2d1a00 !important;
+  border-color: #d97706 !important;
+  color: #fde68a !important;
+}
+
+[data-theme="dark"] .alert-danger {
+  background: #2d0a0a !important;
+  border-color: #dc2626 !important;
+  color: #fca5a5 !important;
+}
+
+/* ── Badges ─────────────────────────────────────────────────────── */
+[data-theme="dark"] .badge.bg-light {
+  background: #333 !important;
+  color: #ddd !important;
+}
+
+[data-theme="dark"] .badge.bg-secondary {
+  background: #444 !important;
+  color: #ccc !important;
+}
+
+/* ── Secciones con encabezado ───────────────────────────────────── */
+[data-theme="dark"] p,
+[data-theme="dark"] span:not(.badge):not(.bi) {
+  color: inherit;
+}
+
+[data-theme="dark"] small,
+[data-theme="dark"] .small {
+  color: #aaaaaa !important;
+}
+
+/* ── Agenda Médica ──────────────────────────────────────────────── */
+[data-theme="dark"] .cita-item,
+[data-theme="dark"] [class*="cita-"] {
+  color: #e8e8e8 !important;
+}
+
+/* ── Emergencia ─────────────────────────────────────────────────── */
+[data-theme="dark"] .emergencia-card,
+[data-theme="dark"] .card.bg-danger {
+  background: #7f1d1d !important;
+}
+
+/* ── Próxima cita / Logro reciente cards ────────────────────────── */
+[data-theme="dark"] .card h6,
+[data-theme="dark"] .card p,
+[data-theme="dark"] .card small {
+  color: #aaaaaa !important;
+}
+
+[data-theme="dark"] .card h5,
+[data-theme="dark"] .card h4 {
+  color: #93c5fd !important;
+}
+
+/* ── Separadores y bordes ───────────────────────────────────────── */
+[data-theme="dark"] hr {
+  border-color: rgba(255,255,255,0.10) !important;
+}
+
+/* ── Scroll personalizado ───────────────────────────────────────── */
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}

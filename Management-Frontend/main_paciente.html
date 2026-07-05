@@ -120,15 +120,18 @@
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main">
       <div class="ui-zoom-strip">
-        <div class="ui-zoom-control" id="uiZoomControl" role="group" aria-label="Tamaño de la interfaz">
-          <button type="button" class="ui-zoom-btn" id="zoomOutBtn" aria-label="Disminuir tamaño">
+        <div class="ui-zoom-control" id="uiZoomControl" role="group" aria-label="Tamano de la interfaz">
+          <button type="button" class="ui-zoom-btn" id="zoomOutBtn" aria-label="Disminuir tamano">
             <i class="bi bi-dash-lg"></i>
           </button>
           <div class="ui-zoom-value" id="zoomValue">100%</div>
-          <button type="button" class="ui-zoom-btn" id="zoomInBtn" aria-label="Aumentar tamaño">
+          <button type="button" class="ui-zoom-btn" id="zoomInBtn" aria-label="Aumentar tamano">
             <i class="bi bi-plus-lg"></i>
           </button>
         </div>
+        <button type="button" id="darkModeToggleBtn" class="dark-mode-toggle-btn" aria-label="Modo oscuro">
+          <i class="bi bi-moon-fill" id="darkModeIcon"></i>
+        </button>
       </div>
 
    <!-- SECCIÓN INICIO -->
@@ -967,5 +970,38 @@
     }, 300);
   });
 </script>
+
+  <!-- Dark Mode Toggle -->
+  <script>
+  (function() {
+    const html = document.documentElement;
+    const btn  = document.getElementById('darkModeToggleBtn');
+    const icon = document.getElementById('darkModeIcon');
+    const STORAGE_KEY = 'paciente_darkMode';
+
+    function applyDark(isDark) {
+      if (isDark) {
+        html.setAttribute('data-theme', 'dark');
+        if (icon) { icon.className = 'bi bi-sun-fill'; }
+        if (btn)  { btn.style.background = '#2a2a2a'; btn.style.color = '#fbbf24'; btn.style.borderColor = '#444'; }
+      } else {
+        html.removeAttribute('data-theme');
+        if (icon) { icon.className = 'bi bi-moon-fill'; }
+        if (btn)  { btn.style.background = '#f8f9fa'; btn.style.color = '#495057'; btn.style.borderColor = 'rgba(0,0,0,0.18)'; }
+      }
+      localStorage.setItem(STORAGE_KEY, String(isDark));
+    }
+
+    // Restaurar preferencia guardada
+    const saved = localStorage.getItem(STORAGE_KEY);
+    applyDark(saved === 'true');
+
+    if (btn) {
+      btn.addEventListener('click', () => {
+        applyDark(html.getAttribute('data-theme') !== 'dark');
+      });
+    }
+  })();
+  </script>
 </body>
 </html>

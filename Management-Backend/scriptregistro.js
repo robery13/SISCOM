@@ -602,8 +602,37 @@ document.addEventListener("DOMContentLoaded", () => {
 document.addEventListener("DOMContentLoaded", () => {
   const cerrarSesionBtn = document.getElementById("cerrarSesionBtn");
   if (cerrarSesionBtn) {
-    cerrarSesionBtn.addEventListener("click", () => {
-        window.location.href = "../index.html";
+    cerrarSesionBtn.addEventListener("click", async () => {
+      const token = localStorage.getItem('auth_token') ||
+                    localStorage.getItem('token') ||
+                    localStorage.getItem('accessToken') ||
+                    sessionStorage.getItem('auth_token') ||
+                    sessionStorage.getItem('token');
+
+      // Avisar al servidor para invalidar la sesión guardada en BD.
+      // Es "mejor esfuerzo": si falla (sin internet, servidor caído, etc.)
+      // igual se cierra la sesión localmente para no dejar al usuario atascado.
+      if (token) {
+        try {
+          await fetch('http://localhost:3000/logout', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+        } catch (error) {
+          console.warn('No se pudo notificar el logout al servidor:', error);
+        }
+      }
+
+      // Limpiar TODO rastro de sesión, sin importar si vino de "Recordarme"
+      // (localStorage) o de una sesión normal (sessionStorage). Si no se
+      // borra esto, al volver a index.html el sistema detecta el token
+      // guardado y redirige de vuelta al dashboard automáticamente.
+      ['auth_token', 'token', 'accessToken', 'remember_me', 'session_start', 'usuario'].forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+
+      window.location.href = "../index.html";
     });
   }
 });
@@ -3895,4 +3924,375 @@ function escapeHtml(str) {
     toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
   }
 
+// ============================================================
+// MÓDULO PEDIDOS FARMACIA (conectado al inventario en tiempo real)
+// ============================================================
+// El cuidador/administrador arma el pedido ELIGIENDO medicamentos que
+// existen en el inventario (no texto libre). Al guardar el pedido, el
+// servidor valida que haya stock suficiente y descuenta automáticamente
+// la cantidad solicitada del inventario. También se muestra, dentro del
+// modal, la disponibilidad completa de inventario con las mismas alertas
+// de "Stock Bajo" / "Agotado" que se usan en la sección de Inventario.
+document.addEventListener('DOMContentLoaded', () => {
+  const openCreateOrderBtn = document.getElementById('open-create-order');
+  const createOrderModalEl = document.getElementById('createOrderModal');
+  const itemsTableBody = document.querySelector('#itemsTable tbody');
+  const addEmptyRowBtn = document.getElementById('addEmptyRow');
+  const sendBtn = document.getElementById('sendBtn');
+  const formMessage = document.getElementById('formMessage');
+  // Pedido interno: el sistema solo maneja una farmacia (la propia), por lo
+  // que ya no se solicita ni se muestra farmacia destino ni notas.
+  const FARMACIA_INTERNA = 'Farmacia interna';
+  const historyList = document.getElementById('historyList');
+  const clearAllBtn = document.getElementById('clearAll');
+  const detailModalEl = document.getElementById('detailModal');
+  const detailBody = document.getElementById('detailBody');
 
+  // Si esta página no tiene el módulo de Pedidos Farmacia, no hacer nada.
+  if (!itemsTableBody || !historyList) return;
+
+  let inventarioPedido = [];
+
+  function nivelStock(cantidad) {
+    const c = Number(cantidad || 0);
+    if (c === 0) return { nivel: 'danger', texto: 'AGOTADO' };
+    if (c <= 5) return { nivel: 'danger', texto: 'Stock crítico' };
+    if (c <= 10) return { nivel: 'warning', texto: 'Stock bajo' };
+    return { nivel: 'success', texto: 'Disponible' };
+  }
+
+  async function cargarInventarioParaPedido() {
+    try {
+      const respuesta = await fetch('http://localhost:3000/inventario');
+      if (!respuesta.ok) throw new Error('Error HTTP ' + respuesta.status);
+      inventarioPedido = await respuesta.json();
+    } catch (error) {
+      console.error('Error al cargar inventario para pedido:', error);
+      inventarioPedido = [];
+    }
+    renderInventarioDisponiblePedido();
+  }
+
+  function renderInventarioDisponiblePedido() {
+    const contenedor = document.getElementById('inventarioDisponiblePedido');
+    if (!contenedor) return;
+
+    if (inventarioPedido.length === 0) {
+      contenedor.innerHTML = '<div class="text-muted text-center py-2">No hay medicamentos registrados en el inventario.</div>';
+      return;
+    }
+
+    contenedor.innerHTML = inventarioPedido.map(item => {
+      const { nivel, texto } = nivelStock(item.cantidad);
+      return `
+        <div class="d-flex justify-content-between align-items-center border-bottom py-1">
+          <span>${escapeHtml(item.nombre)}</span>
+          <span>
+            <strong>${item.cantidad}</strong> unid.
+            <span class="badge bg-${nivel} ms-2">${texto}</span>
+          </span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function opcionesMedicamento() {
+    let html = '<option value="">Seleccione medicamento</option>';
+    inventarioPedido.forEach(item => {
+      const agotado = Number(item.cantidad || 0) === 0;
+      html += `<option value="${item.id}" data-nombre="${escapeHtml(item.nombre)}" data-stock="${item.cantidad}" data-consumo="${item.consumo_por_dosis || ''}" ${agotado ? 'disabled' : ''}>
+        ${escapeHtml(item.nombre)} (Stock: ${item.cantidad}${agotado ? ' - AGOTADO' : ''})
+      </option>`;
+    });
+    return html;
+  }
+
+  function crearFilaPedido() {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <select class="form-select form-select-sm item-medicamento" required>
+          ${opcionesMedicamento()}
+        </select>
+      </td>
+      <td><input type="text" class="form-control form-control-sm item-dosis" placeholder="Ej. 500mg"></td>
+      <td>
+        <input type="number" class="form-control form-control-sm item-cantidad" min="1" value="1" required>
+        <small class="text-muted d-block item-stock-info"></small>
+      </td>
+      <td><button type="button" class="btn btn-sm btn-outline-danger remove-row"><i class="bi bi-trash"></i></button></td>
+    `;
+    itemsTableBody.appendChild(tr);
+  }
+
+  itemsTableBody.addEventListener('change', (e) => {
+    const select = e.target.closest('.item-medicamento');
+    if (!select) return;
+    const tr = select.closest('tr');
+    const opcion = select.selectedOptions[0];
+    const dosisInput = tr.querySelector('.item-dosis');
+    const cantidadInput = tr.querySelector('.item-cantidad');
+    const stockInfo = tr.querySelector('.item-stock-info');
+
+    if (!opcion || !opcion.value) {
+      if (stockInfo) stockInfo.textContent = '';
+      return;
+    }
+
+    const stock = Number(opcion.dataset.stock || 0);
+    const consumo = opcion.dataset.consumo;
+
+    if (dosisInput && !dosisInput.value) {
+      dosisInput.value = consumo ? `${consumo} por toma` : '';
+    }
+    if (cantidadInput) {
+      cantidadInput.max = stock;
+      if (Number(cantidadInput.value) > stock) cantidadInput.value = stock || 1;
+    }
+    if (stockInfo) {
+      const { nivel, texto } = nivelStock(stock);
+      const claseTexto = nivel === 'success' ? 'text-muted' : `text-${nivel}`;
+      stockInfo.innerHTML = `<span class="${claseTexto}">Disponible: ${stock} (${texto})</span>`;
+    }
+  });
+
+  itemsTableBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('.remove-row');
+    if (!btn) return;
+    const tr = btn.closest('tr');
+    if (tr) tr.remove();
+  });
+
+  itemsTableBody.addEventListener('input', (e) => {
+    const cantidadInput = e.target.closest('.item-cantidad');
+    if (!cantidadInput) return;
+    const max = Number(cantidadInput.max || 0);
+    if (max && Number(cantidadInput.value) > max) {
+      cantidadInput.value = max;
+    }
+  });
+
+  function limpiarFormularioPedido() {
+    if (itemsTableBody) itemsTableBody.innerHTML = '';
+    if (formMessage) formMessage.textContent = '';
+    crearFilaPedido();
+  }
+
+  if (openCreateOrderBtn) {
+    openCreateOrderBtn.addEventListener('click', async () => {
+      await cargarInventarioParaPedido();
+      limpiarFormularioPedido();
+      if (createOrderModalEl && window.bootstrap) {
+        bootstrap.Modal.getOrCreateInstance(createOrderModalEl).show();
+      }
+    });
+  }
+
+  if (addEmptyRowBtn) {
+    addEmptyRowBtn.addEventListener('click', () => crearFilaPedido());
+  }
+
+  function recolectarItemsPedido() {
+    const filas = Array.from(itemsTableBody.querySelectorAll('tr'));
+    const items = [];
+    for (const fila of filas) {
+      const select = fila.querySelector('.item-medicamento');
+      const opcion = select?.selectedOptions[0];
+      const dosis = fila.querySelector('.item-dosis')?.value.trim() || '';
+      const cantidad = Number(fila.querySelector('.item-cantidad')?.value || 0);
+
+      if (!opcion || !opcion.value) continue;
+
+      items.push({
+        nombre: opcion.dataset.nombre,
+        dosis: dosis || 'No especificada',
+        cantidad,
+        stockDisponible: Number(opcion.dataset.stock || 0)
+      });
+    }
+    return items;
+  }
+
+  function validarItemsPedido(items) {
+    if (items.length === 0) return 'Agrega al menos un medicamento al pedido.';
+    for (const item of items) {
+      if (!item.cantidad || item.cantidad < 1) return `Ingresa una cantidad válida para "${item.nombre}".`;
+      if (item.cantidad > item.stockDisponible) return `No hay suficiente stock de "${item.nombre}" (disponible: ${item.stockDisponible}).`;
+    }
+    return null;
+  }
+
+  function mostrarErrorFormulario(mensaje) {
+    if (formMessage) {
+      formMessage.textContent = mensaje;
+      formMessage.className = 'fw-semibold mt-2 text-danger';
+    }
+  }
+
+  if (sendBtn) {
+    sendBtn.addEventListener('click', async () => {
+      const items = recolectarItemsPedido();
+      const error = validarItemsPedido(items);
+
+      if (error) { mostrarErrorFormulario(error); return; }
+
+      const usuarioData = localStorage.getItem('usuario');
+      const usuario = usuarioData ? JSON.parse(usuarioData) : null;
+
+      const payload = {
+        id: `PED-${Date.now()}`,
+        farmacia: FARMACIA_INTERNA,
+        items: items.map(({ nombre, dosis, cantidad }) => ({ nombre, dosis, cantidad })),
+        notas: null,
+        estado: 'Pendiente',
+        fecha_creacion: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        id_usuario: usuario?.id || null
+      };
+
+      sendBtn.disabled = true;
+      try {
+        const respuesta = await fetch('http://localhost:3000/guardarPedido', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await respuesta.json();
+
+        if (!respuesta.ok) {
+          throw new Error(data.mensaje || 'Error al guardar el pedido');
+        }
+
+        mostrarToast('Pedido creado correctamente. Stock actualizado.', 'success');
+        if (createOrderModalEl && window.bootstrap) {
+          bootstrap.Modal.getInstance(createOrderModalEl)?.hide();
+        }
+        cargarPedidos();
+        if (window.cargarInventario) window.cargarInventario();
+        if (window.verificarAlertasStock) window.verificarAlertasStock();
+      } catch (err) {
+        console.error('Error al guardar pedido:', err);
+        mostrarErrorFormulario(err.message);
+        mostrarToast(err.message || 'Error al guardar el pedido', 'error');
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+  }
+
+  // ================= HISTORIAL DE PEDIDOS =================
+  async function cargarPedidos() {
+    historyList.innerHTML = '<div class="text-center text-muted py-3">Cargando pedidos...</div>';
+    try {
+      const respuesta = await fetch('http://localhost:3000/obtenerPedidos');
+      if (!respuesta.ok) throw new Error('Error al cargar pedidos');
+      const pedidos = await respuesta.json();
+      renderHistorialPedidos(pedidos);
+    } catch (error) {
+      console.error('Error al cargar pedidos:', error);
+      historyList.innerHTML = '<div class="text-center text-danger py-3">Error al cargar el historial de pedidos.</div>';
+    }
+  }
+
+  function renderHistorialPedidos(pedidos) {
+    if (!pedidos || pedidos.length === 0) {
+      historyList.innerHTML = '<div class="text-center text-muted py-3">No hay pedidos registrados.</div>';
+      return;
+    }
+
+    historyList.innerHTML = pedidos.map(p => {
+      const estadoBadge = p.estado === 'Pendiente' ? 'warning' : p.estado === 'Cancelado' ? 'danger' : 'success';
+      const fecha = p.fecha_creacion ? new Date(p.fecha_creacion).toLocaleString() : '';
+      const referencia = String(p.id || '').replace(/^PED-/, '');
+      return `
+        <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2 pedido-item">
+          <div class="d-flex align-items-center gap-3">
+            <div class="pedido-item-icon"><i class="bi bi-receipt"></i></div>
+            <div>
+              <strong>Pedido #${escapeHtml(referencia)}</strong>
+              <span class="badge bg-${estadoBadge} ms-2">${escapeHtml(p.estado || 'Pendiente')}</span>
+              <div class="small text-muted">${fecha} &middot; ${p.total_items || 0} medicamento(s)</div>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary btn-ver-pedido" data-id="${p.id}">
+              <i class="bi bi-eye"></i> Ver
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-pedido" data-id="${p.id}">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  historyList.addEventListener('click', async (e) => {
+    const verBtn = e.target.closest('.btn-ver-pedido');
+    const delBtn = e.target.closest('.btn-eliminar-pedido');
+
+    if (verBtn) {
+      const id = verBtn.dataset.id;
+      try {
+        const respuesta = await fetch(`http://localhost:3000/obtenerPedido/${id}`);
+        if (!respuesta.ok) throw new Error('Error al obtener el pedido');
+        const data = await respuesta.json();
+        if (detailBody) {
+          const referencia = String(data.pedido.id || '').replace(/^PED-/, '');
+          detailBody.innerHTML = `
+            <p><strong>Pedido:</strong> #${escapeHtml(referencia)}</p>
+            <p><strong>Estado:</strong> ${escapeHtml(data.pedido.estado || 'Pendiente')}</p>
+            <p><strong>Fecha:</strong> ${data.pedido.fecha_creacion ? new Date(data.pedido.fecha_creacion).toLocaleString() : ''}</p>
+            <table class="table table-sm table-bordered">
+              <thead><tr><th>Medicamento</th><th>Dosis</th><th>Cantidad</th></tr></thead>
+              <tbody>
+                ${data.items.map(it => `<tr><td>${escapeHtml(it.nombre_medicamento)}</td><td>${escapeHtml(it.dosis)}</td><td>${it.cantidad}</td></tr>`).join('')}
+              </tbody>
+            </table>
+          `;
+        }
+        if (detailModalEl && window.bootstrap) {
+          bootstrap.Modal.getOrCreateInstance(detailModalEl).show();
+        }
+      } catch (error) {
+        console.error('Error al ver pedido:', error);
+        mostrarToast('No se pudo cargar el detalle del pedido', 'error');
+      }
+    }
+
+    if (delBtn) {
+      const id = delBtn.dataset.id;
+      if (!confirm('¿Eliminar este pedido del historial? Esto NO devuelve el stock descontado.')) return;
+      try {
+        const respuesta = await fetch(`http://localhost:3000/eliminarPedido/${id}`, { method: 'DELETE' });
+        if (!respuesta.ok) throw new Error('Error al eliminar el pedido');
+        mostrarToast('Pedido eliminado', 'success');
+        cargarPedidos();
+      } catch (error) {
+        console.error('Error al eliminar pedido:', error);
+        mostrarToast('No se pudo eliminar el pedido', 'error');
+      }
+    }
+  });
+
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar TODO el historial de pedidos? Esta acción no se puede deshacer.')) return;
+      try {
+        const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+        const respuesta = await fetch('http://localhost:3000/eliminarTodosPedidos', {
+          method: 'DELETE',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        const data = await respuesta.json();
+        if (!respuesta.ok) throw new Error(data.mensaje || 'Error al limpiar el historial');
+        mostrarToast('Historial de pedidos eliminado', 'success');
+        cargarPedidos();
+      } catch (error) {
+        console.error('Error al limpiar historial:', error);
+        mostrarToast(error.message || 'No se pudo limpiar el historial (requiere rol de administrador)', 'error');
+      }
+    });
+  }
+
+  window.cargarPedidos = cargarPedidos;
+});

@@ -205,14 +205,8 @@ document.addEventListener("DOMContentLoaded", () => {
           // Redirigir según el rol del usuario después de un breve delay
           setTimeout(() => {
             if (data.usuario && data.usuario.rol) {
-              const rol = data.usuario.rol.toLowerCase();
-              if (rol === 'usuario') {
-                window.location.href = "../Management-Frontend/main_paciente.html";
-              } else if (rol === 'empleado') {
-                window.location.href = "../Management-Backend/cuidador_backend.html";
-              } else if (rol === 'administrador') {
-                window.location.href = "../Management-Backend/Admin_Backend.html";
-              } else {
+              const redirigido = redirigirPorRol(data.usuario.rol);
+              if (!redirigido) {
                 showToast("Rol de usuario no reconocido.", "error");
                 if (btnLogin) {
                   btnLogin.disabled = false;
@@ -233,7 +227,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }, 1500);
 
         } else {
-          // Manejo espec�fico de errores de autenticaci�n
+          // Manejo espec�fico de errores de autenticaci�n
           const ambosInvalidos = data.code === "AMBOS_INVALIDOS";
           const correoInvalido = data.code === "EMAIL_INVALIDO";
           const passwordInvalida = data.code === "PASSWORD_INVALIDA";
@@ -290,6 +284,73 @@ document.addEventListener("DOMContentLoaded", () => {
 const API_URL = "http://localhost:3000";
 const GOOGLE_CLIENT_ID_FALLBACK = "635878229812-0s9plecinj5aoufagei6rl0dk0bl1998.apps.googleusercontent.com";
 let googleInitIntentos = 0;
+
+// ================== RESTAURAR SESIÓN ("Recordarme") ==================
+// Si "Recordarme" estaba activo, el token se guardó en localStorage y debe
+// sobrevivir a cerrar el navegador. Si no estaba activo, el token vive en
+// sessionStorage (solo dura mientras la pestaña siga abierta). En ambos casos,
+// cada vez que se carga esta pantalla hay que revisar si ya existe una sesión
+// válida en el servidor y, si es así, saltar el login y redirigir directo.
+
+function redirigirPorRol(rol) {
+  const rolNormalizado = String(rol || '').toLowerCase();
+  if (rolNormalizado === 'usuario') {
+    window.location.href = "../Management-Frontend/main_paciente.html";
+  } else if (rolNormalizado === 'empleado') {
+    window.location.href = "../Management-Backend/cuidador_backend.html";
+  } else if (rolNormalizado === 'administrador') {
+    window.location.href = "../Management-Backend/Admin_Backend.html";
+  } else {
+    return false;
+  }
+  return true;
+}
+
+function limpiarSesionGuardada() {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('remember_me');
+  localStorage.removeItem('session_start');
+  localStorage.removeItem('usuario');
+  sessionStorage.removeItem('auth_token');
+}
+
+async function restaurarSesionSiExiste() {
+  // Prioridad: localStorage (Recordarme activo) y luego sessionStorage (sesión de esta pestaña).
+  const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+  if (!token) return; // No hay sesión previa: se muestra la landing normal.
+
+  try {
+    const respuesta = await fetch(`${API_URL}/verificar-sesion`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      // Token inválido, revocado o expirado: se limpia para no dejar datos obsoletos.
+      limpiarSesionGuardada();
+      return;
+    }
+
+    const usuarioGuardado = JSON.parse(localStorage.getItem('usuario') || 'null');
+    if (!usuarioGuardado || !usuarioGuardado.rol) {
+      limpiarSesionGuardada();
+      return;
+    }
+
+    showToast("Sesión activa detectada. Redirigiendo...", "success");
+    setTimeout(() => {
+      const redirigido = redirigirPorRol(usuarioGuardado.rol);
+      if (!redirigido) limpiarSesionGuardada();
+    }, 800);
+
+  } catch (error) {
+    // Si el servidor no responde, no se bloquea al usuario: simplemente ve el login normal.
+    console.error('No se pudo verificar la sesión guardada:', error);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", restaurarSesionSiExiste);
 
 function guardarSesionGoogle(data, rememberMe) {
   if (data.usuario) {
@@ -675,19 +736,19 @@ if (formRegistro) {
     const passwordValida = passwordEsValida();
 
     if (!nombresValidos) {
-      showToast("El campo nombres solo permite letras y espacios v�lidos.", "warning");
+      showToast("El campo nombres solo permite letras y espacios v�lidos.", "warning");
       document.getElementById("nombres").focus();
       return;
     }
 
     if (!apellidosValidos) {
-      showToast("El campo apellidos solo permite letras y espacios v�lidos.", "warning");
+      showToast("El campo apellidos solo permite letras y espacios v�lidos.", "warning");
       document.getElementById("apellidos").focus();
       return;
     }
 
     if (!correoValido && !passwordValida) {
-      showToast("Correo y contrase�a incorrectos. Verifica ambos campos.", "warning");
+      showToast("Correo y contrase�a incorrectos. Verifica ambos campos.", "warning");
       document.getElementById("emailRegistro").focus();
       return;
     }
@@ -699,7 +760,7 @@ if (formRegistro) {
     }
 
     if (!passwordValida) {
-      showToast("La contrase�a no cumple con los requisitos de seguridad.", "warning");
+      showToast("La contrase�a no cumple con los requisitos de seguridad.", "warning");
       document.getElementById("passwordRegistro").focus();
       return;
     }
@@ -745,19 +806,3 @@ if (formRegistro) {
     }
   });
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -301,10 +301,10 @@
                 <option value="25">25</option>
                 <option value="50">50</option>
               </select>
-              <span>entries per page</span>
+              <span>registros por página</span>
             </div>
             <div class="datatable-search">
-              <label for="searchMedicamentosTabla">Search:</label>
+              <label for="searchMedicamentosTabla">Buscar:</label>
               <input type="text" id="searchMedicamentosTabla" class="form-control form-control-sm">
             </div>
           </div>
@@ -589,10 +589,10 @@
           <option value="25">25</option>
           <option value="50">50</option>
         </select>
-        <span>entries per page</span>
+        <span>registros por página</span>
       </div>
       <div class="datatable-search">
-        <label for="searchInventario">Search:</label>
+        <label for="searchInventario">Buscar:</label>
         <input type="text" id="searchInventario" class="form-control form-control-sm">
       </div>
     </div>
@@ -1044,33 +1044,39 @@
       <!-- PEDIDOS FARMACIA -->
       <section id="pedidos" class="section d-none">
         <div class="section-header">
-          <h2><i class="bi bi-cart3 me-2"></i> Solicitud de Pedidos a Farmacia</h2>
-          <p class="muted">Crea y administra pedidos manuales a farmacias.</p>
+          <h2><i class="bi bi-cart3 me-2"></i> Solicitud de Pedidos</h2>
+          <p class="muted">Gestiona las solicitudes de reabastecimiento de medicamentos del inventario.</p>
         </div>
 
-        <div class="row g-4 mb-4">
-          <div class="col-lg-12">
-            <div class="card">
-              <div class="card-body">
-                <h5 class="card-title mb-3">Crear nuevo pedido</h5>
-                <button id="open-create-order" class="btn btn-primary">
-                  <i class="bi bi-plus-circle me-2"></i> Nuevo pedido
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title mb-3">Historial de pedidos</h5>
-            <div id="historyList" class="vstack gap-2"></div>
-            <div class="text-end mt-3">
-              <button id="clearAll" class="btn btn-outline-danger btn-sm">
-                <i class="bi bi-trash me-2"></i> Limpiar historial
+        <div class="pedidos-hero-grid">
+          <div class="pedidos-hero-card pedidos-hero-create">
+            <div class="pedidos-hero-icon"><i class="bi bi-bag-plus"></i></div>
+            <div class="pedidos-hero-body">
+              <h5>Crear nuevo pedido</h5>
+              <p>Selecciona los medicamentos que necesitas reabastecer; el stock se descuenta automáticamente al guardar.</p>
+              <button id="open-create-order" class="btn btn-primary pedidos-btn-crear">
+                <i class="bi bi-plus-circle me-2"></i> Nuevo pedido
               </button>
             </div>
           </div>
+
+          <div class="pedidos-hero-card pedidos-hero-info">
+            <div class="pedidos-hero-icon pedidos-hero-icon-alt"><i class="bi bi-box-seam"></i></div>
+            <div class="pedidos-hero-body">
+              <h5>¿Cómo funciona?</h5>
+              <p>Cada solicitud queda guardada en el historial con su estado y fecha, para que puedas darle seguimiento en cualquier momento.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card pedidos-history-card">
+          <div class="pedidos-history-header">
+            <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i> Historial de pedidos</h5>
+            <button id="clearAll" class="btn btn-outline-danger btn-sm">
+              <i class="bi bi-trash me-2"></i> Limpiar historial
+            </button>
+          </div>
+          <div id="historyList" class="vstack gap-2 pedidos-history-list"></div>
         </div>
       </section>
 
@@ -1111,10 +1117,10 @@
                     <option value="25">25</option>
                     <option value="50">50</option>
                   </select>
-                  <span>entries per page</span>
+                  <span>registros por página</span>
                 </div>
                 <div class="datatable-search">
-                  <label for="searchUsuarios">Search:</label>
+                  <label for="searchUsuarios">Buscar:</label>
                   <input type="text" id="searchUsuarios" class="form-control form-control-sm">
                 </div>
               </div>
@@ -1325,19 +1331,17 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Crear pedido a farmacia</h5>
+          <h5 class="modal-title"><i class="bi bi-bag-plus me-2"></i> Nueva solicitud de pedido</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <form id="orderForm">
             <div class="mb-3">
-              <label class="form-label">Farmacia destino</label>
-              <select id="farmaciaSelect" class="form-select" required>
-                <option value="">Seleccione una farmacia</option>
-                <option value="Farmacia Kielsa">Farmacia Kielsa</option>
-                <option value="Farmacia El Ahorro">Farmacia El Ahorro</option>
-                <option value="Farmacia Siman">Farmacia Siman</option>
-              </select>
+              <label class="form-label">Disponibilidad en inventario</label>
+              <div id="inventarioDisponiblePedido" class="border rounded p-2" style="max-height: 180px; overflow-y: auto; font-size: 0.85rem;">
+                <div class="text-muted text-center py-2">Cargando inventario...</div>
+              </div>
+              <div class="form-text text-muted">Selecciona el medicamento en la tabla de abajo; la cantidad no puede superar el stock disponible.</div>
             </div>
 
             <div class="mb-3">
@@ -1353,15 +1357,7 @@
               </button>
             </div>
 
-            <div class="mb-3">
-              <label class="form-label">Notas para la farmacia</label>
-              <textarea id="notas" class="form-control" rows="3" placeholder="Ejemplo: entregar en puerta, horario..."></textarea>
-            </div>
-
             <div class="d-flex gap-2">
-              <button type="button" id="previewBtn" class="btn btn-outline-secondary">
-                <i class="bi bi-eye me-2"></i> Previsualizar
-              </button>
               <button type="button" id="sendBtn" class="btn btn-primary">
                 <i class="bi bi-save me-2"></i> Guardar pedido
               </button>
@@ -1369,11 +1365,6 @@
 
             <div id="formMessage" class="fw-semibold mt-2"></div>
           </form>
-
-          <hr class="my-4">
-
-          <h6>Previsualización</h6>
-          <pre id="previewContent" class="bg-light p-3 rounded border small">Aún no hay previsualización.</pre>
         </div>
       </div>
     </div>
@@ -2549,8 +2540,30 @@ document.addEventListener('DOMContentLoaded', () => {
       cargarPacientesVerificacion();
     });
   </script>
+
+  <!-- Botón Actualizar Dashboard -->
+  <script>
+    (function() {
+      const btn = document.getElementById('refreshDashboardBtn');
+      if (!btn) return;
+      btn.addEventListener('click', async function() {
+        const textoOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-arrow-clockwise me-1" style="display:inline-block;animation:spin 0.8s linear infinite"></i> Actualizando...';
+        const funciones = ['cargarDashboard','cargarMedicamentos','cargarInventario','cargarPedidos','cargarCitas','cargarUsuarios'];
+        await Promise.allSettled(funciones.map(fn => {
+          if (typeof window[fn] === 'function') { try { return window[fn](); } catch(e){} }
+          return Promise.resolve();
+        }));
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = textoOriginal;
+          const spanFecha = document.getElementById('last-update');
+          if (spanFecha) spanFecha.textContent = 'ahora';
+        }, 800);
+      });
+    })();
+  </script>
+  <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 </body>
 </html>
-
-
-
