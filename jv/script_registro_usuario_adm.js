@@ -69,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
      // console.log("Datos a enviar:", datos);
 
       // Enviar datos al backend
-      const respuesta = await fetch("http://localhost:3000/registraradm", {
+      const respuesta = await fetch("https://siscom-4lbe.onrender.com/registraradm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(datos)

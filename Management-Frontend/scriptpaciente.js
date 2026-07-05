@@ -1,7 +1,7 @@
 // ============================================
 // CONFIGURACIÓN DE LA API Y SEGURIDAD
 // ============================================
-const API_URL = 'http://localhost:3000';
+const API_URL = 'https://siscom-4lbe.onrender.com';
 
 function toLocalISODate(dateInput = new Date()) {
   const date = dateInput instanceof Date ? new Date(dateInput) : new Date(dateInput);

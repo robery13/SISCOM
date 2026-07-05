@@ -47,8 +47,8 @@ function obtenerTokenSesion() {
 function obtenerUrlPacientesSegunVista() {
   const path = String(window.location.pathname || '').toLowerCase();
   return path.includes('cuidador_backend.html')
-    ? 'http://localhost:3000/mis-pacientes'
-    : 'http://localhost:3000/usuarios/rol/usuario';
+    ? 'https://siscom-4lbe.onrender.com/mis-pacientes'
+    : 'https://siscom-4lbe.onrender.com/usuarios/rol/usuario';
 }
 
 function obtenerHeadersPacientes() {
@@ -133,9 +133,9 @@ async function cargarDashboard() {
     let estadoUsuarios = 'rol-endpoints';
 
     const [adminsRes, empleadosRes, pacientesRes] = await Promise.allSettled([
-      fetch('http://localhost:3000/usuarios/rol/administrador'),
-      fetch('http://localhost:3000/usuarios/rol/empleado'),
-      fetch('http://localhost:3000/usuarios/rol/usuario')
+      fetch('https://siscom-4lbe.onrender.com/usuarios/rol/administrador'),
+      fetch('https://siscom-4lbe.onrender.com/usuarios/rol/empleado'),
+      fetch('https://siscom-4lbe.onrender.com/usuarios/rol/usuario')
     ]);
 
     const parseRolRes = async (res) => {
@@ -157,9 +157,9 @@ async function cargarDashboard() {
     ].join('/')}`;
 
     const [medsRes, invRes, citasRes] = await Promise.allSettled([
-      fetch('http://localhost:3000/Registro_medicamentos', { headers: authHeaders }),
-      fetch('http://localhost:3000/inventario', { headers: authHeaders }),
-      fetch('http://localhost:3000/obtenerCitas', { headers: authHeaders })
+      fetch('https://siscom-4lbe.onrender.com/Registro_medicamentos', { headers: authHeaders }),
+      fetch('https://siscom-4lbe.onrender.com/inventario', { headers: authHeaders }),
+      fetch('https://siscom-4lbe.onrender.com/obtenerCitas', { headers: authHeaders })
     ]);
 
     // log response statuses
@@ -614,7 +614,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // igual se cierra la sesión localmente para no dejar al usuario atascado.
       if (token) {
         try {
-          await fetch('http://localhost:3000/logout', {
+          await fetch('https://siscom-4lbe.onrender.com/logout', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
           });
@@ -827,12 +827,12 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     try {
-      let url = "http://localhost:3000/Registro_medicamentos";
+      let url = "https://siscom-4lbe.onrender.com/Registro_medicamentos";
       let method = "POST";
       
       // Si estamos editando, usar PUT
       if (editingId) {
-        url = `http://localhost:3000/Registro_medicamentos/${editingId}`;
+        url = `https://siscom-4lbe.onrender.com/Registro_medicamentos/${editingId}`;
         method = "PUT";
       }
 
@@ -892,7 +892,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Cargar medicamentos
   async function cargarRegistroMedicamentos() {
     try {
-      const respuesta = await fetch("http://localhost:3000/Registro_medicamentos");
+      const respuesta = await fetch("https://siscom-4lbe.onrender.com/Registro_medicamentos");
       if (!respuesta.ok) throw new Error("Error al cargar medicamentos");
       
       medicamentosData = await respuesta.json();
@@ -1077,7 +1077,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!confirm("¿Está seguro de que desea eliminar este medicamento?")) return;
     
     try {
-      const resp = await fetch(`http://localhost:3000/Registro_medicamentos/${id}`, {
+      const resp = await fetch(`https://siscom-4lbe.onrender.com/Registro_medicamentos/${id}`, {
         method: "DELETE"
       });
       
@@ -1224,7 +1224,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function cargarMedicamentosParaSeleccion() {
     try {
-      const respuesta = await fetch("http://localhost:3000/inventario");
+      const respuesta = await fetch("https://siscom-4lbe.onrender.com/inventario");
       const data = await respuesta.json();
       inventarioActual = data;
 
@@ -1311,7 +1311,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
-        const resp = await fetch("http://localhost:3000/inventario", {
+        const resp = await fetch("https://siscom-4lbe.onrender.com/inventario", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(datos)
@@ -1333,7 +1333,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function cargarInventario() {
     try {
-      const respuesta = await fetch("http://localhost:3000/inventario");
+      const respuesta = await fetch("https://siscom-4lbe.onrender.com/inventario");
       if (!respuesta.ok) {
         throw new Error(`Error HTTP ${respuesta.status}`);
       }
@@ -1680,7 +1680,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // ===============================
 async function verificarAlertasStock() {
   try {
-    const response = await fetch("http://localhost:3000/inventario");
+    const response = await fetch("https://siscom-4lbe.onrender.com/inventario");
     if (!response.ok) throw new Error('Error al cargar inventario');
 
     const inventario = await response.json();
@@ -1817,7 +1817,7 @@ function mostrarAlertasStock(alertas) {
     const ficha = { nombre, fechaNac, alergias, condiciones };
 
     try {
-      const resp = await fetch("http://localhost:3000/guardarFichaMedica", {
+      const resp = await fetch("https://siscom-4lbe.onrender.com/guardarFichaMedica", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(ficha)
@@ -1881,7 +1881,7 @@ function mostrarAlertasStock(alertas) {
 
   async function cargarCitasDesdeServidor() {
     try {
-      const resp = await fetch("http://localhost:3000/obtenerCitas");
+      const resp = await fetch("https://siscom-4lbe.onrender.com/obtenerCitas");
       if (resp.ok) {
         const data = await resp.json();
         citas = data.map(c => ({
@@ -1998,7 +1998,7 @@ function mostrarAlertasStock(alertas) {
     const fecha_hora = toLocalSQLDateTime(dt);
 
     try {
-      const res = await fetch('http://localhost:3000/guardarCita', {
+      const res = await fetch('https://siscom-4lbe.onrender.com/guardarCita', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2026,7 +2026,7 @@ function mostrarAlertasStock(alertas) {
 
   async function eliminarCita(id) {
     try {
-      const res = await fetch(`http://localhost:3000/eliminarCita/${id}`, {
+      const res = await fetch(`https://siscom-4lbe.onrender.com/eliminarCita/${id}`, {
         method: 'DELETE'
       });
 
@@ -2047,7 +2047,7 @@ function mostrarAlertasStock(alertas) {
     if (!confirm('¿Seguro que deseas borrar todas las citas?')) return;
     
     try {
-      const res = await fetch('http://localhost:3000/eliminarTodasCitas', {
+      const res = await fetch('https://siscom-4lbe.onrender.com/eliminarTodasCitas', {
         method: 'DELETE'
       });
 
@@ -2224,7 +2224,7 @@ function mostrarToast(mensaje, tipo = 'info') {
   // Cargar usuarios desde el servidor
   async function cargarUsuarios() {
     try {
-      const respuesta = await fetch("http://localhost:3000/usuarios", {
+      const respuesta = await fetch("https://siscom-4lbe.onrender.com/usuarios", {
         headers: crearHeadersAuth()
       });
       
@@ -2338,7 +2338,7 @@ function mostrarToast(mensaje, tipo = 'info') {
     if (!selectCuidadorAsignacion) return;
 
     try {
-      const respuesta = await fetch("http://localhost:3000/asignaciones-cuidador", {
+      const respuesta = await fetch("https://siscom-4lbe.onrender.com/asignaciones-cuidador", {
         headers: crearHeadersAuth()
       });
 
@@ -2412,7 +2412,7 @@ function mostrarToast(mensaje, tipo = 'info') {
     }
 
     try {
-      const respuesta = await fetch(`http://localhost:3000/asignaciones-cuidador/${cuidadorId}`, {
+      const respuesta = await fetch(`https://siscom-4lbe.onrender.com/asignaciones-cuidador/${cuidadorId}`, {
         method: "POST",
         headers: crearHeadersAuth(true),
         body: JSON.stringify({ pacientes: pacientesSeleccionadosAsignacion })
@@ -2651,11 +2651,11 @@ function mostrarToast(mensaje, tipo = 'info') {
     };
 
     try {
-      let url = "http://localhost:3000/registraradm";
+      let url = "https://siscom-4lbe.onrender.com/registraradm";
       let method = "POST";
       
       if (editingUserId) {
-        url = `http://localhost:3000/usuarios/${editingUserId}`;
+        url = `https://siscom-4lbe.onrender.com/usuarios/${editingUserId}`;
         method = "PUT";
       }
 
@@ -2729,7 +2729,7 @@ function mostrarToast(mensaje, tipo = 'info') {
     if (!confirm("¿Está seguro de que desea eliminar este usuario?")) return;
     
     try {
-      const resp = await fetch(`http://localhost:3000/usuarios/${id}`, {
+      const resp = await fetch(`https://siscom-4lbe.onrender.com/usuarios/${id}`, {
         method: "DELETE",
         headers: crearHeadersAuth()
       });
@@ -2846,7 +2846,7 @@ function escapeHtml(str) {
 //   comparar entre pacientes (tabla + gráfico barras agrupadas), limpiar comparación
 // ===============================
 (function(){
-  const API = "http://localhost:3000";
+  const API = "https://siscom-4lbe.onrender.com";
   const esVistaCuidador = String(window.location.pathname || '').toLowerCase().includes('cuidador_backend.html');
   const chartDisponible = typeof window !== 'undefined' && typeof window.Chart !== 'undefined';
 
@@ -3963,7 +3963,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function cargarInventarioParaPedido() {
     try {
-      const respuesta = await fetch('http://localhost:3000/inventario');
+      const respuesta = await fetch('https://siscom-4lbe.onrender.com/inventario');
       if (!respuesta.ok) throw new Error('Error HTTP ' + respuesta.status);
       inventarioPedido = await respuesta.json();
     } catch (error) {
@@ -4151,7 +4151,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       sendBtn.disabled = true;
       try {
-        const respuesta = await fetch('http://localhost:3000/guardarPedido', {
+        const respuesta = await fetch('https://siscom-4lbe.onrender.com/guardarPedido', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -4183,7 +4183,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function cargarPedidos() {
     historyList.innerHTML = '<div class="text-center text-muted py-3">Cargando pedidos...</div>';
     try {
-      const respuesta = await fetch('http://localhost:3000/obtenerPedidos');
+      const respuesta = await fetch('https://siscom-4lbe.onrender.com/obtenerPedidos');
       if (!respuesta.ok) throw new Error('Error al cargar pedidos');
       const pedidos = await respuesta.json();
       renderHistorialPedidos(pedidos);
@@ -4233,7 +4233,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (verBtn) {
       const id = verBtn.dataset.id;
       try {
-        const respuesta = await fetch(`http://localhost:3000/obtenerPedido/${id}`);
+        const respuesta = await fetch(`https://siscom-4lbe.onrender.com/obtenerPedido/${id}`);
         if (!respuesta.ok) throw new Error('Error al obtener el pedido');
         const data = await respuesta.json();
         if (detailBody) {
@@ -4263,7 +4263,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const id = delBtn.dataset.id;
       if (!confirm('¿Eliminar este pedido del historial? Esto NO devuelve el stock descontado.')) return;
       try {
-        const respuesta = await fetch(`http://localhost:3000/eliminarPedido/${id}`, { method: 'DELETE' });
+        const respuesta = await fetch(`https://siscom-4lbe.onrender.com/eliminarPedido/${id}`, { method: 'DELETE' });
         if (!respuesta.ok) throw new Error('Error al eliminar el pedido');
         mostrarToast('Pedido eliminado', 'success');
         cargarPedidos();
@@ -4279,7 +4279,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!confirm('¿Eliminar TODO el historial de pedidos? Esta acción no se puede deshacer.')) return;
       try {
         const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-        const respuesta = await fetch('http://localhost:3000/eliminarTodosPedidos', {
+        const respuesta = await fetch('https://siscom-4lbe.onrender.com/eliminarTodosPedidos', {
           method: 'DELETE',
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });

@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const datos = { nombres, apellidos, identidad, telefono, email, password };
 
     try {
-      const respuesta = await fetch("http://localhost:3000/registrar", {
+      const respuesta = await fetch("https://siscom-4lbe.onrender.com/registrar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(datos),

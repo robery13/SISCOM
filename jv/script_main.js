@@ -281,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // ================== RECUPERAR CONTRASEÑA ==================
-const API_URL = "http://localhost:3000";
+const API_URL = "https://siscom-4lbe.onrender.com";
 const GOOGLE_CLIENT_ID_FALLBACK = "635878229812-0s9plecinj5aoufagei6rl0dk0bl1998.apps.googleusercontent.com";
 let googleInitIntentos = 0;
 

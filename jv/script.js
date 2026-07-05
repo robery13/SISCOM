@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Envía los datos al puntero guardarMedicamento en server.js
     try {
-      const respuesta = await fetch("http://localhost:3000/guardarMedicamento", {
+      const respuesta = await fetch("https://siscom-4lbe.onrender.com/guardarMedicamento", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

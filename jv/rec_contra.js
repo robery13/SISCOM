@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
       //console.log("Intentando enviar token a:", correo);
 
       try {
-        const res = await fetch("http://localhost:3000/enviar-token", {
+        const res = await fetch("https://siscom-4lbe.onrender.com/enviar-token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ correo }),
@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
       //console.log("Intentando verificar token:", token);
 
       try {
-        const res = await fetch("http://localhost:3000/verificar-token", {
+        const res = await fetch("https://siscom-4lbe.onrender.com/verificar-token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ correo: correoGlobal, tokenIngresado: token }),
@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
      // console.log("Intentando actualizar contraseña para:", correoGlobal);
 
       try {
-        const res = await fetch("http://localhost:3000/actualizar-password", {
+        const res = await fetch("https://siscom-4lbe.onrender.com/actualizar-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ correo: correoGlobal, nuevaPassword }),
