@@ -787,7 +787,7 @@ if (formRegistro) {
           item.querySelector(".requisito-icono").textContent = "✗";
         });
         document.getElementById("passwordMatchMessage").style.display = "none";
-        // Abrir formulario de inicio de sesión tras registro exitoso
+        // Abrir formulario de inicio de sesión tras registro exitoso t
         setTimeout(() => {
           if (typeof cerrarModal === "function") cerrarModal("modalRegistro");
           if (typeof abrirModal === "function") abrirModal("modalLogin");
