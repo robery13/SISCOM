@@ -1227,7 +1227,7 @@ app.delete('/limpiarDiaChecklist/:paciente_id/:fecha', (req, res) => {
 // RUTAS DE PEDIDOS A FARMACIA
 // ============================================
 
-app.post('/guardarPedido', (req, res) => {
+app.post('/guardarPedido', async (req, res) => {
   const { id, farmacia, items, notas, estado, fecha_creacion, id_usuario } = req.body;
 
   //console.log('Datos recibidos:', JSON.stringify(req.body, null, 2));
@@ -1248,40 +1248,60 @@ app.post('/guardarPedido', (req, res) => {
     return res.status(400).json({ mensaje: 'Todos los items deben tener nombre, dosis y cantidad' });
   }
 
-  const sqlPedido = 'INSERT INTO pedidos_farmacia (id, farmacia, notas, estado, fecha_creacion, id_usuario) VALUES (?, ?, ?, ?, ?, ?)';
+  try {
+    // 1) Verificar que hay stock suficiente en inventario para TODOS los items
+    //    antes de guardar nada, para no dejar el pedido a medias.
+    for (const item of items) {
+      const filas = await queryAsync('SELECT id, cantidad FROM inventario WHERE nombre = ? LIMIT 1', [item.nombre]);
+      if (filas.length === 0) {
+        return res.status(400).json({ mensaje: `El medicamento "${item.nombre}" no existe en el inventario` });
+      }
+      if (Number(filas[0].cantidad) < Number(item.cantidad)) {
+        return res.status(400).json({
+          mensaje: `Stock insuficiente de "${item.nombre}" (disponible: ${filas[0].cantidad}, solicitado: ${item.cantidad})`
+        });
+      }
+    }
 
-  // fecha_creacion puede no venir del cliente; el servidor siempre debe
-  // enviar un valor definido a mysql (undefined revienta el driver con
-  // "Bind parameters must not contain undefined").
-  const fechaCreacionFinal = fecha_creacion || new Date().toISOString().slice(0, 19).replace('T', ' ');
+    // 2) Guardar el pedido
+    const sqlPedido = 'INSERT INTO pedidos_farmacia (id, farmacia, notas, estado, fecha_creacion, id_usuario) VALUES (?, ?, ?, ?, ?, ?)';
 
-  db.query(sqlPedido, [id, farmacia, notas || null, estado || 'Pendiente', fechaCreacionFinal, id_usuario || null], (err, result) => {
-    if (err) {
-      //console.error('Error al guardar pedido:', err);
-      return res.status(500).json({ 
-        mensaje: 'Error al guardar el pedido', 
-        error: err.message 
+    // fecha_creacion puede no venir del cliente; el servidor siempre debe
+    // enviar un valor definido a mysql (undefined revienta el driver con
+    // "Bind parameters must not contain undefined").
+    const fechaCreacionFinal = fecha_creacion || new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+    await queryAsync(sqlPedido, [id, farmacia, notas || null, estado || 'Pendiente', fechaCreacionFinal, id_usuario || null]);
+
+    // 3) Guardar los items del pedido
+    try {
+      const sqlItems = 'INSERT INTO pedidos_items (pedido_id, nombre_medicamento, dosis, cantidad) VALUES ?';
+      const values = items.map(item => [id, item.nombre, item.dosis, item.cantidad]);
+      await queryAsync(sqlItems, [values]);
+    } catch (errItems) {
+      await queryAsync('DELETE FROM pedidos_farmacia WHERE id = ?', [id]).catch(() => {});
+      return res.status(500).json({
+        mensaje: 'Error al guardar items del pedido',
+        error: errItems.message
       });
     }
 
-  //  console.log('Pedido guardado, insertando items...');
+    // 4) Descontar el stock del inventario por cada item del pedido
+    for (const item of items) {
+      await queryAsync(
+        'UPDATE inventario SET cantidad = cantidad - ? WHERE nombre = ?',
+        [item.cantidad, item.nombre]
+      );
+    }
 
-    const sqlItems = 'INSERT INTO pedidos_items (pedido_id, nombre_medicamento, dosis, cantidad) VALUES ?';
-    const values = items.map(item => [id, item.nombre, item.dosis, item.cantidad]);
-    
-    db.query(sqlItems, [values], (err) => {
-      if (err) {
-        //console.error('Error al guardar items:', err);
-        db.query('DELETE FROM pedidos_farmacia WHERE id = ?', [id], () => {});
-        return res.status(500).json({ 
-          mensaje: 'Error al guardar items del pedido', 
-          error: err.message 
-        });
-      }
-     // console.log('Items guardados correctamente');
-      res.json({ mensaje: 'Pedido guardado correctamente' });
+    res.json({ mensaje: 'Pedido guardado correctamente' });
+  } catch (err) {
+    //console.error('Error al guardar pedido:', err);
+    res.status(500).json({
+      mensaje: 'Error al guardar el pedido',
+      error: err.message
     });
-  });
+  }
 });
 
 app.get('/obtenerPedidos', (req, res) => {
