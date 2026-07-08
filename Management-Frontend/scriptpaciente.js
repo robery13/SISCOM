@@ -750,6 +750,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
       }
+
+      // Si el Perfil estaba abierto y el usuario navega a otra sección del menú, se cierra
+      cerrarEstadoVisualPerfil();
     });
   });
 
@@ -757,6 +760,90 @@ document.addEventListener("DOMContentLoaded", () => {
   iniciarVerificacionCitas();
   limpiarNotificacionesAntiguas();
   iniciarSistemaNotificacionesMedicamentos();
+});
+
+// ===============================
+// PERFIL: abrir/cerrar desde el icono de usuario en el sidebar
+// (no aparece en el menú principal; se despliega igual que el
+// panel de configuración al hacer clic en el avatar de otros sistemas)
+// ===============================
+let perfilAbierto = false;
+let perfilSeccionPrevia = 'inicio';
+
+function cerrarEstadoVisualPerfil() {
+  perfilAbierto = false;
+  document.getElementById('sidebarProfileCard')?.classList.remove('active');
+  document.getElementById('perfilChevron')?.classList.remove('bi-chevron-up');
+  document.getElementById('perfilChevron')?.classList.add('bi-chevron-down');
+}
+
+function mostrarSeccionPerfilConPanel(panel = 'ficha') {
+  const perfilSection = document.getElementById('perfil');
+  if (!perfilSection) return;
+
+  const sections = document.querySelectorAll('.section');
+  const navBtns = document.querySelectorAll('.nav-btn');
+  const profileCard = document.getElementById('sidebarProfileCard');
+  const chevron = document.getElementById('perfilChevron');
+
+  // Guardar la sección visible actual para poder volver a ella al cerrar
+  if (!perfilAbierto) {
+    const activaAntes = document.querySelector('.section:not(.d-none)');
+    if (activaAntes && activaAntes.id !== 'perfil') {
+      perfilSeccionPrevia = activaAntes.id;
+    }
+  }
+
+  sections.forEach(sec => sec.classList.add('d-none'));
+  navBtns.forEach(b => b.classList.remove('active'));
+
+  perfilSection.classList.remove('d-none');
+  profileCard?.classList.add('active');
+  chevron?.classList.remove('bi-chevron-down');
+  chevron?.classList.add('bi-chevron-up');
+
+  perfilAbierto = true;
+  localStorage.setItem('mainPaciente_section', 'perfil');
+
+  setTimeout(() => {
+    if (typeof activarPanelPerfil === 'function') activarPanelPerfil(panel);
+  }, 50);
+}
+
+function cerrarSeccionPerfil() {
+  const sections = document.querySelectorAll('.section');
+  const navBtns = document.querySelectorAll('.nav-btn');
+
+  sections.forEach(sec => sec.classList.add('d-none'));
+  navBtns.forEach(b => b.classList.remove('active'));
+
+  const idPrevio = perfilSeccionPrevia || 'inicio';
+  const sectionPrevia = document.getElementById(idPrevio) || document.getElementById('inicio');
+  const btnPrevio = document.querySelector(`.nav-btn[data-section="${idPrevio}"]`) || document.querySelector('.nav-btn[data-section="inicio"]');
+
+  if (sectionPrevia) sectionPrevia.classList.remove('d-none');
+  if (btnPrevio) btnPrevio.classList.add('active');
+
+  cerrarEstadoVisualPerfil();
+  localStorage.setItem('mainPaciente_section', idPrevio);
+}
+
+function toggleSeccionPerfilDesdeAvatar() {
+  if (perfilAbierto) {
+    cerrarSeccionPerfil();
+  } else {
+    mostrarSeccionPerfilConPanel('ficha');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const profileCard = document.getElementById('sidebarProfileCard');
+  profileCard?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleSeccionPerfilDesdeAvatar();
+    }
+  });
 });
 
 // ===============================
@@ -2724,6 +2811,272 @@ function obtenerAvatarSVG(avatarId, size = '100%') {
 // ============================================
 // HU-29: PERSONALIZACIÓN VISUAL
 // ============================================
+// ===============================
+// SECCIÓN PERFIL: FICHA COMPLETA (HU-31)
+// ===============================
+async function cargarFichaCompletaPerfil() {
+  const container = document.getElementById('fichaCompletaContainer');
+  if (!container) return;
+
+  const idUsuario = getUsuarioId();
+  const usuarioLocal = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const token = getAuthToken();
+
+  let usuario = usuarioLocal;
+  let recompensas = {};
+  let contactos = [];
+
+  try {
+    if (token) {
+      const resp = await fetch(`${API_URL}/mi-perfil`, { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) {
+        const data = await leerRespuestaApiSegura(resp);
+        if (data && data.usuario) usuario = { ...usuarioLocal, ...data.usuario };
+      }
+    }
+  } catch (error) {
+    console.error('Error al obtener datos del perfil para la ficha:', error);
+  }
+
+  try {
+    const respRec = await fetch(`${API_URL}/recompensas/${idUsuario}`);
+    if (respRec.ok) recompensas = await respRec.json();
+  } catch (error) {
+    console.error('Error al obtener recompensas para la ficha:', error);
+  }
+
+  try {
+    const respCont = await fetch(`${API_URL}/contactosEmergencia/${idUsuario}`);
+    if (respCont.ok) contactos = await respCont.json();
+  } catch (error) {
+    console.error('Error al obtener contactos para la ficha:', error);
+  }
+
+  const avatarId = localStorage.getItem('avatar_usuario') || 'default';
+  const cuidadorTexto = document.getElementById('sidebar-caregiver')?.textContent || 'Cuidador: Sin cuidador asignado';
+
+  container.innerHTML = `
+    <div class="d-flex flex-column flex-md-row align-items-center gap-3 mb-4">
+      <div style="width: 90px; height: 90px;">${obtenerAvatarSVG(avatarId)}</div>
+      <div class="text-center text-md-start">
+        <h4 class="mb-1">${usuario.nombres || ''} ${usuario.apellidos || ''}</h4>
+        <p class="text-muted mb-0">${cuidadorTexto}</p>
+      </div>
+    </div>
+
+    <div class="perfil-resumen-grid mb-3">
+      <div class="perfil-resumen-item">
+        <div class="perfil-resumen-label">Identidad</div>
+        <div class="perfil-resumen-value">${usuario.identidad || 'No registrado'}</div>
+      </div>
+      <div class="perfil-resumen-item">
+        <div class="perfil-resumen-label">Telefono</div>
+        <div class="perfil-resumen-value">${usuario.telefono || 'No registrado'}</div>
+      </div>
+      <div class="perfil-resumen-item">
+        <div class="perfil-resumen-label"><i class="bi bi-droplet-fill text-danger"></i> Tipo de Sangre</div>
+        <div class="perfil-resumen-value">${usuario.tipo_sangre || 'No registrado'}</div>
+      </div>
+      <div class="perfil-resumen-item">
+        <div class="perfil-resumen-label">Correo electronico</div>
+        <div class="perfil-resumen-value">${usuario.email || 'No registrado'}</div>
+      </div>
+    </div>
+
+    <div class="row text-center mb-3">
+      <div class="col-6 col-md-3 mb-3">
+        <div class="p-3 bg-light rounded">
+          <i class="bi bi-star-fill text-warning" style="font-size: 1.5rem;"></i>
+          <h5 class="mt-2 mb-0">${recompensas.puntos_totales || 0}</h5>
+          <small class="text-muted">Puntos</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3 mb-3">
+        <div class="p-3 bg-light rounded">
+          <i class="bi bi-award-fill text-primary" style="font-size: 1.5rem;"></i>
+          <h5 class="mt-2 mb-0">${recompensas.medallas || 0}</h5>
+          <small class="text-muted">Medallas</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3 mb-3">
+        <div class="p-3 bg-light rounded">
+          <i class="bi bi-graph-up text-success" style="font-size: 1.5rem;"></i>
+          <h5 class="mt-2 mb-0">${recompensas.porcentaje_cumplimiento || 0}%</h5>
+          <small class="text-muted">Cumplimiento</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3 mb-3">
+        <div class="p-3 bg-light rounded">
+          <i class="bi bi-telephone-plus text-danger" style="font-size: 1.5rem;"></i>
+          <h5 class="mt-2 mb-0">${contactos.length || 0}</h5>
+          <small class="text-muted">Contactos de emergencia</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+      <button class="btn btn-outline-primary btn-sm" onclick="activarPanelPerfil('personalizacion')">
+        <i class="bi bi-pencil-square"></i> Editar mis datos
+      </button>
+      <button class="btn btn-outline-primary btn-sm" onclick="activarPanelPerfil('contactos')">
+        <i class="bi bi-telephone-plus"></i> Ver contactos de emergencia
+      </button>
+    </div>
+  `;
+}
+
+// ===============================
+// SECCIÓN PERFIL: CONTACTOS DE EMERGENCIA (HU-21)
+// ===============================
+async function cargarContactosEmergenciaPerfil() {
+  const container = document.getElementById('contactosEmergenciaPerfilContainer');
+  if (!container) return;
+
+  const idUsuario = getUsuarioId();
+
+  try {
+    const response = await fetch(`${API_URL}/contactosEmergencia/${idUsuario}`);
+    const contactos = await response.json();
+
+    container.innerHTML = '';
+
+    if (!Array.isArray(contactos) || contactos.length === 0) {
+      container.innerHTML = '<div class="list-group-item text-center text-muted">No has agregado contactos de emergencia todavia</div>';
+      return;
+    }
+
+    contactos.forEach(contacto => {
+      const div = document.createElement('div');
+      div.className = 'list-group-item';
+      div.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <h6 class="mb-0">${contacto.nombre_contacto} ${contacto.relacion ? `(${contacto.relacion})` : ''}</h6>
+            <small class="text-muted"><i class="bi bi-telephone"></i> ${contacto.telefono}</small>
+            <small class="text-muted d-block">Prioridad: ${contacto.prioridad ?? 1}</small>
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-success" onclick="window.location.href='tel:${contacto.telefono}'">
+              <i class="bi bi-telephone-fill"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-primary" onclick='editarContactoEmergencia(${JSON.stringify(contacto)})'>
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="eliminarContactoEmergencia(${contacto.id})">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  } catch (error) {
+    console.error('Error al cargar contactos de emergencia del perfil:', error);
+    container.innerHTML = '<div class="list-group-item text-center text-danger">No se pudieron cargar los contactos</div>';
+  }
+}
+
+function mostrarFormularioContacto() {
+  document.getElementById('contactoEmergenciaId').value = '';
+  document.getElementById('contactoNombre').value = '';
+  document.getElementById('contactoRelacion').value = '';
+  document.getElementById('contactoTelefono').value = '';
+  document.getElementById('contactoPrioridad').value = '1';
+  document.getElementById('formContactoEmergencia').classList.remove('d-none');
+}
+
+function ocultarFormularioContacto() {
+  document.getElementById('formContactoEmergencia').classList.add('d-none');
+}
+
+function editarContactoEmergencia(contacto) {
+  document.getElementById('contactoEmergenciaId').value = contacto.id;
+  document.getElementById('contactoNombre').value = contacto.nombre_contacto || '';
+  document.getElementById('contactoRelacion').value = contacto.relacion || '';
+  document.getElementById('contactoTelefono').value = contacto.telefono || '';
+  document.getElementById('contactoPrioridad').value = contacto.prioridad || 1;
+  document.getElementById('formContactoEmergencia').classList.remove('d-none');
+}
+
+async function guardarContactoEmergencia() {
+  const token = getAuthToken();
+  if (!token) {
+    mostrarNotificacion('Sesion no valida. Inicia sesion nuevamente.', 'error');
+    return;
+  }
+
+  const id = document.getElementById('contactoEmergenciaId').value;
+  const payload = {
+    nombre_contacto: String(document.getElementById('contactoNombre').value || '').trim(),
+    relacion: String(document.getElementById('contactoRelacion').value || '').trim(),
+    telefono: String(document.getElementById('contactoTelefono').value || '').trim(),
+    prioridad: parseInt(document.getElementById('contactoPrioridad').value, 10) || 1
+  };
+
+  if (!payload.nombre_contacto || !payload.telefono) {
+    mostrarNotificacion('El nombre y el telefono del contacto son obligatorios.', 'warning');
+    return;
+  }
+
+  try {
+    const url = id ? `${API_URL}/contactosEmergencia/${id}` : `${API_URL}/contactosEmergencia`;
+    const metodo = id ? 'PUT' : 'POST';
+
+    const response = await fetch(url, {
+      method: metodo,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await leerRespuestaApiSegura(response);
+    if (!response.ok) {
+      throw new Error(data.mensaje || 'No se pudo guardar el contacto de emergencia');
+    }
+
+    mostrarNotificacion(data.mensaje || 'Contacto guardado correctamente.', 'success');
+    ocultarFormularioContacto();
+    cargarContactosEmergenciaPerfil();
+  } catch (error) {
+    console.error('Error al guardar contacto de emergencia:', error);
+    mostrarNotificacion(error.message || 'No se pudo guardar el contacto.', 'error');
+  }
+}
+
+async function eliminarContactoEmergencia(id) {
+  const token = getAuthToken();
+  if (!token) {
+    mostrarNotificacion('Sesion no valida. Inicia sesion nuevamente.', 'error');
+    return;
+  }
+
+  const confirmado = await mostrarConfirmacion(
+    'Eliminar contacto',
+    '¿Deseas eliminar este contacto de emergencia? Esta accion no se puede deshacer.'
+  );
+  if (!confirmado) return;
+
+  try {
+    const response = await fetch(`${API_URL}/contactosEmergencia/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await leerRespuestaApiSegura(response);
+    if (!response.ok) {
+      throw new Error(data.mensaje || 'No se pudo eliminar el contacto');
+    }
+
+    mostrarNotificacion(data.mensaje || 'Contacto eliminado correctamente.', 'success');
+    cargarContactosEmergenciaPerfil();
+  } catch (error) {
+    console.error('Error al eliminar contacto de emergencia:', error);
+    mostrarNotificacion(error.message || 'No se pudo eliminar el contacto.', 'error');
+  }
+}
+
 function cargarPersonalizacion() {
   const container = document.getElementById('personalizacion-container');
   if (!container) return;
@@ -2916,6 +3269,10 @@ function renderizarPersonalizacion() {
             <div class="perfil-resumen-label">Telefono</div>
             <div class="perfil-resumen-value" id="perfilResumenTelefono">-</div>
           </div>
+          <div class="perfil-resumen-item">
+            <div class="perfil-resumen-label"><i class="bi bi-droplet-fill text-danger"></i> Tipo de Sangre</div>
+            <div class="perfil-resumen-value" id="perfilResumenTipoSangre">-</div>
+          </div>
           <div class="perfil-resumen-item full">
             <div class="perfil-resumen-label">Correo electronico</div>
             <div class="perfil-resumen-value" id="perfilResumenEmail">-</div>
@@ -2946,6 +3303,20 @@ function renderizarPersonalizacion() {
           <div>
             <label for="perfilTelefono" class="form-label">Telefono</label>
             <input id="perfilTelefono" type="text" class="form-control" maxlength="8" placeholder="8 digitos">
+          </div>
+          <div>
+            <label for="perfilTipoSangre" class="form-label"><i class="bi bi-droplet-fill text-danger"></i> Tipo de Sangre</label>
+            <select id="perfilTipoSangre" class="form-select">
+              <option value="">Selecciona...</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+            </select>
           </div>
           <div style="grid-column: 1 / -1;">
             <label for="perfilEmail" class="form-label">Correo electronico</label>
@@ -3183,6 +3554,7 @@ function obtenerDatosPerfilDesdeInputs() {
     apellidos: String(document.getElementById('perfilApellidos')?.value || '').trim(),
     identidad: String(document.getElementById('perfilIdentidad')?.value || '').replace(/\D/g, ''),
     telefono: String(document.getElementById('perfilTelefono')?.value || '').replace(/\D/g, ''),
+    tipo_sangre: String(document.getElementById('perfilTipoSangre')?.value || '').trim().toUpperCase(),
     email: String(document.getElementById('perfilEmail')?.value || '').trim().toLowerCase()
   };
 }
@@ -3197,6 +3569,7 @@ function actualizarResumenPerfil(usuario = {}) {
   setText('perfilResumenApellidos', usuario.apellidos || '');
   setText('perfilResumenIdentidad', usuario.identidad || '');
   setText('perfilResumenTelefono', usuario.telefono || '');
+  setText('perfilResumenTipoSangre', usuario.tipo_sangre || '');
   setText('perfilResumenEmail', usuario.email || '');
 }
 
@@ -3223,12 +3596,14 @@ function poblarInputsPerfil(usuario = {}) {
   const apellidosInput = document.getElementById('perfilApellidos');
   const identidadInput = document.getElementById('perfilIdentidad');
   const telefonoInput = document.getElementById('perfilTelefono');
+  const tipoSangreInput = document.getElementById('perfilTipoSangre');
   const emailInput = document.getElementById('perfilEmail');
 
   if (nombresInput) nombresInput.value = usuario.nombres || '';
   if (apellidosInput) apellidosInput.value = usuario.apellidos || '';
   if (identidadInput) identidadInput.value = usuario.identidad || '';
   if (telefonoInput) telefonoInput.value = usuario.telefono || '';
+  if (tipoSangreInput) tipoSangreInput.value = usuario.tipo_sangre || '';
   if (emailInput) emailInput.value = usuario.email || '';
   actualizarResumenPerfil(usuario);
 }
@@ -3293,6 +3668,17 @@ async function guardarDatosPerfilPaciente() {
 
   if (!payload.nombres || !payload.apellidos || !payload.identidad || !payload.telefono || !payload.email) {
     mostrarNotificacion('Completa todos los campos obligatorios.', 'warning');
+    return;
+  }
+
+  if (!payload.tipo_sangre) {
+    mostrarNotificacion('El tipo de sangre es un campo obligatorio.', 'warning');
+    return;
+  }
+
+  const TIPOS_SANGRE_VALIDOS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
+  if (!TIPOS_SANGRE_VALIDOS.includes(payload.tipo_sangre)) {
+    mostrarNotificacion('Selecciona un tipo de sangre valido.', 'warning');
     return;
   }
 
@@ -3851,9 +4237,8 @@ function obtenerColorTema(temaId) {
 }
 
 function irAPersonalizacion() {
-  const btnPersonalizacion = document.querySelector('.nav-btn[data-section="personalizacion"]');
-  if (btnPersonalizacion) {
-    btnPersonalizacion.click();
+  if (typeof mostrarSeccionPerfilConPanel === 'function') {
+    mostrarSeccionPerfilConPanel('personalizacion');
   }
 }
 
