@@ -78,6 +78,13 @@ db.connect(err => {
     // Asegurar columna tipo_sangre en usuarios (HU-22: Agregar tipo de sangre)
     ensureUsuariosColumn('tipo_sangre', "ALTER TABLE usuarios ADD COLUMN tipo_sangre VARCHAR(5) NULL AFTER telefono");
 
+    // Asegurar columnas de Ficha Médica en usuarios (operaciones, alergias, enfermedades cronicas, tatuajes, otras enfermedades)
+    ensureUsuariosColumn('operaciones_realizadas', "ALTER TABLE usuarios ADD COLUMN operaciones_realizadas TEXT NULL AFTER tipo_sangre");
+    ensureUsuariosColumn('alergias', "ALTER TABLE usuarios ADD COLUMN alergias TEXT NULL AFTER operaciones_realizadas");
+    ensureUsuariosColumn('enfermedades_cronicas', "ALTER TABLE usuarios ADD COLUMN enfermedades_cronicas TEXT NULL AFTER alergias");
+    ensureUsuariosColumn('tatuajes', "ALTER TABLE usuarios ADD COLUMN tatuajes TEXT NULL AFTER enfermedades_cronicas");
+    ensureUsuariosColumn('otras_enfermedades', "ALTER TABLE usuarios ADD COLUMN otras_enfermedades TEXT NULL AFTER tatuajes");
+
     // Crear tabla contactos_emergencia si no existe (HU-21: Agregar contactos de emergencia)
     const createContactosEmergenciaSql = `
       CREATE TABLE IF NOT EXISTS contactos_emergencia (
@@ -1579,7 +1586,7 @@ app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
 
 // Obtener perfil del paciente autenticado
 app.get('/mi-perfil', verificarRol(['usuario']), (req, res) => {
-  const sql = 'SELECT id, nombres, apellidos, identidad, telefono, tipo_sangre, email, rol FROM usuarios WHERE id = ? LIMIT 1';
+  const sql = 'SELECT id, nombres, apellidos, identidad, telefono, tipo_sangre, operaciones_realizadas, alergias, enfermedades_cronicas, tatuajes, otras_enfermedades, email, rol FROM usuarios WHERE id = ? LIMIT 1';
   db.query(sql, [req.user.id], (err, results) => {
     if (err) {
       return res.status(500).json({ mensaje: 'Error al cargar tu perfil' });
@@ -1594,83 +1601,117 @@ app.get('/mi-perfil', verificarRol(['usuario']), (req, res) => {
 });
 
 // Actualizar perfil del paciente autenticado
+// Soporta actualizaciones parciales: si solo se envian los campos de la Ficha Medica
+// (operaciones_realizadas, alergias, enfermedades_cronicas, tatuajes, otras_enfermedades)
+// se conservan los datos personales actuales sin exigirlos de nuevo.
 app.put('/mi-perfil', verificarRol(['usuario']), (req, res) => {
-  const { nombres, apellidos, identidad, telefono, tipo_sangre, email } = req.body || {};
-
+  const body = req.body || {};
   const TIPOS_SANGRE_VALIDOS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
 
-  const nombresTxt = String(nombres || '').trim();
-  const apellidosTxt = String(apellidos || '').trim();
-  const identidadTxt = String(identidad || '').replace(/\D/g, '');
-  const telefonoTxt = String(telefono || '').replace(/\D/g, '');
-  const tipoSangreTxt = String(tipo_sangre || '').trim().toUpperCase();
-  const correoNormalizado = String(email || '').trim().toLowerCase();
-
-  if (!nombresTxt || !apellidosTxt || !identidadTxt || !telefonoTxt || !correoNormalizado || !tipoSangreTxt) {
-    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios, incluyendo el tipo de sangre.' });
-  }
-
-  if (!TIPOS_SANGRE_VALIDOS.includes(tipoSangreTxt)) {
-    return res.status(400).json({ mensaje: 'El tipo de sangre no es valido.' });
-  }
-
-  if (!/^\d{13}$/.test(identidadTxt)) {
-    return res.status(400).json({ mensaje: 'La identidad debe contener 13 digitos.' });
-  }
-
-  if (!/^\d{8}$/.test(telefonoTxt)) {
-    return res.status(400).json({ mensaje: 'El telefono debe contener 8 digitos.' });
-  }
-
-  if (!esCorreoDominioPermitido(correoNormalizado)) {
-    return res.status(400).json({ mensaje: 'El correo no pertenece a un dominio permitido.' });
-  }
-
-  const sqlDuplicados = 'SELECT id, email, identidad FROM usuarios WHERE (email = ? OR identidad = ?) AND id != ?';
-  db.query(sqlDuplicados, [correoNormalizado, identidadTxt, req.user.id], (errDup, duplicados) => {
-    if (errDup) {
-      return res.status(500).json({ mensaje: 'Error al validar datos duplicados' });
+  const sqlActual = 'SELECT id, nombres, apellidos, identidad, telefono, tipo_sangre, operaciones_realizadas, alergias, enfermedades_cronicas, tatuajes, otras_enfermedades, email, rol FROM usuarios WHERE id = ? LIMIT 1';
+  db.query(sqlActual, [req.user.id], (errActual, actuales) => {
+    if (errActual) {
+      return res.status(500).json({ mensaje: 'Error al cargar tu perfil actual' });
+    }
+    if (!actuales.length) {
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
 
-    if (Array.isArray(duplicados) && duplicados.length > 0) {
-      const correoExiste = duplicados.some((r) => String(r.email || '').toLowerCase() === correoNormalizado);
-      const identidadExiste = duplicados.some((r) => String(r.identidad || '') === identidadTxt);
+    const actual = actuales[0];
 
-      if (correoExiste && identidadExiste) {
-        return res.status(400).json({ mensaje: 'El correo y la identidad ya estan registrados.' });
-      }
-      if (correoExiste) {
-        return res.status(400).json({ mensaje: 'El correo ya esta registrado.' });
-      }
-      if (identidadExiste) {
-        return res.status(400).json({ mensaje: 'La identidad ya esta registrada.' });
-      }
+    const nombresTxt = body.nombres !== undefined ? String(body.nombres || '').trim() : String(actual.nombres || '');
+    const apellidosTxt = body.apellidos !== undefined ? String(body.apellidos || '').trim() : String(actual.apellidos || '');
+    const identidadTxt = body.identidad !== undefined ? String(body.identidad || '').replace(/\D/g, '') : String(actual.identidad || '');
+    const telefonoTxt = body.telefono !== undefined ? String(body.telefono || '').replace(/\D/g, '') : String(actual.telefono || '');
+    const tipoSangreTxt = body.tipo_sangre !== undefined ? String(body.tipo_sangre || '').trim().toUpperCase() : String(actual.tipo_sangre || '');
+    const correoNormalizado = body.email !== undefined ? String(body.email || '').trim().toLowerCase() : String(actual.email || '').toLowerCase();
+
+    // Campos de Ficha Medica: opcionales, sin formato obligatorio
+    const operacionesTxt = body.operaciones_realizadas !== undefined ? String(body.operaciones_realizadas || '').trim() : (actual.operaciones_realizadas || '');
+    const alergiasTxt = body.alergias !== undefined ? String(body.alergias || '').trim() : (actual.alergias || '');
+    const enfermedadesCronicasTxt = body.enfermedades_cronicas !== undefined ? String(body.enfermedades_cronicas || '').trim() : (actual.enfermedades_cronicas || '');
+    const tatuajesTxt = body.tatuajes !== undefined ? String(body.tatuajes || '').trim() : (actual.tatuajes || '');
+    const otrasEnfermedadesTxt = body.otras_enfermedades !== undefined ? String(body.otras_enfermedades || '').trim() : (actual.otras_enfermedades || '');
+
+    if (!nombresTxt || !apellidosTxt || !identidadTxt || !telefonoTxt || !correoNormalizado || !tipoSangreTxt) {
+      return res.status(400).json({ mensaje: 'Todos los campos son obligatorios, incluyendo el tipo de sangre.' });
     }
 
-    const sqlUpdate = 'UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ?, tipo_sangre = ?, email = ? WHERE id = ?';
-    db.query(sqlUpdate, [nombresTxt, apellidosTxt, identidadTxt, telefonoTxt, tipoSangreTxt, correoNormalizado, req.user.id], (errUpd) => {
-      if (errUpd) {
-        return res.status(500).json({ mensaje: 'Error al actualizar tu perfil' });
+    if (!TIPOS_SANGRE_VALIDOS.includes(tipoSangreTxt)) {
+      return res.status(400).json({ mensaje: 'El tipo de sangre no es valido.' });
+    }
+
+    if (!/^\d{13}$/.test(identidadTxt)) {
+      return res.status(400).json({ mensaje: 'La identidad debe contener 13 digitos.' });
+    }
+
+    if (!/^\d{8}$/.test(telefonoTxt)) {
+      return res.status(400).json({ mensaje: 'El telefono debe contener 8 digitos.' });
+    }
+
+    if (!esCorreoDominioPermitido(correoNormalizado)) {
+      return res.status(400).json({ mensaje: 'El correo no pertenece a un dominio permitido.' });
+    }
+
+    const sqlDuplicados = 'SELECT id, email, identidad FROM usuarios WHERE (email = ? OR identidad = ?) AND id != ?';
+    db.query(sqlDuplicados, [correoNormalizado, identidadTxt, req.user.id], (errDup, duplicados) => {
+      if (errDup) {
+        return res.status(500).json({ mensaje: 'Error al validar datos duplicados' });
       }
 
-      const sqlUsuario = 'SELECT id, nombres, apellidos, identidad, telefono, tipo_sangre, email, rol FROM usuarios WHERE id = ? LIMIT 1';
-      db.query(sqlUsuario, [req.user.id], (errUser, users) => {
-        if (errUser) {
-          return res.status(500).json({ mensaje: 'Perfil actualizado, pero no se pudo recargar la informacion.' });
+      if (Array.isArray(duplicados) && duplicados.length > 0) {
+        const correoExiste = duplicados.some((r) => String(r.email || '').toLowerCase() === correoNormalizado);
+        const identidadExiste = duplicados.some((r) => String(r.identidad || '') === identidadTxt);
+
+        if (correoExiste && identidadExiste) {
+          return res.status(400).json({ mensaje: 'El correo y la identidad ya estan registrados.' });
+        }
+        if (correoExiste) {
+          return res.status(400).json({ mensaje: 'El correo ya esta registrado.' });
+        }
+        if (identidadExiste) {
+          return res.status(400).json({ mensaje: 'La identidad ya esta registrada.' });
+        }
+      }
+
+      const sqlUpdate = `UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ?, tipo_sangre = ?,
+        operaciones_realizadas = ?, alergias = ?, enfermedades_cronicas = ?, tatuajes = ?, otras_enfermedades = ?,
+        email = ? WHERE id = ?`;
+      const params = [
+        nombresTxt, apellidosTxt, identidadTxt, telefonoTxt, tipoSangreTxt,
+        operacionesTxt, alergiasTxt, enfermedadesCronicasTxt, tatuajesTxt, otrasEnfermedadesTxt,
+        correoNormalizado, req.user.id
+      ];
+
+      db.query(sqlUpdate, params, (errUpd) => {
+        if (errUpd) {
+          return res.status(500).json({ mensaje: 'Error al actualizar tu perfil' });
         }
 
-        return res.json({
-          mensaje: 'Datos actualizados correctamente.',
-          usuario: users && users[0] ? users[0] : {
-            id: req.user.id,
-            nombres: nombresTxt,
-            apellidos: apellidosTxt,
-            identidad: identidadTxt,
-            telefono: telefonoTxt,
-            tipo_sangre: tipoSangreTxt,
-            email: correoNormalizado,
-            rol: 'usuario'
+        const sqlUsuario = 'SELECT id, nombres, apellidos, identidad, telefono, tipo_sangre, operaciones_realizadas, alergias, enfermedades_cronicas, tatuajes, otras_enfermedades, email, rol FROM usuarios WHERE id = ? LIMIT 1';
+        db.query(sqlUsuario, [req.user.id], (errUser, users) => {
+          if (errUser) {
+            return res.status(500).json({ mensaje: 'Perfil actualizado, pero no se pudo recargar la informacion.' });
           }
+
+          return res.json({
+            mensaje: 'Datos actualizados correctamente.',
+            usuario: users && users[0] ? users[0] : {
+              id: req.user.id,
+              nombres: nombresTxt,
+              apellidos: apellidosTxt,
+              identidad: identidadTxt,
+              telefono: telefonoTxt,
+              tipo_sangre: tipoSangreTxt,
+              operaciones_realizadas: operacionesTxt,
+              alergias: alergiasTxt,
+              enfermedades_cronicas: enfermedadesCronicasTxt,
+              tatuajes: tatuajesTxt,
+              otras_enfermedades: otrasEnfermedadesTxt,
+              email: correoNormalizado,
+              rol: 'usuario'
+            }
+          });
         });
       });
     });
@@ -1801,6 +1842,21 @@ app.get('/historialMedicacionEventos/:id_usuario', (req, res) => {
     }
 
     res.json(results);
+  });
+});
+
+// Limpiar (eliminar) todo el historial de medicacion de un paciente
+app.delete('/historialMedicacionEventos/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+
+  const sql = 'DELETE FROM tomas_medicas WHERE id_usuario = ?';
+  db.query(sql, [id_usuario], (err, result) => {
+    if (err) {
+      console.error('Error al limpiar historial de medicacion:', err);
+      return res.status(500).json({ mensaje: 'Error al limpiar el historial de medicacion' });
+    }
+
+    res.json({ mensaje: 'Historial de medicación eliminado correctamente', eliminados: result.affectedRows || 0 });
   });
 });
 
