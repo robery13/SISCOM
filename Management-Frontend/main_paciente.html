@@ -87,11 +87,11 @@
  <!-- BARRA LATERAL -->
 <aside class="sidebar" id="sidebar">
   <div class="brand">SISCOM</div>
-  <!--  PERFIL DE USUARIO -->
-  <div class="user-profile">
+  <!--  PERFIL DE USUARIO (clic para abrir/cerrar el Perfil, como el icono de usuario en la esquina de otros sistemas) -->
+  <div class="user-profile" id="sidebarProfileCard" onclick="toggleSeccionPerfilDesdeAvatar()" role="button" tabindex="0" title="Ver mi perfil">
     <div class="user-avatar-container">
       <div class="user-avatar" id="sidebar-avatar"></div>
-      <button class="avatar-edit-btn" onclick="irAPersonalizacion()" title="Editar perfil">
+      <button class="avatar-edit-btn" onclick="event.stopPropagation(); irAPersonalizacion();" title="Editar perfil">
         <i class="bi bi-pencil-fill"></i>
       </button>
     </div>
@@ -103,16 +103,15 @@
         <i class="bi bi-circle-fill"></i> <span id="theme-name">Azul Clásico</span>
       </div>
     </div>
+    <i class="bi bi-chevron-down user-profile-chevron" id="perfilChevron"></i>
   </div>
 
   <nav class="nav-menu">
     <button class="nav-btn active" data-section="inicio"><i class="bi bi-house-door"></i> <span>Inicio</span></button>
     <button class="nav-btn" data-section="recetas"><i class="bi bi-prescription2"></i> <span>Recetas Médicas</span></button>
     <button class="nav-btn" data-section="agenda"><i class="bi bi-calendar-check"></i> <span>Agenda Médica</span></button>
-    <button class="nav-btn" data-section="recompensas"><i class="bi bi-trophy"></i> <span>Recompensas</span></button>
     <button class="nav-btn" data-section="emergencia"><i class="bi bi-mic-fill"></i> <span>Emergencia</span></button>
     <button class="nav-btn" data-section="horarios"><i class="bi bi-clock-fill"></i> <span>Mis Horarios</span></button>
-    <button class="nav-btn" data-section="personalizacion"><i class="bi bi-palette-fill"></i> <span>Personalización</span></button>
     <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
 
   </nav>
@@ -400,13 +399,110 @@
         </div>
       </section>
 
-      <!-- SECCIÓN RECOMPENSAS -->
-      <section id="recompensas" class="section d-none">
+      <!-- SECCIÓN PERFIL (submenu estilo configuracion) -->
+      <section id="perfil" class="section d-none">
         <div class="section-header">
-          <h2><i class="bi bi-trophy"></i> Sistema de Recompensas</h2>
-          <p class="muted">Gana puntos por cumplir con tu tratamiento</p>
+          <h2><i class="bi bi-person-circle"></i> Mi Perfil</h2>
+          <p class="muted">Consulta tu ficha, contactos de emergencia, personalización y recompensas</p>
         </div>
 
+        <div class="perfil-layout">
+          <!-- Submenú del perfil -->
+          <div class="perfil-subnav" id="perfilSubnav">
+            <button class="perfil-subnav-btn active" data-perfil-section="ficha">
+              <i class="bi bi-file-earmark-person"></i> <span>Ficha Completa</span>
+            </button>
+            <button class="perfil-subnav-btn" data-perfil-section="contactos">
+              <i class="bi bi-telephone-plus"></i> <span>Contactos de Emergencia</span>
+            </button>
+            <button class="perfil-subnav-btn" data-perfil-section="personalizacion">
+              <i class="bi bi-palette-fill"></i> <span>Personalización</span>
+            </button>
+            <button class="perfil-subnav-btn" data-perfil-section="recompensas">
+              <i class="bi bi-trophy"></i> <span>Recompensas</span>
+            </button>
+          </div>
+
+          <!-- Contenido del perfil -->
+          <div class="perfil-content">
+
+            <!-- PANEL: FICHA COMPLETA (HU-31) -->
+            <div id="perfil-panel-ficha" class="perfil-panel">
+              <div class="card">
+                <h5 class="card-title"><i class="bi bi-file-earmark-person"></i> Ficha Completa del Paciente</h5>
+                <p class="muted mb-3">Consulta rápida de toda tu información registrada</p>
+                <div id="fichaCompletaContainer">
+                  <div class="text-center text-muted py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-3">Cargando ficha...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL: CONTACTOS DE EMERGENCIA (HU-21) -->
+            <div id="perfil-panel-contactos" class="perfil-panel d-none">
+              <div class="card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h5 class="card-title mb-0"><i class="bi bi-telephone-plus"></i> Contactos de Emergencia</h5>
+                  <button class="btn btn-sm btn-primary" onclick="mostrarFormularioContacto()">
+                    <i class="bi bi-plus-circle"></i> Agregar contacto
+                  </button>
+                </div>
+                <p class="muted mb-3">Información médica: personas a notificar en caso de emergencia</p>
+
+                <!-- Formulario agregar/editar contacto -->
+                <div id="formContactoEmergencia" class="d-none border rounded p-3 mb-3 bg-light">
+                  <input type="hidden" id="contactoEmergenciaId" value="">
+                  <div class="row">
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label">Nombre del contacto</label>
+                      <input type="text" class="form-control" id="contactoNombre" placeholder="Ej: María González">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label">Relación</label>
+                      <input type="text" class="form-control" id="contactoRelacion" placeholder="Ej: Hijo/a, Médico, Familiar">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label">Teléfono</label>
+                      <input type="text" class="form-control" id="contactoTelefono" placeholder="+504 9999-9999">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label">Prioridad</label>
+                      <select class="form-select" id="contactoPrioridad">
+                        <option value="1">1 - Principal</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="d-flex gap-2 mt-2">
+                    <button class="btn btn-success" onclick="guardarContactoEmergencia()">
+                      <i class="bi bi-save"></i> Guardar contacto
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="ocultarFormularioContacto()">
+                      <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                  </div>
+                </div>
+
+                <div id="contactosEmergenciaPerfilContainer" class="list-group">
+                  <div class="list-group-item text-center text-muted">Cargando contactos...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL: PERSONALIZACIÓN (HU-32, incluye datos personales y tipo de sangre HU-22) -->
+            <div id="perfil-panel-personalizacion" class="perfil-panel d-none">
+              <div class="card">
+                <div id="personalizacion-container"></div>
+              </div>
+            </div>
+
+            <!-- PANEL: RECOMPENSAS (HU-33) -->
+            <div id="perfil-panel-recompensas" class="perfil-panel d-none">
+              <div id="recompensas">
         <div class="card">
           <h5 class="card-title">Tu Progreso</h5>
           <div class="row text-center mb-4">
@@ -480,7 +576,14 @@
             </li>
           </ul>
         </div>
+              </div>
+            </div>
+            <!-- FIN PANEL RECOMPENSAS -->
+
+          </div>
+        </div>
       </section>
+      <!-- FIN SECCIÓN PERFIL -->
 
       <!-- SECCIÓN EMRGENCIA -->
       <section id="emergencia" class="section d-none">
@@ -605,18 +708,6 @@
         <i class="bi bi-shield-check text-primary"></i> Validación automática de conflictos
       </li>
     </ul>
-  </div>
-</section>
-
-<!-- SECCIÓN PERSONALIZACIÓN -->
-<section id="personalizacion" class="section d-none">
-  <div class="section-header">
-    <h2><i class="bi bi-palette-fill"></i> Personalización Visual</h2>
-    <p class="muted">Personaliza tu experiencia con avatares y temas</p>
-  </div>
-
-  <div class="card">
-    <div id="personalizacion-container"></div>
   </div>
 </section>
 
@@ -782,6 +873,18 @@
       // Función para restaurar sección desde localStorage
       function restaurarSeccion() {
         const savedSection = localStorage.getItem('mainPaciente_section');
+        if (!savedSection) return false;
+
+        // Caso especial: PERFIL ahora se abre desde el ícono de usuario, no tiene botón en el menú
+        if (savedSection === 'perfil') {
+          if (typeof mostrarSeccionPerfilConPanel === 'function') {
+            const savedPerfilPanel = localStorage.getItem('mainPaciente_perfilPanel') || 'ficha';
+            setTimeout(() => mostrarSeccionPerfilConPanel(savedPerfilPanel), 100);
+            return true;
+          }
+          return false;
+        }
+
         if (savedSection) {
           const targetBtn = document.querySelector(`[data-section="${savedSection}"]`);
           const targetSection = document.getElementById(savedSection);
@@ -826,12 +929,6 @@
                 cargarCitas();
               }
               
-              // Sección RECOMPENSAS
-              if (savedSection === 'recompensas' && typeof cargarRecompensas === 'function') {
-                console.log('Cargando recompensas...');
-                cargarRecompensas();
-              }
-              
               // Sección EMERGENCIA
               if (savedSection === 'emergencia') {
                 if (typeof cargarContactosEmergencia === 'function') {
@@ -856,11 +953,6 @@
                 }
               }
               
-              // Sección PERSONALIZACIÓN
-              if (savedSection === 'personalizacion' && typeof cargarPersonalizacion === 'function') {
-                console.log('Cargando personalización...');
-                cargarPersonalizacion();
-              }
             }, 100);
 
 
@@ -961,13 +1053,47 @@
     });
   </script>
   <script>
-  // Cargar avatar al entrar a personalización
-  document.querySelector('.nav-btn[data-section="personalizacion"]')?.addEventListener('click', () => {
-    setTimeout(() => {
-      if (typeof cargarPersonalizacion === 'function') {
-        cargarPersonalizacion();
-      }
-    }, 300);
+  // ============================================
+  // SUBMENÚ DE PERFIL (Ficha / Contactos / Personalización / Recompensas)
+  // ============================================
+  function activarPanelPerfil(nombrePanel) {
+    const btn = document.querySelector(`.perfil-subnav-btn[data-perfil-section="${nombrePanel}"]`);
+    if (btn) {
+      btn.click();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const perfilSubBtns = document.querySelectorAll('.perfil-subnav-btn');
+
+    perfilSubBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const objetivo = btn.getAttribute('data-perfil-section');
+
+        perfilSubBtns.forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.perfil-panel').forEach(p => p.classList.add('d-none'));
+
+        btn.classList.add('active');
+        const panel = document.getElementById(`perfil-panel-${objetivo}`);
+        if (panel) panel.classList.remove('d-none');
+
+        localStorage.setItem('mainPaciente_perfilPanel', objetivo);
+
+        // Cargar los datos correspondientes al panel seleccionado
+        if (objetivo === 'ficha' && typeof cargarFichaCompletaPerfil === 'function') {
+          cargarFichaCompletaPerfil();
+        }
+        if (objetivo === 'contactos' && typeof cargarContactosEmergenciaPerfil === 'function') {
+          cargarContactosEmergenciaPerfil();
+        }
+        if (objetivo === 'personalizacion' && typeof cargarPersonalizacion === 'function') {
+          cargarPersonalizacion();
+        }
+        if (objetivo === 'recompensas' && typeof cargarRecompensas === 'function') {
+          cargarRecompensas();
+        }
+      });
+    });
   });
 </script>
 
