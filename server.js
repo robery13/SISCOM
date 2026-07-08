@@ -74,8 +74,53 @@ db.connect(err => {
         console.log('Tabla cuidador_pacientes verificada/creada correctamente');
       }
     });
+
+    // Asegurar columna tipo_sangre en usuarios (HU-22: Agregar tipo de sangre)
+    ensureUsuariosColumn('tipo_sangre', "ALTER TABLE usuarios ADD COLUMN tipo_sangre VARCHAR(5) NULL AFTER telefono");
+
+    // Crear tabla contactos_emergencia si no existe (HU-21: Agregar contactos de emergencia)
+    const createContactosEmergenciaSql = `
+      CREATE TABLE IF NOT EXISTS contactos_emergencia (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        id_usuario INT NOT NULL,
+        nombre_contacto VARCHAR(150) NOT NULL,
+        relacion VARCHAR(100) NULL,
+        telefono VARCHAR(20) NOT NULL,
+        prioridad INT NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_contactos_usuario (id_usuario)
+      )
+    `;
+    db.query(createContactosEmergenciaSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla contactos_emergencia:', err);
+      } else {
+        console.log('Tabla contactos_emergencia verificada/creada correctamente');
+      }
+    });
   }
 });
+
+function ensureUsuariosColumn(columnName, alterSql) {
+  db.query('SHOW COLUMNS FROM usuarios LIKE ?', [columnName], (err, results) => {
+    if (err) {
+      console.error(`Error al verificar columna ${columnName} en usuarios:`, err);
+      return;
+    }
+
+    if (results.length > 0) {
+      return;
+    }
+
+    db.query(alterSql, (errAlter) => {
+      if (errAlter) {
+        console.error(`Error al agregar columna ${columnName} en usuarios:`, errAlter);
+      } else {
+        console.log(`Columna ${columnName} agregada a usuarios correctamente`);
+      }
+    });
+  });
+}
 
 function ensureTomasMedicasColumn(columnName, alterSql) {
   db.query('SHOW COLUMNS FROM tomas_medicas LIKE ?', [columnName], (err, results) => {
@@ -1534,7 +1579,7 @@ app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
 
 // Obtener perfil del paciente autenticado
 app.get('/mi-perfil', verificarRol(['usuario']), (req, res) => {
-  const sql = 'SELECT id, nombres, apellidos, identidad, telefono, email, rol FROM usuarios WHERE id = ? LIMIT 1';
+  const sql = 'SELECT id, nombres, apellidos, identidad, telefono, tipo_sangre, email, rol FROM usuarios WHERE id = ? LIMIT 1';
   db.query(sql, [req.user.id], (err, results) => {
     if (err) {
       return res.status(500).json({ mensaje: 'Error al cargar tu perfil' });
@@ -1550,16 +1595,23 @@ app.get('/mi-perfil', verificarRol(['usuario']), (req, res) => {
 
 // Actualizar perfil del paciente autenticado
 app.put('/mi-perfil', verificarRol(['usuario']), (req, res) => {
-  const { nombres, apellidos, identidad, telefono, email } = req.body || {};
+  const { nombres, apellidos, identidad, telefono, tipo_sangre, email } = req.body || {};
+
+  const TIPOS_SANGRE_VALIDOS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
 
   const nombresTxt = String(nombres || '').trim();
   const apellidosTxt = String(apellidos || '').trim();
   const identidadTxt = String(identidad || '').replace(/\D/g, '');
   const telefonoTxt = String(telefono || '').replace(/\D/g, '');
+  const tipoSangreTxt = String(tipo_sangre || '').trim().toUpperCase();
   const correoNormalizado = String(email || '').trim().toLowerCase();
 
-  if (!nombresTxt || !apellidosTxt || !identidadTxt || !telefonoTxt || !correoNormalizado) {
-    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios.' });
+  if (!nombresTxt || !apellidosTxt || !identidadTxt || !telefonoTxt || !correoNormalizado || !tipoSangreTxt) {
+    return res.status(400).json({ mensaje: 'Todos los campos son obligatorios, incluyendo el tipo de sangre.' });
+  }
+
+  if (!TIPOS_SANGRE_VALIDOS.includes(tipoSangreTxt)) {
+    return res.status(400).json({ mensaje: 'El tipo de sangre no es valido.' });
   }
 
   if (!/^\d{13}$/.test(identidadTxt)) {
@@ -1595,13 +1647,13 @@ app.put('/mi-perfil', verificarRol(['usuario']), (req, res) => {
       }
     }
 
-    const sqlUpdate = 'UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ?, email = ? WHERE id = ?';
-    db.query(sqlUpdate, [nombresTxt, apellidosTxt, identidadTxt, telefonoTxt, correoNormalizado, req.user.id], (errUpd) => {
+    const sqlUpdate = 'UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ?, tipo_sangre = ?, email = ? WHERE id = ?';
+    db.query(sqlUpdate, [nombresTxt, apellidosTxt, identidadTxt, telefonoTxt, tipoSangreTxt, correoNormalizado, req.user.id], (errUpd) => {
       if (errUpd) {
         return res.status(500).json({ mensaje: 'Error al actualizar tu perfil' });
       }
 
-      const sqlUsuario = 'SELECT id, nombres, apellidos, identidad, telefono, email, rol FROM usuarios WHERE id = ? LIMIT 1';
+      const sqlUsuario = 'SELECT id, nombres, apellidos, identidad, telefono, tipo_sangre, email, rol FROM usuarios WHERE id = ? LIMIT 1';
       db.query(sqlUsuario, [req.user.id], (errUser, users) => {
         if (errUser) {
           return res.status(500).json({ mensaje: 'Perfil actualizado, pero no se pudo recargar la informacion.' });
@@ -1615,6 +1667,7 @@ app.put('/mi-perfil', verificarRol(['usuario']), (req, res) => {
             apellidos: apellidosTxt,
             identidad: identidadTxt,
             telefono: telefonoTxt,
+            tipo_sangre: tipoSangreTxt,
             email: correoNormalizado,
             rol: 'usuario'
           }
@@ -2885,6 +2938,96 @@ app.get('/contactosEmergencia/:id_usuario', (req, res) => {
         return res.status(500).json({ ok: false, mensaje: 'Error al obtener contactos de emergencia' });
       }
       res.json(results);
+    }
+  );
+});
+
+// HU-21: Agregar contacto de emergencia (desde el Perfil del paciente)
+app.post('/contactosEmergencia', verificarRol(['usuario']), (req, res) => {
+  const { nombre_contacto, relacion, telefono, prioridad } = req.body || {};
+
+  const nombreTxt = String(nombre_contacto || '').trim();
+  const relacionTxt = String(relacion || '').trim();
+  const telefonoTxt = String(telefono || '').trim();
+  const prioridadNum = parseInt(prioridad, 10);
+
+  if (!nombreTxt || !telefonoTxt) {
+    return res.status(400).json({ ok: false, mensaje: 'El nombre y el telefono son obligatorios.' });
+  }
+
+  const sql = 'INSERT INTO contactos_emergencia (id_usuario, nombre_contacto, relacion, telefono, prioridad) VALUES (?, ?, ?, ?, ?)';
+  const valores = [req.user.id, nombreTxt, relacionTxt || null, telefonoTxt, Number.isFinite(prioridadNum) ? prioridadNum : 1];
+
+  db.query(sql, valores, (err, result) => {
+    if (err) {
+      console.error('Error al crear contacto de emergencia:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al guardar el contacto de emergencia' });
+    }
+
+    return res.json({
+      ok: true,
+      mensaje: 'Contacto de emergencia agregado correctamente.',
+      contacto: {
+        id: result.insertId,
+        id_usuario: req.user.id,
+        nombre_contacto: nombreTxt,
+        relacion: relacionTxt || null,
+        telefono: telefonoTxt,
+        prioridad: Number.isFinite(prioridadNum) ? prioridadNum : 1
+      }
+    });
+  });
+});
+
+// HU-21: Actualizar contacto de emergencia propio
+app.put('/contactosEmergencia/:id', verificarRol(['usuario']), (req, res) => {
+  const { id } = req.params;
+  const { nombre_contacto, relacion, telefono, prioridad } = req.body || {};
+
+  const nombreTxt = String(nombre_contacto || '').trim();
+  const relacionTxt = String(relacion || '').trim();
+  const telefonoTxt = String(telefono || '').trim();
+  const prioridadNum = parseInt(prioridad, 10);
+
+  if (!nombreTxt || !telefonoTxt) {
+    return res.status(400).json({ ok: false, mensaje: 'El nombre y el telefono son obligatorios.' });
+  }
+
+  const sql = `
+    UPDATE contactos_emergencia
+    SET nombre_contacto = ?, relacion = ?, telefono = ?, prioridad = ?
+    WHERE id = ? AND id_usuario = ?
+  `;
+  const valores = [nombreTxt, relacionTxt || null, telefonoTxt, Number.isFinite(prioridadNum) ? prioridadNum : 1, id, req.user.id];
+
+  db.query(sql, valores, (err, result) => {
+    if (err) {
+      console.error('Error al actualizar contacto de emergencia:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al actualizar el contacto de emergencia' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ ok: false, mensaje: 'Contacto no encontrado' });
+    }
+    return res.json({ ok: true, mensaje: 'Contacto de emergencia actualizado correctamente.' });
+  });
+});
+
+// HU-21: Eliminar contacto de emergencia propio
+app.delete('/contactosEmergencia/:id', verificarRol(['usuario']), (req, res) => {
+  const { id } = req.params;
+
+  db.query(
+    'DELETE FROM contactos_emergencia WHERE id = ? AND id_usuario = ?',
+    [id, req.user.id],
+    (err, result) => {
+      if (err) {
+        console.error('Error al eliminar contacto de emergencia:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al eliminar el contacto de emergencia' });
+      }
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ ok: false, mensaje: 'Contacto no encontrado' });
+      }
+      return res.json({ ok: true, mensaje: 'Contacto de emergencia eliminado correctamente.' });
     }
   );
 });
