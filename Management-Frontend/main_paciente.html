@@ -108,8 +108,7 @@
 
   <nav class="nav-menu">
     <button class="nav-btn active" data-section="inicio"><i class="bi bi-house-door"></i> <span>Inicio</span></button>
-    <button class="nav-btn" data-section="recetas"><i class="bi bi-prescription2"></i> <span>Recetas Médicas</span></button>
-    <button class="nav-btn" data-section="agenda"><i class="bi bi-calendar-check"></i> <span>Agenda Médica</span></button>
+    <button class="nav-btn" data-section="agenda"><i class="bi bi-calendar-check"></i> <span>Mis Citas</span></button>
     <button class="nav-btn" data-section="emergencia"><i class="bi bi-mic-fill"></i> <span>Emergencia</span></button>
     <button class="nav-btn" data-section="horarios"><i class="bi bi-clock-fill"></i> <span>Mis Horarios</span></button>
     <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
@@ -231,63 +230,10 @@
   </div>
 </section>
 
-      <!-- SECCIÓN RECETAS MÉDICAS -->
-      <section id="recetas" class="section d-none">
-        <div class="section-header">
-          <h2><i class="bi bi-prescription2"></i> Recetas Médicas</h2>
-          <p class="muted">Gestiona y sube tus recetas médicas</p>
-        </div>
-
-        <div class="card">
-          <h5 class="card-title">Subir Nueva Receta</h5>
-          <div class="mb-3">
-            <label class="form-label">Selecciona o escanea tu receta</label>
-            <input type="file" class="form-control" accept="image/*,.pdf" id="recetaInput">
-          </div>
-          <button class="btn btn-primary w-100 w-md-auto"><i class="bi bi-upload"></i> Cargar Receta</button>
-        </div>
-
-        <div class="card">
-          <h5 class="card-title">Mis Recetas</h5>
-          <div class="table-responsive">
-            <table class="table table-hover">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Medicamento</th>
-                  <th>Dosis</th>
-                  <th>Frecuencia</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="tablaRecetasBody">
-                <tr>
-                  <td colspan="5" class="text-center text-muted">Cargando recetas...</td>
-                </tr>
-              </tbody>
-
-            </table>
-          </div>
-        </div>
-
-        <!-- HU-16: HISTORIAL DE MEDICACIÓN -->
-        <div class="card">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="card-title mb-0"><i class="bi bi-clock-history"></i> Historial de Medicación</h5>
-            <button class="btn btn-sm btn-outline-primary" onclick="exportarHistorialPDF()">
-              <i class="bi bi-download"></i> Exportar
-            </button>
-          </div>
-          <div id="historialMedicacion">
-            <p class="text-muted">Cargando historial...</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- SECCIÓN AGENDA MÉDICA -->
+      <!-- SECCIÓN MIS CITAS (antes "Agenda Médica") -->
       <section id="agenda" class="section d-none">
         <div class="section-header">
-          <h2><i class="bi bi-calendar-check"></i> Agenda Médica</h2>
+          <h2><i class="bi bi-calendar-check"></i> Mis Citas</h2>
           <p class="muted">Gestiona tus citas médicas</p>
         </div>
 
@@ -676,11 +622,42 @@
           </div>
         </div>
       </section>
-<!-- SECCIÓN CONFIGURACIÓN DE HORARIOS -->
+<!-- SECCIÓN MIS HORARIOS (fusión de "Recetas Médicas" + "Configuración de Horarios") -->
 <section id="horarios" class="section d-none">
   <div class="section-header">
-    <h2><i class="bi bi-clock-fill"></i> Configuración de Horarios</h2>
-    <p class="muted">Personaliza los horarios exactos de tus medicamentos</p>
+    <h2><i class="bi bi-clock-fill"></i> Mis Horarios</h2>
+    <p class="muted">Gestiona tus recetas, medicamentos y los horarios exactos para tomarlos</p>
+  </div>
+
+  <div class="card">
+    <h5 class="card-title">Subir Nueva Receta</h5>
+    <div class="mb-3">
+      <label class="form-label">Selecciona o escanea tu receta</label>
+      <input type="file" class="form-control" accept="image/*,.pdf" id="recetaInput">
+    </div>
+    <button class="btn btn-primary w-100 w-md-auto"><i class="bi bi-upload"></i> Cargar Receta</button>
+  </div>
+
+  <div class="card">
+    <h5 class="card-title">Mis Recetas</h5>
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Medicamento</th>
+            <th>Dosis</th>
+            <th>Frecuencia</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tablaRecetasBody">
+          <tr>
+            <td colspan="5" class="text-center text-muted">Cargando recetas...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <div class="card">
@@ -708,6 +685,24 @@
         <i class="bi bi-shield-check text-primary"></i> Validación automática de conflictos
       </li>
     </ul>
+  </div>
+
+  <!-- HU-16: HISTORIAL DE MEDICACIÓN (al final, tabla acotada + opción de limpiar) -->
+  <div class="card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="card-title mb-0"><i class="bi bi-clock-history"></i> Historial de Medicación</h5>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-primary" onclick="exportarHistorialPDF()">
+          <i class="bi bi-download"></i> Exportar
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="limpiarHistorialMedicacion()">
+          <i class="bi bi-trash3"></i> Limpiar historial
+        </button>
+      </div>
+    </div>
+    <div id="historialMedicacion">
+      <p class="text-muted">Cargando historial...</p>
+    </div>
   </div>
 </section>
 
@@ -911,19 +906,7 @@
                 if (typeof cargarUltimoLogro === 'function') cargarUltimoLogro();
               }
               
-              // Sección RECETAS
-              if (savedSection === 'recetas') {
-                if (typeof cargarRecetas === 'function') {
-                  console.log('Cargando recetas...');
-                  cargarRecetas();
-                }
-                if (typeof cargarHistorialMedicacion === 'function') {
-                  console.log('Cargando historial de medicación...');
-                  cargarHistorialMedicacion();
-                }
-              }
-              
-              // Sección AGENDA
+              // Sección AGENDA (Mis Citas)
               if (savedSection === 'agenda' && typeof cargarCitas === 'function') {
                 console.log('Cargando citas...');
                 cargarCitas();
@@ -941,8 +924,16 @@
                 }
               }
               
-              // Sección HORARIOS
+              // Sección HORARIOS (fusión de Recetas Médicas + Configuración de Horarios)
               if (savedSection === 'horarios') {
+                if (typeof cargarRecetas === 'function') {
+                  console.log('Cargando recetas...');
+                  cargarRecetas();
+                }
+                if (typeof cargarHistorialMedicacion === 'function') {
+                  console.log('Cargando historial de medicación...');
+                  cargarHistorialMedicacion();
+                }
                 if (typeof cargarMedicamentosParaHorarios === 'function') {
                   console.log('Cargando medicamentos para horarios...');
                   cargarMedicamentosParaHorarios();
@@ -1034,8 +1025,8 @@
   <!-- Scripts adicionales para cargar historiales -->
 
   <script>
-    // Cargar historial al entrar a la sección de recetas
-    document.querySelector('.nav-btn[data-section="recetas"]')?.addEventListener('click', () => {
+    // Cargar historial al entrar a la sección de Mis Horarios (incluye recetas y medicación)
+    document.querySelector('.nav-btn[data-section="horarios"]')?.addEventListener('click', () => {
       setTimeout(() => {
         if (typeof cargarHistorialMedicacion === 'function') {
           cargarHistorialMedicacion();

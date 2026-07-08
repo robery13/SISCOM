@@ -732,10 +732,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const s = document.getElementById(sectionId);
       if (s) {
         s.classList.remove("d-none");
-        if (sectionId === 'recetas') {
-          cargarRecetas();
-          setTimeout(() => cargarHistorialMedicacion(), 300);
-        }
         if (sectionId === 'agenda') cargarCitas();
         if (sectionId === 'recompensas') cargarRecompensas();
         if (sectionId === 'emergencia') {
@@ -743,6 +739,8 @@ document.addEventListener("DOMContentLoaded", () => {
           setTimeout(() => cargarHistorialEmergencias(), 300);
         }
         if (sectionId === 'horarios') {
+          cargarRecetas();
+          setTimeout(() => cargarHistorialMedicacion(), 300);
           cargarMedicamentosParaHorarios();
         }
         if (sectionId === 'inicio') {
@@ -1456,7 +1454,7 @@ async function cargarRecetas() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
-  const btnCargarReceta = document.querySelector('#recetas .btn-primary');
+  const btnCargarReceta = document.querySelector('#horarios .btn-primary');
   if (btnCargarReceta) {
     btnCargarReceta.addEventListener('click', () => {
       mostrarModalReceta();
@@ -1680,6 +1678,33 @@ async function exportarHistorialPDF() {
   } catch (error) {
     console.error('Error:', error);
     mostrarNotificacion('Error al exportar', 'error');
+  }
+}
+
+async function limpiarHistorialMedicacion() {
+  const idUsuario = getUsuarioId();
+
+  const confirmado = await mostrarConfirmacion(
+    'Limpiar historial',
+    '¿Seguro que deseas eliminar todo tu historial de medicación? Esta acción no se puede deshacer.'
+  );
+  if (!confirmado) return;
+
+  try {
+    const response = await fetch(`${API_URL}/historialMedicacionEventos/${idUsuario}`, {
+      method: 'DELETE'
+    });
+
+    const data = await leerRespuestaApiSegura(response);
+    if (!response.ok) {
+      throw new Error((data && data.mensaje) || 'No se pudo limpiar el historial');
+    }
+
+    mostrarNotificacion((data && data.mensaje) || 'Historial de medicación eliminado', 'success');
+    cargarHistorialMedicacion();
+  } catch (error) {
+    console.error('Error al limpiar historial:', error);
+    mostrarNotificacion(error.message || 'No se pudo limpiar el historial', 'error');
   }
 }
 
@@ -2881,6 +2906,26 @@ async function cargarFichaCompletaPerfil() {
         <div class="perfil-resumen-label">Correo electronico</div>
         <div class="perfil-resumen-value">${usuario.email || 'No registrado'}</div>
       </div>
+      <div class="perfil-resumen-item">
+        <div class="perfil-resumen-label"><i class="bi bi-clipboard2-pulse"></i> Operaciones realizadas</div>
+        <div class="perfil-resumen-value">${usuario.operaciones_realizadas || 'No registrado'}</div>
+      </div>
+      <div class="perfil-resumen-item">
+        <div class="perfil-resumen-label"><i class="bi bi-exclamation-diamond"></i> Alergias</div>
+        <div class="perfil-resumen-value">${usuario.alergias || 'No registrado'}</div>
+      </div>
+      <div class="perfil-resumen-item">
+        <div class="perfil-resumen-label"><i class="bi bi-heart-pulse"></i> Enfermedades crónicas</div>
+        <div class="perfil-resumen-value">${usuario.enfermedades_cronicas || 'No registrado'}</div>
+      </div>
+      <div class="perfil-resumen-item">
+        <div class="perfil-resumen-label"><i class="bi bi-fingerprint"></i> Tatuajes</div>
+        <div class="perfil-resumen-value">${usuario.tatuajes || 'No registrado'}</div>
+      </div>
+      <div class="perfil-resumen-item full">
+        <div class="perfil-resumen-label"><i class="bi bi-journal-medical"></i> Otras enfermedades</div>
+        <div class="perfil-resumen-value">${usuario.otras_enfermedades || 'No registrado'}</div>
+      </div>
     </div>
 
     <div class="row text-center mb-3">
@@ -3338,6 +3383,76 @@ function renderizarPersonalizacion() {
       </div>
     </div>
 
+    <div class="card mb-4 border-0 shadow-sm">
+      <h4 class="mb-3"><i class="bi bi-file-earmark-medical"></i> Ficha Médica</h4>
+      <p class="text-muted mb-3">Información clínica relevante para tus doctores y cuidadores en caso de emergencia.</p>
+
+      <div id="fichaMedicaResumenBloque">
+        <div class="perfil-resumen-grid">
+          <div class="perfil-resumen-item">
+            <div class="perfil-resumen-label"><i class="bi bi-clipboard2-pulse"></i> Operaciones realizadas</div>
+            <div class="perfil-resumen-value" id="perfilResumenOperaciones">-</div>
+          </div>
+          <div class="perfil-resumen-item">
+            <div class="perfil-resumen-label"><i class="bi bi-exclamation-diamond"></i> Alergias</div>
+            <div class="perfil-resumen-value" id="perfilResumenAlergias">-</div>
+          </div>
+          <div class="perfil-resumen-item">
+            <div class="perfil-resumen-label"><i class="bi bi-heart-pulse"></i> Enfermedades crónicas</div>
+            <div class="perfil-resumen-value" id="perfilResumenEnfermedadesCronicas">-</div>
+          </div>
+          <div class="perfil-resumen-item">
+            <div class="perfil-resumen-label"><i class="bi bi-fingerprint"></i> Tatuajes</div>
+            <div class="perfil-resumen-value" id="perfilResumenTatuajes">-</div>
+          </div>
+          <div class="perfil-resumen-item full">
+            <div class="perfil-resumen-label"><i class="bi bi-journal-medical"></i> Otras enfermedades</div>
+            <div class="perfil-resumen-value" id="perfilResumenOtrasEnfermedades">-</div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-outline-primary" onclick="habilitarEdicionFichaMedicaPaciente()">
+            <i class="bi bi-pencil-square"></i> Modificar ficha médica
+          </button>
+        </div>
+      </div>
+
+      <div id="fichaMedicaFormBloque" class="d-none">
+        <div class="perfil-datos-grid">
+          <div>
+            <label for="perfilOperaciones" class="form-label">Operaciones realizadas</label>
+            <textarea id="perfilOperaciones" class="form-control" rows="2" placeholder="Ej: Apendicectomia (2015)"></textarea>
+          </div>
+          <div>
+            <label for="perfilAlergias" class="form-label">Alergias</label>
+            <textarea id="perfilAlergias" class="form-control" rows="2" placeholder="Ej: Penicilina, mariscos"></textarea>
+          </div>
+          <div>
+            <label for="perfilEnfermedadesCronicas" class="form-label">Enfermedades crónicas</label>
+            <textarea id="perfilEnfermedadesCronicas" class="form-control" rows="2" placeholder="Ej: Diabetes, hipertensión"></textarea>
+          </div>
+          <div>
+            <label for="perfilTatuajes" class="form-label">Tatuajes</label>
+            <textarea id="perfilTatuajes" class="form-control" rows="2" placeholder="Ej: Tatuaje en antebrazo derecho"></textarea>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <label for="perfilOtrasEnfermedades" class="form-label">Otras enfermedades</label>
+            <textarea id="perfilOtrasEnfermedades" class="form-control" rows="2" placeholder="Cualquier otra condición relevante"></textarea>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-primary" onclick="guardarFichaMedicaPaciente()">
+            <i class="bi bi-save"></i> Guardar Cambios
+          </button>
+          <button class="btn btn-outline-secondary" onclick="cancelarEdicionFichaMedicaPaciente()">
+            <i class="bi bi-x-circle"></i> Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="row">
       <div class="col-md-6">
         <h4 class="mb-4"><i class="bi bi-person-circle"></i> Seleccionar Avatar</h4>
@@ -3628,6 +3743,7 @@ async function leerRespuestaApiSegura(response) {
 async function cargarDatosPerfilPaciente() {
   const usuarioLocal = JSON.parse(localStorage.getItem('usuario') || '{}');
   poblarInputsPerfil(usuarioLocal);
+  poblarInputsFichaMedica(usuarioLocal);
 
   const token = getAuthToken();
   if (!token) return;
@@ -3650,8 +3766,10 @@ async function cargarDatosPerfilPaciente() {
     const merged = { ...usuarioLocal, ...data.usuario };
     localStorage.setItem('usuario', JSON.stringify(merged));
     poblarInputsPerfil(merged);
+    poblarInputsFichaMedica(merged);
     cargarAvatarYNombre();
     if (!perfilModoEdicion) setModoEdicionPerfilPaciente(false);
+    if (!fichaMedicaModoEdicion) setModoEdicionFichaMedicaPaciente(false);
   } catch (error) {
     console.error('Error al cargar perfil del paciente:', error);
   }
@@ -3722,6 +3840,109 @@ async function guardarDatosPerfilPaciente() {
   } catch (error) {
     console.error('Error al actualizar perfil:', error);
     mostrarNotificacion(error.message || 'No se pudieron actualizar los datos.', 'error');
+  }
+}
+
+// ===============================
+// FICHA MÉDICA (operaciones, alergias, enfermedades crónicas, tatuajes, otras enfermedades)
+// ===============================
+let fichaMedicaModoEdicion = false;
+
+function obtenerDatosFichaMedicaDesdeInputs() {
+  return {
+    operaciones_realizadas: String(document.getElementById('perfilOperaciones')?.value || '').trim(),
+    alergias: String(document.getElementById('perfilAlergias')?.value || '').trim(),
+    enfermedades_cronicas: String(document.getElementById('perfilEnfermedadesCronicas')?.value || '').trim(),
+    tatuajes: String(document.getElementById('perfilTatuajes')?.value || '').trim(),
+    otras_enfermedades: String(document.getElementById('perfilOtrasEnfermedades')?.value || '').trim()
+  };
+}
+
+function actualizarResumenFichaMedica(usuario = {}) {
+  const setText = (id, valor) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = valor && valor.trim() ? valor : 'No registrado';
+  };
+
+  setText('perfilResumenOperaciones', usuario.operaciones_realizadas || '');
+  setText('perfilResumenAlergias', usuario.alergias || '');
+  setText('perfilResumenEnfermedadesCronicas', usuario.enfermedades_cronicas || '');
+  setText('perfilResumenTatuajes', usuario.tatuajes || '');
+  setText('perfilResumenOtrasEnfermedades', usuario.otras_enfermedades || '');
+}
+
+function poblarInputsFichaMedica(usuario = {}) {
+  const operacionesInput = document.getElementById('perfilOperaciones');
+  const alergiasInput = document.getElementById('perfilAlergias');
+  const enfermedadesCronicasInput = document.getElementById('perfilEnfermedadesCronicas');
+  const tatuajesInput = document.getElementById('perfilTatuajes');
+  const otrasEnfermedadesInput = document.getElementById('perfilOtrasEnfermedades');
+
+  if (operacionesInput) operacionesInput.value = usuario.operaciones_realizadas || '';
+  if (alergiasInput) alergiasInput.value = usuario.alergias || '';
+  if (enfermedadesCronicasInput) enfermedadesCronicasInput.value = usuario.enfermedades_cronicas || '';
+  if (tatuajesInput) tatuajesInput.value = usuario.tatuajes || '';
+  if (otrasEnfermedadesInput) otrasEnfermedadesInput.value = usuario.otras_enfermedades || '';
+
+  actualizarResumenFichaMedica(usuario);
+}
+
+function setModoEdicionFichaMedicaPaciente(enEdicion) {
+  fichaMedicaModoEdicion = !!enEdicion;
+  const resumen = document.getElementById('fichaMedicaResumenBloque');
+  const formulario = document.getElementById('fichaMedicaFormBloque');
+  if (resumen) resumen.classList.toggle('d-none', fichaMedicaModoEdicion);
+  if (formulario) formulario.classList.toggle('d-none', !fichaMedicaModoEdicion);
+}
+
+function habilitarEdicionFichaMedicaPaciente() {
+  setModoEdicionFichaMedicaPaciente(true);
+}
+
+function cancelarEdicionFichaMedicaPaciente() {
+  const usuarioLocal = JSON.parse(localStorage.getItem('usuario') || '{}');
+  poblarInputsFichaMedica(usuarioLocal);
+  setModoEdicionFichaMedicaPaciente(false);
+}
+
+async function guardarFichaMedicaPaciente() {
+  const token = getAuthToken();
+  if (!token) {
+    mostrarNotificacion('Sesion no valida. Inicia sesion nuevamente.', 'error');
+    return;
+  }
+
+  const payload = obtenerDatosFichaMedicaDesdeInputs();
+
+  try {
+    const response = await fetch(`${API_URL}/mi-perfil`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await leerRespuestaApiSegura(response);
+    if (data.__parseError) {
+      throw new Error(data.mensaje || 'Respuesta invalida del servidor.');
+    }
+
+    if (!response.ok) {
+      throw new Error(data.mensaje || 'No se pudo actualizar tu ficha médica');
+    }
+
+    const usuarioLocal = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const merged = { ...usuarioLocal, ...data.usuario };
+    localStorage.setItem('usuario', JSON.stringify(merged));
+
+    poblarInputsFichaMedica(merged);
+    mostrarNotificacion(data.mensaje || 'Ficha médica actualizada correctamente.', 'success');
+    setModoEdicionFichaMedicaPaciente(false);
+  } catch (error) {
+    console.error('Error al actualizar ficha médica:', error);
+    mostrarNotificacion(error.message || 'No se pudo actualizar la ficha médica.', 'error');
   }
 }
 
