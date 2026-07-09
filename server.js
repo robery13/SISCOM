@@ -105,6 +105,28 @@ db.connect(err => {
         console.log('Tabla contactos_emergencia verificada/creada correctamente');
       }
     });
+
+    // Crear tabla accesos_usuarios si no existe (registro real de inicios de sesión
+    // para poder graficar "Acceso de Usuarios" en el dashboard con datos reales)
+    const createAccesosUsuariosSql = `
+      CREATE TABLE IF NOT EXISTS accesos_usuarios (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        id_usuario INT NOT NULL,
+        email VARCHAR(255) NULL,
+        rol VARCHAR(50) NULL,
+        fecha_hora DATETIME NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_accesos_usuario (id_usuario),
+        INDEX idx_accesos_fecha (fecha_hora)
+      )
+    `;
+    db.query(createAccesosUsuariosSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla accesos_usuarios:', err);
+      } else {
+        console.log('Tabla accesos_usuarios verificada/creada correctamente');
+      }
+    });
   }
 });
 
@@ -411,6 +433,15 @@ app.post('/login', (req, res) => {
       rememberMe: rememberMe || false
     };
 
+    // Registrar el acceso real (para el gráfico "Acceso de Usuarios" del dashboard)
+    db.query(
+      'INSERT INTO accesos_usuarios (id_usuario, email, rol, fecha_hora) VALUES (?, ?, ?, NOW())',
+      [usuario.id, usuario.email, usuario.rol || null],
+      (errAcceso) => {
+        if (errAcceso) console.error('Error al registrar acceso de usuario:', errAcceso);
+      }
+    );
+
     // Si todo est� correcto
     res.status(200).json({
       ok: true,
@@ -420,6 +451,18 @@ app.post('/login', (req, res) => {
     });
   });
 });
+// Historial real de accesos (para graficar "Acceso de Usuarios" en el dashboard)
+app.get('/accesos-usuarios', (req, res) => {
+  const sql = 'SELECT id_usuario, email, rol, fecha_hora FROM accesos_usuarios ORDER BY fecha_hora ASC';
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error al obtener accesos_usuarios:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar historial de accesos' });
+    }
+    res.json(results);
+  });
+});
+
 // Verificar sesión
 app.post('/verificar-sesion', (req, res) => {
   const authHeader = req.headers['authorization'];
@@ -3287,7 +3330,7 @@ app.get('/fix-citas-foreign-key', (req, res) => {
 });
 
 // ============================================
-// INICIAR SERVIDOR
+// INICIAR SERVIDOR ghh
 // ============================================
 
 app.listen(3000, () => {
