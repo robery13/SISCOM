@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="Estiloficha1.css" />
   <!-- Chart.js + Animate on Scroll -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/aos@next/dist/aos.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/aos@next/dist/aos.css" rel="stylesheet">
 
@@ -133,70 +134,77 @@
               <i class="bi bi-moon"></i>
             </button>
           </div>
+
+          <!-- Selector de período de tiempo -->
+          <div class="periodo-selector" id="periodoSelector" role="group" aria-label="Seleccionar período">
+            <button type="button" class="periodo-btn" data-periodo="dia"><i class="bi bi-calendar-day me-1"></i>Día</button>
+            <button type="button" class="periodo-btn" data-periodo="semana"><i class="bi bi-calendar-week me-1"></i>Semana</button>
+            <button type="button" class="periodo-btn active" data-periodo="mes"><i class="bi bi-calendar-month me-1"></i>Mes</button>
+            <button type="button" class="periodo-btn" data-periodo="anio"><i class="bi bi-calendar4-range me-1"></i>Año</button>
+          </div>
         </div>
 
-<div class="dashboard-kpi-grid" data-aos="fade-up" data-aos-delay="100">
-          <!-- KPI 1: Usuarios -->
-          <article class="dashboard-kpi-card glass-card animate-counter" data-target="0" data-id="kpiUsuariosTotal">
-            <div class="kpi-icon gradient-primary">
-              <i class="bi bi-people-fill"></i>
-            </div>
-            <div class="kpi-content">
-              <p>Usuarios Totales</p>
-              <div class="kpi-sparkline" id="sparkline-users"></div>
-              <h3 class="kpi-number" id="kpiUsuariosTotal">0</h3>
-              <span class="kpi-trend positive"><i class="bi bi-arrow-up"></i> +12%</span>
-            </div>
-          </article>
-          <article class="dashboard-kpi-card glass-card animate-counter" data-target="0" data-id="kpiMedicamentosActivos">
-            <div class="kpi-icon gradient-success">
-              <i class="bi bi-capsule-pill"></i>
-            </div>
-            <div class="kpi-content">
-              <p>Medicamentos Activos</p>
-              <div class="kpi-sparkline" id="sparkline-meds"></div>
-              <h3 class="kpi-number" id="kpiMedicamentosActivos">0</h3>
-              <span class="kpi-trend positive"><i class="bi bi-arrow-up"></i> +8%</span>
-            </div>
-          </article>
-          <article class="dashboard-kpi-card glass-card animate-counter" data-target="0" data-id="kpiStockBajo">
-            <div class="kpi-icon gradient-warning">
-              <i class="bi bi-exclamation-triangle"></i>
-            </div>
-            <div class="kpi-content">
-              <p>Stock Bajo</p>
-              <div class="kpi-sparkline" id="sparkline-stock"></div>
-              <h3 class="kpi-number" id="kpiStockBajo">0</h3>
-              <span class="kpi-trend negative"><i class="bi bi-arrow-down"></i> -5%</span>
-            </div>
-          </article>
-          <article class="dashboard-kpi-card glass-card animate-counter" data-target="0" data-id="kpiCitasHoy">
+<div class="dashboard-kpi-grid dashboard-kpi-grid-compact" data-aos="fade-up" data-aos-delay="100">
+          <!-- KPI 1: Citas del período (acceso directo a Citas Médicas) -->
+          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiCitasHoy" data-section="recetas" tabindex="0" role="button" aria-label="Ir a Citas Médicas">
             <div class="kpi-icon gradient-info">
               <i class="bi bi-calendar2-check"></i>
             </div>
             <div class="kpi-content">
-              <p>Citas Programadas Hoy</p>
+              <p id="kpiCitasLabel">Citas en el Período</p>
               <div class="kpi-sparkline" id="sparkline-citas"></div>
               <h3 class="kpi-number" id="kpiCitasHoy">0</h3>
-              <span class="kpi-trend positive"><i class="bi bi-arrow-up"></i> +15%</span>
-              <p class="text-muted mb-0">Cargando actividad...</p>
+              <span class="kpi-trend" id="kpiCitasTrend"></span>
             </div>
+            <span class="kpi-shortcut-hint"><i class="bi bi-box-arrow-up-right"></i> Ver citas</span>
+          </article>
+
+          <!-- KPI 2: Stock bajo (acceso directo a Inventario) -->
+          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiStockBajo" data-section="inventario" tabindex="0" role="button" aria-label="Ir a Inventario">
+            <div class="kpi-icon gradient-warning">
+              <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="kpi-content">
+              <p>Stock Bajo (actual)</p>
+              <div class="kpi-sparkline" id="sparkline-stock"></div>
+              <h3 class="kpi-number" id="kpiStockBajo">0</h3>
+              <span class="kpi-trend" id="kpiStockTrend"></span>
+            </div>
+            <span class="kpi-shortcut-hint"><i class="bi bi-box-arrow-up-right"></i> Ver inventario</span>
+          </article>
+
+          <!-- KPI 3: Medicamentos activos (acceso directo a Medicamentos) -->
+          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiMedicamentosActivos" data-section="medicamentos" tabindex="0" role="button" aria-label="Ir a Medicamentos">
+            <div class="kpi-icon gradient-success">
+              <i class="bi bi-capsule-pill"></i>
+            </div>
+            <div class="kpi-content">
+              <p>Medicamentos Activos (actual)</p>
+              <div class="kpi-sparkline" id="sparkline-meds"></div>
+              <h3 class="kpi-number" id="kpiMedicamentosActivos">0</h3>
+              <span class="kpi-trend" id="kpiMedsTrend"></span>
+            </div>
+            <span class="kpi-shortcut-hint"><i class="bi bi-box-arrow-up-right"></i> Ver medicamentos</span>
+          </article>
+
+          <!-- KPI 4: Usuarios totales (acceso directo a Gestión de Usuarios, solo admin) -->
+          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiUsuariosTotal" data-section="usuarios" tabindex="0" role="button" aria-label="Ir a Gestión de Usuarios">
+            <div class="kpi-icon gradient-primary">
+              <i class="bi bi-people-fill"></i>
+            </div>
+            <div class="kpi-content">
+              <p>Usuarios Totales (actual)</p>
+              <div class="kpi-sparkline" id="sparkline-users"></div>
+              <h3 class="kpi-number" id="kpiUsuariosTotal">0</h3>
+              <span class="kpi-trend" id="kpiUsersTrend"></span>
+            </div>
+            <span class="kpi-shortcut-hint"><i class="bi bi-box-arrow-up-right"></i> Ver usuarios</span>
           </article>
 
         </div>
 
         <!-- Sección de Análisis y Gráficos -->
         <div class="dashboard-analytics-grid" data-aos="fade-up" data-aos-delay="200">
-          <article class="card dashboard-panel analytics-card">
-            <div class="dashboard-panel-header">
-              <h5><i class="bi bi-bar-chart-line me-2"></i> Tendencias de Usuarios</h5>
-              <span class="badge bg-primary">Mensual</span>
-            </div>
-            <div class="chart-container">
-              <canvas id="chart-trends" height="250"></canvas>
-            </div>
-          </article>
-
           <article class="card dashboard-panel analytics-card">
             <div class="dashboard-panel-header">
               <h5><i class="bi bi-pie-chart me-2"></i> Estado del Inventario</h5>
@@ -209,37 +217,11 @@
 
           <article class="card dashboard-panel analytics-card">
             <div class="dashboard-panel-header">
-              <h5><i class="bi bi-graph-up me-2"></i> Rendimiento del Sistema</h5>
-              <span class="badge bg-info">KPIs</span>
+              <h5><i class="bi bi-bar-chart-line me-2"></i> Acceso de Usuarios</h5>
+              <span class="badge bg-primary" id="chartTrendsBadge">Mes</span>
             </div>
-            <div class="performance-metrics">
-              <div class="metric-item">
-                <div class="metric-icon">
-                  <i class="bi bi-speedometer2"></i>
-                </div>
-                <div class="metric-content">
-                  <span class="metric-value">98.5%</span>
-                  <span class="metric-label">Uptime</span>
-                </div>
-              </div>
-              <div class="metric-item">
-                <div class="metric-icon">
-                  <i class="bi bi-lightning-charge"></i>
-                </div>
-                <div class="metric-content">
-                  <span class="metric-value">1.2s</span>
-                  <span class="metric-label">Respuesta Promedio</span>
-                </div>
-              </div>
-              <div class="metric-item">
-                <div class="metric-icon">
-                  <i class="bi bi-shield-check"></i>
-                </div>
-                <div class="metric-content">
-                  <span class="metric-value">100%</span>
-                  <span class="metric-label">Seguridad</span>
-                </div>
-              </div>
+            <div class="chart-container">
+              <canvas id="chart-accesos" height="250"></canvas>
             </div>
           </article>
         </div>

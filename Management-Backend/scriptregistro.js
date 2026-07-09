@@ -4,6 +4,17 @@
 const hasAOS = typeof window !== "undefined" && typeof window.AOS !== "undefined";
 const hasChart = typeof window !== "undefined" && typeof window.Chart !== "undefined";
 
+// El plugin de etiquetas de datos (chartjs-plugin-datalabels) NO se auto-registra
+// desde la v1: hay que registrarlo explícitamente o simplemente no hace nada.
+// Lo registramos una vez y lo desactivamos por defecto para no saturar los
+// sparklines y el gráfico de accesos; el gráfico de inventario lo reactiva.
+if (hasChart && typeof window.ChartDataLabels !== 'undefined') {
+  window.Chart.register(window.ChartDataLabels);
+}
+if (hasChart && window.Chart.defaults) {
+  window.Chart.defaults.set('plugins.datalabels', { display: false });
+}
+
 function toLocalISODate(dateInput = new Date()) {
   const date = dateInput instanceof Date ? new Date(dateInput) : new Date(dateInput);
   if (Number.isNaN(date.getTime())) return '';
@@ -115,6 +126,118 @@ function animateCounter(el, target, duration = 2000) {
   }, 16);
 }
 
+// ===============================
+/* SELECTOR DE PERÍODO DEL DASHBOARD */
+// ===============================
+// Período activo (día, semana, mes, año). Se guarda para recordarlo entre visitas.
+window.dashboardPeriodo = localStorage.getItem('dashboardPeriodo') || 'mes';
+
+const PERIODO_LABELS = {
+  dia: 'Día',
+  semana: 'Semana',
+  mes: 'Mes',
+  anio: 'Año'
+};
+
+// Calcula el rango [inicio, fin] del período actual y el rango equivalente
+// inmediatamente anterior (misma duración), para poder comparar de forma real.
+function calcularRangosPeriodo(periodo, referencia = new Date()) {
+  const fin = new Date(referencia);
+  fin.setHours(23, 59, 59, 999);
+  let inicio = new Date(referencia);
+
+  switch (periodo) {
+    case 'dia':
+      inicio.setHours(0, 0, 0, 0);
+      break;
+    case 'semana': {
+      const diaSemana = inicio.getDay(); // 0 = domingo
+      const offset = (diaSemana === 0 ? 6 : diaSemana - 1); // lunes como inicio de semana
+      inicio.setDate(inicio.getDate() - offset);
+      inicio.setHours(0, 0, 0, 0);
+      break;
+    }
+    case 'anio':
+      inicio = new Date(referencia.getFullYear(), 0, 1, 0, 0, 0, 0);
+      break;
+    case 'mes':
+    default:
+      inicio = new Date(referencia.getFullYear(), referencia.getMonth(), 1, 0, 0, 0, 0);
+      break;
+  }
+
+  const duracionMs = fin.getTime() - inicio.getTime();
+  const finAnterior = new Date(inicio.getTime() - 1);
+  const inicioAnterior = new Date(finAnterior.getTime() - duracionMs);
+
+  return { inicio, fin, inicioAnterior, finAnterior };
+}
+
+// Calcula el % de cambio real entre dos cantidades (sin inventar datos).
+// Devuelve null cuando no se puede calcular un porcentaje con sentido.
+function calcularCambioPorcentual(actual, anterior) {
+  if (anterior === 0) {
+    return actual === 0 ? null : { valor: 100, direccion: 'positive' };
+  }
+  const cambio = ((actual - anterior) / anterior) * 100;
+  return {
+    valor: Math.abs(Math.round(cambio)),
+    direccion: cambio >= 0 ? 'positive' : 'negative'
+  };
+}
+
+// Pinta la etiqueta de tendencia de un KPI solo cuando hay un dato real de
+// comparación contra el período anterior. Si no lo hay, no se muestra nada
+// (antes se mostraba un badge "Sin variación" que no aportaba información).
+function pintarTendencia(elId, cambio) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!cambio) {
+    el.className = 'kpi-trend d-none';
+    el.innerHTML = '';
+    return;
+  }
+  const icono = cambio.direccion === 'positive' ? 'bi-arrow-up' : 'bi-arrow-down';
+  el.className = `kpi-trend ${cambio.direccion}`;
+  el.innerHTML = `<i class="bi ${icono}"></i> ${cambio.valor}% vs. período anterior`;
+}
+
+// Enlaza el selector de período y las tarjetas KPI (accesos directos) una sola vez.
+function inicializarControlesDashboard() {
+  const selector = document.getElementById('periodoSelector');
+  if (selector && !selector.dataset.bound) {
+    selector.dataset.bound = 'true';
+    selector.querySelectorAll('.periodo-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selector.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        window.dashboardPeriodo = btn.getAttribute('data-periodo');
+        localStorage.setItem('dashboardPeriodo', window.dashboardPeriodo);
+        cargarDashboard();
+      });
+    });
+  }
+
+  // Accesos directos: cada tarjeta KPI navega a su sección relacionada
+  document.querySelectorAll('.dashboard-kpi-card.kpi-clickable').forEach(card => {
+    if (card.dataset.shortcutBound) return;
+    card.dataset.shortcutBound = 'true';
+    const sectionId = card.getAttribute('data-section');
+    const irASeccion = () => {
+      const navBtn = document.querySelector(`.nav-btn[data-section="${sectionId}"]`);
+      if (navBtn && navBtn.style.display !== 'none') {
+        navBtn.click();
+      } else {
+        mostrarToast('No tienes acceso a esta sección.', 'warning');
+      }
+    };
+    card.addEventListener('click', irASeccion);
+    card.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') irASeccion();
+    });
+  });
+}
+
 // Enhanced Dashboard Loading with Charts
 async function cargarDashboard() {
   const lastUpdateEl = document.getElementById('last-update');
@@ -156,10 +279,11 @@ async function cargarDashboard() {
       pacientesRes.status === 'fulfilled' ? pacientesRes.value.status : pacientesRes.status
     ].join('/')}`;
 
-    const [medsRes, invRes, citasRes] = await Promise.allSettled([
+    const [medsRes, invRes, citasRes, accesosRes] = await Promise.allSettled([
       fetch('https://siscom-4lbe.onrender.com/Registro_medicamentos', { headers: authHeaders }),
       fetch('https://siscom-4lbe.onrender.com/inventario', { headers: authHeaders }),
-      fetch('https://siscom-4lbe.onrender.com/obtenerCitas', { headers: authHeaders })
+      fetch('https://siscom-4lbe.onrender.com/obtenerCitas', { headers: authHeaders }),
+      fetch('https://siscom-4lbe.onrender.com/accesos-usuarios', { headers: authHeaders })
     ]);
 
     // log response statuses
@@ -167,20 +291,42 @@ async function cargarDashboard() {
       usuarios: estadoUsuarios,
       medicamentos: medsRes.status === 'fulfilled' ? medsRes.value.status : medsRes.status,
       inventario: invRes.status === 'fulfilled' ? invRes.value.status : invRes.status,
-      citas: citasRes.status === 'fulfilled' ? citasRes.value.status : citasRes.status
+      citas: citasRes.status === 'fulfilled' ? citasRes.value.status : citasRes.status,
+      accesos: accesosRes.status === 'fulfilled' ? accesosRes.value.status : accesosRes.status
     });
 
     const medicamentos = medsRes.status === 'fulfilled' && medsRes.value.ok ? await medsRes.value.json() : [];
     const inventario = invRes.status === 'fulfilled' && invRes.value.ok ? await invRes.value.json() : [];
     const citas = citasRes.status === 'fulfilled' && citasRes.value.ok ? await citasRes.value.json() : [];
+    // accesos_usuarios: historial real de inicios de sesión (fecha_hora). Si el endpoint
+    // todavía no existe en el backend desplegado, se degrada a lista vacía sin romper el dashboard.
+    const accesos = accesosRes.status === 'fulfilled' && accesosRes.value.ok ? await accesosRes.value.json() : [];
 
-    // if any returned ok:false, show toast with server message
-    [medsRes, invRes, citasRes].forEach(res => {
+    // if any returned ok:false, show toast with server message (leída del cuerpo real de la respuesta)
+    const endpointsDashboard = [
+      { nombre: 'Medicamentos', res: medsRes },
+      { nombre: 'Inventario', res: invRes },
+      { nombre: 'Citas', res: citasRes },
+      { nombre: 'Accesos de usuarios', res: accesosRes }
+    ];
+    for (const { nombre, res } of endpointsDashboard) {
       if (res.status === 'fulfilled' && res.value && res.value.ok === false) {
-        const msg = res.value.mensaje || res.value.message || 'Error de servidor';
+        let msg = `Error de servidor (${nombre}, HTTP ${res.value.status})`;
+        try {
+          const cuerpo = await res.value.json();
+          if (cuerpo && (cuerpo.mensaje || cuerpo.message)) {
+            msg = `${nombre}: ${cuerpo.mensaje || cuerpo.message}`;
+          }
+        } catch (e) {
+          // el cuerpo no era JSON válido, se deja el mensaje por defecto con el status
+        }
+        console.warn('Fallo endpoint dashboard:', nombre, res.value.status);
         mostrarToast(msg, 'warning');
+      } else if (res.status === 'rejected') {
+        console.warn('Fallo de red en endpoint dashboard:', nombre, res.reason);
+        mostrarToast(`No se pudo contactar: ${nombre}`, 'warning');
       }
-    });
+    }
 
     console.log('Parsed lengths', {
       usuarios: usuarios.length,
@@ -194,22 +340,52 @@ async function cargarDashboard() {
       card.classList.remove('skeleton-shimmer');
     });
 
+    // Período seleccionado (día, semana, mes, año) y su rango equivalente anterior
+    const periodo = window.dashboardPeriodo || 'mes';
+    const { inicio, fin, inicioAnterior, finAnterior } = calcularRangosPeriodo(periodo);
+
+    const fechaCitaEnRango = (c, ini, end) => {
+      if (!c.fecha_hora) return false;
+      const f = new Date(c.fecha_hora);
+      return f >= ini && f <= end;
+    };
+
+    const citasPeriodoActual = citas.filter(c => fechaCitaEnRango(c, inicio, fin));
+    const citasPeriodoAnterior = citas.filter(c => fechaCitaEnRango(c, inicioAnterior, finAnterior));
+
+    const medicamentosActivos = medicamentos.filter(m => m.estado === 'activo').length;
+    const stockBajo = inventario.filter(i => Number(i.cantidad || 0) <= 10).length;
+
     // Animate KPIs
     const kpiUsuarios = document.getElementById('kpiUsuariosTotal');
     const kpiMeds = document.getElementById('kpiMedicamentosActivos');
     const kpiStock = document.getElementById('kpiStockBajo');
     const kpiCitas = document.getElementById('kpiCitasHoy');
-    
+    const kpiCitasLabel = document.getElementById('kpiCitasLabel');
+
+    if (kpiCitasLabel) kpiCitasLabel.textContent = `Citas (${PERIODO_LABELS[periodo] || 'Período'})`;
+
     if (kpiUsuarios) animateCounter(kpiUsuarios, usuarios.length);
-    if (kpiMeds) animateCounter(kpiMeds, medicamentos.filter(m => m.estado === 'activo').length);
-    if (kpiStock) animateCounter(kpiStock, inventario.filter(i => Number(i.cantidad || 0) <= 10).length);
-    if (kpiCitas) animateCounter(kpiCitas, citas.filter(c => (c.fecha_hora || '').split('T')[0] === toLocalISODate()).length);
-    
+    if (kpiMeds) animateCounter(kpiMeds, medicamentosActivos);
+    if (kpiStock) animateCounter(kpiStock, stockBajo);
+    if (kpiCitas) animateCounter(kpiCitas, citasPeriodoActual.length);
+
+    // Etiquetas de tendencia con datos REALES (no inventados):
+    // - Citas: se puede comparar contra el período anterior porque tiene fecha real.
+    // - Usuarios/Medicamentos/Stock: son totales actuales (foto del momento) y el
+    //   backend no guarda su historial, así que no mostramos un % inventado.
+    pintarTendencia('kpiCitasTrend', calcularCambioPorcentual(citasPeriodoActual.length, citasPeriodoAnterior.length));
+    pintarTendencia('kpiUsersTrend', null);
+    pintarTendencia('kpiMedsTrend', null);
+    pintarTendencia('kpiStockTrend', null);
+
     console.log('KPI values', {
+      periodo,
       usuarios: usuarios.length,
-      medicamentos: medicamentos.filter(m => m.estado === 'activo').length,
-      stockBajo: inventario.filter(i => Number(i.cantidad||0) <= 10).length,
-      citasHoy: citas.filter(c => (c.fecha_hora || '').split('T')[0] === toLocalISODate()).length
+      medicamentos: medicamentosActivos,
+      stockBajo,
+      citasPeriodoActual: citasPeriodoActual.length,
+      citasPeriodoAnterior: citasPeriodoAnterior.length
     });
 
     // Update last update time
@@ -221,18 +397,27 @@ async function cargarDashboard() {
     // Update chart default text color to match theme
     if (hasChart) {
       Chart.defaults.color = getComputedStyle(document.body).color || '#1e293b';
-      // Charts - Trends
-      createTrendChart(usuarios.length, medicamentos.length);
-      
+      // Gráfico "Acceso de Usuarios": datos reales de inicios de sesión (accesos_usuarios),
+      // divididos por sub-período dentro del rango seleccionado.
+      createAccesosChart(accesos, periodo);
+      const trendsBadge = document.getElementById('chartTrendsBadge');
+      if (trendsBadge) trendsBadge.textContent = PERIODO_LABELS[periodo] || 'Período';
+
       // Inventory Pie Chart
       createInventoryPieChart(inventario);
-      
-      // Sparklines
-      createSparkline('sparkline-users', [10, 15, 20, 25, 30, usuarios.length]);
-      createSparkline('sparkline-meds', [5, 8, 12, 15, 18, medicamentos.filter(m => m.estado === 'activo').length]);
-      createSparkline('sparkline-stock', [3, 2, 4, 1, 2, inventario.filter(i => Number(i.cantidad || 0) <= 10).length]);
-      createSparkline('sparkline-citas', [1, 3, 2, 4, 5, citas.filter(c => (c.fecha_hora || '').split('T')[0] === toLocalISODate()).length]);
+
+      // Sparklines: la de citas usa datos reales por sub-período;
+      // el resto no tiene historial en el backend, así que se muestra
+      // una línea plana en el valor actual (en vez de inventar variación).
+      const serieCitas = construirSerieFechasPorSubperiodo(citas, periodo).data;
+      createSparkline('sparkline-users', [usuarios.length, usuarios.length]);
+      createSparkline('sparkline-meds', [medicamentosActivos, medicamentosActivos]);
+      createSparkline('sparkline-stock', [stockBajo, stockBajo]);
+      createSparkline('sparkline-citas', serieCitas.length ? serieCitas : [0, citasPeriodoActual.length]);
     }
+
+    // Enlazar selector de período y accesos directos de las tarjetas (idempotente)
+    inicializarControlesDashboard();
     
     // Existing render functions...
     renderActividadReciente(usuarios, medicamentos);
@@ -243,23 +428,91 @@ async function cargarDashboard() {
   }
 }
 
+// Divide una lista de eventos con fecha real (citas o accesos_usuarios) en
+// sub-tramos del período seleccionado, para graficar una tendencia real sin
+// inventar valores: día -> horas, semana -> días, mes -> semanas, año -> meses.
+function construirSerieFechasPorSubperiodo(items, periodo) {
+  const ahora = new Date();
+  let labels = [];
+  let buckets = [];
+
+  const contarEnRango = (ini, fin) => items.filter(it => {
+    if (!it.fecha_hora) return false;
+    const f = new Date(it.fecha_hora);
+    return f >= ini && f <= fin;
+  }).length;
+
+  if (periodo === 'dia') {
+    for (let h = 0; h < 24; h += 3) {
+      const ini = new Date(ahora); ini.setHours(h, 0, 0, 0);
+      const fin = new Date(ahora); fin.setHours(h + 2, 59, 59, 999);
+      labels.push(`${String(h).padStart(2, '0')}h`);
+      buckets.push(contarEnRango(ini, fin));
+    }
+  } else if (periodo === 'semana') {
+    const dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const diaSemana = ahora.getDay();
+    const offsetLunes = (diaSemana === 0 ? 6 : diaSemana - 1);
+    const lunes = new Date(ahora); lunes.setDate(ahora.getDate() - offsetLunes); lunes.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 7; i++) {
+      const ini = new Date(lunes); ini.setDate(lunes.getDate() + i);
+      const fin = new Date(ini); fin.setHours(23, 59, 59, 999);
+      labels.push(dias[i]);
+      buckets.push(contarEnRango(ini, fin));
+    }
+  } else if (periodo === 'anio') {
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    for (let m = 0; m < 12; m++) {
+      const ini = new Date(ahora.getFullYear(), m, 1, 0, 0, 0, 0);
+      const fin = new Date(ahora.getFullYear(), m + 1, 0, 23, 59, 59, 999);
+      labels.push(meses[m]);
+      buckets.push(contarEnRango(ini, fin));
+    }
+  } else {
+    // mes: dividido en semanas del mes actual
+    const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+    const ultimoDiaMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0);
+    let semanaNum = 1;
+    let cursor = new Date(primerDiaMes);
+    while (cursor <= ultimoDiaMes) {
+      const inicioSemana = new Date(cursor);
+      const finSemana = new Date(cursor);
+      finSemana.setDate(finSemana.getDate() + 6);
+      const finReal = finSemana > ultimoDiaMes ? ultimoDiaMes : finSemana;
+      const finRealHoras = new Date(finReal); finRealHoras.setHours(23, 59, 59, 999);
+      labels.push(`S${semanaNum}`);
+      buckets.push(contarEnRango(inicioSemana, finRealHoras));
+      cursor.setDate(cursor.getDate() + 7);
+      semanaNum++;
+    }
+  }
+
+  return { labels, data: buckets };
+}
+
 // Chart Functions
-function createTrendChart(usersCount, medsCount) {
-  const ctx = document.getElementById('chart-trends')?.getContext('2d');
+
+// "Acceso de Usuarios": gráfico real de inicios de sesión (tabla accesos_usuarios),
+// dividido por sub-período dentro del rango seleccionado. Ya no es una tendencia
+// de citas ni de usuarios inventada: cada punto es un conteo real de logins.
+function createAccesosChart(accesos, periodo) {
+  const ctx = document.getElementById('chart-accesos')?.getContext('2d');
   if (!ctx || !hasChart) return;
 
   if (window.myTrendChart) {
     window.myTrendChart.destroy();
     window.myTrendChart = null;
   }
-  
+
+  const { labels, data } = construirSerieFechasPorSubperiodo(accesos || [], periodo || 'mes');
+
   const config = {
     type: 'line',
     data: {
-      labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May'],
+      labels,
       datasets: [{
-        label: 'Usuarios',
-        data: [65, 59, 80, usersCount * 0.8, usersCount],
+        label: 'Accesos',
+        data,
         borderColor: '#667eea',
         backgroundColor: 'rgba(102, 126, 234, 0.1)',
         tension: 0.4,
@@ -269,9 +522,13 @@ function createTrendChart(usersCount, medsCount) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${ctx.raw} accesos` } },
+        datalabels: { display: false }
+      },
       scales: {
-        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+        y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(0,0,0,0.05)' } },
         x: { grid: { display: false } }
       }
     }
@@ -289,15 +546,21 @@ function createInventoryPieChart(inventario) {
     window.myInventoryChart = null;
   }
 
-  const critical = inventario.filter(i => Number(i.cantidad || 0) <= 10);
-  const normal = inventario.length - critical.length;
+  // Se pesa por CANTIDAD REAL DE UNIDADES en stock, no por cuántos medicamentos
+  // distintos hay. Así, un medicamento con pocas unidades no infla el % solo por
+  // ser "1 de N" renglones: su peso refleja cuánto stock representa de verdad.
+  const criticalItems = inventario.filter(i => Number(i.cantidad || 0) <= 10);
+  const normalItems = inventario.filter(i => Number(i.cantidad || 0) > 10);
+  const criticalUnidades = criticalItems.reduce((sum, i) => sum + Number(i.cantidad || 0), 0);
+  const normalUnidades = normalItems.reduce((sum, i) => sum + Number(i.cantidad || 0), 0);
+  const totalUnidades = criticalUnidades + normalUnidades;
 
   const config = {
     type: 'doughnut',
     data: {
       labels: ['Stock Crítico', 'Normal'],
       datasets: [{
-        data: [critical.length, normal],
+        data: [criticalUnidades, normalUnidades],
         backgroundColor: ['#ef4444', '#10b981']
       }]
     },
@@ -308,7 +571,25 @@ function createInventoryPieChart(inventario) {
         legend: { position: 'bottom' },
         tooltip: {
           callbacks: {
-            label: ctx => `${ctx.label}: ${ctx.raw} medicamentos`
+            label: ctx => {
+              const pct = totalUnidades > 0 ? Math.round((ctx.raw / totalUnidades) * 100) : 0;
+              const cantidadMeds = ctx.dataIndex === 0 ? criticalItems.length : normalItems.length;
+              return `${ctx.label}: ${ctx.raw} unidades (${pct}%) — ${cantidadMeds} medicamento(s)`;
+            }
+          }
+        },
+        // Etiquetas de porcentaje REALES sobre cada porción de la dona
+        // (calculadas a partir de las unidades reales en stock, no inventadas).
+        datalabels: {
+          display: (context) => {
+            const valor = context.dataset.data[context.dataIndex];
+            return totalUnidades > 0 && valor > 0; // siempre visible si esa porción tiene stock
+          },
+          color: '#fff',
+          font: { weight: '700', size: 13 },
+          formatter: (valor) => {
+            const pct = totalUnidades > 0 ? Math.round((valor / totalUnidades) * 100) : 0;
+            return `${pct}%`;
           }
         }
       }

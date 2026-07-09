@@ -116,10 +116,6 @@ body{
 
 /* Dashboard Hero Section */
 .dashboard-hero {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   text-align: center;
   padding: 2.5rem 0;
   margin-bottom: 2.5rem;
@@ -145,6 +141,10 @@ body{
   font-weight: 900;
   letter-spacing: -0.02em;
   margin-bottom: 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .dashboard-meta {
@@ -173,19 +173,93 @@ body{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.75rem;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
 }
 
 .dashboard-kpi-card {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 28px;
-  padding: 2.25rem 1.75rem;
+  border-radius: 20px;
+  padding: 1.25rem 1.1rem;
   position: relative;
   overflow: hidden;
   transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+}
+
+/* Grid más compacta para las tarjetas KPI */
+.dashboard-kpi-grid-compact {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.1rem;
+}
+
+/* Tarjetas KPI que actúan como accesos directos a otras secciones */
+.kpi-clickable {
+  cursor: pointer;
+}
+
+.kpi-clickable:hover {
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+.kpi-clickable:focus-visible {
+  outline: 2px solid #7c3aed;
+  outline-offset: 2px;
+}
+
+.kpi-shortcut-hint {
+  display: block;
+  text-align: center;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #7c3aed;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all 0.25s ease;
+}
+
+.kpi-clickable:hover .kpi-shortcut-hint,
+.kpi-clickable:focus-visible .kpi-shortcut-hint {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.kpi-trend-neutral {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+/* Selector de período (Día / Semana / Mes / Año) */
+.periodo-selector {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.periodo-btn {
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.12);
+  color: inherit;
+  padding: 0.35rem 0.9rem;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.periodo-btn:hover {
+  background: rgba(255,255,255,0.22);
+}
+
+.periodo-btn.active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
 }
 
 .dashboard-kpi-card::before {
@@ -221,15 +295,15 @@ body{
 }
 
 .kpi-icon {
-  width: 90px;
-  height: 90px;
-  border-radius: 24px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 1.25rem;
-  font-size: 2.5rem;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+  margin: 0 auto 0.75rem;
+  font-size: 1.5rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   transition: all 0.4s ease;
 }
 
@@ -243,18 +317,18 @@ body{
 .gradient-info { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); color: white; }
 
 .kpi-content p {
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   color: #64748b;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.4rem;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .kpi-number {
-  font-size: clamp(2.8rem, 10vw, 4.5rem);
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
   font-weight: 900;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
   background: linear-gradient(135deg, #1e293b, #334155);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
