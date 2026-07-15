@@ -1080,6 +1080,21 @@
               <i class="bi bi-diagram-3 me-2"></i>Asignación de Pacientes por Cuidador
             </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-dominios-permitidos" data-bs-toggle="tab" data-bs-target="#panel-dominios-permitidos" type="button" role="tab" aria-controls="panel-dominios-permitidos" aria-selected="false">
+              <i class="bi bi-envelope-check me-2"></i>Dominios de Correo
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-roles" data-bs-toggle="tab" data-bs-target="#panel-roles" type="button" role="tab" aria-controls="panel-roles" aria-selected="false">
+              <i class="bi bi-shield-lock me-2"></i>Roles
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-parametros" data-bs-toggle="tab" data-bs-target="#panel-parametros" type="button" role="tab" aria-controls="panel-parametros" aria-selected="false">
+              <i class="bi bi-sliders me-2"></i>Parámetros del Sistema
+            </button>
+          </li>
         </ul>
 
         <div class="tab-content" id="usuariosTabsContent">
@@ -1193,6 +1208,118 @@
                       </tbody>
                     </table>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== PANEL: DOMINIOS DE CORREO PERMITIDOS ===== -->
+          <div class="tab-pane fade" id="panel-dominios-permitidos" role="tabpanel" aria-labelledby="tab-dominios-permitidos">
+            <div class="card table-card">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <h5 class="card-title mb-1"><i class="bi bi-envelope-check me-2"></i>Dominios de Correo Permitidos</h5>
+                  <p class="text-muted mb-0 small">Controla qué dominios (gmail.com, outlook.com, etc.) se aceptan al registrarse. No requiere tocar código.</p>
+                </div>
+              </div>
+
+              <form id="formNuevoDominio" class="d-flex gap-2 mb-3">
+                <input type="text" id="nuevoDominioInput" class="form-control" placeholder="Ej. dominio.com" required>
+                <button type="submit" class="btn btn-primary text-nowrap"><i class="bi bi-plus-circle me-2"></i>Agregar</button>
+              </form>
+
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover table-striped mb-0 datatable-theme" id="tablaDominios">
+                    <thead class="table-dark">
+                      <tr>
+                        <th class="fw-bold">Dominio</th>
+                        <th class="fw-bold text-center">Estado</th>
+                        <th class="fw-bold text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div id="noDominios" class="text-center text-muted py-5 d-none">
+                  <i class="bi bi-envelope display-4 mb-3"></i>
+                  <h5>No hay dominios registrados</h5>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== PANEL: ROLES ===== -->
+          <div class="tab-pane fade" id="panel-roles" role="tabpanel" aria-labelledby="tab-roles">
+            <div class="card table-card">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <h5 class="card-title mb-1"><i class="bi bi-shield-lock me-2"></i>Mantenimiento de Roles</h5>
+                  <p class="text-muted mb-0 small">Crea o edita los roles disponibles. Los roles activos aparecen automáticamente al crear un usuario.</p>
+                </div>
+              </div>
+
+              <form id="formNuevoRol" class="row g-2 mb-3">
+                <div class="col-md-4">
+                  <input type="text" id="nuevoRolNombre" class="form-control" placeholder="Nombre del rol (ej. farmacia)" required pattern="[a-z][a-z0-9_]{2,49}" title="Solo minúsculas, números y guion bajo, mínimo 3 caracteres">
+                </div>
+                <div class="col-md-6">
+                  <input type="text" id="nuevoRolDescripcion" class="form-control" placeholder="Descripción del rol">
+                </div>
+                <div class="col-md-2 d-grid">
+                  <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-2"></i>Agregar</button>
+                </div>
+              </form>
+
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover table-striped mb-0 datatable-theme" id="tablaRoles">
+                    <thead class="table-dark">
+                      <tr>
+                        <th class="fw-bold">Rol</th>
+                        <th class="fw-bold">Descripción</th>
+                        <th class="fw-bold text-center">Estado</th>
+                        <th class="fw-bold text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div id="noRoles" class="text-center text-muted py-5 d-none">
+                  <i class="bi bi-shield-lock display-4 mb-3"></i>
+                  <h5>No hay roles registrados</h5>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== PANEL: PARÁMETROS DEL SISTEMA ===== -->
+          <div class="tab-pane fade" id="panel-parametros" role="tabpanel" aria-labelledby="tab-parametros">
+            <div class="card table-card">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <h5 class="card-title mb-1"><i class="bi bi-sliders me-2"></i>Parámetros Generales del Sistema</h5>
+                  <p class="text-muted mb-0 small">Reglas de negocio configurables (ej. a partir de qué cantidad un medicamento se considera "stock crítico"). Ya no son valores fijos en el código.</p>
+                </div>
+              </div>
+
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover table-striped mb-0 datatable-theme" id="tablaParametros">
+                    <thead class="table-dark">
+                      <tr>
+                        <th class="fw-bold">Parámetro</th>
+                        <th class="fw-bold">Descripción</th>
+                        <th class="fw-bold text-center">Valor</th>
+                        <th class="fw-bold text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div id="noParametros" class="text-center text-muted py-5 d-none">
+                  <i class="bi bi-sliders display-4 mb-3"></i>
+                  <h5>No hay parámetros registrados</h5>
                 </div>
               </div>
             </div>
@@ -1439,9 +1566,6 @@
               <label for="rolUsuario" class="form-label">Rol</label>
               <select id="rolUsuario" class="form-select" required>
                 <option value="">Seleccione rol</option>
-                <option value="usuario">Usuario</option>
-                <option value="empleado">Empleado</option>
-                <option value="administrador">Administrador</option>
               </select>
             </div>
           </form>
