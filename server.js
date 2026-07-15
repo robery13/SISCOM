@@ -220,8 +220,100 @@ db.connect(err => {
         });
       });
     });
+
+    // ===== Fase B: Módulo de Seguridad (permisos, bitácora) =====
+
+    const createPermisosSql = `
+      CREATE TABLE IF NOT EXISTS permisos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nombre_permiso VARCHAR(100) NOT NULL UNIQUE,
+        descripcion VARCHAR(255) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+    db.query(createPermisosSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla permisos:', err);
+        return;
+      }
+      console.log('Tabla permisos verificada/creada correctamente');
+
+      const createRolesPermisosSql = `
+        CREATE TABLE IF NOT EXISTS roles_permisos (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          nombre_rol VARCHAR(50) NOT NULL,
+          id_permiso INT NOT NULL,
+          UNIQUE KEY uq_rol_permiso (nombre_rol, id_permiso),
+          CONSTRAINT fk_roles_permisos_permiso FOREIGN KEY (id_permiso) REFERENCES permisos(id) ON DELETE CASCADE
+        )
+      `;
+      db.query(createRolesPermisosSql, (err2) => {
+        if (err2) {
+          console.error('Error al crear tabla roles_permisos:', err2);
+          return;
+        }
+        console.log('Tabla roles_permisos verificada/creada correctamente');
+      });
+
+      const permisosSemilla = [
+        ['usuarios.gestionar', 'Crear, editar y eliminar usuarios'],
+        ['roles.gestionar', 'Crear y editar roles'],
+        ['permisos.gestionar', 'Asignar permisos a roles'],
+        ['medicamentos.gestionar', 'Crear y editar medicamentos'],
+        ['inventario.gestionar', 'Administrar inventario y pedidos de farmacia'],
+        ['citas.gestionar', 'Administrar citas médicas'],
+        ['parametros.gestionar', 'Editar parámetros generales del sistema'],
+        ['bitacora.ver', 'Consultar la bitácora de auditoría'],
+        ['backup.gestionar', 'Generar y restaurar copias de seguridad']
+      ];
+      db.query('SELECT COUNT(*) AS total FROM permisos', (errCount, rows) => {
+        if (errCount) { console.error('Error al verificar permisos semilla:', errCount); return; }
+        if (rows[0].total > 0) return;
+        db.query('INSERT INTO permisos (nombre_permiso, descripcion) VALUES ?', [permisosSemilla], (errSeed, resultSeed) => {
+          if (errSeed) { console.error('Error al insertar permisos semilla:', errSeed); return; }
+          // El rol "administrador" arranca con todos los permisos activos.
+          const primerId = resultSeed.insertId;
+          const asignaciones = permisosSemilla.map((_, idx) => ['administrador', primerId + idx]);
+          db.query('INSERT INTO roles_permisos (nombre_rol, id_permiso) VALUES ?', [asignaciones], (errAsig) => {
+            if (errAsig) console.error('Error al asignar permisos semilla al administrador:', errAsig);
+          });
+        });
+      });
+    });
+
+    const createBitacoraSql = `
+      CREATE TABLE IF NOT EXISTS bitacora (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        id_usuario INT NULL,
+        email VARCHAR(255) NULL,
+        rol VARCHAR(50) NULL,
+        accion VARCHAR(100) NOT NULL,
+        detalle VARCHAR(500) NULL,
+        fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+    db.query(createBitacoraSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla bitacora:', err);
+        return;
+      }
+      console.log('Tabla bitacora verificada/creada correctamente');
+    });
   }
 });
+
+// Registra una acción en la bitácora de auditoría. No detiene el flujo
+// principal si falla: la bitácora nunca debe tumbar una operación real.
+function registrarBitacora(req, accion, detalle) {
+  const usuario = req && req.user ? req.user : {};
+  db.query(
+    'INSERT INTO bitacora (id_usuario, email, rol, accion, detalle) VALUES (?, ?, ?, ?, ?)',
+    [usuario.id || null, usuario.email || null, usuario.rol || null, accion, detalle || null],
+    (err) => {
+      if (err) console.error('Error al registrar en bitácora:', err);
+    }
+  );
+}
 
 function ensureUsuariosColumn(columnName, alterSql) {
   db.query('SHOW COLUMNS FROM usuarios LIKE ?', [columnName], (err, results) => {
@@ -540,6 +632,7 @@ app.post('/login', (req, res) => {
         if (errAcceso) console.error('Error al registrar acceso de usuario:', errAcceso);
       }
     );
+    registrarBitacora({ user: { id: usuario.id, email: usuario.email, rol: usuario.rol } }, 'login', 'Inicio de sesión exitoso');
 
     // Si todo est� correcto
     res.status(200).json({
@@ -797,6 +890,7 @@ db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashe
     //console.error("Error SQL completo:", err); // <-- imprime todo
     return res.status(500).json({ error: "Error al registrar usuario en la base de datos.", detalle: err.message });
   }
+  registrarBitacora(req, 'usuarios.crear', `Usuario "${correoNormalizado}" creado con rol "${rol}"`);
   res.status(200).json({ mensaje: "Usuario registrado con éxito." });
 });
 
@@ -850,6 +944,7 @@ app.post('/dominios-permitidos', verificarRol(['administrador']), (req, res) => 
       return res.status(500).json({ ok: false, mensaje: 'Error al crear el dominio' });
     }
     cargarDominiosPermitidosCache();
+    registrarBitacora(req, 'dominios.crear', `Dominio "${dominio}" agregado`);
     res.json({ ok: true, mensaje: 'Dominio agregado correctamente' });
   });
 });
@@ -880,6 +975,7 @@ app.put('/dominios-permitidos/:id', verificarRol(['administrador']), (req, res) 
       return res.status(404).json({ ok: false, mensaje: 'Dominio no encontrado' });
     }
     cargarDominiosPermitidosCache();
+    registrarBitacora(req, 'dominios.editar', `Dominio id=${id} actualizado`);
     res.json({ ok: true, mensaje: 'Dominio actualizado correctamente' });
   });
 });
@@ -894,6 +990,7 @@ app.delete('/dominios-permitidos/:id', verificarRol(['administrador']), (req, re
       return res.status(404).json({ ok: false, mensaje: 'Dominio no encontrado' });
     }
     cargarDominiosPermitidosCache();
+    registrarBitacora(req, 'dominios.eliminar', `Dominio id=${req.params.id} eliminado`);
     res.json({ ok: true, mensaje: 'Dominio eliminado correctamente' });
   });
 });
@@ -938,6 +1035,8 @@ app.post('/roles', verificarRol(['administrador']), (req, res) => {
       console.error('Error al crear rol:', err);
       return res.status(500).json({ ok: false, mensaje: 'Error al crear el rol' });
     }
+    registrarBitacora(req, 'roles.crear', `Rol "${nombre_rol}" creado`);
+    registrarBitacora(req, 'roles.crear', `Rol "${nombre_rol}" creado`);
     res.json({ ok: true, mensaje: 'Rol creado correctamente' });
   });
 });
@@ -955,6 +1054,8 @@ app.put('/roles/:id', verificarRol(['administrador']), (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ ok: false, mensaje: 'Rol no encontrado' });
     }
+    registrarBitacora(req, 'roles.editar', `Rol id=${id} actualizado`);
+    registrarBitacora(req, 'roles.editar', `Rol id=${id} actualizado`);
     res.json({ ok: true, mensaje: 'Rol actualizado correctamente' });
   });
 });
@@ -986,6 +1087,8 @@ app.delete('/roles/:id', verificarRol(['administrador']), (req, res) => {
           console.error('Error al eliminar rol:', err3);
           return res.status(500).json({ ok: false, mensaje: 'Error al eliminar el rol' });
         }
+        registrarBitacora(req, 'roles.eliminar', `Rol "${rolRows[0].nombre_rol}" eliminado`);
+        registrarBitacora(req, 'roles.eliminar', `Rol "${rolRows[0].nombre_rol}" eliminado`);
         res.json({ ok: true, mensaje: 'Rol eliminado correctamente' });
       });
     });
@@ -1038,9 +1141,191 @@ app.put('/parametros/:id', verificarRol(['administrador']), (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ ok: false, mensaje: 'Parámetro no encontrado' });
     }
+    registrarBitacora(req, 'parametros.actualizar', `Parámetro id=${id} actualizado a "${valor}"`);
     res.json({ ok: true, mensaje: 'Parámetro actualizado correctamente' });
   });
 });
+
+// ================================================================
+// FASE B - MÓDULO DE SEGURIDAD: Permisos, Bitácora, Backup y Restore
+// ================================================================
+
+// ---------- MANTENIMIENTO DE PERMISOS ----------
+
+app.get('/permisos', verificarRol(['administrador']), (req, res) => {
+  db.query('SELECT * FROM permisos ORDER BY nombre_permiso ASC', (err, rows) => {
+    if (err) {
+      console.error('Error al obtener permisos:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al obtener permisos' });
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/permisos', verificarRol(['administrador']), (req, res) => {
+  const nombre_permiso = String(req.body.nombre_permiso || '').trim().toLowerCase();
+  const descripcion = req.body.descripcion ? String(req.body.descripcion).trim() : null;
+
+  if (!/^[a-z][a-z0-9_.]{2,99}$/.test(nombre_permiso)) {
+    return res.status(400).json({ ok: false, mensaje: 'Nombre de permiso inválido. Use minúsculas, números, punto y guion bajo, ej: usuarios.crear' });
+  }
+
+  db.query('INSERT INTO permisos (nombre_permiso, descripcion) VALUES (?, ?)', [nombre_permiso, descripcion], (err) => {
+    if (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(400).json({ ok: false, mensaje: 'Ese permiso ya existe.' });
+      }
+      console.error('Error al crear permiso:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al crear el permiso' });
+    }
+    registrarBitacora(req, 'permisos.crear', `Permiso "${nombre_permiso}" creado`);
+    res.json({ ok: true, mensaje: 'Permiso creado correctamente' });
+  });
+});
+
+app.delete('/permisos/:id', verificarRol(['administrador']), (req, res) => {
+  db.query('DELETE FROM permisos WHERE id = ?', [req.params.id], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar permiso:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al eliminar el permiso' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ ok: false, mensaje: 'Permiso no encontrado' });
+    }
+    registrarBitacora(req, 'permisos.eliminar', `Permiso id=${req.params.id} eliminado`);
+    res.json({ ok: true, mensaje: 'Permiso eliminado correctamente' });
+  });
+});
+
+// Permisos asignados a un rol específico (para pintar los checkboxes)
+app.get('/roles/:nombreRol/permisos', verificarRol(['administrador']), (req, res) => {
+  const { nombreRol } = req.params;
+  db.query(
+    `SELECT p.id, p.nombre_permiso, p.descripcion,
+            (rp.id IS NOT NULL) AS asignado
+     FROM permisos p
+     LEFT JOIN roles_permisos rp ON rp.id_permiso = p.id AND rp.nombre_rol = ?
+     ORDER BY p.nombre_permiso ASC`,
+    [nombreRol],
+    (err, rows) => {
+      if (err) {
+        console.error('Error al obtener permisos del rol:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al obtener permisos del rol' });
+      }
+      res.json(rows.map(r => ({ ...r, asignado: !!r.asignado })));
+    }
+  );
+});
+
+// Reemplaza por completo la lista de permisos de un rol (checkboxes -> guardar)
+app.put('/roles/:nombreRol/permisos', verificarRol(['administrador']), (req, res) => {
+  const { nombreRol } = req.params;
+  const idsPermisos = Array.isArray(req.body.idsPermisos) ? req.body.idsPermisos.map(Number).filter(Number.isFinite) : [];
+
+  db.query('DELETE FROM roles_permisos WHERE nombre_rol = ?', [nombreRol], (err) => {
+    if (err) {
+      console.error('Error al actualizar permisos del rol:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al actualizar permisos del rol' });
+    }
+    if (idsPermisos.length === 0) {
+      registrarBitacora(req, 'permisos.asignar', `Permisos del rol "${nombreRol}" limpiados (0 permisos)`);
+      return res.json({ ok: true, mensaje: 'Permisos del rol actualizados correctamente' });
+    }
+    const valores = idsPermisos.map(idPermiso => [nombreRol, idPermiso]);
+    db.query('INSERT INTO roles_permisos (nombre_rol, id_permiso) VALUES ?', [valores], (err2) => {
+      if (err2) {
+        console.error('Error al asignar permisos al rol:', err2);
+        return res.status(500).json({ ok: false, mensaje: 'Error al actualizar permisos del rol' });
+      }
+      registrarBitacora(req, 'permisos.asignar', `Rol "${nombreRol}" ahora tiene ${idsPermisos.length} permiso(s)`);
+      res.json({ ok: true, mensaje: 'Permisos del rol actualizados correctamente' });
+    });
+  });
+});
+
+// ---------- BITÁCORA (AUDITORÍA) ----------
+
+app.get('/bitacora', verificarRol(['administrador']), (req, res) => {
+  const limite = Math.min(Number(req.query.limite) || 200, 500);
+  db.query('SELECT * FROM bitacora ORDER BY id DESC LIMIT ?', [limite], (err, rows) => {
+    if (err) {
+      console.error('Error al obtener bitácora:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al obtener la bitácora' });
+    }
+    res.json(rows);
+  });
+});
+
+// ---------- BACKUP Y RESTORE ----------
+// Respalda/restaura únicamente las tablas de configuración del módulo de
+// Seguridad (usuarios, roles, permisos, dominios permitidos y parámetros).
+// No incluye datos clínicos (medicamentos, tomas, citas, etc.) para mantener
+// el respaldo liviano y enfocado en lo que pide este módulo.
+
+const TABLAS_BACKUP = ['roles', 'permisos', 'roles_permisos', 'dominios_correo_permitidos', 'parametros_sistema'];
+
+app.get('/backup', verificarRol(['administrador']), async (req, res) => {
+  try {
+    const backup = { generado_en: new Date().toISOString(), tablas: {} };
+
+    for (const tabla of TABLAS_BACKUP) {
+      // eslint-disable-next-line no-await-in-loop
+      const filas = await new Promise((resolve, reject) => {
+        db.query(`SELECT * FROM ${tabla}`, (err, rows) => {
+          if (err) return reject(err);
+          resolve(rows);
+        });
+      });
+      backup.tablas[tabla] = filas;
+    }
+
+    registrarBitacora(req, 'backup.generar', `Backup generado con tablas: ${TABLAS_BACKUP.join(', ')}`);
+    res.setHeader('Content-Disposition', `attachment; filename="siscom-backup-${Date.now()}.json"`);
+    res.json(backup);
+  } catch (error) {
+    console.error('Error al generar backup:', error);
+    res.status(500).json({ ok: false, mensaje: 'Error al generar el backup' });
+  }
+});
+
+app.post('/restore', verificarRol(['administrador']), async (req, res) => {
+  const backup = req.body;
+  if (!backup || typeof backup.tablas !== 'object') {
+    return res.status(400).json({ ok: false, mensaje: 'Archivo de backup inválido' });
+  }
+
+  try {
+    for (const tabla of TABLAS_BACKUP) {
+      const filas = Array.isArray(backup.tablas[tabla]) ? backup.tablas[tabla] : null;
+      if (!filas) continue;
+
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve, reject) => {
+        db.query(`DELETE FROM ${tabla}`, (err) => (err ? reject(err) : resolve()));
+      });
+
+      if (filas.length === 0) continue;
+
+      const columnas = Object.keys(filas[0]);
+      const valores = filas.map(fila => columnas.map(col => fila[col]));
+      const placeholders = columnas.map(c => `\`${c}\``).join(', ');
+
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve, reject) => {
+        db.query(`INSERT INTO ${tabla} (${placeholders}) VALUES ?`, [valores], (err) => (err ? reject(err) : resolve()));
+      });
+    }
+
+    cargarDominiosPermitidosCache();
+    registrarBitacora(req, 'backup.restaurar', `Backup restaurado sobre tablas: ${TABLAS_BACKUP.join(', ')}`);
+    res.json({ ok: true, mensaje: 'Backup restaurado correctamente' });
+  } catch (error) {
+    console.error('Error al restaurar backup:', error);
+    res.status(500).json({ ok: false, mensaje: 'Error al restaurar el backup. Verifica que el archivo sea un backup válido de SISCOM.' });
+  }
+});
+
+
 
 
 
@@ -1961,6 +2246,7 @@ app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
         return res.status(404).json({ mensaje: 'Usuario no encontrado' });
       }
 
+      registrarBitacora(req, 'usuarios.editar', `Usuario id=${id} (${correoNormalizado}) actualizado`);
       res.json({ mensaje: 'Usuario actualizado correctamente' });
     });
   });
@@ -2112,6 +2398,7 @@ app.delete('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
   const sql = 'DELETE FROM usuarios WHERE id = ?';
   db.query(sql, [id], (err, result) => {
     if (err) return res.status(500).json({ mensaje: 'Error al eliminar usuario' });
+    registrarBitacora(req, 'usuarios.eliminar', `Usuario id=${id} eliminado`);
     res.json({ mensaje: 'Usuario eliminado' });
   });
 });
