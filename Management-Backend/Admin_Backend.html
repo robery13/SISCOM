@@ -96,10 +96,19 @@
       <nav class="nav-menu" id="navMenu">
         
         <button class="nav-btn active" data-section="dashboard" data-role="administrador,empleado"><i class="bi bi-speedometer2"></i> <span>Dashboard</span></button>
-        <button class="nav-btn" data-section="medicamentos" data-role="administrador,empleado"><i class="bi bi-capsule"></i> <span>Medicamentos</span></button>
-        <button class="nav-btn" data-section="recetas" data-role="administrador,empleado"><i class="bi bi-journal-text"></i> <span>Citas Médicas</span></button>
-        <button class="nav-btn" data-section="Ficha" data-role="administrador,empleado"><i class="bi bi-clipboard2-check"></i> <span>Verificaci&oacute;n de medicamentos</span></button>
-        <button class="nav-btn" data-section="estadisticas" data-role="administrador,empleado"><i class="bi bi-bar-chart-line"></i> <span>Estadísticas</span></button>
+        <button class="nav-btn" data-section="usuarios" data-role="administrador"><i class="bi bi-shield-lock"></i> <span>Gesti&oacute;n de Usuarios</span></button>
+        <button class="nav-btn" data-section="asignacion-pacientes" data-role="administrador,empleado"><i class="bi bi-diagram-3"></i> <span>Asignaci&oacute;n de Pacientes</span></button>
+        <div class="nav-group nav-accordion" id="medicamentosAccordionAdmin">
+          <button class="nav-btn nav-accordion-toggle" type="button" aria-expanded="false">
+            <i class="bi bi-capsule"></i>
+            <span>Gesti&oacute;n de Medicamentos</span>
+            <i class="bi bi-chevron-down accordion-chevron"></i>
+          </button>
+          <div class="nav-accordion-content">
+            <button class="nav-btn" data-section="medicamentos" data-role="administrador,empleado"><i class="bi bi-capsule-pill"></i> <span>Administraci&oacute;n</span></button>
+            <button class="nav-btn" data-section="Ficha" data-role="administrador,empleado"><i class="bi bi-clipboard2-check"></i> <span>Registro de Tomas</span></button>
+          </div>
+        </div>
         <div class="nav-group nav-accordion" id="farmaciaAccordionAdmin">
           <button class="nav-btn nav-accordion-toggle" type="button" aria-expanded="false">
             <i class="bi bi-hospital"></i>
@@ -111,9 +120,9 @@
             <button class="nav-btn" data-section="pedidos" data-role="administrador,empleado"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
           </div>
         </div>
-        <button class="nav-btn" data-section="usuarios" data-role="administrador"><i class="bi bi-shield-lock"></i> <span>Seguridad</span></button>
-        <button class="nav-btn" data-section="asignacion-pacientes" data-role="administrador,empleado"><i class="bi bi-diagram-3"></i> <span>Asignación de Pacientes</span></button>
-        <button class="nav-btn" id="cerrarSesionBtn" data-role="administrador,empleado"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesión</span></button>
+        <button class="nav-btn" data-section="recetas" data-role="administrador,empleado"><i class="bi bi-journal-text"></i> <span>Citas M&eacute;dicas</span></button>
+        <button class="nav-btn" data-section="estadisticas" data-role="administrador,empleado"><i class="bi bi-bar-chart-line"></i> <span>Estad&iacute;sticas</span></button>
+        <button class="nav-btn" id="cerrarSesionBtn" data-role="administrador,empleado"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesi&oacute;n</span></button>
       </nav>
 
     </aside>
@@ -214,6 +223,7 @@
             <div class="chart-container">
               <canvas id="chart-inventory" height="250"></canvas>
             </div>
+            <p class="chart-total-caption" id="totalInventarioCaption">Sin datos de inventario todavía</p>
           </article>
 
           <article class="card dashboard-panel analytics-card">
@@ -224,6 +234,7 @@
             <div class="chart-container">
               <canvas id="chart-accesos" height="250"></canvas>
             </div>
+            <p class="chart-total-caption" id="totalAccesosCaption">Sin accesos registrados en este período</p>
           </article>
         </div>
 
@@ -659,7 +670,7 @@
             <section id="Ficha" class="section d-none">
         <div class="card">
           <div class="section-header text-start mb-3">
-            <h2><i class="bi bi-clipboard2-check me-2"></i> Verificación de medicamentos</h2>
+            <h2><i class="bi bi-clipboard2-check me-2"></i> Registro de Tomas</h2>
             <p class="muted mb-0">Consulta si el paciente ya tomó cada medicamento en una fecha específica.</p>
           </div>
 
@@ -1759,22 +1770,26 @@ document.addEventListener('DOMContentLoaded', () => {
       const navBtns = document.querySelectorAll('.nav-btn[data-section]');
       const sections = document.querySelectorAll('.section');
       const userRole = window.userRole || '';
-      const farmaciaAccordion = document.getElementById('farmaciaAccordionAdmin');
-      const farmaciaToggle = farmaciaAccordion?.querySelector('.nav-accordion-toggle');
+      const navAccordions = document.querySelectorAll('.nav-accordion');
 
       function actualizarAccordionFarmacia(sectionId = '') {
-        if (!farmaciaAccordion || !farmaciaToggle) return;
-        const debeAbrir = sectionId === 'inventario' || sectionId === 'pedidos';
-        farmaciaAccordion.classList.toggle('open', !!debeAbrir);
-        farmaciaToggle.setAttribute('aria-expanded', debeAbrir ? 'true' : 'false');
-      }
-
-      if (farmaciaToggle && farmaciaAccordion) {
-        farmaciaToggle.addEventListener('click', () => {
-          const abierto = farmaciaAccordion.classList.toggle('open');
-          farmaciaToggle.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+        navAccordions.forEach(accordion => {
+          const toggle = accordion.querySelector('.nav-accordion-toggle');
+          if (!toggle) return;
+          const contieneSeccion = !!accordion.querySelector(`.nav-accordion-content [data-section="${sectionId}"]`);
+          accordion.classList.toggle('open', contieneSeccion);
+          toggle.setAttribute('aria-expanded', contieneSeccion ? 'true' : 'false');
         });
       }
+
+      navAccordions.forEach(accordion => {
+        const toggle = accordion.querySelector('.nav-accordion-toggle');
+        if (!toggle) return;
+        toggle.addEventListener('click', () => {
+          const abierto = accordion.classList.toggle('open');
+          toggle.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+        });
+      });
 
       // Filtrar menús según el rol del usuario
       function filtrarMenusPorRol() {
