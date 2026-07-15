@@ -202,19 +202,22 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           }
 
-          // Redirigir según el rol del usuario después de un breve delay
+          // Redirigir según el rol del usuario después de un breve delay,
+          // pero primero verificar si debe cambiar su contraseña obligatoriamente.
           setTimeout(() => {
             if (data.usuario && data.usuario.rol) {
-              const redirigido = redirigirPorRol(data.usuario.rol);
-              if (!redirigido) {
-                showToast("Rol de usuario no reconocido.", "error");
-                if (btnLogin) {
-                  btnLogin.disabled = false;
-                  btnLogin.style.opacity = "1";
-                  btnLogin.style.cursor = "pointer";
-                  btnLogin.textContent = "Entrar";
+              siscomVerificarYForzarCambio(data.token, () => {
+                const redirigido = redirigirPorRol(data.usuario.rol);
+                if (!redirigido) {
+                  showToast("Rol de usuario no reconocido.", "error");
+                  if (btnLogin) {
+                    btnLogin.disabled = false;
+                    btnLogin.style.opacity = "1";
+                    btnLogin.style.cursor = "pointer";
+                    btnLogin.textContent = "Entrar";
+                  }
                 }
-              }
+              });
             } else {
               showToast("Error al obtener información del usuario.", "error");
               if (btnLogin) {
@@ -282,7 +285,189 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ================== RECUPERAR CONTRASEÑA ==================
 const API_URL = "https://siscom-4lbe.onrender.com";
-const GOOGLE_CLIENT_ID_FALLBACK = "635878229812-0s9plecinj5aoufagei6rl0dk0bl1998.apps.googleusercontent.com";
+// ============================================================
+// CAMBIO OBLIGATORIO DE CONTRASEÑA (primer inicio de sesión)
+// ------------------------------------------------------------
+// Si el administrador creó la cuenta o le reseteó la contraseña a un
+// usuario, el backend marca requiere_cambio_password = 1. Antes de
+// redirigir a cualquier panel (login normal, sesión restaurada o
+// Google), se consulta /perfil y, si corresponde, se bloquea la
+// redirección hasta que el usuario establezca una contraseña propia
+// (no puede reutilizar la que le asignó el administrador).
+// ============================================================
+function siscomInyectarEstilosForzarPassword() {
+  if (document.getElementById('siscom-forzar-estilos')) return;
+  const style = document.createElement('style');
+  style.id = 'siscom-forzar-estilos';
+  style.textContent = `
+    .siscom-overlay {
+      position: fixed; inset: 0; background: rgba(15, 18, 30, 0.72);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 99999; padding: 16px;
+    }
+    .siscom-overlay.d-none { display: none !important; }
+    .siscom-modal-card {
+      background: #ffffff; color: #1a1a1a; width: 100%; max-width: 440px;
+      border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      overflow: hidden; max-height: 90vh; display: flex; flex-direction: column;
+    }
+    .siscom-modal-header {
+      padding: 18px 20px; background: #2563eb; color: #fff;
+    }
+    .siscom-modal-header h3 { margin: 0; font-size: 1.05rem; }
+    .siscom-modal-body { padding: 18px 20px; overflow-y: auto; }
+    .siscom-field { margin-bottom: 12px; }
+    .siscom-field label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: #374151; }
+    .siscom-field input {
+      width: 100%; padding: 9px 11px; border: 1px solid #d1d5db; border-radius: 8px;
+      font-size: 0.9rem; box-sizing: border-box;
+    }
+    .siscom-modal-msg { font-size: 0.82rem; margin: 8px 0; padding: 8px 10px; border-radius: 8px; display: none; }
+    .siscom-modal-msg.error { display: block; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .siscom-modal-msg.success { display: block; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .siscom-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+    .siscom-btn-primary { padding: 9px 16px; border-radius: 8px; border: none; font-size: 0.85rem; cursor: pointer; font-weight: 600; background: #2563eb; color: #fff; }
+    .siscom-btn-primary:hover { background: #1d4ed8; }
+    .siscom-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .siscom-force-note { font-size: 0.82rem; color: #4b5563; margin-bottom: 14px; line-height: 1.4; }
+  `;
+  document.head.appendChild(style);
+}
+
+function siscomInyectarModalForzarPassword() {
+  if (document.getElementById('siscomForzarPasswordOverlay')) return;
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <div class="siscom-overlay d-none" id="siscomForzarPasswordOverlay">
+      <div class="siscom-modal-card">
+        <div class="siscom-modal-header">
+          <h3>Cambio de contraseña obligatorio</h3>
+        </div>
+        <div class="siscom-modal-body">
+          <p class="siscom-force-note">
+            Por seguridad, debes establecer una contraseña propia antes de continuar.
+            No puedes volver a usar la contraseña que te asignó el administrador.
+          </p>
+          <div class="siscom-modal-msg" id="siscomForzarMsg"></div>
+          <div class="siscom-field">
+            <label>Contraseña actual (la que te asignaron)</label>
+            <input type="password" id="siscomForzarPassActual" autocomplete="current-password">
+          </div>
+          <div class="siscom-field">
+            <label>Nueva contraseña</label>
+            <input type="password" id="siscomForzarPassNueva" autocomplete="new-password">
+          </div>
+          <div class="siscom-field">
+            <label>Confirmar nueva contraseña</label>
+            <input type="password" id="siscomForzarPassConfirmar" autocomplete="new-password">
+          </div>
+          <div class="siscom-modal-actions">
+            <button type="button" class="siscom-btn-primary" id="siscomForzarGuardar">Guardar y continuar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrapper);
+}
+
+function siscomMostrarMsgForzar(texto, tipo) {
+  const el = document.getElementById('siscomForzarMsg');
+  if (!el) return;
+  el.textContent = texto;
+  el.className = 'siscom-modal-msg ' + (tipo === 'error' ? 'error' : 'success');
+}
+
+/**
+ * Consulta /perfil con el token recién obtenido. Si el usuario tiene
+ * pendiente el cambio obligatorio de contraseña, muestra el modal
+ * bloqueante y solo llama a redirigirCallback() una vez que la cambie.
+ * Si no lo tiene pendiente (o si la verificación falla por conexión),
+ * redirige de inmediato para no bloquear al usuario innecesariamente.
+ */
+async function siscomVerificarYForzarCambio(token, redirigirCallback) {
+  if (!token) {
+    redirigirCallback();
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_URL}/perfil`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!resp.ok) {
+      redirigirCallback();
+      return;
+    }
+    const data = await resp.json();
+    if (!data || !data.ok || !data.usuario || Number(data.usuario.requiere_cambio_password) !== 1) {
+      redirigirCallback();
+      return;
+    }
+  } catch (error) {
+    // Si no se puede verificar por conexión, no se bloquea al usuario.
+    redirigirCallback();
+    return;
+  }
+
+  siscomInyectarEstilosForzarPassword();
+  siscomInyectarModalForzarPassword();
+
+  const overlay = document.getElementById('siscomForzarPasswordOverlay');
+  const boton = document.getElementById('siscomForzarGuardar');
+  document.getElementById('siscomForzarMsg').className = 'siscom-modal-msg';
+  overlay.classList.remove('d-none');
+
+  // Evitar handlers duplicados si esta función se llama más de una vez
+  const botonNuevo = boton.cloneNode(true);
+  boton.parentNode.replaceChild(botonNuevo, boton);
+
+  botonNuevo.addEventListener('click', async () => {
+    const actual = document.getElementById('siscomForzarPassActual').value;
+    const nueva = document.getElementById('siscomForzarPassNueva').value;
+    const confirmar = document.getElementById('siscomForzarPassConfirmar').value;
+
+    if (!actual || !nueva || !confirmar) {
+      siscomMostrarMsgForzar('Completa los tres campos de contraseña.', 'error');
+      return;
+    }
+    if (nueva.length < 8) {
+      siscomMostrarMsgForzar('La nueva contraseña debe tener al menos 8 caracteres.', 'error');
+      return;
+    }
+    if (nueva !== confirmar) {
+      siscomMostrarMsgForzar('La confirmación no coincide con la nueva contraseña.', 'error');
+      return;
+    }
+    if (nueva === actual) {
+      siscomMostrarMsgForzar('La nueva contraseña no puede ser igual a la actual.', 'error');
+      return;
+    }
+
+    botonNuevo.disabled = true;
+    try {
+      const resp = await fetch(`${API_URL}/cambiar-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ passwordActual: actual, passwordNueva: nueva })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        siscomMostrarMsgForzar(data.mensaje || 'No se pudo cambiar la contraseña.', 'error');
+        botonNuevo.disabled = false;
+        return;
+      }
+      siscomMostrarMsgForzar('Contraseña actualizada correctamente. Redirigiendo...', 'success');
+      setTimeout(() => {
+        overlay.classList.add('d-none');
+        redirigirCallback();
+      }, 700);
+    } catch (error) {
+      siscomMostrarMsgForzar('Error de conexión al cambiar la contraseña.', 'error');
+      botonNuevo.disabled = false;
+    }
+  });
+}
 let googleInitIntentos = 0;
 
 // ================== RESTAURAR SESIÓN ("Recordarme") ==================
@@ -340,8 +525,10 @@ async function restaurarSesionSiExiste() {
 
     showToast("Sesión activa detectada. Redirigiendo...", "success");
     setTimeout(() => {
-      const redirigido = redirigirPorRol(usuarioGuardado.rol);
-      if (!redirigido) limpiarSesionGuardada();
+      siscomVerificarYForzarCambio(token, () => {
+        const redirigido = redirigirPorRol(usuarioGuardado.rol);
+        if (!redirigido) limpiarSesionGuardada();
+      });
     }, 800);
 
   } catch (error) {
@@ -477,7 +664,9 @@ async function autenticarConGoogle(credentialResponse) {
 
     guardarSesionGoogle(data, rememberMe);
     showToast(data.usuarioCreado ? "Cuenta creada con Google. Redirigiendo..." : "Inicio con Google exitoso. Redirigiendo...", "success");
-    setTimeout(() => redirigirPorRolGoogle(data.usuario), 1200);
+    setTimeout(() => {
+      siscomVerificarYForzarCambio(data.token, () => redirigirPorRolGoogle(data.usuario));
+    }, 1200);
   } catch (error) {
     showToast("Error de conexion con el servidor.", "error");
   }

@@ -5248,3 +5248,383 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.cargarPedidos = cargarPedidos;
 });
+
+
+// ============================================================
+// PERFIL DE USUARIO + CAMBIO OBLIGATORIO DE CONTRASEÑA
+// ------------------------------------------------------------
+// - Si el administrador creó la cuenta (o le reseteó la contraseña),
+//   el backend marca requiere_cambio_password = 1. Al detectar esto,
+//   se muestra una pantalla bloqueante que obliga a cambiar la
+//   contraseña antes de poder usar el sistema, y no permite reusar
+//   la misma contraseña asignada.
+// - Se agrega un botón "Perfil" (estilo Gmail/Teams) donde cualquier
+//   usuario logueado puede actualizar sus datos personales (nombres,
+//   apellidos, identidad, teléfono) y cambiar su contraseña. El
+//   correo NUNCA es editable ahí, porque es el dato de acceso.
+// ============================================================
+(function () {
+  const SISCOM_PERFIL_API = "https://siscom-4lbe.onrender.com";
+
+  function siscomObtenerToken() {
+        return localStorage.getItem('auth_token') ||
+           localStorage.getItem('token') ||
+           localStorage.getItem('accessToken') ||
+           sessionStorage.getItem('auth_token') ||
+           sessionStorage.getItem('token') ||
+           (function () {
+             try {
+               const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+               return u.token || u.accessToken || u.authToken || null;
+             } catch (e) { return null; }
+           })();
+  }
+
+  function siscomHeadersAuth(json) {
+    const headers = {};
+    if (json) headers['Content-Type'] = 'application/json';
+    const token = siscomObtenerToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+  }
+
+  function siscomInyectarEstilos() {
+    if (document.getElementById('siscom-perfil-estilos')) return;
+    const style = document.createElement('style');
+    style.id = 'siscom-perfil-estilos';
+    style.textContent = `
+      .siscom-perfil-btn {
+        display: flex; align-items: center; gap: 8px;
+        width: 100%; margin-top: 10px; padding: 8px 12px;
+        background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 8px; color: inherit; cursor: pointer; font-size: 0.85rem;
+        transition: background 0.15s ease;
+      }
+      .siscom-perfil-btn:hover { background: rgba(255,255,255,0.18); }
+      .siscom-overlay {
+        position: fixed; inset: 0; background: rgba(15, 18, 30, 0.65);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 99999; padding: 16px;
+      }
+      .siscom-overlay.d-none { display: none !important; }
+      .siscom-modal-card {
+        background: #ffffff; color: #1a1a1a; width: 100%; max-width: 440px;
+        border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+        overflow: hidden; max-height: 90vh; display: flex; flex-direction: column;
+      }
+      .siscom-modal-header {
+        padding: 18px 20px; background: #2563eb; color: #fff;
+        display: flex; align-items: center; justify-content: space-between;
+      }
+      .siscom-modal-header h3 { margin: 0; font-size: 1.05rem; }
+      .siscom-modal-close {
+        background: transparent; border: none; color: #fff; font-size: 1.3rem;
+        cursor: pointer; line-height: 1;
+      }
+      .siscom-modal-body { padding: 18px 20px; overflow-y: auto; }
+      .siscom-field { margin-bottom: 12px; }
+      .siscom-field label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: #374151; }
+      .siscom-field input {
+        width: 100%; padding: 9px 11px; border: 1px solid #d1d5db; border-radius: 8px;
+        font-size: 0.9rem; box-sizing: border-box;
+      }
+      .siscom-field input[disabled] { background: #f3f4f6; color: #6b7280; }
+      .siscom-field small { color: #6b7280; font-size: 0.75rem; }
+      .siscom-modal-msg { font-size: 0.82rem; margin: 8px 0; padding: 8px 10px; border-radius: 8px; display: none; }
+      .siscom-modal-msg.error { display: block; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+      .siscom-modal-msg.success { display: block; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+      .siscom-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+      .siscom-btn { padding: 9px 16px; border-radius: 8px; border: none; font-size: 0.85rem; cursor: pointer; font-weight: 600; }
+      .siscom-btn-primary { background: #2563eb; color: #fff; }
+      .siscom-btn-primary:hover { background: #1d4ed8; }
+      .siscom-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+      .siscom-section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: #9ca3af; margin: 18px 0 8px; font-weight: 700; }
+      .siscom-force-note { font-size: 0.82rem; color: #4b5563; margin-bottom: 14px; line-height: 1.4; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function siscomInyectarModales() {
+    if (document.getElementById('siscomPerfilOverlay')) return;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+      <div class="siscom-overlay d-none" id="siscomPerfilOverlay">
+        <div class="siscom-modal-card">
+          <div class="siscom-modal-header">
+            <h3><i class="bi bi-person-circle"></i> Mi Perfil</h3>
+            <button type="button" class="siscom-modal-close" id="siscomPerfilCerrar">&times;</button>
+          </div>
+          <div class="siscom-modal-body">
+            <div class="siscom-modal-msg" id="siscomPerfilMsg"></div>
+
+            <div class="siscom-section-title">Datos personales</div>
+            <div class="siscom-field">
+              <label>Correo electr&oacute;nico</label>
+              <input type="email" id="siscomPerfilEmail" disabled>
+              <small>El correo es tu dato de acceso y no se puede modificar.</small>
+            </div>
+            <div class="siscom-field">
+              <label>Nombres</label>
+              <input type="text" id="siscomPerfilNombres">
+            </div>
+            <div class="siscom-field">
+              <label>Apellidos</label>
+              <input type="text" id="siscomPerfilApellidos">
+            </div>
+            <div class="siscom-field">
+              <label>Identidad</label>
+              <input type="text" id="siscomPerfilIdentidad">
+            </div>
+            <div class="siscom-field">
+              <label>Tel&eacute;fono</label>
+              <input type="text" id="siscomPerfilTelefono">
+            </div>
+            <div class="siscom-modal-actions">
+              <button type="button" class="siscom-btn siscom-btn-primary" id="siscomPerfilGuardarDatos">Guardar datos</button>
+            </div>
+
+            <div class="siscom-section-title">Cambiar contrase&ntilde;a</div>
+            <div class="siscom-field">
+              <label>Contrase&ntilde;a actual</label>
+              <input type="password" id="siscomPerfilPassActual" autocomplete="current-password">
+            </div>
+            <div class="siscom-field">
+              <label>Nueva contrase&ntilde;a</label>
+              <input type="password" id="siscomPerfilPassNueva" autocomplete="new-password">
+            </div>
+            <div class="siscom-field">
+              <label>Confirmar nueva contrase&ntilde;a</label>
+              <input type="password" id="siscomPerfilPassConfirmar" autocomplete="new-password">
+            </div>
+            <div class="siscom-modal-actions">
+              <button type="button" class="siscom-btn siscom-btn-primary" id="siscomPerfilCambiarPass">Cambiar contrase&ntilde;a</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="siscom-overlay d-none" id="siscomForzarPasswordOverlay">
+        <div class="siscom-modal-card">
+          <div class="siscom-modal-header">
+            <h3><i class="bi bi-shield-lock"></i> Cambio de contrase&ntilde;a obligatorio</h3>
+          </div>
+          <div class="siscom-modal-body">
+            <p class="siscom-force-note">
+              Por seguridad, debes establecer una contrase&ntilde;a propia antes de continuar.
+              No puedes volver a usar la contrase&ntilde;a que te asign&oacute; el administrador.
+            </p>
+            <div class="siscom-modal-msg" id="siscomForzarMsg"></div>
+            <div class="siscom-field">
+              <label>Contrase&ntilde;a actual (la que te asignaron)</label>
+              <input type="password" id="siscomForzarPassActual" autocomplete="current-password">
+            </div>
+            <div class="siscom-field">
+              <label>Nueva contrase&ntilde;a</label>
+              <input type="password" id="siscomForzarPassNueva" autocomplete="new-password">
+            </div>
+            <div class="siscom-field">
+              <label>Confirmar nueva contrase&ntilde;a</label>
+              <input type="password" id="siscomForzarPassConfirmar" autocomplete="new-password">
+            </div>
+            <div class="siscom-modal-actions">
+              <button type="button" class="siscom-btn siscom-btn-primary" id="siscomForzarGuardar">Guardar y continuar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrapper);
+
+    document.getElementById('siscomPerfilCerrar').addEventListener('click', () => {
+      document.getElementById('siscomPerfilOverlay').classList.add('d-none');
+    });
+
+    document.getElementById('siscomPerfilGuardarDatos').addEventListener('click', siscomGuardarDatosPerfil);
+    document.getElementById('siscomPerfilCambiarPass').addEventListener('click', () => siscomEjecutarCambioPassword({
+      actualId: 'siscomPerfilPassActual',
+      nuevaId: 'siscomPerfilPassNueva',
+      confirmarId: 'siscomPerfilPassConfirmar',
+      msgId: 'siscomPerfilMsg',
+      alTerminar: null
+    }));
+    document.getElementById('siscomForzarGuardar').addEventListener('click', () => siscomEjecutarCambioPassword({
+      actualId: 'siscomForzarPassActual',
+      nuevaId: 'siscomForzarPassNueva',
+      confirmarId: 'siscomForzarPassConfirmar',
+      msgId: 'siscomForzarMsg',
+      alTerminar: () => {
+        document.getElementById('siscomForzarPasswordOverlay').classList.add('d-none');
+      }
+    }));
+  }
+
+  function siscomMostrarMsg(id, texto, tipo) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = texto;
+    el.className = 'siscom-modal-msg ' + (tipo === 'error' ? 'error' : 'success');
+  }
+
+  async function siscomAbrirPerfil() {
+    siscomInyectarEstilos();
+    siscomInyectarModales();
+    const overlay = document.getElementById('siscomPerfilOverlay');
+    overlay.classList.remove('d-none');
+    document.getElementById('siscomPerfilMsg').className = 'siscom-modal-msg';
+
+    try {
+      const resp = await fetch(`${SISCOM_PERFIL_API}/perfil`, { headers: siscomHeadersAuth() });
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        siscomMostrarMsg('siscomPerfilMsg', data.mensaje || 'No se pudo cargar tu perfil.', 'error');
+        return;
+      }
+      const u = data.usuario;
+      document.getElementById('siscomPerfilEmail').value = u.email || '';
+      document.getElementById('siscomPerfilNombres').value = u.nombres || '';
+      document.getElementById('siscomPerfilApellidos').value = u.apellidos || '';
+      document.getElementById('siscomPerfilIdentidad').value = u.identidad || '';
+      document.getElementById('siscomPerfilTelefono').value = u.telefono || '';
+    } catch (e) {
+      siscomMostrarMsg('siscomPerfilMsg', 'Error de conexi\u00f3n al cargar tu perfil.', 'error');
+    }
+  }
+
+  async function siscomGuardarDatosPerfil() {
+    const boton = document.getElementById('siscomPerfilGuardarDatos');
+    const payload = {
+      nombres: document.getElementById('siscomPerfilNombres').value.trim(),
+      apellidos: document.getElementById('siscomPerfilApellidos').value.trim(),
+      identidad: document.getElementById('siscomPerfilIdentidad').value.trim(),
+      telefono: document.getElementById('siscomPerfilTelefono').value.trim()
+    };
+
+    if (!payload.nombres || !payload.apellidos || !payload.identidad || !payload.telefono) {
+      siscomMostrarMsg('siscomPerfilMsg', 'Todos los campos son obligatorios.', 'error');
+      return;
+    }
+
+    boton.disabled = true;
+    try {
+      const resp = await fetch(`${SISCOM_PERFIL_API}/perfil`, {
+        method: 'PUT',
+        headers: siscomHeadersAuth(true),
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        siscomMostrarMsg('siscomPerfilMsg', data.mensaje || 'No se pudo actualizar tu perfil.', 'error');
+        return;
+      }
+      siscomMostrarMsg('siscomPerfilMsg', 'Datos actualizados correctamente.', 'success');
+
+      // Mantener sincronizado el nombre mostrado en la barra lateral, si existe
+      try {
+        const usuarioLocal = JSON.parse(localStorage.getItem('usuario') || '{}');
+        usuarioLocal.nombres = payload.nombres;
+        usuarioLocal.apellidos = payload.apellidos;
+        usuarioLocal.identidad = payload.identidad;
+        usuarioLocal.telefono = payload.telefono;
+        localStorage.setItem('usuario', JSON.stringify(usuarioLocal));
+      } catch (e) { /* noop */ }
+    } catch (e) {
+      siscomMostrarMsg('siscomPerfilMsg', 'Error de conexi\u00f3n al guardar tus datos.', 'error');
+    } finally {
+      boton.disabled = false;
+    }
+  }
+
+  async function siscomEjecutarCambioPassword({ actualId, nuevaId, confirmarId, msgId, alTerminar }) {
+    const actual = document.getElementById(actualId).value;
+    const nueva = document.getElementById(nuevaId).value;
+    const confirmar = document.getElementById(confirmarId).value;
+
+    if (!actual || !nueva || !confirmar) {
+      siscomMostrarMsg(msgId, 'Completa los tres campos de contrase\u00f1a.', 'error');
+      return;
+    }
+    if (nueva.length < 8) {
+      siscomMostrarMsg(msgId, 'La nueva contrase\u00f1a debe tener al menos 8 caracteres.', 'error');
+      return;
+    }
+    if (nueva !== confirmar) {
+      siscomMostrarMsg(msgId, 'La confirmaci\u00f3n no coincide con la nueva contrase\u00f1a.', 'error');
+      return;
+    }
+    if (nueva === actual) {
+      siscomMostrarMsg(msgId, 'La nueva contrase\u00f1a no puede ser igual a la actual.', 'error');
+      return;
+    }
+
+    try {
+      const resp = await fetch(`${SISCOM_PERFIL_API}/cambiar-password`, {
+        method: 'POST',
+        headers: siscomHeadersAuth(true),
+        body: JSON.stringify({ passwordActual: actual, passwordNueva: nueva })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        siscomMostrarMsg(msgId, data.mensaje || 'No se pudo cambiar la contrase\u00f1a.', 'error');
+        return;
+      }
+      siscomMostrarMsg(msgId, 'Contrase\u00f1a actualizada correctamente.', 'success');
+      document.getElementById(actualId).value = '';
+      document.getElementById(nuevaId).value = '';
+      document.getElementById(confirmarId).value = '';
+      if (typeof alTerminar === 'function') {
+        setTimeout(alTerminar, 700);
+      }
+    } catch (e) {
+      siscomMostrarMsg(msgId, 'Error de conexi\u00f3n al cambiar la contrase\u00f1a.', 'error');
+    }
+  }
+
+  // El admin no necesita esta pantalla de autoservicio (no edita "sus"
+  // datos de paciente/cuidador desde aquí); solo se muestra en cuidador_backend.html.
+  // El cambio de contraseña OBLIGATORIO (siscomVerificarCambioObligatorio) sigue
+  // aplicando para todos los roles, incluido el administrador.
+  function siscomEsPaginaAdmin() {
+    return /Admin_Backend\.html/i.test(window.location.pathname);
+  }
+
+  function siscomInsertarBotonPerfil() {
+    if (siscomEsPaginaAdmin()) return;
+    const contenedor = document.getElementById('userInfo');
+    if (!contenedor || document.getElementById('siscomAbrirPerfilBtn')) return;
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.id = 'siscomAbrirPerfilBtn';
+    boton.className = 'siscom-perfil-btn';
+    boton.innerHTML = '<i class="bi bi-person-gear"></i> <span>Perfil</span>';
+    boton.addEventListener('click', siscomAbrirPerfil);
+    contenedor.appendChild(boton);
+  }
+
+  async function siscomVerificarCambioObligatorio() {
+    const token = siscomObtenerToken();
+    if (!token) return;
+    try {
+      const resp = await fetch(`${SISCOM_PERFIL_API}/perfil`, { headers: siscomHeadersAuth() });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data && data.ok && data.usuario && Number(data.usuario.requiere_cambio_password) === 1) {
+        siscomInyectarEstilos();
+        siscomInyectarModales();
+        document.getElementById('siscomForzarMsg').className = 'siscom-modal-msg';
+        document.getElementById('siscomForzarPasswordOverlay').classList.remove('d-none');
+      }
+    } catch (e) { /* si falla la verificacion, no bloquear al usuario */ }
+  }
+
+  function siscomInicializarPerfil() {
+    siscomInyectarEstilos();
+    siscomInsertarBotonPerfil();
+    siscomVerificarCambioObligatorio();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', siscomInicializarPerfil);
+  } else {
+    siscomInicializarPerfil();
+  }
+})();
