@@ -4,6 +4,36 @@
 const hasAOS = typeof window !== "undefined" && typeof window.AOS !== "undefined";
 const hasChart = typeof window !== "undefined" && typeof window.Chart !== "undefined";
 
+// ===============================
+// PARÁMETROS DEL SISTEMA (Fase A - parametrización general)
+// Antes los umbrales de "stock crítico"/"stock bajo" eran números fijos
+// ("if cantidad <= 5") repartidos por el código. Ahora se cargan una sola
+// vez desde /parametros-publicos (tabla parametros_sistema) y se guardan
+// aquí en memoria; si el usuario administrador cambia el parámetro, aquí
+// es el único lugar que hay que resincronizar.
+// ===============================
+window.PARAMETROS_SISTEMA = {
+  stock_critico_umbral: 5,
+  stock_bajo_umbral: 10
+};
+
+async function cargarParametrosSistemaGlobal() {
+  try {
+    const respuesta = await fetch("https://siscom-4lbe.onrender.com/parametros-publicos");
+    if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
+    const parametros = await respuesta.json();
+    if (parametros.stock_critico_umbral !== undefined) {
+      window.PARAMETROS_SISTEMA.stock_critico_umbral = Number(parametros.stock_critico_umbral);
+    }
+    if (parametros.stock_bajo_umbral !== undefined) {
+      window.PARAMETROS_SISTEMA.stock_bajo_umbral = Number(parametros.stock_bajo_umbral);
+    }
+  } catch (error) {
+    console.error("No se pudieron cargar los parámetros del sistema, se usan valores por defecto:", error);
+  }
+}
+cargarParametrosSistemaGlobal();
+
 // El plugin de etiquetas de datos (chartjs-plugin-datalabels) NO se auto-registra
 // desde la v1: hay que registrarlo explícitamente o simplemente no hace nada.
 // Lo registramos una vez y lo desactivamos por defecto para no saturar los
@@ -354,7 +384,7 @@ async function cargarDashboard() {
     const citasPeriodoAnterior = citas.filter(c => fechaCitaEnRango(c, inicioAnterior, finAnterior));
 
     const medicamentosActivos = medicamentos.filter(m => m.estado === 'activo').length;
-    const stockBajo = inventario.filter(i => Number(i.cantidad || 0) <= 10).length;
+    const stockBajo = inventario.filter(i => Number(i.cantidad || 0) <= window.PARAMETROS_SISTEMA.stock_bajo_umbral).length;
 
     // Animate KPIs
     const kpiUsuarios = document.getElementById('kpiUsuariosTotal');
@@ -549,7 +579,7 @@ function createInventoryPieChart(inventario) {
   // Se pesa por CANTIDAD REAL DE UNIDADES en stock, no por cuántos medicamentos
   // distintos hay. Así, un medicamento con pocas unidades no infla el % solo por
   // ser "1 de N" renglones: su peso refleja cuánto stock representa de verdad.
-  const criticalItems = inventario.filter(i => Number(i.cantidad || 0) <= 10);
+  const criticalItems = inventario.filter(i => Number(i.cantidad || 0) <= window.PARAMETROS_SISTEMA.stock_bajo_umbral);
   const normalItems = inventario.filter(i => Number(i.cantidad || 0) > 10);
   const criticalUnidades = criticalItems.reduce((sum, i) => sum + Number(i.cantidad || 0), 0);
   const normalUnidades = normalItems.reduce((sum, i) => sum + Number(i.cantidad || 0), 0);
@@ -1967,7 +1997,7 @@ async function verificarAlertasStock() {
     const inventario = await response.json();
     const alertas = inventario.filter(item => {
       const cantidad = item.cantidad || 0;
-      return cantidad <= 10;
+      return cantidad <= window.PARAMETROS_SISTEMA.stock_bajo_umbral;
     });
 
     mostrarAlertasStock(alertas);
@@ -1994,7 +2024,7 @@ function mostrarAlertasStock(alertas) {
 
   alertas.forEach(item => {
     const cantidad = item.cantidad || 0;
-    const nivel = cantidad === 0 ? 'danger' : cantidad <= 5 ? 'danger' : 'warning';
+    const nivel = cantidad === 0 ? 'danger' : cantidad <= window.PARAMETROS_SISTEMA.stock_critico_umbral ? 'danger' : 'warning';
     const icono = cantidad === 0 ? 'exclamation-triangle-fill' : 'exclamation-triangle';
     const mensaje = cantidad === 0 ? 'AGOTADO' : 'Stock Bajo';
 
@@ -2435,6 +2465,24 @@ function mostrarToast(mensaje, tipo = 'info') {
   const passwordUsuario = document.getElementById("passwordUsuario");
   const rolUsuario = document.getElementById("rolUsuario");
 
+  // Caché de dominios permitidos cargada desde el servidor (tabla
+  // dominios_correo_permitidos). Se usa un fallback mínimo solo por si el
+  // fetch inicial aún no ha terminado o falla, para no romper la validación.
+  let dominiosPermitidosCache = new Set(["gmail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "icloud.com", "proton.me", "protonmail.com"]);
+
+  async function cargarDominiosPermitidosCliente() {
+    try {
+      const respuesta = await fetch("https://siscom-4lbe.onrender.com/dominios-permitidos-publico");
+      if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
+      const dominios = await respuesta.json();
+      if (Array.isArray(dominios) && dominios.length > 0) {
+        dominiosPermitidosCache = new Set(dominios.map(d => String(d).toLowerCase()));
+      }
+    } catch (error) {
+      console.error("No se pudo cargar la lista de dominios permitidos, se usa el fallback local:", error);
+    }
+  }
+
   function esNombrePersonaValido(valor) {
     const nombreRegex = /^[A-Za-z\u00C0-\u017F]+(?:[ '\-][A-Za-z\u00C0-\u017F]+)*$/;
     return nombreRegex.test((valor || "").trim());
@@ -2445,19 +2493,8 @@ function mostrarToast(mensaje, tipo = 'info') {
     const correo = (valor || "").trim().toLowerCase();
     if (!emailRegex.test(correo)) return false;
 
-    const dominiosPermitidos = new Set([
-      "gmail.com",
-      "outlook.com",
-      "hotmail.com",
-      "live.com",
-      "yahoo.com",
-      "icloud.com",
-      "proton.me",
-      "protonmail.com"
-    ]);
-
     const dominio = correo.split("@")[1] || "";
-    return dominiosPermitidos.has(dominio);
+    return dominiosPermitidosCache.has(dominio);
   }
   
   let usuariosData = [];
@@ -2850,13 +2887,33 @@ function mostrarToast(mensaje, tipo = 'info') {
     formUsuario.reset();
     document.querySelector("#modalUsuario .modal-title").innerHTML = '<i class="bi bi-person-plus me-2"></i> Nuevo Usuario';
     guardarUsuarioBtn.textContent = "Guardar Usuario";
-    
+    cargarRolesEnSelect();
+
     // Mostrar requisitos de contraseña
     const passwordRequisitos = document.getElementById("passwordRequisitosUsuario");
     if (passwordRequisitos) passwordRequisitos.style.display = "none";
     
     const modal = new bootstrap.Modal(modalUsuario);
     modal.show();
+  }
+
+  // Llena el <select> de rol con los roles activos que existen en la BD
+  // (tabla "roles"), en vez de tener "usuario/empleado/administrador" fijos.
+  async function cargarRolesEnSelect() {
+    if (!rolUsuario) return;
+    const valorPrevio = rolUsuario.value;
+    try {
+      const respuesta = await fetch("https://siscom-4lbe.onrender.com/roles-activos", {
+        headers: crearHeadersAuth()
+      });
+      if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
+      const roles = await respuesta.json();
+      rolUsuario.innerHTML = '<option value="">Seleccione rol</option>' +
+        roles.map(r => `<option value="${escapeHtml(r.nombre_rol)}">${escapeHtml(r.nombre_rol.charAt(0).toUpperCase() + r.nombre_rol.slice(1))}</option>`).join("");
+      if (valorPrevio) rolUsuario.value = valorPrevio;
+    } catch (error) {
+      console.error("Error al cargar roles para el select:", error);
+    }
   }
 
   // Guardar usuario (crear o actualizar)
@@ -2910,7 +2967,7 @@ function mostrarToast(mensaje, tipo = 'info') {
     }
 
     if (!correoValido) {
-      mostrarToast("Correo no valido o dominio no permitido. Usa: gmail.com, outlook.com, hotmail.com, live.com, yahoo.com, icloud.com, proton.me o protonmail.com.", "warning");
+      mostrarToast(`Correo no válido o dominio no permitido. Dominios permitidos: ${Array.from(dominiosPermitidosCache).join(", ")}.`, "warning");
       emailUsuario.focus();
       return;
     }
@@ -2971,7 +3028,8 @@ function mostrarToast(mensaje, tipo = 'info') {
     }
     
     editingUserId = id;
-    
+    await cargarRolesEnSelect();
+
     nombresUsuario.value = usuario.nombres;
     apellidosUsuario.value = usuario.apellidos;
     identidadUsuario.value = usuario.identidad;
@@ -3109,6 +3167,343 @@ function mostrarToast(mensaje, tipo = 'info') {
 
   // Exponer función de carga global para que pueda ser llamada desde otros scripts
   window.cargarUsuarios = cargarUsuarios;
+  window.obtenerTokenAuth = obtenerTokenAuth;
+  window.crearHeadersAuth = crearHeadersAuth;
+
+  // Cargar la lista real de dominios permitidos apenas arranca la página
+  cargarDominiosPermitidosCliente();
+})();
+
+// ===============================
+// MANTENIMIENTO: DOMINIOS DE CORREO PERMITIDOS (Fase A)
+// ===============================
+(function(){
+  const API = "https://siscom-4lbe.onrender.com";
+  const tabla = document.querySelector("#tablaDominios tbody");
+  const noDominiosDiv = document.getElementById("noDominios");
+  const form = document.getElementById("formNuevoDominio");
+  const input = document.getElementById("nuevoDominioInput");
+  if (!tabla || !form) return;
+
+  async function cargarDominios() {
+    try {
+      const respuesta = await fetch(`${API}/dominios-permitidos`, { headers: window.crearHeadersAuth() });
+      if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
+      const dominios = await respuesta.json();
+      renderDominios(dominios);
+    } catch (error) {
+      console.error("Error al cargar dominios permitidos:", error);
+      mostrarToast("No fue posible cargar los dominios permitidos.", "error");
+    }
+  }
+
+  function renderDominios(dominios) {
+    tabla.innerHTML = "";
+    if (!dominios.length) {
+      if (noDominiosDiv) noDominiosDiv.classList.remove("d-none");
+      return;
+    }
+    if (noDominiosDiv) noDominiosDiv.classList.add("d-none");
+
+    dominios.forEach(d => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(d.dominio)}</td>
+        <td class="text-center">
+          <span class="badge ${d.activo ? "bg-success" : "bg-secondary"} toggle-dominio-btn" style="cursor:pointer" data-id="${d.id}" data-activo="${d.activo}">
+            ${d.activo ? "Activo" : "Inactivo"}
+          </span>
+        </td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-outline-danger eliminar-dominio-btn" data-id="${d.id}"><i class="bi bi-trash"></i></button>
+        </td>`;
+      tabla.appendChild(tr);
+    });
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const dominio = input.value.trim().toLowerCase();
+    if (!dominio) return;
+    try {
+      const respuesta = await fetch(`${API}/dominios-permitidos`, {
+        method: "POST",
+        headers: window.crearHeadersAuth(true),
+        body: JSON.stringify({ dominio })
+      });
+      const data = await respuesta.json();
+      if (!respuesta.ok || !data.ok) {
+        mostrarToast(data.mensaje || "No fue posible agregar el dominio.", "error");
+        return;
+      }
+      mostrarToast(data.mensaje, "success");
+      form.reset();
+      cargarDominios();
+    } catch (error) {
+      console.error("Error al agregar dominio:", error);
+      mostrarToast("Error al agregar el dominio.", "error");
+    }
+  });
+
+  tabla.addEventListener("click", async (e) => {
+    const toggleBtn = e.target.closest(".toggle-dominio-btn");
+    const eliminarBtn = e.target.closest(".eliminar-dominio-btn");
+
+    if (toggleBtn) {
+      const id = toggleBtn.dataset.id;
+      const nuevoActivo = toggleBtn.dataset.activo === "1" ? 0 : 1;
+      try {
+        const respuesta = await fetch(`${API}/dominios-permitidos/${id}`, {
+          method: "PUT",
+          headers: window.crearHeadersAuth(true),
+          body: JSON.stringify({ activo: nuevoActivo })
+        });
+        const data = await respuesta.json();
+        if (!respuesta.ok || !data.ok) {
+          mostrarToast(data.mensaje || "No fue posible actualizar el dominio.", "error");
+          return;
+        }
+        cargarDominios();
+      } catch (error) {
+        console.error("Error al actualizar dominio:", error);
+        mostrarToast("Error al actualizar el dominio.", "error");
+      }
+    }
+
+    if (eliminarBtn) {
+      if (!confirm("¿Eliminar este dominio permitido?")) return;
+      const id = eliminarBtn.dataset.id;
+      try {
+        const respuesta = await fetch(`${API}/dominios-permitidos/${id}`, {
+          method: "DELETE",
+          headers: window.crearHeadersAuth()
+        });
+        const data = await respuesta.json();
+        if (!respuesta.ok || !data.ok) {
+          mostrarToast(data.mensaje || "No fue posible eliminar el dominio.", "error");
+          return;
+        }
+        mostrarToast(data.mensaje, "success");
+        cargarDominios();
+      } catch (error) {
+        console.error("Error al eliminar dominio:", error);
+        mostrarToast("Error al eliminar el dominio.", "error");
+      }
+    }
+  });
+
+  const tabDominios = document.getElementById("tab-dominios-permitidos");
+  if (tabDominios) tabDominios.addEventListener("shown.bs.tab", cargarDominios);
+})();
+
+// ===============================
+// MANTENIMIENTO: ROLES (Fase A)
+// ===============================
+(function(){
+  const API = "https://siscom-4lbe.onrender.com";
+  const tabla = document.querySelector("#tablaRoles tbody");
+  const noRolesDiv = document.getElementById("noRoles");
+  const form = document.getElementById("formNuevoRol");
+  const inputNombre = document.getElementById("nuevoRolNombre");
+  const inputDescripcion = document.getElementById("nuevoRolDescripcion");
+  if (!tabla || !form) return;
+
+  async function cargarRoles() {
+    try {
+      const respuesta = await fetch(`${API}/roles`, { headers: window.crearHeadersAuth() });
+      if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
+      const roles = await respuesta.json();
+      renderRoles(roles);
+    } catch (error) {
+      console.error("Error al cargar roles:", error);
+      mostrarToast("No fue posible cargar los roles.", "error");
+    }
+  }
+
+  function renderRoles(roles) {
+    tabla.innerHTML = "";
+    if (!roles.length) {
+      if (noRolesDiv) noRolesDiv.classList.remove("d-none");
+      return;
+    }
+    if (noRolesDiv) noRolesDiv.classList.add("d-none");
+
+    roles.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong>${escapeHtml(r.nombre_rol)}</strong></td>
+        <td>
+          <input type="text" class="form-control form-control-sm descripcion-rol-input" data-id="${r.id}" value="${escapeHtml(r.descripcion || "")}">
+        </td>
+        <td class="text-center">
+          <span class="badge ${r.activo ? "bg-success" : "bg-secondary"} toggle-rol-btn" style="cursor:pointer" data-id="${r.id}" data-activo="${r.activo}" data-descripcion="${escapeHtml(r.descripcion || "")}">
+            ${r.activo ? "Activo" : "Inactivo"}
+          </span>
+        </td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-outline-primary guardar-rol-btn me-1" data-id="${r.id}" data-activo="${r.activo}"><i class="bi bi-save"></i></button>
+          <button class="btn btn-sm btn-outline-danger eliminar-rol-btn" data-id="${r.id}"><i class="bi bi-trash"></i></button>
+        </td>`;
+      tabla.appendChild(tr);
+    });
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nombre_rol = inputNombre.value.trim().toLowerCase();
+    const descripcion = inputDescripcion.value.trim();
+    if (!nombre_rol) return;
+    try {
+      const respuesta = await fetch(`${API}/roles`, {
+        method: "POST",
+        headers: window.crearHeadersAuth(true),
+        body: JSON.stringify({ nombre_rol, descripcion })
+      });
+      const data = await respuesta.json();
+      if (!respuesta.ok || !data.ok) {
+        mostrarToast(data.mensaje || "No fue posible crear el rol.", "error");
+        return;
+      }
+      mostrarToast(data.mensaje, "success");
+      form.reset();
+      cargarRoles();
+    } catch (error) {
+      console.error("Error al crear rol:", error);
+      mostrarToast("Error al crear el rol.", "error");
+    }
+  });
+
+  tabla.addEventListener("click", async (e) => {
+    const toggleBtn = e.target.closest(".toggle-rol-btn");
+    const guardarBtn = e.target.closest(".guardar-rol-btn");
+    const eliminarBtn = e.target.closest(".eliminar-rol-btn");
+
+    if (toggleBtn || guardarBtn) {
+      const id = (toggleBtn || guardarBtn).dataset.id;
+      const fila = (toggleBtn || guardarBtn).closest("tr");
+      const descripcionInput = fila.querySelector(".descripcion-rol-input");
+      const activoActual = toggleBtn ? toggleBtn.dataset.activo : guardarBtn.dataset.activo;
+      const nuevoActivo = toggleBtn ? (activoActual === "1" ? 0 : 1) : Number(activoActual);
+      try {
+        const respuesta = await fetch(`${API}/roles/${id}`, {
+          method: "PUT",
+          headers: window.crearHeadersAuth(true),
+          body: JSON.stringify({ descripcion: descripcionInput ? descripcionInput.value.trim() : "", activo: nuevoActivo })
+        });
+        const data = await respuesta.json();
+        if (!respuesta.ok || !data.ok) {
+          mostrarToast(data.mensaje || "No fue posible actualizar el rol.", "error");
+          return;
+        }
+        mostrarToast(data.mensaje, "success");
+        cargarRoles();
+      } catch (error) {
+        console.error("Error al actualizar rol:", error);
+        mostrarToast("Error al actualizar el rol.", "error");
+      }
+    }
+
+    if (eliminarBtn) {
+      if (!confirm("¿Eliminar este rol?")) return;
+      const id = eliminarBtn.dataset.id;
+      try {
+        const respuesta = await fetch(`${API}/roles/${id}`, {
+          method: "DELETE",
+          headers: window.crearHeadersAuth()
+        });
+        const data = await respuesta.json();
+        if (!respuesta.ok || !data.ok) {
+          mostrarToast(data.mensaje || "No fue posible eliminar el rol.", "error");
+          return;
+        }
+        mostrarToast(data.mensaje, "success");
+        cargarRoles();
+      } catch (error) {
+        console.error("Error al eliminar rol:", error);
+        mostrarToast("Error al eliminar el rol.", "error");
+      }
+    }
+  });
+
+  const tabRoles = document.getElementById("tab-roles");
+  if (tabRoles) tabRoles.addEventListener("shown.bs.tab", cargarRoles);
+})();
+
+// ===============================
+// MANTENIMIENTO: PARÁMETROS DEL SISTEMA (Fase A)
+// ===============================
+(function(){
+  const API = "https://siscom-4lbe.onrender.com";
+  const tabla = document.querySelector("#tablaParametros tbody");
+  const noParametrosDiv = document.getElementById("noParametros");
+  if (!tabla) return;
+
+  async function cargarParametros() {
+    try {
+      const respuesta = await fetch(`${API}/parametros`, { headers: window.crearHeadersAuth() });
+      if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
+      const parametros = await respuesta.json();
+      renderParametros(parametros);
+    } catch (error) {
+      console.error("Error al cargar parámetros del sistema:", error);
+      mostrarToast("No fue posible cargar los parámetros del sistema.", "error");
+    }
+  }
+
+  function renderParametros(parametros) {
+    tabla.innerHTML = "";
+    if (!parametros.length) {
+      if (noParametrosDiv) noParametrosDiv.classList.remove("d-none");
+      return;
+    }
+    if (noParametrosDiv) noParametrosDiv.classList.add("d-none");
+
+    parametros.forEach(p => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><code>${escapeHtml(p.clave)}</code></td>
+        <td class="small text-muted">${escapeHtml(p.descripcion || "")}</td>
+        <td class="text-center" style="max-width:120px;">
+          <input type="${p.tipo === "numero" ? "number" : "text"}" class="form-control form-control-sm text-center valor-parametro-input" data-id="${p.id}" value="${escapeHtml(p.valor)}">
+        </td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-outline-primary guardar-parametro-btn" data-id="${p.id}"><i class="bi bi-save"></i></button>
+        </td>`;
+      tabla.appendChild(tr);
+    });
+  }
+
+  tabla.addEventListener("click", async (e) => {
+    const guardarBtn = e.target.closest(".guardar-parametro-btn");
+    if (!guardarBtn) return;
+    const id = guardarBtn.dataset.id;
+    const fila = guardarBtn.closest("tr");
+    const input = fila.querySelector(".valor-parametro-input");
+    const valor = input ? input.value.trim() : "";
+    if (!valor) {
+      mostrarToast("El valor no puede estar vacío.", "warning");
+      return;
+    }
+    try {
+      const respuesta = await fetch(`${API}/parametros/${id}`, {
+        method: "PUT",
+        headers: window.crearHeadersAuth(true),
+        body: JSON.stringify({ valor })
+      });
+      const data = await respuesta.json();
+      if (!respuesta.ok || !data.ok) {
+        mostrarToast(data.mensaje || "No fue posible actualizar el parámetro.", "error");
+        return;
+      }
+      mostrarToast(data.mensaje, "success");
+    } catch (error) {
+      console.error("Error al actualizar parámetro:", error);
+      mostrarToast("Error al actualizar el parámetro.", "error");
+    }
+  });
+
+  const tabParametros = document.getElementById("tab-parametros");
+  if (tabParametros) tabParametros.addEventListener("shown.bs.tab", cargarParametros);
 })();
 
 // ===============================
@@ -4237,8 +4632,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function nivelStock(cantidad) {
     const c = Number(cantidad || 0);
     if (c === 0) return { nivel: 'danger', texto: 'AGOTADO' };
-    if (c <= 5) return { nivel: 'danger', texto: 'Stock crítico' };
-    if (c <= 10) return { nivel: 'warning', texto: 'Stock bajo' };
+    if (c <= window.PARAMETROS_SISTEMA.stock_critico_umbral) return { nivel: 'danger', texto: 'Stock crítico' };
+    if (c <= window.PARAMETROS_SISTEMA.stock_bajo_umbral) return { nivel: 'warning', texto: 'Stock bajo' };
     return { nivel: 'success', texto: 'Disponible' };
   }
 

@@ -698,24 +698,32 @@ function esNombrePersonaValido(valor) {
   return nombreRegex.test((valor || "").trim());
 }
 
+// Caché de dominios permitidos cargada desde el servidor (tabla
+// dominios_correo_permitidos, administrable desde el panel). El fallback
+// local solo se usa mientras el fetch inicial no ha terminado o si falla.
+let dominiosPermitidosCache = new Set(["gmail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "icloud.com", "proton.me", "protonmail.com"]);
+
+async function cargarDominiosPermitidosCliente() {
+  try {
+    const respuesta = await fetch("https://siscom-4lbe.onrender.com/dominios-permitidos-publico");
+    if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
+    const dominios = await respuesta.json();
+    if (Array.isArray(dominios) && dominios.length > 0) {
+      dominiosPermitidosCache = new Set(dominios.map(d => String(d).toLowerCase()));
+    }
+  } catch (error) {
+    console.error("No se pudo cargar la lista de dominios permitidos, se usa el fallback local:", error);
+  }
+}
+cargarDominiosPermitidosCliente();
+
 function esCorreoValido(valor) {
   const emailRegex = /^(?=.{6,254}$)(?=.{1,64}@)[A-Za-z0-9](?:[A-Za-z0-9._%+-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+$/;
   const correo = (valor || "").trim().toLowerCase();
   if (!emailRegex.test(correo)) return false;
 
-  const dominiosPermitidos = new Set([
-    "gmail.com",
-    "outlook.com",
-    "hotmail.com",
-    "live.com",
-    "yahoo.com",
-    "icloud.com",
-    "proton.me",
-    "protonmail.com"
-  ]);
-
   const dominio = correo.split("@")[1] || "";
-  return dominiosPermitidos.has(dominio);
+  return dominiosPermitidosCache.has(dominio);
 }
 
 const formRegistro = document.getElementById("formRegistro");
