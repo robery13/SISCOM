@@ -253,10 +253,15 @@ function inicializarControlesDashboard() {
     if (card.dataset.shortcutBound) return;
     card.dataset.shortcutBound = 'true';
     const sectionId = card.getAttribute('data-section');
+    const kpiId = card.getAttribute('data-id');
     const irASeccion = () => {
       const navBtn = document.querySelector(`.nav-btn[data-section="${sectionId}"]`);
       if (navBtn && navBtn.style.display !== 'none') {
         navBtn.click();
+        // No basta con llegar a la sección general: cada KPI debe dejar
+        // al usuario viendo exactamente el subconjunto de registros que
+        // representa (importante cuando pasen a haber miles de filas).
+        setTimeout(() => enfocarDatoDeKPI(kpiId), 150);
       } else {
         mostrarToast('No tienes acceso a esta sección.', 'warning');
       }
@@ -266,6 +271,29 @@ function inicializarControlesDashboard() {
       if (e.key === 'Enter' || e.key === ' ') irASeccion();
     });
   });
+}
+
+// Deja la sección destino enfocada en el dato exacto detrás de cada KPI.
+function enfocarDatoDeKPI(kpiId) {
+  if (kpiId === 'kpiMedicamentosActivos') {
+    // "Medicamentos Activos" -> filtrar la tabla para mostrar solo los activos,
+    // no todos los medicamentos.
+    const filtroEstado = document.getElementById('filtroEstado');
+    if (filtroEstado) {
+      filtroEstado.value = 'activo';
+      filtroEstado.dispatchEvent(new Event('change'));
+    }
+  } else if (kpiId === 'kpiStockBajo') {
+    // "Stock Bajo" -> el reporte con el detalle exacto (qué medicamento, qué
+    // cantidad) ya existe como "Alertas de Stock Bajo"; lo llevamos a la vista.
+    if (typeof verificarAlertasStock === 'function') verificarAlertasStock();
+    document.getElementById('alertasStock')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  // kpiUsuariosTotal: la sección de Usuarios ya muestra el total completo,
+  // así que no necesita un filtro adicional.
+  // kpiCitasHoy: el módulo de Citas Médicas de este archivo está desactivado
+  // (ver nota en "MÓDULO DE CITAS MÉDICAS - DESACTIVADO"), por lo que hoy no
+  // tiene filtros de fecha funcionales para acotar al período del KPI.
 }
 
 // Enhanced Dashboard Loading with Charts
@@ -448,10 +476,7 @@ async function cargarDashboard() {
 
     // Enlazar selector de período y accesos directos de las tarjetas (idempotente)
     inicializarControlesDashboard();
-    
-    // Existing render functions...
-    renderActividadReciente(usuarios, medicamentos);
-    
+
   } catch (error) {
     console.error('Error loading dashboard:', error);
     mostrarToast('Error al cargar dashboard. Revisa la conexión.', 'error');
@@ -565,6 +590,19 @@ function createAccesosChart(accesos, periodo) {
   };
   const chart = new Chart(ctx, config);
   window.myTrendChart = chart;
+
+  // Etiqueta siempre visible: total de accesos en el período y en qué
+  // sub-período (día/semana/mes) se concentró el pico, con su cantidad exacta.
+  const captionAccesos = document.getElementById('totalAccesosCaption');
+  if (captionAccesos) {
+    const totalAccesos = data.reduce((sum, v) => sum + v, 0);
+    if (totalAccesos > 0) {
+      const indicePico = data.reduce((iMax, v, i, arr) => v > arr[iMax] ? i : iMax, 0);
+      captionAccesos.textContent = `Total: ${totalAccesos} acceso(s) — Pico: ${data[indicePico]} en ${labels[indicePico]}`;
+    } else {
+      captionAccesos.textContent = 'Sin accesos registrados en este período';
+    }
+  }
 }
 
 function createInventoryPieChart(inventario) {
@@ -579,11 +617,26 @@ function createInventoryPieChart(inventario) {
   // Se pesa por CANTIDAD REAL DE UNIDADES en stock, no por cuántos medicamentos
   // distintos hay. Así, un medicamento con pocas unidades no infla el % solo por
   // ser "1 de N" renglones: su peso refleja cuánto stock representa de verdad.
-  const criticalItems = inventario.filter(i => Number(i.cantidad || 0) <= window.PARAMETROS_SISTEMA.stock_bajo_umbral);
-  const normalItems = inventario.filter(i => Number(i.cantidad || 0) > 10);
+  // IMPORTANTE: las dos porciones usan el MISMO umbral configurable
+  // (stock_bajo_umbral); antes "Normal" usaba un 10 fijo en el código, así que
+  // si el administrador subía el parámetro por encima de 10 un mismo
+  // medicamento podía contarse como crítico y como normal a la vez.
+  const umbral = window.PARAMETROS_SISTEMA.stock_bajo_umbral;
+  const criticalItems = inventario.filter(i => Number(i.cantidad || 0) <= umbral);
+  const normalItems = inventario.filter(i => Number(i.cantidad || 0) > umbral);
   const criticalUnidades = criticalItems.reduce((sum, i) => sum + Number(i.cantidad || 0), 0);
   const normalUnidades = normalItems.reduce((sum, i) => sum + Number(i.cantidad || 0), 0);
   const totalUnidades = criticalUnidades + normalUnidades;
+  const totalMedicamentos = criticalItems.length + normalItems.length;
+
+  // Etiqueta siempre visible con el total de la población (no solo al pasar
+  // el mouse): cuántas unidades hay en total y en cuántos medicamentos.
+  const captionInventario = document.getElementById('totalInventarioCaption');
+  if (captionInventario) {
+    captionInventario.textContent = totalUnidades > 0
+      ? `Total: ${totalUnidades} unidades en ${totalMedicamentos} medicamento(s) — ${criticalItems.length} en stock bajo/crítico`
+      : 'Sin unidades registradas en inventario';
+  }
 
   const config = {
     type: 'doughnut',
@@ -629,39 +682,6 @@ function createInventoryPieChart(inventario) {
   const chart = new Chart(ctx, config);
   window.myInventoryChart = chart;
 }
-
-function renderActividadReciente(users, meds) {
-  const actividades = [];
-  users.slice(-3).reverse().forEach(u => {
-    actividades.push({
-      icon: 'bi-person-plus-fill',
-      type: 'primary',
-      title: `${u.nombres} ${u.apellidos}`,
-      subtitle: `Nuevo ${u.rol}`,
-      time: new Date().toLocaleTimeString()
-    });
-  });
-  
-  const container = document.getElementById('dashboardActividadReciente');
-  if (container) {
-    container.innerHTML = actividades.map(a => `
-      <div class="activity-item glass-card p-3">
-        <div class="d-flex align-items-center gap-3">
-          <div class="activity-icon ${a.type}">
-            <i class="${a.icon}"></i>
-          </div>
-          <div class="flex-grow-1">
-            <h6 class="mb-1">${a.title}</h6>
-            <small class="text-muted">${a.subtitle}</small>
-          </div>
-          <small class="text-muted">${a.time}</small>
-        </div>
-      </div>
-    `).join('') || '<p class="text-muted text-center py-4">Sin actividad reciente</p>';
-  }
-}
-
-
 
 
 

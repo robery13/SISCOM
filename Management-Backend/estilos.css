@@ -547,6 +547,17 @@ body[data-theme="dark"] {
   margin-top: 1rem;
 }
 
+/* Etiqueta de contexto siempre visible bajo cada gráfico del dashboard:
+   evita que el total y el detalle de cada dato dependan de pasar el mouse
+   sobre el gráfico (tooltip), como pidió la ingeniera. */
+.chart-total-caption {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+}
+
 .performance-metrics {
   display: flex;
   flex-direction: column;
