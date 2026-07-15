@@ -75,6 +75,11 @@ db.connect(err => {
       }
     });
 
+    // Asegurar columna requiere_cambio_password en usuarios (seguridad: forzar cambio
+    // de contrasena en el primer inicio de sesion cuando el administrador crea el
+    // usuario con una contrasena generica/temporal)
+    ensureUsuariosColumn('requiere_cambio_password', "ALTER TABLE usuarios ADD COLUMN requiere_cambio_password TINYINT(1) NOT NULL DEFAULT 0 AFTER password");
+
     // Asegurar columna tipo_sangre en usuarios (HU-22: Agregar tipo de sangre)
     ensureUsuariosColumn('tipo_sangre', "ALTER TABLE usuarios ADD COLUMN tipo_sangre VARCHAR(5) NULL AFTER telefono");
 
@@ -634,11 +639,17 @@ app.post('/login', (req, res) => {
     );
     registrarBitacora({ user: { id: usuario.id, email: usuario.email, rol: usuario.rol } }, 'login', 'Inicio de sesión exitoso');
 
+    const requiereCambioPassword = !!usuario.requiere_cambio_password;
+    // No enviar el hash de la contraseña al frontend
+    const usuarioSeguro = { ...usuario };
+    delete usuarioSeguro.password;
+
     // Si todo est� correcto
     res.status(200).json({
       ok: true,
       mensaje: 'Inicio de sesi�n exitoso',
-      usuario,
+      usuario: usuarioSeguro,
+      requiereCambioPassword,
       token
     });
   });
@@ -735,6 +746,111 @@ app.post('/logout', (req, res) => {
 });
 
 // ============================================
+// PERFIL DEL USUARIO AUTENTICADO (cualquier rol)
+// Cambio de contraseña propio + edición de datos personales.
+// El correo NUNCA se puede editar aquí: es el dato de acceso.
+// ============================================
+
+// Cambiar la propia contraseña.
+// Se usa tanto para el cambio obligatorio en el primer inicio de sesión
+// (cuando el administrador asignó una contraseña genérica) como desde la
+// pantalla de "Perfil" para un cambio voluntario posterior.
+app.post('/cambiar-password', verificarRol(), async (req, res) => {
+  const { passwordActual, passwordNueva } = req.body || {};
+  const actual = String(passwordActual || '').trim();
+  const nueva = String(passwordNueva || '').trim();
+
+  if (!actual || !nueva) {
+    return res.status(400).json({ ok: false, mensaje: 'Debes indicar tu contraseña actual y la nueva contraseña.' });
+  }
+
+  if (nueva.length < 8) {
+    return res.status(400).json({ ok: false, mensaje: 'La nueva contraseña debe tener al menos 8 caracteres.' });
+  }
+
+  db.query('SELECT id, password FROM usuarios WHERE id = ? LIMIT 1', [req.user.id], async (err, results) => {
+    if (err) {
+      return res.status(500).json({ ok: false, mensaje: 'Error al verificar el usuario.' });
+    }
+    if (!results.length) {
+      return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado.' });
+    }
+
+    const usuario = results[0];
+    const actualValida = await bcrypt.compare(actual, usuario.password);
+    if (!actualValida) {
+      return res.status(401).json({ ok: false, mensaje: 'La contraseña actual es incorrecta.' });
+    }
+
+    // No permitir reutilizar la misma contraseña (incluye la contraseña
+    // genérica/temporal que haya asignado el administrador).
+    const esLaMisma = await bcrypt.compare(nueva, usuario.password);
+    if (esLaMisma) {
+      return res.status(400).json({ ok: false, mensaje: 'La nueva contraseña no puede ser igual a la contraseña actual.' });
+    }
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(nueva, saltRounds);
+
+    db.query(
+      'UPDATE usuarios SET password = ?, requiere_cambio_password = 0 WHERE id = ?',
+      [hashedPassword, usuario.id],
+      (errUpdate) => {
+        if (errUpdate) {
+          return res.status(500).json({ ok: false, mensaje: 'Error al actualizar la contraseña.' });
+        }
+        registrarBitacora(req, 'usuarios.cambiar_password', `Usuario id=${usuario.id} cambió su propia contraseña`);
+        return res.json({ ok: true, mensaje: 'Contraseña actualizada correctamente.' });
+      }
+    );
+  });
+});
+
+// Obtener los datos de perfil del usuario autenticado (cualquier rol)
+app.get('/perfil', verificarRol(), (req, res) => {
+  const sql = 'SELECT id, nombres, apellidos, identidad, telefono, email, rol, requiere_cambio_password FROM usuarios WHERE id = ? LIMIT 1';
+  db.query(sql, [req.user.id], (err, results) => {
+    if (err) {
+      return res.status(500).json({ ok: false, mensaje: 'Error al cargar tu perfil.' });
+    }
+    if (!results.length) {
+      return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado.' });
+    }
+    return res.json({ ok: true, usuario: results[0] });
+  });
+});
+
+// Actualizar los datos personales del usuario autenticado (cualquier rol).
+// Solo nombres, apellidos, identidad y teléfono. El correo (email) y el rol
+// nunca se aceptan aquí, aunque vengan en el body.
+app.put('/perfil', verificarRol(), (req, res) => {
+  const { nombres, apellidos, identidad, telefono } = req.body || {};
+
+  if (!nombres || !apellidos || !identidad || !telefono) {
+    return res.status(400).json({ ok: false, mensaje: 'Todos los campos son obligatorios.' });
+  }
+
+  // Evitar que la identidad quede duplicada con la de otro usuario
+  db.query('SELECT id FROM usuarios WHERE identidad = ? AND id != ?', [identidad, req.user.id], (errDup, dup) => {
+    if (errDup) {
+      return res.status(500).json({ ok: false, mensaje: 'Error al verificar datos duplicados.' });
+    }
+    if (dup.length > 0) {
+      return res.status(400).json({ ok: false, mensaje: 'Ya existe otro usuario registrado con esa identidad.' });
+    }
+
+    const sql = 'UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ? WHERE id = ?';
+    db.query(sql, [nombres, apellidos, identidad, telefono, req.user.id], (err, result) => {
+      if (err) {
+        return res.status(500).json({ ok: false, mensaje: 'Error al actualizar tu perfil.' });
+      }
+      registrarBitacora(req, 'usuarios.editar_perfil_propio', `Usuario id=${req.user.id} actualizó sus datos personales`);
+      return res.json({ ok: true, mensaje: 'Perfil actualizado correctamente.' });
+    });
+  });
+});
+
+// ============================================
 // MIDDLEWARE DE VERIFICACIÓN DE ROLES
 // ============================================
 
@@ -776,7 +892,11 @@ function verificarRol(rolesPermitidos) {
 
       const userRol = results[0].rol;
 
-      if (!rolesPermitidos.includes(userRol)) {
+      // Si no se especifican roles, solo se exige sesión válida (autoservicio:
+      // /perfil, /cambiar-password). Esto es necesario porque los roles ahora
+      // son dinámicos (Fase A) y no tendría sentido una lista fija aquí.
+      const exigeRoles = Array.isArray(rolesPermitidos) && rolesPermitidos.length > 0;
+      if (exigeRoles && !rolesPermitidos.includes(userRol)) {
         return res.status(403).json({ 
           ok: false, 
           mensaje: 'Acceso denegado. No tienes permisos para realizar esta acción.',
@@ -878,9 +998,12 @@ app.post("/registraradm", verificarRol(['administrador']), async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, saltRounds);
 
   // SQL para insertar el usuario
+  // requiere_cambio_password = 1: la contrasena fue asignada por el administrador
+  // (generica/temporal), por lo que el usuario debe cambiarla obligatoriamente en su
+  // primer inicio de sesion y no podra volver a usar esta misma contrasena.
   const sql = `
-    INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password, rol)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password, rol, requiere_cambio_password)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1)
   `;
 
 db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashedPassword, rol], (err, result) => {
@@ -1358,7 +1481,7 @@ app.post('/Registro_medicamentos', (req, res) => {
 
 // Obtener todos los medicamentos registrados
 app.get('/Registro_medicamentos', (req, res) => {
-  const sql = 'SELECT * FROM Registro_medicamentos';
+  const sql = 'SELECT * FROM Registro_medicamentos ORDER BY id DESC';
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar registro' });
     res.json(results);
@@ -1471,7 +1594,7 @@ app.post('/inventario', (req, res) => {
 
 // Obtener todo el inventario
 app.get('/inventario', (req, res) => {
-  const sql = 'SELECT * FROM inventario';
+  const sql = 'SELECT * FROM inventario ORDER BY id DESC';
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar inventario' });
     res.json(results);
@@ -2169,7 +2292,7 @@ app.delete('/recetas/:id', (req, res) => {
 
 // Obtener todos los usuarios - Solo administrador
 app.get('/usuarios', verificarRol(['administrador']), (req, res) => {
-  const sql = 'SELECT * FROM usuarios';
+  const sql = 'SELECT * FROM usuarios ORDER BY id DESC';
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar usuarios' });
     res.json(results);
@@ -2223,6 +2346,10 @@ app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
       const hashedPassword = await bcrypt.hash(passwordTexto, saltRounds);
       campos.push('password = ?');
       valores.push(hashedPassword);
+      // La nueva contrasena la asigno el administrador: forzar cambio obligatorio
+      // en el proximo inicio de sesion del usuario.
+      campos.push('requiere_cambio_password = ?');
+      valores.push(1);
     }
 
     valores.push(id);
