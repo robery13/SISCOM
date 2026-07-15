@@ -127,6 +127,99 @@ db.connect(err => {
         console.log('Tabla accesos_usuarios verificada/creada correctamente');
       }
     });
+
+    // ===== Fase A: Parametrización general (nada de valores fijos en código) =====
+
+    // Tabla de dominios de correo permitidos (antes era un Set fijo en el código)
+    const createDominiosPermitidosSql = `
+      CREATE TABLE IF NOT EXISTS dominios_correo_permitidos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        dominio VARCHAR(191) NOT NULL UNIQUE,
+        activo TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+    db.query(createDominiosPermitidosSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla dominios_correo_permitidos:', err);
+        return;
+      }
+      console.log('Tabla dominios_correo_permitidos verificada/creada correctamente');
+
+      const dominiosSemilla = ['gmail.com', 'outlook.com', 'hotmail.com', 'live.com', 'yahoo.com', 'icloud.com', 'proton.me', 'protonmail.com'];
+      db.query('SELECT COUNT(*) AS total FROM dominios_correo_permitidos', (errCount, rows) => {
+        if (errCount) { console.error('Error al verificar dominios semilla:', errCount); return; }
+        if (rows[0].total > 0) { cargarDominiosPermitidosCache(); return; }
+        const valores = dominiosSemilla.map(d => [d]);
+        db.query('INSERT INTO dominios_correo_permitidos (dominio) VALUES ?', [valores], (errSeed) => {
+          if (errSeed) console.error('Error al insertar dominios semilla:', errSeed);
+          cargarDominiosPermitidosCache();
+        });
+      });
+    });
+
+    // Tabla de roles (antes eran valores fijos "usuario/empleado/administrador" en el <select>)
+    const createRolesSql = `
+      CREATE TABLE IF NOT EXISTS roles (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nombre_rol VARCHAR(50) NOT NULL UNIQUE,
+        descripcion VARCHAR(255) NULL,
+        activo TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+    db.query(createRolesSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla roles:', err);
+        return;
+      }
+      console.log('Tabla roles verificada/creada correctamente');
+
+      const rolesSemilla = [
+        ['administrador', 'Acceso total al sistema'],
+        ['empleado', 'Personal operativo (farmacia / inventario)'],
+        ['usuario', 'Paciente o cuidador registrado desde el portal público']
+      ];
+      db.query('SELECT COUNT(*) AS total FROM roles', (errCount, rows) => {
+        if (errCount) { console.error('Error al verificar roles semilla:', errCount); return; }
+        if (rows[0].total > 0) return;
+        db.query('INSERT INTO roles (nombre_rol, descripcion) VALUES ?', [rolesSemilla], (errSeed) => {
+          if (errSeed) console.error('Error al insertar roles semilla:', errSeed);
+        });
+      });
+    });
+
+    // Tabla de parámetros generales del sistema (reglas de negocio configurables,
+    // por ejemplo el umbral de "stock crítico" que antes era un "if" fijo en el código)
+    const createParametrosSql = `
+      CREATE TABLE IF NOT EXISTS parametros_sistema (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        clave VARCHAR(100) NOT NULL UNIQUE,
+        valor VARCHAR(255) NOT NULL,
+        descripcion VARCHAR(255) NULL,
+        tipo VARCHAR(20) NOT NULL DEFAULT 'numero',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `;
+    db.query(createParametrosSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla parametros_sistema:', err);
+        return;
+      }
+      console.log('Tabla parametros_sistema verificada/creada correctamente');
+
+      const parametrosSemilla = [
+        ['stock_critico_umbral', '5', 'Cantidad en inventario a partir de la cual un medicamento se marca como "Stock crítico"', 'numero'],
+        ['stock_bajo_umbral', '10', 'Cantidad en inventario a partir de la cual un medicamento se marca como "Stock bajo"', 'numero']
+      ];
+      db.query('SELECT COUNT(*) AS total FROM parametros_sistema', (errCount, rows) => {
+        if (errCount) { console.error('Error al verificar parámetros semilla:', errCount); return; }
+        if (rows[0].total > 0) return;
+        db.query('INSERT INTO parametros_sistema (clave, valor, descripcion, tipo) VALUES ?', [parametrosSemilla], (errSeed) => {
+          if (errSeed) console.error('Error al insertar parámetros semilla:', errSeed);
+        });
+      });
+    });
   }
 });
 
@@ -175,24 +268,30 @@ function ensureTomasMedicasColumn(columnName, alterSql) {
 
 
 
+// Caché en memoria de dominios permitidos, cargada desde la tabla
+// dominios_correo_permitidos. Se recarga al iniciar el servidor y cada vez
+// que el administrador crea/edita/elimina un dominio desde el mantenimiento.
+// Así ningún dominio queda "hardcodeado": todo sale de la base de datos.
+let dominiosPermitidosCache = new Set();
+
+function cargarDominiosPermitidosCache() {
+  db.query('SELECT dominio FROM dominios_correo_permitidos WHERE activo = 1', (err, rows) => {
+    if (err) {
+      console.error('Error al cargar caché de dominios permitidos:', err);
+      return;
+    }
+    dominiosPermitidosCache = new Set(rows.map(r => String(r.dominio || '').toLowerCase()));
+    console.log(`Caché de dominios permitidos actualizada (${dominiosPermitidosCache.size} dominios activos)`);
+  });
+}
+
 function esCorreoDominioPermitido(email) {
   const emailRegex = /^(?=.{6,254}$)(?=.{1,64}@)[A-Za-z0-9](?:[A-Za-z0-9._%+-]{0,62}[A-Za-z0-9])?@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z]{2,})+$/;
   const correo = String(email || '').trim().toLowerCase();
   if (!emailRegex.test(correo)) return false;
 
-  const dominiosPermitidos = new Set([
-    'gmail.com',
-    'outlook.com',
-    'hotmail.com',
-    'live.com',
-    'yahoo.com',
-    'icloud.com',
-    'proton.me',
-    'protonmail.com'
-  ]);
-
   const dominio = correo.split('@')[1] || '';
-  return dominiosPermitidos.has(dominio);
+  return dominiosPermitidosCache.has(dominio);
 }
 
 function separarNombreCompleto(nombreCompleto = '') {
@@ -701,6 +800,246 @@ db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashe
   res.status(200).json({ mensaje: "Usuario registrado con éxito." });
 });
 
+});
+
+
+// ================================================================
+// FASE A - PARAMETRIZACIÓN GENERAL
+// Mantenimientos: dominios de correo permitidos, roles y parámetros
+// del sistema. Todo administrable desde el sistema, nada fijo en código.
+// ================================================================
+
+// ---------- DOMINIOS DE CORREO PERMITIDOS ----------
+
+app.get('/dominios-permitidos', verificarRol(['administrador']), (req, res) => {
+  db.query('SELECT * FROM dominios_correo_permitidos ORDER BY id DESC', (err, rows) => {
+    if (err) {
+      console.error('Error al obtener dominios permitidos:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al obtener dominios permitidos' });
+    }
+    res.json(rows);
+  });
+});
+
+// Endpoint de solo lectura, sin requisito de rol administrador, para que
+// cualquier formulario de registro (público o dentro del panel) valide el
+// dominio del correo contra la lista real, sin duplicar el listado en el front.
+app.get('/dominios-permitidos-publico', (req, res) => {
+  db.query('SELECT dominio FROM dominios_correo_permitidos WHERE activo = 1 ORDER BY dominio ASC', (err, rows) => {
+    if (err) {
+      console.error('Error al obtener dominios permitidos (público):', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al obtener dominios permitidos' });
+    }
+    res.json(rows.map(r => r.dominio));
+  });
+});
+
+app.post('/dominios-permitidos', verificarRol(['administrador']), (req, res) => {
+  const dominio = String(req.body.dominio || '').trim().toLowerCase();
+
+  if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/.test(dominio)) {
+    return res.status(400).json({ ok: false, mensaje: 'Ingrese un dominio válido, por ejemplo: gmail.com' });
+  }
+
+  db.query('INSERT INTO dominios_correo_permitidos (dominio) VALUES (?)', [dominio], (err) => {
+    if (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(400).json({ ok: false, mensaje: 'Ese dominio ya está registrado.' });
+      }
+      console.error('Error al crear dominio permitido:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al crear el dominio' });
+    }
+    cargarDominiosPermitidosCache();
+    res.json({ ok: true, mensaje: 'Dominio agregado correctamente' });
+  });
+});
+
+app.put('/dominios-permitidos/:id', verificarRol(['administrador']), (req, res) => {
+  const { id } = req.params;
+  const activo = req.body.activo ? 1 : 0;
+  let dominio = req.body.dominio !== undefined ? String(req.body.dominio || '').trim().toLowerCase() : null;
+
+  if (dominio && !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/.test(dominio)) {
+    return res.status(400).json({ ok: false, mensaje: 'Ingrese un dominio válido, por ejemplo: gmail.com' });
+  }
+
+  const sql = dominio
+    ? 'UPDATE dominios_correo_permitidos SET dominio = ?, activo = ? WHERE id = ?'
+    : 'UPDATE dominios_correo_permitidos SET activo = ? WHERE id = ?';
+  const valores = dominio ? [dominio, activo, id] : [activo, id];
+
+  db.query(sql, valores, (err, result) => {
+    if (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(400).json({ ok: false, mensaje: 'Ese dominio ya está registrado.' });
+      }
+      console.error('Error al actualizar dominio permitido:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al actualizar el dominio' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ ok: false, mensaje: 'Dominio no encontrado' });
+    }
+    cargarDominiosPermitidosCache();
+    res.json({ ok: true, mensaje: 'Dominio actualizado correctamente' });
+  });
+});
+
+app.delete('/dominios-permitidos/:id', verificarRol(['administrador']), (req, res) => {
+  db.query('DELETE FROM dominios_correo_permitidos WHERE id = ?', [req.params.id], (err, result) => {
+    if (err) {
+      console.error('Error al eliminar dominio permitido:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al eliminar el dominio' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ ok: false, mensaje: 'Dominio no encontrado' });
+    }
+    cargarDominiosPermitidosCache();
+    res.json({ ok: true, mensaje: 'Dominio eliminado correctamente' });
+  });
+});
+
+// ---------- MANTENIMIENTO DE ROLES ----------
+
+app.get('/roles', verificarRol(['administrador']), (req, res) => {
+  db.query('SELECT * FROM roles ORDER BY id DESC', (err, rows) => {
+    if (err) {
+      console.error('Error al obtener roles:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al obtener roles' });
+    }
+    res.json(rows);
+  });
+});
+
+// Lista simple de roles activos, usada por los formularios (ej. select de
+// "Nuevo Usuario") para no tener nombres de rol fijos en el HTML.
+app.get('/roles-activos', verificarRol(['administrador']), (req, res) => {
+  db.query('SELECT nombre_rol, descripcion FROM roles WHERE activo = 1 ORDER BY nombre_rol ASC', (err, rows) => {
+    if (err) {
+      console.error('Error al obtener roles activos:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al obtener roles' });
+    }
+    res.json(rows);
+  });
+});
+
+app.post('/roles', verificarRol(['administrador']), (req, res) => {
+  const nombre_rol = String(req.body.nombre_rol || '').trim().toLowerCase();
+  const descripcion = req.body.descripcion ? String(req.body.descripcion).trim() : null;
+
+  if (!/^[a-z][a-z0-9_]{2,49}$/.test(nombre_rol)) {
+    return res.status(400).json({ ok: false, mensaje: 'El nombre del rol debe tener entre 3 y 50 caracteres: solo minúsculas, números y guion bajo.' });
+  }
+
+  db.query('INSERT INTO roles (nombre_rol, descripcion) VALUES (?, ?)', [nombre_rol, descripcion], (err) => {
+    if (err) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(400).json({ ok: false, mensaje: 'Ese rol ya existe.' });
+      }
+      console.error('Error al crear rol:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al crear el rol' });
+    }
+    res.json({ ok: true, mensaje: 'Rol creado correctamente' });
+  });
+});
+
+app.put('/roles/:id', verificarRol(['administrador']), (req, res) => {
+  const { id } = req.params;
+  const descripcion = req.body.descripcion !== undefined ? String(req.body.descripcion || '').trim() : null;
+  const activo = req.body.activo ? 1 : 0;
+
+  db.query('UPDATE roles SET descripcion = ?, activo = ? WHERE id = ?', [descripcion, activo, id], (err, result) => {
+    if (err) {
+      console.error('Error al actualizar rol:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al actualizar el rol' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ ok: false, mensaje: 'Rol no encontrado' });
+    }
+    res.json({ ok: true, mensaje: 'Rol actualizado correctamente' });
+  });
+});
+
+app.delete('/roles/:id', verificarRol(['administrador']), (req, res) => {
+  const { id } = req.params;
+
+  db.query('SELECT nombre_rol FROM roles WHERE id = ?', [id], (err, rolRows) => {
+    if (err) {
+      console.error('Error al eliminar rol:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al eliminar el rol' });
+    }
+    if (rolRows.length === 0) {
+      return res.status(404).json({ ok: false, mensaje: 'Rol no encontrado' });
+    }
+
+    // No se permite eliminar un rol que ya tiene usuarios asignados, para no
+    // dejar usuarios "huérfanos" sin un rol válido.
+    db.query('SELECT COUNT(*) AS total FROM usuarios WHERE rol = ?', [rolRows[0].nombre_rol], (err2, countRows) => {
+      if (err2) {
+        console.error('Error al validar uso del rol:', err2);
+        return res.status(500).json({ ok: false, mensaje: 'Error al eliminar el rol' });
+      }
+      if (countRows[0].total > 0) {
+        return res.status(400).json({ ok: false, mensaje: `No se puede eliminar: hay ${countRows[0].total} usuario(s) con este rol.` });
+      }
+      db.query('DELETE FROM roles WHERE id = ?', [id], (err3) => {
+        if (err3) {
+          console.error('Error al eliminar rol:', err3);
+          return res.status(500).json({ ok: false, mensaje: 'Error al eliminar el rol' });
+        }
+        res.json({ ok: true, mensaje: 'Rol eliminado correctamente' });
+      });
+    });
+  });
+});
+
+// ---------- PARÁMETROS GENERALES DEL SISTEMA ----------
+
+app.get('/parametros', verificarRol(['administrador']), (req, res) => {
+  db.query('SELECT * FROM parametros_sistema ORDER BY clave ASC', (err, rows) => {
+    if (err) {
+      console.error('Error al obtener parámetros del sistema:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al obtener parámetros' });
+    }
+    res.json(rows);
+  });
+});
+
+// Endpoint de solo lectura, sin requisito de rol administrador, para que las
+// pantallas de inventario (paciente/cuidador/empleado) puedan pintar los
+// mismos umbrales de stock que configura el administrador, sin valores fijos.
+app.get('/parametros-publicos', (req, res) => {
+  db.query(
+    "SELECT clave, valor FROM parametros_sistema WHERE clave IN ('stock_critico_umbral', 'stock_bajo_umbral')",
+    (err, rows) => {
+      if (err) {
+        console.error('Error al obtener parámetros públicos:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al obtener parámetros' });
+      }
+      const salida = {};
+      rows.forEach(r => { salida[r.clave] = r.valor; });
+      res.json(salida);
+    }
+  );
+});
+
+app.put('/parametros/:id', verificarRol(['administrador']), (req, res) => {
+  const { id } = req.params;
+  const valor = req.body.valor;
+
+  if (valor === undefined || valor === null || String(valor).trim() === '') {
+    return res.status(400).json({ ok: false, mensaje: 'El valor es obligatorio' });
+  }
+
+  db.query('UPDATE parametros_sistema SET valor = ? WHERE id = ?', [String(valor).trim(), id], (err, result) => {
+    if (err) {
+      console.error('Error al actualizar parámetro:', err);
+      return res.status(500).json({ ok: false, mensaje: 'Error al actualizar el parámetro' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ ok: false, mensaje: 'Parámetro no encontrado' });
+    }
+    res.json({ ok: true, mensaje: 'Parámetro actualizado correctamente' });
+  });
 });
 
 
