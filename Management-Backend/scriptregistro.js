@@ -3165,6 +3165,16 @@ function mostrarToast(mensaje, tipo = 'info') {
     });
   }
 
+  // La Asignación de Pacientes ahora vive en su propio menú, fuera de
+  // Seguridad, pero sigue necesitando la lista de usuarios (cuidadores/
+  // pacientes) para poblar sus selects.
+  const asignacionBtn = document.querySelector('.nav-btn[data-section="asignacion-pacientes"]');
+  if (asignacionBtn) {
+    asignacionBtn.addEventListener("click", () => {
+      cargarUsuarios();
+    });
+  }
+
   // Exponer función de carga global para que pueda ser llamada desde otros scripts
   window.cargarUsuarios = cargarUsuarios;
   window.obtenerTokenAuth = obtenerTokenAuth;
@@ -3504,6 +3514,252 @@ function mostrarToast(mensaje, tipo = 'info') {
 
   const tabParametros = document.getElementById("tab-parametros");
   if (tabParametros) tabParametros.addEventListener("shown.bs.tab", cargarParametros);
+})();
+
+// ===============================
+// MANTENIMIENTO: PERMISOS (Fase B)
+// ===============================
+(function(){
+  const API = "https://siscom-4lbe.onrender.com";
+  const form = document.getElementById("formNuevoPermiso");
+  const inputNombre = document.getElementById("nuevoPermisoNombre");
+  const inputDescripcion = document.getElementById("nuevoPermisoDescripcion");
+  const selectRol = document.getElementById("selectRolPermisos");
+  const guardarBtn = document.getElementById("guardarPermisosRolBtn");
+  const tabla = document.querySelector("#tablaPermisos tbody");
+  if (!form || !selectRol || !tabla) return;
+
+  async function cargarRolesParaSelect() {
+    try {
+      const respuesta = await fetch(`${API}/roles-activos`, { headers: window.crearHeadersAuth() });
+      if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
+      const roles = await respuesta.json();
+      selectRol.innerHTML = '<option value="">Selecciona un rol</option>' +
+        roles.map(r => `<option value="${escapeHtml(r.nombre_rol)}">${escapeHtml(r.nombre_rol)}</option>`).join("");
+    } catch (error) {
+      console.error("Error al cargar roles para permisos:", error);
+    }
+  }
+
+  async function crearPermiso(e) {
+    e.preventDefault();
+    const nombre_permiso = inputNombre.value.trim().toLowerCase();
+    const descripcion = inputDescripcion.value.trim();
+    if (!nombre_permiso) return;
+    try {
+      const respuesta = await fetch(`${API}/permisos`, {
+        method: "POST",
+        headers: window.crearHeadersAuth(true),
+        body: JSON.stringify({ nombre_permiso, descripcion })
+      });
+      const data = await respuesta.json();
+      if (!respuesta.ok || !data.ok) {
+        mostrarToast(data.mensaje || "No fue posible crear el permiso.", "error");
+        return;
+      }
+      mostrarToast(data.mensaje, "success");
+      form.reset();
+      if (selectRol.value) cargarPermisosDelRol(selectRol.value);
+    } catch (error) {
+      console.error("Error al crear permiso:", error);
+      mostrarToast("Error al crear el permiso.", "error");
+    }
+  }
+
+  async function cargarPermisosDelRol(nombreRol) {
+    if (!nombreRol) {
+      tabla.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Selecciona un rol para ver/editar sus permisos.</td></tr>';
+      guardarBtn.disabled = true;
+      return;
+    }
+    try {
+      const respuesta = await fetch(`${API}/roles/${encodeURIComponent(nombreRol)}/permisos`, { headers: window.crearHeadersAuth() });
+      if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
+      const permisos = await respuesta.json();
+      renderPermisos(permisos);
+      guardarBtn.disabled = false;
+    } catch (error) {
+      console.error("Error al cargar permisos del rol:", error);
+      mostrarToast("No fue posible cargar los permisos del rol.", "error");
+    }
+  }
+
+  function renderPermisos(permisos) {
+    if (!permisos.length) {
+      tabla.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No hay permisos creados todavía.</td></tr>';
+      return;
+    }
+    tabla.innerHTML = permisos.map(p => `
+      <tr>
+        <td class="text-center"><input type="checkbox" class="form-check-input permiso-checkbox" data-id="${p.id}" ${p.asignado ? "checked" : ""}></td>
+        <td><code>${escapeHtml(p.nombre_permiso)}</code></td>
+        <td class="small text-muted">${escapeHtml(p.descripcion || "")}</td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-outline-danger eliminar-permiso-btn" data-id="${p.id}"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`).join("");
+  }
+
+  async function guardarPermisosDelRol() {
+    const nombreRol = selectRol.value;
+    if (!nombreRol) return;
+    const idsPermisos = Array.from(tabla.querySelectorAll(".permiso-checkbox:checked")).map(cb => Number(cb.dataset.id));
+    try {
+      const respuesta = await fetch(`${API}/roles/${encodeURIComponent(nombreRol)}/permisos`, {
+        method: "PUT",
+        headers: window.crearHeadersAuth(true),
+        body: JSON.stringify({ idsPermisos })
+      });
+      const data = await respuesta.json();
+      if (!respuesta.ok || !data.ok) {
+        mostrarToast(data.mensaje || "No fue posible guardar los permisos.", "error");
+        return;
+      }
+      mostrarToast(data.mensaje, "success");
+    } catch (error) {
+      console.error("Error al guardar permisos del rol:", error);
+      mostrarToast("Error al guardar los permisos del rol.", "error");
+    }
+  }
+
+  form.addEventListener("submit", crearPermiso);
+  selectRol.addEventListener("change", () => cargarPermisosDelRol(selectRol.value));
+  guardarBtn.addEventListener("click", guardarPermisosDelRol);
+
+  tabla.addEventListener("click", async (e) => {
+    const eliminarBtn = e.target.closest(".eliminar-permiso-btn");
+    if (!eliminarBtn) return;
+    if (!confirm("¿Eliminar este permiso? Se quitará de todos los roles que lo tengan asignado.")) return;
+    const id = eliminarBtn.dataset.id;
+    try {
+      const respuesta = await fetch(`${API}/permisos/${id}`, {
+        method: "DELETE",
+        headers: window.crearHeadersAuth()
+      });
+      const data = await respuesta.json();
+      if (!respuesta.ok || !data.ok) {
+        mostrarToast(data.mensaje || "No fue posible eliminar el permiso.", "error");
+        return;
+      }
+      mostrarToast(data.mensaje, "success");
+      if (selectRol.value) cargarPermisosDelRol(selectRol.value);
+    } catch (error) {
+      console.error("Error al eliminar permiso:", error);
+      mostrarToast("Error al eliminar el permiso.", "error");
+    }
+  });
+
+  const tabPermisos = document.getElementById("tab-permisos");
+  if (tabPermisos) tabPermisos.addEventListener("shown.bs.tab", cargarRolesParaSelect);
+})();
+
+// ===============================
+// BITÁCORA (Fase B)
+// ===============================
+(function(){
+  const API = "https://siscom-4lbe.onrender.com";
+  const tabla = document.querySelector("#tablaBitacora tbody");
+  const noBitacoraDiv = document.getElementById("noBitacora");
+  const refrescarBtn = document.getElementById("refrescarBitacoraBtn");
+  if (!tabla) return;
+
+  async function cargarBitacora() {
+    try {
+      const respuesta = await fetch(`${API}/bitacora`, { headers: window.crearHeadersAuth() });
+      if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
+      const registros = await respuesta.json();
+      renderBitacora(registros);
+    } catch (error) {
+      console.error("Error al cargar bitácora:", error);
+      mostrarToast("No fue posible cargar la bitácora.", "error");
+    }
+  }
+
+  function renderBitacora(registros) {
+    tabla.innerHTML = "";
+    if (!registros.length) {
+      if (noBitacoraDiv) noBitacoraDiv.classList.remove("d-none");
+      return;
+    }
+    if (noBitacoraDiv) noBitacoraDiv.classList.add("d-none");
+
+    registros.forEach(r => {
+      const fecha = r.fecha_hora ? new Date(r.fecha_hora).toLocaleString("es-HN") : "";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="small">${escapeHtml(fecha)}</td>
+        <td class="small">${escapeHtml(r.email || "—")}</td>
+        <td class="small">${escapeHtml(r.rol || "—")}</td>
+        <td><span class="badge bg-secondary">${escapeHtml(r.accion)}</span></td>
+        <td class="small text-muted">${escapeHtml(r.detalle || "")}</td>`;
+      tabla.appendChild(tr);
+    });
+  }
+
+  if (refrescarBtn) refrescarBtn.addEventListener("click", cargarBitacora);
+
+  const tabBitacora = document.getElementById("tab-bitacora");
+  if (tabBitacora) tabBitacora.addEventListener("shown.bs.tab", cargarBitacora);
+})();
+
+// ===============================
+// BACKUP Y RESTORE (Fase B)
+// ===============================
+(function(){
+  const API = "https://siscom-4lbe.onrender.com";
+  const descargarBtn = document.getElementById("descargarBackupBtn");
+  const restaurarBtn = document.getElementById("restaurarBackupBtn");
+  const archivoInput = document.getElementById("archivoRestoreInput");
+  if (!descargarBtn || !restaurarBtn) return;
+
+  descargarBtn.addEventListener("click", async () => {
+    try {
+      const respuesta = await fetch(`${API}/backup`, { headers: window.crearHeadersAuth() });
+      if (!respuesta.ok) throw new Error("Error HTTP " + respuesta.status);
+      const blob = await respuesta.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `siscom-backup-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      mostrarToast("Backup descargado correctamente.", "success");
+    } catch (error) {
+      console.error("Error al descargar backup:", error);
+      mostrarToast("No fue posible generar el backup.", "error");
+    }
+  });
+
+  restaurarBtn.addEventListener("click", async () => {
+    const archivo = archivoInput.files[0];
+    if (!archivo) {
+      mostrarToast("Selecciona primero un archivo de backup (.json).", "warning");
+      return;
+    }
+    if (!confirm("Esto va a reemplazar roles, permisos, dominios permitidos y parámetros actuales con los del archivo. ¿Continuar?")) return;
+
+    try {
+      const texto = await archivo.text();
+      const backup = JSON.parse(texto);
+      const respuesta = await fetch(`${API}/restore`, {
+        method: "POST",
+        headers: window.crearHeadersAuth(true),
+        body: JSON.stringify(backup)
+      });
+      const data = await respuesta.json();
+      if (!respuesta.ok || !data.ok) {
+        mostrarToast(data.mensaje || "No fue posible restaurar el backup.", "error");
+        return;
+      }
+      mostrarToast(data.mensaje, "success");
+      archivoInput.value = "";
+    } catch (error) {
+      console.error("Error al restaurar backup:", error);
+      mostrarToast("El archivo no es un backup válido de SISCOM.", "error");
+    }
+  });
 })();
 
 // ===============================
