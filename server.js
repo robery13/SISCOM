@@ -1480,11 +1480,51 @@ app.post('/Registro_medicamentos', (req, res) => {
 });
 
 // Obtener todos los medicamentos registrados
+// Nota de seguridad: el filtrado por paciente asignado también se aplica en
+// el frontend del cuidador, pero eso es fácilmente evitable llamando a este
+// endpoint directamente. Por eso aquí, si la petición trae un token de
+// sesión válido de un cuidador (rol 'empleado'), se restringe la respuesta
+// a únicamente los medicamentos de sus pacientes asignados. Si no hay token,
+// o el usuario tiene otro rol (p. ej. administrador), se mantiene el
+// comportamiento anterior y se devuelven todos los registros, para no
+// romper otras vistas que dependen de este endpoint.
 app.get('/Registro_medicamentos', (req, res) => {
-  const sql = 'SELECT * FROM Registro_medicamentos ORDER BY id DESC';
-  db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ mensaje: 'Error al cargar registro' });
-    res.json(results);
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  const session = token ? authTokens[token] : null;
+
+  const enviarTodos = () => {
+    const sql = 'SELECT * FROM Registro_medicamentos ORDER BY id DESC';
+    db.query(sql, (err, results) => {
+      if (err) return res.status(500).json({ mensaje: 'Error al cargar registro' });
+      res.json(results);
+    });
+  };
+
+  if (!session || Date.now() > session.expires) {
+    return enviarTodos();
+  }
+
+  db.query('SELECT rol FROM usuarios WHERE id = ?', [session.userId], (err, results) => {
+    if (err || results.length === 0) {
+      return enviarTodos();
+    }
+
+    if (results[0].rol !== 'empleado') {
+      return enviarTodos();
+    }
+
+    const sqlCuidador = `
+      SELECT rm.*
+      FROM Registro_medicamentos rm
+      INNER JOIN cuidador_pacientes cp ON cp.paciente_id = rm.paciente_id
+      WHERE cp.cuidador_id = ?
+      ORDER BY rm.id DESC
+    `;
+    db.query(sqlCuidador, [session.userId], (errCuidador, resultsCuidador) => {
+      if (errCuidador) return res.status(500).json({ mensaje: 'Error al cargar registro' });
+      res.json(resultsCuidador);
+    });
   });
 });
 

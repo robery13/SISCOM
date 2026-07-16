@@ -1041,6 +1041,11 @@ document.addEventListener("DOMContentLoaded", () => {
           filtroPaciente.appendChild(option);
         });
       }
+
+      // Re-aplicar filtros de la grilla de medicamentos ahora que ya sabemos
+      // qué pacientes están permitidos para esta vista (p. ej. solo los
+      // pacientes asignados cuando la vista es la del cuidador).
+      aplicarFiltros();
     } catch (error) {
       console.error("Error al cargar pacientes:", error);
       pacientesData = [];
@@ -1223,7 +1228,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Cargar medicamentos
   async function cargarRegistroMedicamentos() {
     try {
-      const respuesta = await fetch("https://siscom-4lbe.onrender.com/Registro_medicamentos");
+      const respuesta = await fetch("https://siscom-4lbe.onrender.com/Registro_medicamentos", {
+        headers: obtenerHeadersPacientes()
+      });
       if (!respuesta.ok) throw new Error("Error al cargar medicamentos");
       
       medicamentosData = await respuesta.json();
@@ -1237,7 +1244,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // Aplicar filtros
   function aplicarFiltros() {
     let filtrados = [...medicamentosData];
-    
+
+    // Restringir a los pacientes visibles en esta vista (p. ej. en la vista
+    // del cuidador, pacientesData solo contiene los pacientes asignados a
+    // él). Si pacientesData aún no ha cargado, no se filtra por esto para
+    // no ocultar todo momentáneamente mientras llega la respuesta.
+    if (Array.isArray(pacientesData) && pacientesData.length > 0) {
+      const idsPermitidos = new Set(pacientesData.map(p => String(p.id)));
+      filtrados = filtrados.filter(m => idsPermitidos.has(String(m.paciente_id)));
+    }
+
     // Filtro por búsqueda
     const busqueda = buscarInput?.value.toLowerCase().trim();
     if (busqueda) {
@@ -1312,18 +1328,18 @@ document.addEventListener("DOMContentLoaded", () => {
       
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>
-          <span class="badge bg-${m.estado === 'activo' ? 'success' : 'secondary'}">
-            ${m.estado === 'activo' ? 'Activo' : 'Inactivo'}
-          </span>
-        </td>
+        <td>${escapeHtml(nombrePaciente)}</td>
         <td><strong>${escapeHtml(m.nombre)}</strong></td>
         <td>${escapeHtml(m.dosis)}</td>
-        <td>${escapeHtml(nombrePaciente)}</td>
         <td>Cada ${m.frecuencia_horas}h</td>
         <td>
           <span class="badge bg-info text-dark">
             <i class="bi bi-clock me-1"></i> ${proximaToma}
+          </span>
+        </td>
+        <td>
+          <span class="badge bg-${m.estado === 'activo' ? 'success' : 'secondary'}">
+            ${m.estado === 'activo' ? 'Activo' : 'Inactivo'}
           </span>
         </td>
         <td class="text-center">
