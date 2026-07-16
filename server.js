@@ -1411,41 +1411,82 @@ app.get('/backup', verificarRol(['administrador']), async (req, res) => {
   }
 });
 
-app.post('/restore', verificarRol(['administrador']), async (req, res) => {
+// Orden de borrado: primero la tabla "hija" (roles_permisos, que tiene FK hacia
+// permisos con ON DELETE CASCADE) y después las tablas "padre". Así no dependemos
+// de que el CASCADE se dispare en el momento justo y el borrado es predecible.
+const ORDEN_BORRADO_RESTORE = ['roles_permisos', 'roles', 'permisos', 'dominios_correo_permitidos', 'parametros_sistema'];
+// Orden de inserción: al revés, primero las tablas "padre" y al final la "hija",
+// para que las FK siempre encuentren la fila referenciada ya insertada.
+const ORDEN_INSERCION_RESTORE = ['roles', 'permisos', 'roles_permisos', 'dominios_correo_permitidos', 'parametros_sistema'];
+
+// Tras un ciclo JSON.stringify/JSON.parse (generar backup -> guardar archivo ->
+// subir archivo -> restaurar), las columnas de tipo fecha llegan como texto en
+// formato ISO ("2026-07-10T10:00:00.000Z") en lugar de objeto Date. MySQL no
+// acepta ese formato tal cual para columnas DATETIME/TIMESTAMP, así que se
+// normaliza antes de insertar.
+function normalizarValorRestore(valor) {
+  if (typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(valor)) {
+    return valor.replace('T', ' ').replace('Z', '').replace(/\.\d+$/, '');
+  }
+  return valor;
+}
+
+app.post('/restore', verificarRol(['administrador']), (req, res) => {
   const backup = req.body;
   if (!backup || typeof backup.tablas !== 'object') {
     return res.status(400).json({ ok: false, mensaje: 'Archivo de backup inválido' });
   }
 
-  try {
-    for (const tabla of TABLAS_BACKUP) {
-      const filas = Array.isArray(backup.tablas[tabla]) ? backup.tablas[tabla] : null;
-      if (!filas) continue;
+  const query = (sql, params) => new Promise((resolve, reject) => {
+    db.query(sql, params, (err, result) => (err ? reject(err) : resolve(result)));
+  });
 
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((resolve, reject) => {
-        db.query(`DELETE FROM ${tabla}`, (err) => (err ? reject(err) : resolve()));
-      });
-
-      if (filas.length === 0) continue;
-
-      const columnas = Object.keys(filas[0]);
-      const valores = filas.map(fila => columnas.map(col => fila[col]));
-      const placeholders = columnas.map(c => `\`${c}\``).join(', ');
-
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((resolve, reject) => {
-        db.query(`INSERT INTO ${tabla} (${placeholders}) VALUES ?`, [valores], (err) => (err ? reject(err) : resolve()));
-      });
+  db.beginTransaction(async (errTx) => {
+    if (errTx) {
+      console.error('Error al iniciar transacción de restore:', errTx);
+      return res.status(500).json({ ok: false, mensaje: 'Error al restaurar el backup. Verifica que el archivo sea un backup válido de SISCOM.' });
     }
 
-    cargarDominiosPermitidosCache();
-    registrarBitacora(req, 'backup.restaurar', `Backup restaurado sobre tablas: ${TABLAS_BACKUP.join(', ')}`);
-    res.json({ ok: true, mensaje: 'Backup restaurado correctamente' });
-  } catch (error) {
-    console.error('Error al restaurar backup:', error);
-    res.status(500).json({ ok: false, mensaje: 'Error al restaurar el backup. Verifica que el archivo sea un backup válido de SISCOM.' });
-  }
+    try {
+      // 1) Borrar (todo dentro de la misma transacción: si algo falla más
+      // adelante, este borrado también se revierte y no se pierde nada).
+      for (const tabla of ORDEN_BORRADO_RESTORE) {
+        if (!Array.isArray(backup.tablas[tabla])) continue;
+        // eslint-disable-next-line no-await-in-loop
+        await query(`DELETE FROM ${tabla}`);
+      }
+
+      // 2) Insertar con los datos del archivo de backup.
+      for (const tabla of ORDEN_INSERCION_RESTORE) {
+        const filas = backup.tablas[tabla];
+        if (!Array.isArray(filas) || filas.length === 0) continue;
+
+        const columnas = Object.keys(filas[0]);
+        const placeholders = columnas.map(c => `\`${c}\``).join(', ');
+        const valores = filas.map(fila => columnas.map(col => normalizarValorRestore(fila[col])));
+
+        // eslint-disable-next-line no-await-in-loop
+        await query(`INSERT INTO ${tabla} (${placeholders}) VALUES ?`, [valores]);
+      }
+
+      db.commit((errCommit) => {
+        if (errCommit) {
+          console.error('Error al confirmar restore:', errCommit);
+          return db.rollback(() => {
+            res.status(500).json({ ok: false, mensaje: 'Error al restaurar el backup. Verifica que el archivo sea un backup válido de SISCOM.' });
+          });
+        }
+        cargarDominiosPermitidosCache();
+        registrarBitacora(req, 'backup.restaurar', `Backup restaurado sobre tablas: ${TABLAS_BACKUP.join(', ')}`);
+        res.json({ ok: true, mensaje: 'Backup restaurado correctamente' });
+      });
+    } catch (error) {
+      console.error('Error al restaurar backup:', error);
+      db.rollback(() => {
+        res.status(500).json({ ok: false, mensaje: 'Error al restaurar el backup. Verifica que el archivo sea un backup válido de SISCOM.' });
+      });
+    }
+  });
 });
 
 
