@@ -75,6 +75,13 @@ db.connect(err => {
       }
     });
 
+    // Flexibilizar la columna "rol" de usuarios: si fue creada como ENUM con una
+    // lista fija de valores (usuario/empleado/administrador), impide asignar
+    // cualquier rol nuevo creado desde Gestión de Roles (ej. "evaluacion") y
+    // provoca un error de MySQL al registrar el usuario. Se convierte a VARCHAR
+    // para que acepte cualquier rol dado de alta dinámicamente.
+    ensureUsuariosRolFlexible();
+
     // Asegurar columna requiere_cambio_password en usuarios (seguridad: forzar cambio
     // de contrasena en el primer inicio de sesion cuando el administrador crea el
     // usuario con una contrasena generica/temporal)
@@ -260,30 +267,96 @@ db.connect(err => {
         console.log('Tabla roles_permisos verificada/creada correctamente');
       });
 
+      // Los nombres de los permisos son iguales a los módulos del sistema tal
+      // como aparecen en el menú (sin sufijo ".gestionar"), para que sea claro
+      // qué parte del sistema desbloquea cada permiso. Incluye los módulos del
+      // panel de administrador y también los del panel de cuidador
+      // (Registro de Tomas, Historial de Tomas, Estadísticas), para que el
+      // menú del cuidador y el de cualquier rol nuevo se arme según estos
+      // mismos permisos.
       const permisosSemilla = [
-        ['usuarios.gestionar', 'Crear, editar y eliminar usuarios'],
-        ['roles.gestionar', 'Crear y editar roles'],
-        ['permisos.gestionar', 'Asignar permisos a roles'],
-        ['medicamentos.gestionar', 'Crear y editar medicamentos'],
-        ['inventario.gestionar', 'Administrar inventario y pedidos de farmacia'],
-        ['citas.gestionar', 'Administrar citas médicas'],
-        ['parametros.gestionar', 'Editar parámetros generales del sistema'],
-        ['bitacora.ver', 'Consultar la bitácora de auditoría'],
-        ['backup.gestionar', 'Generar y restaurar copias de seguridad']
+        ['Usuarios', 'Crear, editar y eliminar usuarios'],
+        ['Roles', 'Crear y editar roles'],
+        ['Permisos', 'Asignar permisos a roles'],
+        ['Medicamentos', 'Crear y editar medicamentos'],
+        ['Inventario', 'Administrar inventario y pedidos de farmacia'],
+        ['Citas Médicas', 'Administrar citas médicas'],
+        ['Parámetros del Sistema', 'Editar parámetros generales del sistema'],
+        ['Bitácora', 'Consultar la bitácora de auditoría'],
+        ['Backup y Restore', 'Generar y restaurar copias de seguridad'],
+        ['Dominios de Correo', 'Administrar los dominios de correo permitidos para registrarse'],
+        ['Registro de Tomas', 'Registrar las tomas de medicamentos de los pacientes'],
+        ['Historial de Tomas', 'Consultar el historial de tomas de los pacientes'],
+        ['Estadísticas', 'Consultar reportes y estadísticas']
       ];
-      db.query('SELECT COUNT(*) AS total FROM permisos', (errCount, rows) => {
-        if (errCount) { console.error('Error al verificar permisos semilla:', errCount); return; }
-        if (rows[0].total > 0) return;
-        db.query('INSERT INTO permisos (nombre_permiso, descripcion) VALUES ?', [permisosSemilla], (errSeed, resultSeed) => {
-          if (errSeed) { console.error('Error al insertar permisos semilla:', errSeed); return; }
-          // El rol "administrador" arranca con todos los permisos activos.
-          const primerId = resultSeed.insertId;
-          const asignaciones = permisosSemilla.map((_, idx) => ['administrador', primerId + idx]);
-          db.query('INSERT INTO roles_permisos (nombre_rol, id_permiso) VALUES ?', [asignaciones], (errAsig) => {
-            if (errAsig) console.error('Error al asignar permisos semilla al administrador:', errAsig);
-          });
-        });
-      });
+
+      // Módulos que hoy ve el rol "empleado" (cuidador) en cuidador_backend.html.
+      // Se le asignan por defecto la primera vez, para que ningún cuidador
+      // pierda acceso a lo que ya usaba al activar el control por permisos.
+      const modulosBasePorRol = {
+        empleado: ['Medicamentos', 'Registro de Tomas', 'Historial de Tomas', 'Citas Médicas', 'Estadísticas']
+      };
+
+      // Migrar instalaciones existentes que ya tenían los permisos con el
+      // nombre viejo (ej. "usuarios.gestionar") al nuevo nombre igual al del
+      // módulo (ej. "Usuarios"). Solo renombra la fila; conserva su id, por lo
+      // que las asignaciones ya hechas en roles_permisos no se pierden.
+      const renombresLegado = [
+        ['usuarios.gestionar', 'Usuarios'],
+        ['roles.gestionar', 'Roles'],
+        ['permisos.gestionar', 'Permisos'],
+        ['medicamentos.gestionar', 'Medicamentos'],
+        ['inventario.gestionar', 'Inventario'],
+        ['citas.gestionar', 'Citas Médicas'],
+        ['parametros.gestionar', 'Parámetros del Sistema'],
+        ['bitacora.ver', 'Bitácora'],
+        ['backup.gestionar', 'Backup y Restore']
+      ];
+
+      (async () => {
+        try {
+          for (const [nombreViejo, nombreNuevo] of renombresLegado) {
+            try {
+              await queryAsync('UPDATE permisos SET nombre_permiso = ? WHERE nombre_permiso = ?', [nombreNuevo, nombreViejo]);
+            } catch (errRen) {
+              if (errRen.code !== 'ER_DUP_ENTRY') console.error(`Error al migrar permiso "${nombreViejo}" a "${nombreNuevo}":`, errRen);
+            }
+          }
+
+          // Inserta cada permiso solo si todavía no existe (por nombre), en vez
+          // de solo sembrar cuando la tabla está vacía. Así, instalaciones que
+          // ya tenían permisos también reciben los módulos nuevos (ej. cuando
+          // se agrega "Estadísticas" más adelante).
+          for (const [nombre, descripcion] of permisosSemilla) {
+            await queryAsync('INSERT IGNORE INTO permisos (nombre_permiso, descripcion) VALUES (?, ?)', [nombre, descripcion]);
+          }
+
+          const filasPermisos = await queryAsync('SELECT id, nombre_permiso FROM permisos');
+          const idPorNombre = {};
+          filasPermisos.forEach(f => { idPorNombre[f.nombre_permiso] = f.id; });
+
+          // El rol "administrador" siempre tiene todos los módulos existentes
+          // (incluye los que se agreguen en el futuro).
+          for (const permiso of filasPermisos) {
+            await queryAsync('INSERT IGNORE INTO roles_permisos (nombre_rol, id_permiso) VALUES (?, ?)', ['administrador', permiso.id]);
+          }
+
+          // A cada rol de modulosBasePorRol se le asignan sus módulos por
+          // defecto solo la primera vez (si ya tiene permisos configurados, no
+          // se toca lo que el administrador ya haya definido).
+          for (const [nombreRol, modulos] of Object.entries(modulosBasePorRol)) {
+            const [{ total }] = await queryAsync('SELECT COUNT(*) AS total FROM roles_permisos WHERE nombre_rol = ?', [nombreRol]);
+            if (total > 0) continue;
+            for (const nombreModulo of modulos) {
+              const idPermiso = idPorNombre[nombreModulo];
+              if (!idPermiso) continue;
+              await queryAsync('INSERT IGNORE INTO roles_permisos (nombre_rol, id_permiso) VALUES (?, ?)', [nombreRol, idPermiso]);
+            }
+          }
+        } catch (errInit) {
+          console.error('Error al inicializar permisos y asignaciones base:', errInit);
+        }
+      })();
     });
 
     const createBitacoraSql = `
@@ -318,6 +391,27 @@ function registrarBitacora(req, accion, detalle) {
       if (err) console.error('Error al registrar en bitácora:', err);
     }
   );
+}
+
+function ensureUsuariosRolFlexible() {
+  db.query('SHOW COLUMNS FROM usuarios LIKE ?', ['rol'], (err, results) => {
+    if (err) {
+      console.error('Error al verificar columna rol en usuarios:', err);
+      return;
+    }
+    if (results.length === 0) return;
+
+    const tipoColumna = String(results[0].Type || '').toLowerCase();
+    if (!tipoColumna.startsWith('enum')) return; // ya acepta cualquier valor
+
+    db.query('ALTER TABLE usuarios MODIFY COLUMN rol VARCHAR(50) NULL', (errAlter) => {
+      if (errAlter) {
+        console.error('Error al flexibilizar columna rol en usuarios:', errAlter);
+      } else {
+        console.log('Columna rol en usuarios convertida de ENUM a VARCHAR(50): ya acepta roles nuevos creados en Gestión de Roles');
+      }
+    });
+  });
 }
 
 function ensureUsuariosColumn(columnName, alterSql) {
@@ -850,6 +944,44 @@ app.put('/perfil', verificarRol(), (req, res) => {
   });
 });
 
+// Módulos (permisos) habilitados para el rol del usuario que inició sesión.
+// Pensado para roles nuevos creados en Gestión de Roles (ej. "evaluacion"):
+// el front usa esta lista para dibujar solo los botones/módulos del menú que
+// correspondan a los permisos marcados para ese rol, sin necesitar un archivo
+// de interfaz aparte por cada rol nuevo (como si fuera una vista tipo
+// cuidador, pero armada dinámicamente según los permisos).
+// No requiere el permiso "Permisos": cualquier sesión válida puede consultar
+// sus propios módulos habilitados.
+app.get('/mis-permisos', verificarRol(), (req, res) => {
+  const userRol = req.user.rol;
+
+  // El administrador siempre ve todos los módulos existentes.
+  if (userRol === 'administrador') {
+    return db.query('SELECT nombre_permiso FROM permisos ORDER BY nombre_permiso ASC', (err, rows) => {
+      if (err) {
+        console.error('Error al obtener módulos del administrador:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al obtener tus módulos habilitados' });
+      }
+      res.json({ ok: true, rol: userRol, modulos: rows.map(r => r.nombre_permiso) });
+    });
+  }
+
+  db.query(
+    `SELECT p.nombre_permiso FROM roles_permisos rp
+     INNER JOIN permisos p ON p.id = rp.id_permiso
+     WHERE rp.nombre_rol = ?
+     ORDER BY p.nombre_permiso ASC`,
+    [userRol],
+    (err, rows) => {
+      if (err) {
+        console.error('Error al obtener módulos habilitados:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al obtener tus módulos habilitados' });
+      }
+      res.json({ ok: true, rol: userRol, modulos: rows.map(r => r.nombre_permiso) });
+    }
+  );
+});
+
 // ============================================
 // MIDDLEWARE DE VERIFICACIÓN DE ROLES
 // ============================================
@@ -917,6 +1049,83 @@ function verificarRol(rolesPermitidos) {
   };
 }
 
+/**
+ * Middleware para verificar si el rol del usuario tiene un permiso concreto
+ * asignado en Gestión de Usuarios (Seguridad > Permisos). El nombre del
+ * permiso es igual al nombre del módulo (ej. "Usuarios", "Roles").
+ * El rol "administrador" siempre pasa, para que nunca pueda quedar bloqueado
+ * de su propio panel si alguien le quita el permiso por error.
+ * @param {string} nombrePermiso
+ */
+function verificarPermiso(nombrePermiso) {
+  return (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ ok: false, mensaje: 'Token no proporcionado' });
+    }
+
+    const session = authTokens[token];
+
+    if (!session) {
+      return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
+    }
+
+    if (Date.now() > session.expires) {
+      delete authTokens[token];
+      return res.status(401).json({ ok: false, mensaje: 'Sesión expirada' });
+    }
+
+    db.query('SELECT rol FROM usuarios WHERE id = ?', [session.userId], (err, results) => {
+      if (err) {
+        console.error('Error al verificar permiso:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al verificar permisos' });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
+      }
+
+      const userRol = results[0].rol;
+
+      req.user = {
+        id: session.userId,
+        email: session.email,
+        rol: userRol
+      };
+
+      if (userRol === 'administrador') {
+        return next();
+      }
+
+      db.query(
+        `SELECT rp.id FROM roles_permisos rp
+         INNER JOIN permisos p ON p.id = rp.id_permiso
+         WHERE rp.nombre_rol = ? AND p.nombre_permiso = ?
+         LIMIT 1`,
+        [userRol, nombrePermiso],
+        (err2, filas) => {
+          if (err2) {
+            console.error('Error al verificar permiso:', err2);
+            return res.status(500).json({ ok: false, mensaje: 'Error al verificar permisos' });
+          }
+
+          if (filas.length === 0) {
+            return res.status(403).json({
+              ok: false,
+              mensaje: 'Acceso denegado. Tu rol no tiene el permiso requerido.',
+              permisoRequerido: nombrePermiso,
+              rolActual: userRol
+            });
+          }
+
+          next();
+        }
+      );
+    });
+  };
+}
 
 
 
@@ -979,7 +1188,7 @@ app.post("/registrar", (req, res) => {
 
 
 // Registro de usuario con rol - Solo administrador
-app.post("/registraradm", verificarRol(['administrador']), async (req, res) => {
+app.post("/registraradm", verificarPermiso('Usuarios'), async (req, res) => {
 
   const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
   const correoNormalizado = String(email || '').trim().toLowerCase();
@@ -1028,7 +1237,7 @@ db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashe
 
 // ---------- DOMINIOS DE CORREO PERMITIDOS ----------
 
-app.get('/dominios-permitidos', verificarRol(['administrador']), (req, res) => {
+app.get('/dominios-permitidos', verificarPermiso('Dominios de Correo'), (req, res) => {
   db.query('SELECT * FROM dominios_correo_permitidos ORDER BY id DESC', (err, rows) => {
     if (err) {
       console.error('Error al obtener dominios permitidos:', err);
@@ -1051,7 +1260,7 @@ app.get('/dominios-permitidos-publico', (req, res) => {
   });
 });
 
-app.post('/dominios-permitidos', verificarRol(['administrador']), (req, res) => {
+app.post('/dominios-permitidos', verificarPermiso('Dominios de Correo'), (req, res) => {
   const dominio = String(req.body.dominio || '').trim().toLowerCase();
 
   if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/.test(dominio)) {
@@ -1072,7 +1281,7 @@ app.post('/dominios-permitidos', verificarRol(['administrador']), (req, res) => 
   });
 });
 
-app.put('/dominios-permitidos/:id', verificarRol(['administrador']), (req, res) => {
+app.put('/dominios-permitidos/:id', verificarPermiso('Dominios de Correo'), (req, res) => {
   const { id } = req.params;
   const activo = req.body.activo ? 1 : 0;
   let dominio = req.body.dominio !== undefined ? String(req.body.dominio || '').trim().toLowerCase() : null;
@@ -1103,7 +1312,7 @@ app.put('/dominios-permitidos/:id', verificarRol(['administrador']), (req, res) 
   });
 });
 
-app.delete('/dominios-permitidos/:id', verificarRol(['administrador']), (req, res) => {
+app.delete('/dominios-permitidos/:id', verificarPermiso('Dominios de Correo'), (req, res) => {
   db.query('DELETE FROM dominios_correo_permitidos WHERE id = ?', [req.params.id], (err, result) => {
     if (err) {
       console.error('Error al eliminar dominio permitido:', err);
@@ -1120,7 +1329,7 @@ app.delete('/dominios-permitidos/:id', verificarRol(['administrador']), (req, re
 
 // ---------- MANTENIMIENTO DE ROLES ----------
 
-app.get('/roles', verificarRol(['administrador']), (req, res) => {
+app.get('/roles', verificarPermiso('Roles'), (req, res) => {
   db.query('SELECT * FROM roles ORDER BY id DESC', (err, rows) => {
     if (err) {
       console.error('Error al obtener roles:', err);
@@ -1132,7 +1341,7 @@ app.get('/roles', verificarRol(['administrador']), (req, res) => {
 
 // Lista simple de roles activos, usada por los formularios (ej. select de
 // "Nuevo Usuario") para no tener nombres de rol fijos en el HTML.
-app.get('/roles-activos', verificarRol(['administrador']), (req, res) => {
+app.get('/roles-activos', verificarPermiso('Usuarios'), (req, res) => {
   db.query('SELECT nombre_rol, descripcion FROM roles WHERE activo = 1 ORDER BY nombre_rol ASC', (err, rows) => {
     if (err) {
       console.error('Error al obtener roles activos:', err);
@@ -1142,7 +1351,7 @@ app.get('/roles-activos', verificarRol(['administrador']), (req, res) => {
   });
 });
 
-app.post('/roles', verificarRol(['administrador']), (req, res) => {
+app.post('/roles', verificarPermiso('Roles'), (req, res) => {
   const nombre_rol = String(req.body.nombre_rol || '').trim().toLowerCase();
   const descripcion = req.body.descripcion ? String(req.body.descripcion).trim() : null;
 
@@ -1164,7 +1373,7 @@ app.post('/roles', verificarRol(['administrador']), (req, res) => {
   });
 });
 
-app.put('/roles/:id', verificarRol(['administrador']), (req, res) => {
+app.put('/roles/:id', verificarPermiso('Roles'), (req, res) => {
   const { id } = req.params;
   const descripcion = req.body.descripcion !== undefined ? String(req.body.descripcion || '').trim() : null;
   const activo = req.body.activo ? 1 : 0;
@@ -1183,7 +1392,7 @@ app.put('/roles/:id', verificarRol(['administrador']), (req, res) => {
   });
 });
 
-app.delete('/roles/:id', verificarRol(['administrador']), (req, res) => {
+app.delete('/roles/:id', verificarPermiso('Roles'), (req, res) => {
   const { id } = req.params;
 
   db.query('SELECT nombre_rol FROM roles WHERE id = ?', [id], (err, rolRows) => {
@@ -1220,7 +1429,7 @@ app.delete('/roles/:id', verificarRol(['administrador']), (req, res) => {
 
 // ---------- PARÁMETROS GENERALES DEL SISTEMA ----------
 
-app.get('/parametros', verificarRol(['administrador']), (req, res) => {
+app.get('/parametros', verificarPermiso('Parámetros del Sistema'), (req, res) => {
   db.query('SELECT * FROM parametros_sistema ORDER BY clave ASC', (err, rows) => {
     if (err) {
       console.error('Error al obtener parámetros del sistema:', err);
@@ -1248,7 +1457,7 @@ app.get('/parametros-publicos', (req, res) => {
   );
 });
 
-app.put('/parametros/:id', verificarRol(['administrador']), (req, res) => {
+app.put('/parametros/:id', verificarPermiso('Parámetros del Sistema'), (req, res) => {
   const { id } = req.params;
   const valor = req.body.valor;
 
@@ -1275,7 +1484,7 @@ app.put('/parametros/:id', verificarRol(['administrador']), (req, res) => {
 
 // ---------- MANTENIMIENTO DE PERMISOS ----------
 
-app.get('/permisos', verificarRol(['administrador']), (req, res) => {
+app.get('/permisos', verificarPermiso('Permisos'), (req, res) => {
   db.query('SELECT * FROM permisos ORDER BY nombre_permiso ASC', (err, rows) => {
     if (err) {
       console.error('Error al obtener permisos:', err);
@@ -1285,12 +1494,15 @@ app.get('/permisos', verificarRol(['administrador']), (req, res) => {
   });
 });
 
-app.post('/permisos', verificarRol(['administrador']), (req, res) => {
-  const nombre_permiso = String(req.body.nombre_permiso || '').trim().toLowerCase();
+app.post('/permisos', verificarPermiso('Permisos'), (req, res) => {
+  const nombre_permiso = String(req.body.nombre_permiso || '').trim();
   const descripcion = req.body.descripcion ? String(req.body.descripcion).trim() : null;
 
-  if (!/^[a-z][a-z0-9_.]{2,99}$/.test(nombre_permiso)) {
-    return res.status(400).json({ ok: false, mensaje: 'Nombre de permiso inválido. Use minúsculas, números, punto y guion bajo, ej: usuarios.crear' });
+  // El nombre del permiso debe verse igual al nombre del módulo del sistema
+  // que desbloquea (ej. "Usuarios", "Citas Médicas"), por eso se permiten
+  // letras (con tildes/ñ), números, espacios y guiones.
+  if (!/^[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 _-]{2,99}$/.test(nombre_permiso)) {
+    return res.status(400).json({ ok: false, mensaje: 'Nombre de permiso inválido. Use el mismo nombre del módulo del sistema, ej: Citas Médicas' });
   }
 
   db.query('INSERT INTO permisos (nombre_permiso, descripcion) VALUES (?, ?)', [nombre_permiso, descripcion], (err) => {
@@ -1306,7 +1518,7 @@ app.post('/permisos', verificarRol(['administrador']), (req, res) => {
   });
 });
 
-app.delete('/permisos/:id', verificarRol(['administrador']), (req, res) => {
+app.delete('/permisos/:id', verificarPermiso('Permisos'), (req, res) => {
   db.query('DELETE FROM permisos WHERE id = ?', [req.params.id], (err, result) => {
     if (err) {
       console.error('Error al eliminar permiso:', err);
@@ -1321,7 +1533,7 @@ app.delete('/permisos/:id', verificarRol(['administrador']), (req, res) => {
 });
 
 // Permisos asignados a un rol específico (para pintar los checkboxes)
-app.get('/roles/:nombreRol/permisos', verificarRol(['administrador']), (req, res) => {
+app.get('/roles/:nombreRol/permisos', verificarPermiso('Permisos'), (req, res) => {
   const { nombreRol } = req.params;
   db.query(
     `SELECT p.id, p.nombre_permiso, p.descripcion,
@@ -1341,7 +1553,7 @@ app.get('/roles/:nombreRol/permisos', verificarRol(['administrador']), (req, res
 });
 
 // Reemplaza por completo la lista de permisos de un rol (checkboxes -> guardar)
-app.put('/roles/:nombreRol/permisos', verificarRol(['administrador']), (req, res) => {
+app.put('/roles/:nombreRol/permisos', verificarPermiso('Permisos'), (req, res) => {
   const { nombreRol } = req.params;
   const idsPermisos = Array.isArray(req.body.idsPermisos) ? req.body.idsPermisos.map(Number).filter(Number.isFinite) : [];
 
@@ -1368,7 +1580,7 @@ app.put('/roles/:nombreRol/permisos', verificarRol(['administrador']), (req, res
 
 // ---------- BITÁCORA (AUDITORÍA) ----------
 
-app.get('/bitacora', verificarRol(['administrador']), (req, res) => {
+app.get('/bitacora', verificarPermiso('Bitácora'), (req, res) => {
   const limite = Math.min(Number(req.query.limite) || 200, 500);
   db.query('SELECT * FROM bitacora ORDER BY id DESC LIMIT ?', [limite], (err, rows) => {
     if (err) {
@@ -1387,7 +1599,7 @@ app.get('/bitacora', verificarRol(['administrador']), (req, res) => {
 
 const TABLAS_BACKUP = ['roles', 'permisos', 'roles_permisos', 'dominios_correo_permitidos', 'parametros_sistema'];
 
-app.get('/backup', verificarRol(['administrador']), async (req, res) => {
+app.get('/backup', verificarPermiso('Backup y Restore'), async (req, res) => {
   try {
     const backup = { generado_en: new Date().toISOString(), tablas: {} };
 
@@ -1431,7 +1643,7 @@ function normalizarValorRestore(valor) {
   return valor;
 }
 
-app.post('/restore', verificarRol(['administrador']), (req, res) => {
+app.post('/restore', verificarPermiso('Backup y Restore'), (req, res) => {
   const backup = req.body;
   if (!backup || typeof backup.tablas !== 'object') {
     return res.status(400).json({ ok: false, mensaje: 'Archivo de backup inválido' });
@@ -2372,7 +2584,7 @@ app.delete('/recetas/:id', (req, res) => {
 // ============================================
 
 // Obtener todos los usuarios - Solo administrador
-app.get('/usuarios', verificarRol(['administrador']), (req, res) => {
+app.get('/usuarios', verificarPermiso('Usuarios'), (req, res) => {
   const sql = 'SELECT * FROM usuarios ORDER BY id DESC';
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar usuarios' });
@@ -2382,7 +2594,7 @@ app.get('/usuarios', verificarRol(['administrador']), (req, res) => {
 
 
 // Actualizar usuario - Solo administrador
-app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
+app.put('/usuarios/:id', verificarPermiso('Usuarios'), async (req, res) => {
   const { id } = req.params;
   const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
   const correoNormalizado = String(email || '').trim().toLowerCase();
@@ -2595,7 +2807,7 @@ app.put('/mi-perfil', verificarRol(['usuario']), (req, res) => {
 });
 
 // Eliminar usuario - Solo administrador
-app.delete('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
+app.delete('/usuarios/:id', verificarPermiso('Usuarios'), (req, res) => {
   const { id } = req.params;
   
   // Evitar que un administrador se elimine a sí mismo

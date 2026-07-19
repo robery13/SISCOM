@@ -482,8 +482,16 @@ function redirigirPorRol(rol) {
   if (rolNormalizado === 'usuario') {
     window.location.href = "../Management-Frontend/main_paciente.html";
   } else if (rolNormalizado === 'empleado') {
+    // El cuidador usa su propia pantalla simplificada; dentro de ella, el
+    // menú también se arma según los permisos asignados a "empleado".
     window.location.href = "../Management-Backend/cuidador_backend.html";
   } else if (rolNormalizado === 'administrador') {
+    window.location.href = "../Management-Backend/Admin_Backend.html";
+  } else if (rolNormalizado) {
+    // Cualquier rol nuevo creado en Gestión de Roles usa el panel completo
+    // del sistema: ahí están todos los módulos (Usuarios, Roles, Permisos,
+    // Dominios de Correo, Inventario, etc.) y solo se muestran los que el
+    // administrador le haya asignado como permiso a ese rol.
     window.location.href = "../Management-Backend/Admin_Backend.html";
   } else {
     return false;
@@ -570,7 +578,9 @@ function redirigirPorRolGoogle(usuario) {
   } else if (rol === 'administrador') {
     window.location.href = "../Management-Backend/Admin_Backend.html";
   } else {
-    showToast("Rol de usuario no reconocido.", "error");
+    // Rol nuevo creado en Gestión de Roles: usa el panel completo,
+    // filtrado según sus permisos.
+    window.location.href = "../Management-Backend/Admin_Backend.html";
   }
 }
 
