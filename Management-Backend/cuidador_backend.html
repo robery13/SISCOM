@@ -192,13 +192,13 @@
             <i class="bi bi-chevron-down accordion-chevron"></i>
           </button>
           <div class="nav-accordion-content">
-            <button class="nav-btn active" data-section="medicamentos"><i class="bi bi-capsule-pill"></i> <span>Administraci&oacute;n</span></button>
-            <button class="nav-btn" data-section="Ficha"><i class="bi bi-clipboard2-check"></i> <span>Registro de Tomas</span></button>
-            <button class="nav-btn" data-section="historial-tomas"><i class="bi bi-clock-history"></i> <span>Historial de Tomas</span></button>
+            <button class="nav-btn active" data-section="medicamentos" data-permiso="Medicamentos"><i class="bi bi-capsule-pill"></i> <span>Administraci&oacute;n</span></button>
+            <button class="nav-btn" data-section="Ficha" data-permiso="Registro de Tomas"><i class="bi bi-clipboard2-check"></i> <span>Registro de Tomas</span></button>
+            <button class="nav-btn" data-section="historial-tomas" data-permiso="Historial de Tomas"><i class="bi bi-clock-history"></i> <span>Historial de Tomas</span></button>
           </div>
         </div>
-        <button class="nav-btn" data-section="recetas"><i class="bi bi-journal-text"></i> <span>Citas M&eacute;dicas</span></button>
-        <button class="nav-btn" data-section="estadisticas"><i class="bi bi-bar-chart-line"></i> <span>Estad&iacute;sticas</span></button>
+        <button class="nav-btn" data-section="recetas" data-permiso="Citas Médicas"><i class="bi bi-journal-text"></i> <span>Citas M&eacute;dicas</span></button>
+        <button class="nav-btn" data-section="estadisticas" data-permiso="Estadísticas"><i class="bi bi-bar-chart-line"></i> <span>Estad&iacute;sticas</span></button>
         <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesi&oacute;n</span></button>
       </nav>
     </aside>
@@ -1116,6 +1116,55 @@
 
   <!-- Script para navegación -->
   <script>
+    // Antes de armar la navegación, se consulta qué módulos tiene habilitados
+    // el rol de quien inició sesión (Seguridad > Permisos) y se ocultan del
+    // menú los botones cuyo módulo no esté permitido. Así el menú del
+    // cuidador (y el de cualquier rol nuevo que use esta misma pantalla) se
+    // arma según los permisos reales, no según un rol fijo en el código.
+    async function aplicarPermisosMenuCuidador() {
+      const token = obtenerTokenCuidador();
+      if (!token) return; // sin sesión válida, se deja el menú como está
+
+      try {
+        const respuesta = await fetch('https://siscom-4lbe.onrender.com/mis-permisos', {
+          headers: obtenerHeadersCuidador()
+        });
+        const datos = await respuesta.json();
+        if (!respuesta.ok || !datos.ok) return;
+
+        const modulosPermitidos = new Set(datos.modulos || []);
+
+        document.querySelectorAll('.nav-btn[data-permiso]').forEach(btn => {
+          if (!modulosPermitidos.has(btn.getAttribute('data-permiso'))) {
+            btn.style.display = 'none';
+          }
+        });
+
+        // Si un accordion se queda sin ningún botón visible, se oculta entero.
+        document.querySelectorAll('.nav-accordion').forEach(accordion => {
+          const contenido = accordion.querySelector('.nav-accordion-content');
+          if (!contenido) return;
+          const tieneVisible = Array.from(contenido.querySelectorAll('.nav-btn[data-permiso]'))
+            .some(btn => btn.style.display !== 'none');
+          accordion.style.display = tieneVisible ? '' : 'none';
+        });
+
+        // Si la sección activa quedó oculta (o restaurada de una sesión
+        // anterior), se cambia a la primera sección que sí esté permitida.
+        const btnActivo = document.querySelector('.nav-btn.active[data-section]');
+        const activoOculto = btnActivo && btnActivo.style.display === 'none';
+        const hayActivoVisible = document.querySelector('.nav-btn[data-section].active') && !activoOculto;
+
+        if (!btnActivo || activoOculto || !hayActivoVisible) {
+          const primerVisible = Array.from(document.querySelectorAll('.nav-btn[data-section]'))
+            .find(btn => btn.style.display !== 'none');
+          if (primerVisible) primerVisible.click();
+        }
+      } catch (error) {
+        console.error('No se pudieron cargar los permisos del menú:', error);
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const navBtns = document.querySelectorAll('.nav-btn[data-section]');
       const sections = document.querySelectorAll('.section');
@@ -1212,6 +1261,8 @@
       if (btnActivoActual) {
         actualizarAccordionFarmacia(btnActivoActual.getAttribute('data-section'));
       }
+
+      aplicarPermisosMenuCuidador();
     });
   </script>
 

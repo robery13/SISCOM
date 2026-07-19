@@ -36,10 +36,14 @@
         }
       }
       
-      // Roles permitidos para acceder a Admin_Backend
-      const rolesPermitidos = ['administrador', 'empleado'];
-      
-      if (!rolesPermitidos.includes(rol)) {
+      // Roles permitidos para acceder a Admin_Backend: administrador, empleado,
+      // y cualquier rol nuevo creado en Gestión de Roles. El paciente ("usuario")
+      // sigue usando su propia pantalla aparte. Qué ve cada quien dentro de este
+      // panel ya no depende de este candado, sino de los permisos de su rol
+      // (ver "Filtrar menús según permisos" más abajo).
+      const rolesBloqueados = ['usuario', ''];
+
+      if (rolesBloqueados.includes(rol)) {
         // Mostrar mensaje de acceso denegado
         document.body.innerHTML = `
           <div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8f9fa; font-family: Arial, sans-serif;">
@@ -51,7 +55,7 @@
               </p>
               <p style="color: #6c757d; font-size: 14px; margin-bottom: 30px;">
                 Tu rol actual: <strong>${rol || 'Sin rol'}</strong><br>
-                Roles requeridos: Administrador o Empleado
+                Roles requeridos: cualquier rol excepto Paciente
               </p>
               <button onclick="window.location.href='../index.html'" style="padding: 12px 30px; background: #0d6efd; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
                 Volver al Inicio
@@ -96,7 +100,7 @@
       <nav class="nav-menu" id="navMenu">
         
         <button class="nav-btn active" data-section="dashboard" data-role="administrador,empleado"><i class="bi bi-speedometer2"></i> <span>Dashboard</span></button>
-        <button class="nav-btn" data-section="usuarios" data-role="administrador"><i class="bi bi-shield-lock"></i> <span>Gesti&oacute;n de Usuarios</span></button>
+        <button class="nav-btn" data-section="usuarios" data-role="administrador" data-permiso-any="Usuarios,Roles,Permisos,Bitácora,Backup y Restore,Dominios de Correo,Parámetros del Sistema"><i class="bi bi-shield-lock"></i> <span>Seguridad</span></button>
         <button class="nav-btn" data-section="asignacion-pacientes" data-role="administrador,empleado"><i class="bi bi-diagram-3"></i> <span>Asignaci&oacute;n de Pacientes</span></button>
         <div class="nav-group nav-accordion" id="medicamentosAccordionAdmin">
           <button class="nav-btn nav-accordion-toggle" type="button" aria-expanded="false">
@@ -105,8 +109,8 @@
             <i class="bi bi-chevron-down accordion-chevron"></i>
           </button>
           <div class="nav-accordion-content">
-            <button class="nav-btn" data-section="medicamentos" data-role="administrador,empleado"><i class="bi bi-capsule-pill"></i> <span>Administraci&oacute;n</span></button>
-            <button class="nav-btn" data-section="Ficha" data-role="administrador,empleado"><i class="bi bi-clipboard2-check"></i> <span>Registro de Tomas</span></button>
+            <button class="nav-btn" data-section="medicamentos" data-role="administrador,empleado" data-permiso="Medicamentos"><i class="bi bi-capsule-pill"></i> <span>Administraci&oacute;n</span></button>
+            <button class="nav-btn" data-section="Ficha" data-role="administrador,empleado" data-permiso="Registro de Tomas"><i class="bi bi-clipboard2-check"></i> <span>Registro de Tomas</span></button>
           </div>
         </div>
         <div class="nav-group nav-accordion" id="farmaciaAccordionAdmin">
@@ -116,12 +120,12 @@
             <i class="bi bi-chevron-down accordion-chevron"></i>
           </button>
           <div class="nav-accordion-content">
-            <button class="nav-btn" data-section="inventario" data-role="administrador,empleado"><i class="bi bi-box"></i> <span>Inventario</span></button>
-            <button class="nav-btn" data-section="pedidos" data-role="administrador,empleado"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
+            <button class="nav-btn" data-section="inventario" data-role="administrador,empleado" data-permiso="Inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
+            <button class="nav-btn" data-section="pedidos" data-role="administrador,empleado" data-permiso="Inventario"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
           </div>
         </div>
-        <button class="nav-btn" data-section="recetas" data-role="administrador,empleado"><i class="bi bi-journal-text"></i> <span>Citas M&eacute;dicas</span></button>
-        <button class="nav-btn" data-section="estadisticas" data-role="administrador,empleado"><i class="bi bi-bar-chart-line"></i> <span>Estad&iacute;sticas</span></button>
+        <button class="nav-btn" data-section="recetas" data-role="administrador,empleado" data-permiso="Citas Médicas"><i class="bi bi-journal-text"></i> <span>Citas M&eacute;dicas</span></button>
+        <button class="nav-btn" data-section="estadisticas" data-role="administrador,empleado" data-permiso="Estadísticas"><i class="bi bi-bar-chart-line"></i> <span>Estad&iacute;sticas</span></button>
         <button class="nav-btn" id="cerrarSesionBtn" data-role="administrador,empleado"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesi&oacute;n</span></button>
       </nav>
 
@@ -198,7 +202,7 @@
           </article>
 
           <!-- KPI 4: Usuarios totales (acceso directo a Gestión de Usuarios, solo admin) -->
-          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiUsuariosTotal" data-section="usuarios" tabindex="0" role="button" aria-label="Ir a Gestión de Usuarios">
+          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiUsuariosTotal" data-section="usuarios" tabindex="0" role="button" aria-label="Ir a Seguridad">
             <div class="kpi-icon gradient-primary">
               <i class="bi bi-people-fill"></i>
             </div>
@@ -1082,37 +1086,37 @@
         </div>
 
         <ul class="nav nav-tabs mb-4" id="usuariosTabs" role="tablist">
-          <li class="nav-item" role="presentation">
+          <li class="nav-item" role="presentation" data-permiso="Usuarios">
             <button class="nav-link active" id="tab-usuarios-registrados" data-bs-toggle="tab" data-bs-target="#panel-usuarios-registrados" type="button" role="tab" aria-controls="panel-usuarios-registrados" aria-selected="true">
               <i class="bi bi-list-ul me-2"></i>Usuarios Registrados
             </button>
           </li>
-          <li class="nav-item" role="presentation">
+          <li class="nav-item" role="presentation" data-permiso="Roles">
             <button class="nav-link" id="tab-roles" data-bs-toggle="tab" data-bs-target="#panel-roles" type="button" role="tab" aria-controls="panel-roles" aria-selected="false">
               <i class="bi bi-shield-lock me-2"></i>Roles
             </button>
           </li>
-          <li class="nav-item" role="presentation">
+          <li class="nav-item" role="presentation" data-permiso="Permisos">
             <button class="nav-link" id="tab-permisos" data-bs-toggle="tab" data-bs-target="#panel-permisos" type="button" role="tab" aria-controls="panel-permisos" aria-selected="false">
               <i class="bi bi-key me-2"></i>Permisos
             </button>
           </li>
-          <li class="nav-item" role="presentation">
+          <li class="nav-item" role="presentation" data-permiso="Bitácora">
             <button class="nav-link" id="tab-bitacora" data-bs-toggle="tab" data-bs-target="#panel-bitacora" type="button" role="tab" aria-controls="panel-bitacora" aria-selected="false">
               <i class="bi bi-journal-text me-2"></i>Bitácora
             </button>
           </li>
-          <li class="nav-item" role="presentation">
+          <li class="nav-item" role="presentation" data-permiso="Backup y Restore">
             <button class="nav-link" id="tab-backup" data-bs-toggle="tab" data-bs-target="#panel-backup" type="button" role="tab" aria-controls="panel-backup" aria-selected="false">
               <i class="bi bi-hdd-stack me-2"></i>Backup y Restore
             </button>
           </li>
-          <li class="nav-item" role="presentation">
+          <li class="nav-item" role="presentation" data-permiso="Dominios de Correo">
             <button class="nav-link" id="tab-dominios-permitidos" data-bs-toggle="tab" data-bs-target="#panel-dominios-permitidos" type="button" role="tab" aria-controls="panel-dominios-permitidos" aria-selected="false">
               <i class="bi bi-envelope-check me-2"></i>Dominios de Correo
             </button>
           </li>
-          <li class="nav-item" role="presentation">
+          <li class="nav-item" role="presentation" data-permiso="Parámetros del Sistema">
             <button class="nav-link" id="tab-parametros" data-bs-toggle="tab" data-bs-target="#panel-parametros" type="button" role="tab" aria-controls="panel-parametros" aria-selected="false">
               <i class="bi bi-sliders me-2"></i>Parámetros del Sistema
             </button>
@@ -1791,7 +1795,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
 
-      // Filtrar menús según el rol del usuario
+      // Filtrar menús según el rol del usuario (comportamiento de siempre,
+      // solo para administrador y empleado, que siguen usando data-role).
       function filtrarMenusPorRol() {
         navBtns.forEach(btn => {
           const allowedRoles = btn.getAttribute('data-role');
@@ -1806,8 +1811,152 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
-      // Ejecutar filtrado de menús
-      filtrarMenusPorRol();
+      // Oculta por completo un grupo de acordeón (ej. "Gestión de Medicamentos",
+      // "Farmacia") cuando ninguno de sus botones internos quedó visible, para
+      // no dejar un encabezado sin nada adentro.
+      function ocultarAccordionsVacios() {
+        navAccordions.forEach(accordion => {
+          const contenido = accordion.querySelector('.nav-accordion-content');
+          if (!contenido) return;
+          const tieneVisible = Array.from(contenido.querySelectorAll('.nav-btn[data-section]'))
+            .some(btn => btn.style.display !== 'none');
+          accordion.style.display = tieneVisible ? '' : 'none';
+        });
+      }
+
+      // Para cualquier rol nuevo creado en Gestión de Roles (distinto de
+      // administrador/empleado), el menú se arma SOLO según los permisos
+      // reales asignados a ese rol, sin depender del data-role fijo de cada
+      // botón. El Dashboard siempre se muestra (todo rol debe poder verlo);
+      // el resto de módulos solo aparece si el permiso con ese mismo nombre
+      // fue marcado para el rol en Seguridad > Permisos.
+      // Muestra un aviso bien visible (no un console.error que nadie ve) si
+      // no se pudieron cargar los permisos del menú, para saber de inmediato
+      // si es un problema de conexión con el servidor y no un bug silencioso.
+      function mostrarAvisoPermisos(mensaje) {
+        let banner = document.getElementById('avisoPermisosMenu');
+        if (!banner) {
+          banner = document.createElement('div');
+          banner.id = 'avisoPermisosMenu';
+          banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#dc3545;color:#fff;padding:14px 20px;font-weight:600;text-align:center;';
+          document.body.prepend(banner);
+        }
+        banner.textContent = mensaje;
+      }
+
+      async function filtrarMenusPorPermisos() {
+        let token = null;
+        const usuarioData = localStorage.getItem('usuario');
+        if (usuarioData) {
+          try {
+            const usuario = JSON.parse(usuarioData);
+            token = usuario.token || usuario.accessToken || usuario.authToken;
+          } catch (e) {
+            console.error('Error al parsear usuario:', e);
+          }
+        }
+        if (!token) {
+          token = localStorage.getItem('auth_token') ||
+                  localStorage.getItem('token') ||
+                  localStorage.getItem('accessToken') ||
+                  localStorage.getItem('authToken') ||
+                  sessionStorage.getItem('auth_token') ||
+                  sessionStorage.getItem('token');
+        }
+
+        if (!token) {
+          mostrarAvisoPermisos('No se encontró tu sesión para cargar los permisos del menú. Vuelve a iniciar sesión.');
+          console.error('No se encontró token de sesión para cargar los permisos del menú.');
+          return;
+        }
+
+        let modulosPermitidos;
+        try {
+          const respuesta = await fetch('https://siscom-4lbe.onrender.com/mis-permisos', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const datos = await respuesta.json().catch(() => null);
+          if (!respuesta.ok || !datos || !datos.ok) {
+            mostrarAvisoPermisos(
+              `No se pudieron cargar tus permisos (HTTP ${respuesta.status}). ` +
+              `El servidor respondió: "${(datos && datos.mensaje) || 'sin detalle'}". ` +
+              `Verifica que el servidor en línea tenga la última versión de server.js.`
+            );
+            return;
+          }
+          modulosPermitidos = new Set(datos.modulos || []);
+          const bannerPrevio = document.getElementById('avisoPermisosMenu');
+          if (bannerPrevio) bannerPrevio.remove();
+        } catch (error) {
+          mostrarAvisoPermisos(
+            `No se pudo conectar con el servidor para cargar tus permisos: ${error.message}. ` +
+            `Revisa que https://siscom-4lbe.onrender.com esté activo y accesible.`
+          );
+          return;
+        }
+
+        navBtns.forEach(btn => {
+          const sectionId = btn.getAttribute('data-section');
+          if (sectionId === 'dashboard') {
+            btn.style.display = ''; // el Dashboard se ve siempre, para cualquier rol
+          } else if (btn.hasAttribute('data-permiso')) {
+            btn.style.display = modulosPermitidos.has(btn.getAttribute('data-permiso')) ? '' : 'none';
+          } else if (btn.hasAttribute('data-permiso-any')) {
+            // Botón "paraguas" (ej. Seguridad): se muestra si el rol tiene
+            // AL MENOS uno de los módulos internos de esa sección.
+            const opciones = btn.getAttribute('data-permiso-any').split(',');
+            btn.style.display = opciones.some(op => modulosPermitidos.has(op)) ? '' : 'none';
+          } else {
+            // Sección sin permiso equivalente definido todavía (ej. Asignación
+            // de Pacientes): oculta por defecto para roles nuevos.
+            btn.style.display = 'none';
+          }
+        });
+
+        ocultarAccordionsVacios();
+
+        // Dentro de Seguridad, mostrar solo las pestañas cuyo módulo esté permitido.
+        const pestañasSeguridad = document.querySelectorAll('#usuarios [role="presentation"][data-permiso]');
+        let primeraPestañaVisible = null;
+        pestañasSeguridad.forEach(li => {
+          const permitido = modulosPermitidos.has(li.getAttribute('data-permiso'));
+          li.style.display = permitido ? '' : 'none';
+          if (permitido && !primeraPestañaVisible) primeraPestañaVisible = li;
+        });
+
+        // Si la pestaña activa de Seguridad quedó oculta, activar la primera visible.
+        const tabActivo = document.querySelector('#usuarios .nav-link.active');
+        const liActivo = tabActivo ? tabActivo.closest('[role="presentation"]') : null;
+        if (primeraPestañaVisible && (!liActivo || liActivo.style.display === 'none')) {
+          const botonPrimeraPestaña = primeraPestañaVisible.querySelector('.nav-link');
+          if (botonPrimeraPestaña && window.bootstrap) {
+            new window.bootstrap.Tab(botonPrimeraPestaña).show();
+          }
+        }
+
+        // Si la sección principal activa quedó oculta, saltar a la primera
+        // sección permitida (el Dashboard, como mínimo, siempre calificará).
+        const btnActivoPrincipal = document.querySelector('.nav-btn.active[data-section]');
+        if (!btnActivoPrincipal || btnActivoPrincipal.style.display === 'none') {
+          const primerBtnVisible = Array.from(navBtns).find(b => b.style.display !== 'none');
+          if (primerBtnVisible) primerBtnVisible.click();
+        }
+      }
+
+      // Ejecutar filtrado de menús: administrador y empleado siguen con el
+      // filtro fijo de siempre; cualquier otro rol usa sus permisos reales.
+      if (userRole === 'administrador' || userRole === 'empleado') {
+        filtrarMenusPorRol();
+      } else {
+        // Mientras se resuelve /mis-permisos, se oculta todo menos el
+        // Dashboard, para no mostrar por un instante módulos que luego se
+        // van a ocultar.
+        navBtns.forEach(btn => {
+          btn.style.display = (btn.getAttribute('data-section') === 'dashboard') ? '' : 'none';
+        });
+        ocultarAccordionsVacios();
+        filtrarMenusPorPermisos();
+      }
 
       // Función para guardar sección activa en localStorage
 
@@ -2062,7 +2211,7 @@ document.addEventListener('DOMContentLoaded', () => {
   </script>
 
 
-  <!-- Script para validación de contraseña en Gestión de Usuarios -->
+  <!-- Script para validación de contraseña en Seguridad -->
   <script>
     // Mostrar / ocultar contraseña
     function togglePassword(inputId, iconElement) {
