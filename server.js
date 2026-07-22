@@ -3723,7 +3723,10 @@ app.get('/horarios-usuario/:id_usuario', (req, res) => {
 
 app.get('/usuarios/rol/:rol', (req, res) => {
   const { rol } = req.params;
-  const sql = 'SELECT id, nombres, apellidos FROM usuarios WHERE rol = ?';
+  // No mostrar pacientes (u otros usuarios) dados de "Baja" en los selectores
+  // de medicamentos, historial, citas, etc. Su historial se conserva, pero
+  // ya no deben aparecer como opción activa para nuevas asignaciones.
+  const sql = "SELECT id, nombres, apellidos FROM usuarios WHERE rol = ? AND estado = 'activo'";
   db.query(sql, [rol], (err, results) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar usuarios' });
     res.json(results);
@@ -3830,8 +3833,11 @@ app.post('/asignaciones-cuidador/:cuidadorId', verificarRol(['administrador']), 
 });
 
 app.get('/mis-pacientes', verificarRol(['administrador', 'empleado']), (req, res) => {
+  // No mostrar pacientes dados de "Baja" (estado inactivo): su historial se
+  // conserva, pero ya no deben aparecer en las listas operativas del
+  // cuidador ni del administrador (medicamentos, citas, historial, etc.).
   if (req.user.rol === 'administrador') {
-    const sqlAdmin = "SELECT id, nombres, apellidos, email FROM usuarios WHERE rol = 'usuario' ORDER BY nombres, apellidos";
+    const sqlAdmin = "SELECT id, nombres, apellidos, email FROM usuarios WHERE rol = 'usuario' AND estado = 'activo' ORDER BY nombres, apellidos";
     db.query(sqlAdmin, (err, results) => {
       if (err) return res.status(500).json({ mensaje: 'Error al cargar pacientes' });
       res.json(results);
@@ -3843,7 +3849,7 @@ app.get('/mis-pacientes', verificarRol(['administrador', 'empleado']), (req, res
     SELECT u.id, u.nombres, u.apellidos, u.email
     FROM cuidador_pacientes cp
     INNER JOIN usuarios u ON u.id = cp.paciente_id
-    WHERE cp.cuidador_id = ? AND u.rol = 'usuario'
+    WHERE cp.cuidador_id = ? AND u.rol = 'usuario' AND u.estado = 'activo'
     ORDER BY u.nombres, u.apellidos
   `;
 
@@ -3922,13 +3928,16 @@ function construirResumenSemanal(porcentaje, totalTomados, totalProgramados) {
 // Lista simple de pacientes para el selector de estadísticas
 app.get('/pacientes', async (req, res) => {
   try {
+    // No incluir pacientes dados de "Baja": sus estadísticas históricas
+    // siguen disponibles por id, pero no deben aparecer como opción para
+    // generar nuevos reportes/comparaciones.
     const pacientes = await queryAsync(`
       SELECT 
         u.id AS id_paciente,
         CONCAT(COALESCE(u.nombres, ''), ' ', COALESCE(u.apellidos, '')) AS nombre_completo,
         NULL AS fecha_nacimiento
       FROM usuarios u
-      WHERE u.rol = 'usuario'
+      WHERE u.rol = 'usuario' AND u.estado = 'activo'
       ORDER BY u.nombres, u.apellidos
     `);
 
