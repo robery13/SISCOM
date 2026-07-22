@@ -247,12 +247,25 @@ db.connect(err => {
       // ocultarlo mientras no esté completo. Se agrega este parámetro aparte
       // (no depende del bloque "solo si la tabla está vacía" de arriba) para
       // que también aparezca en instalaciones que ya tenían parámetros.
+      const descripcionRecompensas = 'Activa o desactiva la opción "Recompensas" en el menú del Participante.';
       db.query("SELECT id FROM parametros_sistema WHERE clave = 'mostrar_recompensas'", (errCheck, filas) => {
         if (errCheck) { console.error('Error al verificar parámetro mostrar_recompensas:', errCheck); return; }
-        if (filas.length > 0) return;
+        if (filas.length > 0) {
+          // Ya existía de una instalación previa: se actualiza la descripción
+          // antigua ("0 = oculto, 1 = visible") a la nueva, ahora que el valor
+          // se administra con una casilla de verificación y no con números.
+          db.query(
+            'UPDATE parametros_sistema SET descripcion = ? WHERE clave = ?',
+            [descripcionRecompensas, 'mostrar_recompensas'],
+            (errUpdateDesc) => {
+              if (errUpdateDesc) console.error('Error al actualizar descripción de mostrar_recompensas:', errUpdateDesc);
+            }
+          );
+          return;
+        }
         db.query(
           'INSERT INTO parametros_sistema (clave, valor, descripcion, tipo) VALUES (?, ?, ?, ?)',
-          ['mostrar_recompensas', '0', 'Muestra u oculta el sistema de recompensas en la interfaz del paciente (0 = oculto, 1 = visible)', 'booleano'],
+          ['mostrar_recompensas', '0', descripcionRecompensas, 'booleano'],
           (errInsertRecompensas) => {
             if (errInsertRecompensas) console.error('Error al insertar parámetro mostrar_recompensas:', errInsertRecompensas);
           }
@@ -1560,6 +1573,85 @@ app.put('/parametros/:id', verificarPermiso('Parámetros del Sistema'), (req, re
     }
     registrarBitacora(req, 'parametros.actualizar', `Parámetro id=${id} actualizado a "${valor}"`);
     res.json({ ok: true, mensaje: 'Parámetro actualizado correctamente' });
+  });
+});
+
+// Tipos de valor soportados por la interfaz de administración (ver
+// renderParametros en scriptregistro.js: numero/texto usan un input,
+// booleano usa una casilla de verificación).
+const TIPOS_PARAMETRO_VALIDOS = ['texto', 'numero', 'booleano'];
+
+// Fase B: el Administrador puede crear parámetros nuevos desde la interfaz
+// (Seguridad > Parámetros del Sistema), sin depender de que un desarrollador
+// los agregue directamente en la base de datos.
+app.post('/parametros', verificarPermiso('Parámetros del Sistema'), (req, res) => {
+  const clave = String(req.body.clave || '').trim().toLowerCase();
+  const descripcion = String(req.body.descripcion || '').trim();
+  const tipo = String(req.body.tipo || '').trim().toLowerCase();
+  const valor = req.body.valor;
+
+  if (!/^[a-z0-9_]+$/.test(clave)) {
+    return res.status(400).json({ ok: false, mensaje: 'La clave solo puede contener minúsculas, números y guión bajo (ej: dias_reabastecimiento).' });
+  }
+  if (!descripcion) {
+    return res.status(400).json({ ok: false, mensaje: 'La descripción es obligatoria.' });
+  }
+  if (!TIPOS_PARAMETRO_VALIDOS.includes(tipo)) {
+    return res.status(400).json({ ok: false, mensaje: 'Tipo de parámetro inválido.' });
+  }
+  if (valor === undefined || valor === null || String(valor).trim() === '') {
+    return res.status(400).json({ ok: false, mensaje: 'El valor inicial es obligatorio.' });
+  }
+  if (tipo === 'booleano' && !['0', '1'].includes(String(valor).trim())) {
+    return res.status(400).json({ ok: false, mensaje: 'El valor de un parámetro "booleano" debe ser 0 o 1.' });
+  }
+
+  db.query(
+    'INSERT INTO parametros_sistema (clave, valor, descripcion, tipo) VALUES (?, ?, ?, ?)',
+    [clave, String(valor).trim(), descripcion, tipo],
+    (err, result) => {
+      if (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(400).json({ ok: false, mensaje: 'Ya existe un parámetro con esa clave.' });
+        }
+        console.error('Error al crear parámetro:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al crear el parámetro' });
+      }
+      registrarBitacora(req, 'parametros.crear', `Parámetro "${clave}" creado con valor "${valor}"`);
+      res.json({ ok: true, mensaje: 'Parámetro creado correctamente', id: result.insertId });
+    }
+  );
+});
+
+// Fase B: el Administrador puede eliminar parámetros que ya no se usen.
+// No se restringe por clave "protegida" a propósito: las reglas de negocio
+// (qué parámetros usa cada módulo) viven en el código de cada funcionalidad,
+// no aquí; si un módulo todavía depende del parámetro, seguirá funcionando
+// con su valor por defecto en el frontend (ver window.PARAMETROS_SISTEMA).
+app.delete('/parametros/:id', verificarPermiso('Parámetros del Sistema'), (req, res) => {
+  const { id } = req.params;
+
+  db.query('SELECT clave FROM parametros_sistema WHERE id = ?', [id], (errSelect, filas) => {
+    if (errSelect) {
+      console.error('Error al buscar parámetro a eliminar:', errSelect);
+      return res.status(500).json({ ok: false, mensaje: 'Error al eliminar el parámetro' });
+    }
+    if (!filas.length) {
+      return res.status(404).json({ ok: false, mensaje: 'Parámetro no encontrado' });
+    }
+    const clave = filas[0].clave;
+
+    db.query('DELETE FROM parametros_sistema WHERE id = ?', [id], (err, result) => {
+      if (err) {
+        console.error('Error al eliminar parámetro:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al eliminar el parámetro' });
+      }
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ ok: false, mensaje: 'Parámetro no encontrado' });
+      }
+      registrarBitacora(req, 'parametros.eliminar', `Parámetro "${clave}" (id=${id}) eliminado`);
+      res.json({ ok: true, mensaje: 'Parámetro eliminado correctamente' });
+    });
   });
 });
 
