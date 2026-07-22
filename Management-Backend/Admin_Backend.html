@@ -115,7 +115,7 @@
         
         <button class="nav-btn active" data-section="dashboard" data-role="administrador"><i class="bi bi-speedometer2"></i> <span>Dashboard</span></button>
         <button class="nav-btn" data-section="usuarios" data-role="administrador" data-permiso-any="Usuarios,Roles,Permisos,Bitácora,Backup y Restore,Dominios de Correo,Parámetros del Sistema"><i class="bi bi-shield-lock"></i> <span>Seguridad</span></button>
-        <button class="nav-btn" data-section="asignacion-pacientes" data-role="administrador,empleado"><i class="bi bi-diagram-3"></i> <span>Pacientes</span></button>
+        <button class="nav-btn" data-section="asignacion-pacientes" data-role="administrador,empleado" data-permiso-any="Pacientes"><i class="bi bi-diagram-3"></i> <span>Pacientes</span></button>
         <div class="nav-group nav-accordion" id="medicamentosAccordionAdmin">
           <button class="nav-btn nav-accordion-toggle" type="button" aria-expanded="false">
             <i class="bi bi-capsule"></i>
@@ -1438,64 +1438,167 @@
       <section id="asignacion-pacientes" class="section d-none">
         <div class="section-header">
           <h2><i class="bi bi-diagram-3 me-2"></i> Pacientes</h2>
-          <p class="muted">Asigna qué pacientes atiende cada cuidador.</p>
+          <p class="muted">Registro, edición, activación/desactivación y asignación de cuidadores.</p>
         </div>
 
-        <div class="card form-card">
-          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-            <div>
-              <h5 class="card-title mb-1"><i class="bi bi-diagram-3 me-2"></i>Asignación de Pacientes por Cuidador</h5>
-              <p class="text-muted mb-0">Selecciona un cuidador, agrega pacientes y guarda la relación para <code>cuidador_backend.html</code>.</p>
-            </div>
-            <button id="guardarAsignacionesBtn" type="button" class="btn btn-primary">
-              <i class="bi bi-save me-2"></i>Guardar Asignaciones
+        <ul class="nav nav-tabs mb-4" id="pacientesTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-pacientes-registro" data-bs-toggle="tab" data-bs-target="#panel-pacientes-registro" type="button" role="tab" aria-controls="panel-pacientes-registro" aria-selected="true">
+              <i class="bi bi-person-heart me-2"></i>Registro de Pacientes
             </button>
-          </div>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-pacientes-asignacion" data-bs-toggle="tab" data-bs-target="#panel-pacientes-asignacion" type="button" role="tab" aria-controls="panel-pacientes-asignacion" aria-selected="false">
+              <i class="bi bi-diagram-3 me-2"></i>Asignación por Cuidador
+            </button>
+          </li>
+        </ul>
 
-          <div class="row g-4">
-            <div class="col-lg-4">
-              <label for="selectCuidadorAsignacion" class="form-label">Cuidador</label>
-              <select id="selectCuidadorAsignacion" class="form-select mb-3">
-                <option value="">Selecciona un cuidador</option>
-              </select>
-              <div class="form-text mb-3">Solo se muestran usuarios con rol <strong>empleado</strong>.</div>
+        <div class="tab-content" id="pacientesTabsContent">
 
-              <label for="selectPacienteDisponibleAsignacion" class="form-label">Agregar paciente</label>
-              <div class="input-group">
-                <select id="selectPacienteDisponibleAsignacion" class="form-select">
-                  <option value="">Selecciona un paciente</option>
-                </select>
-                <button id="agregarPacienteAsignacionBtn" type="button" class="btn btn-outline-primary">
-                  <i class="bi bi-plus-lg"></i>
+          <!-- ===== PESTAÑA: REGISTRO DE PACIENTES (ABC: Alta/Baja/Cambios/Consultas) ===== -->
+          <div class="tab-pane fade show active" id="panel-pacientes-registro" role="tabpanel" aria-labelledby="tab-pacientes-registro">
+            <div class="card table-card">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0"><i class="bi bi-list me-2"></i> Listado de pacientes</h5>
+                <button id="abrirModalPaciente" class="btn btn-primary">
+                  <i class="bi bi-person-plus me-2"></i> Registrar paciente
                 </button>
               </div>
 
-              <div class="mt-3 small text-muted" id="resumenAsignacionesCuidador">
-                Selecciona un cuidador para administrar sus pacientes.
+              <div class="datatable-toolbar mb-3">
+                <div class="datatable-length">
+                  <select id="entriesPacientes" class="form-select form-select-sm">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                  </select>
+                  <span>registros por página</span>
+                </div>
+                <div class="datatable-search">
+                  <label for="searchPacientes">Buscar:</label>
+                  <input type="text" id="searchPacientes" class="form-control form-control-sm" placeholder="Nombre, apellido, DNI, correo, cuidador o estado">
+                </div>
               </div>
-            </div>
 
-            <div class="col-lg-8">
-              <div class="table-responsive">
-                <table class="table table-hover align-middle" id="tablaPacientesAsignados">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Paciente</th>
-                      <th>Correo</th>
-                      <th class="text-center">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td colspan="3" class="text-center text-muted py-4">Selecciona un cuidador para administrar sus pacientes.</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover table-striped mb-0 datatable-theme" id="tablaPacientes">
+                    <thead class="table-dark">
+                      <tr>
+                        <th class="fw-bold"><i class="bi bi-hash me-2"></i>Id</th>
+                        <th class="fw-bold"><i class="bi bi-person me-2"></i>Paciente</th>
+                        <th class="fw-bold"><i class="bi bi-card-text me-2"></i>Identidad</th>
+                        <th class="fw-bold"><i class="bi bi-envelope me-2"></i>Email</th>
+                        <th class="fw-bold"><i class="bi bi-person-badge me-2"></i>Cuidador</th>
+                        <th class="fw-bold"><i class="bi bi-toggle-on me-2"></i>Estado</th>
+                        <th class="fw-bold text-center"><i class="bi bi-gear me-2"></i>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div id="noPacientes" class="text-center text-muted py-5 d-none">
+                  <i class="bi bi-person-heart display-4 mb-3"></i>
+                  <h5>No hay pacientes registrados</h5>
+                  <p>Haz clic en "Registrar paciente" para agregar el primero.</p>
+                </div>
+                <div id="paginacionPacientes" class="custom-pagination mt-3 d-none">
+                  <small class="pagination-info" id="infoPaginacionPacientes">Showing 0 to 0 of 0 entries</small>
+                  <div class="pagination-controls">
+                    <button id="btnAnteriorPacientes" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-left"></i></button>
+                    <div id="pageNumbersPacientes" class="pagination-numbers"></div>
+                    <button id="btnSiguientePacientes" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-right"></i></button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+
+          <!-- ===== PESTAÑA: ASIGNACIÓN POR CUIDADOR (ya existente) ===== -->
+          <div class="tab-pane fade" id="panel-pacientes-asignacion" role="tabpanel" aria-labelledby="tab-pacientes-asignacion">
+            <div class="card form-card">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                  <h5 class="card-title mb-1"><i class="bi bi-diagram-3 me-2"></i>Asignación de Pacientes por Cuidador</h5>
+                  <p class="text-muted mb-0">Selecciona un cuidador, agrega pacientes y guarda la relación para <code>cuidador_backend.html</code>.</p>
+                </div>
+                <button id="guardarAsignacionesBtn" type="button" class="btn btn-primary">
+                  <i class="bi bi-save me-2"></i>Guardar Asignaciones
+                </button>
+              </div>
+
+              <div class="row g-4">
+                <div class="col-lg-4">
+                  <label for="selectCuidadorAsignacion" class="form-label">Cuidador</label>
+                  <select id="selectCuidadorAsignacion" class="form-select mb-3">
+                    <option value="">Selecciona un cuidador</option>
+                  </select>
+                  <div class="form-text mb-3">Solo se muestran usuarios con rol <strong>empleado</strong>.</div>
+
+                  <label for="selectPacienteDisponibleAsignacion" class="form-label">Agregar paciente</label>
+                  <div class="input-group">
+                    <select id="selectPacienteDisponibleAsignacion" class="form-select">
+                      <option value="">Selecciona un paciente</option>
+                    </select>
+                    <button id="agregarPacienteAsignacionBtn" type="button" class="btn btn-outline-primary">
+                      <i class="bi bi-plus-lg"></i>
+                    </button>
+                  </div>
+
+                  <div class="mt-3 small text-muted" id="resumenAsignacionesCuidador">
+                    Selecciona un cuidador para administrar sus pacientes.
+                  </div>
+                </div>
+
+                <div class="col-lg-8">
+                  <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="tablaPacientesAsignados">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Paciente</th>
+                          <th>Correo</th>
+                          <th class="text-center">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td colspan="3" class="text-center text-muted py-4">Selecciona un cuidador para administrar sus pacientes.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
+
+      <!-- Modal: reasignar cuidador de un paciente existente (Cambios) -->
+      <div class="modal fade" id="modalReasignarCuidador" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"><i class="bi bi-person-badge me-2"></i> Reasignar cuidador</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <p class="text-muted small" id="pacienteReasignarNombre"></p>
+              <label for="nuevoCuidadorPaciente" class="form-label">Cuidador <span class="text-danger">*</span></label>
+              <select id="nuevoCuidadorPaciente" class="form-select">
+                <option value="">Seleccione un cuidador</option>
+              </select>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button id="guardarReasignacionCuidadorBtn" class="btn btn-primary">Guardar</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
     </main>
   </div>

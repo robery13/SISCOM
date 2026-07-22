@@ -103,6 +103,11 @@ db.connect(err => {
     ensureUsuariosColumn('fecha_nacimiento', "ALTER TABLE usuarios ADD COLUMN fecha_nacimiento DATE NULL AFTER otras_enfermedades");
     ensureUsuariosColumn('usa_silla_ruedas', "ALTER TABLE usuarios ADD COLUMN usa_silla_ruedas TINYINT(1) NOT NULL DEFAULT 0 AFTER fecha_nacimiento");
 
+    // Módulo ABC de Pacientes - "Baja" no debe borrar el registro (se pierde
+    // historial médico, medicamentos, tomas, citas y auditoría). En su lugar
+    // se cambia el estado del usuario a "inactivo".
+    ensureUsuariosColumn('estado', "ALTER TABLE usuarios ADD COLUMN estado VARCHAR(20) NOT NULL DEFAULT 'activo' AFTER rol");
+
     // Sección 5.2 - fecha de inicio/fin de tratamiento en cada receta, para no
     // tener medicamentos "para siempre" cuando en realidad son de unos días.
     ensureTableColumn('recetas_medicas', 'fecha_inicio', "ALTER TABLE recetas_medicas ADD COLUMN fecha_inicio DATE NULL AFTER frecuencia");
@@ -316,6 +321,7 @@ db.connect(err => {
       // mismos permisos.
       const permisosSemilla = [
         ['Usuarios', 'Crear, editar y eliminar usuarios'],
+        ['Pacientes', 'Registrar, editar, activar/desactivar y consultar pacientes; asignar cuidadores'],
         ['Roles', 'Crear y editar roles'],
         ['Permisos', 'Asignar permisos a roles'],
         ['Medicamentos', 'Crear y editar medicamentos'],
@@ -769,6 +775,11 @@ app.post('/login', (req, res) => {
       return res.status(401).json({ code: 'PASSWORD_INVALIDA', mensaje: 'Contrase�a incorrecta.' });
     }
 
+    // Un paciente (u otro usuario) dado de "Baja" queda en estado "inactivo":
+    // no debe poder iniciar sesion, pero su historial se conserva intacto.
+    if (String(usuario.estado || 'activo').toLowerCase() === 'inactivo') {
+      return res.status(403).json({ code: 'CUENTA_INACTIVA', mensaje: 'Esta cuenta se encuentra inactiva. Contacte a un administrador.' });
+    }
 
     // Generar token de autenticaci�n
     const token = crypto.randomBytes(32).toString('hex');
@@ -3039,6 +3050,115 @@ app.delete('/usuarios/:id', verificarPermiso('Usuarios'), (req, res) => {
     if (err) return res.status(500).json({ mensaje: 'Error al eliminar usuario' });
     registrarBitacora(req, 'usuarios.eliminar', `Usuario id=${id} eliminado`);
     res.json({ mensaje: 'Usuario eliminado' });
+  });
+});
+
+
+// ============================================
+// MÓDULO ABC DE PACIENTES (Alta / Baja / Cambios / Consultas)
+// Rutas dedicadas para administrar pacientes (usuarios con rol "usuario")
+// desde un solo lugar, sin depender únicamente del registro inicial de
+// cuentas. El "Alta" reutiliza /registraradm (ya exige cuidador obligatorio)
+// y las "Cambios" de datos personales reutilizan PUT /usuarios/:id.
+// ============================================
+
+// Consultas: listado completo de pacientes con su cuidador y estado
+app.get('/pacientes-admin', verificarPermiso('Pacientes'), (req, res) => {
+  const sql = `
+    SELECT
+      u.id, u.nombres, u.apellidos, u.identidad, u.telefono, u.email,
+      u.estado, u.fecha_nacimiento, u.usa_silla_ruedas,
+      cp.cuidador_id,
+      c.nombres AS cuidador_nombres, c.apellidos AS cuidador_apellidos
+    FROM usuarios u
+    LEFT JOIN cuidador_pacientes cp ON cp.paciente_id = u.id
+    LEFT JOIN usuarios c ON c.id = cp.cuidador_id
+    WHERE u.rol = 'usuario'
+    ORDER BY u.id DESC
+  `;
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error al cargar pacientes:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar pacientes' });
+    }
+    res.json(results);
+  });
+});
+
+// Baja / reactivación: cambia el estado (activo/inactivo) en lugar de borrar
+// el registro, para no perder historial médico, medicamentos, citas ni
+// auditoría del paciente.
+app.put('/pacientes-admin/:id/estado', verificarPermiso('Pacientes'), (req, res) => {
+  const { id } = req.params;
+  const estado = String(req.body.estado || '').toLowerCase();
+
+  if (!['activo', 'inactivo'].includes(estado)) {
+    return res.status(400).json({ mensaje: 'Estado no válido. Use "activo" o "inactivo".' });
+  }
+
+  const sql = "UPDATE usuarios SET estado = ? WHERE id = ? AND rol = 'usuario'";
+  db.query(sql, [estado, id], (err, result) => {
+    if (err) {
+      console.error('Error al cambiar el estado del paciente:', err);
+      return res.status(500).json({ mensaje: 'Error al actualizar el estado del paciente' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Paciente no encontrado' });
+    }
+
+    registrarBitacora(req, 'pacientes.estado', `Paciente id=${id} cambiado a estado "${estado}"`);
+    res.json({
+      mensaje: estado === 'inactivo' ? 'Paciente desactivado correctamente' : 'Paciente reactivado correctamente',
+      estado
+    });
+  });
+});
+
+// Cambios: reasignar el cuidador de un paciente ya existente (obligatorio,
+// no se permite dejar al paciente sin cuidador).
+app.put('/pacientes-admin/:id/cuidador', verificarPermiso('Pacientes'), (req, res) => {
+  const { id } = req.params;
+  const idCuidadorNum = parseInt(req.body.id_cuidador, 10);
+
+  if (!Number.isInteger(idCuidadorNum) || idCuidadorNum <= 0) {
+    return res.status(400).json({ mensaje: 'Debe seleccionar un cuidador válido.' });
+  }
+
+  const sqlValidarPaciente = "SELECT id FROM usuarios WHERE id = ? AND rol = 'usuario' LIMIT 1";
+  db.query(sqlValidarPaciente, [id], (errPac, pacientes) => {
+    if (errPac) {
+      return res.status(500).json({ mensaje: 'Error al validar el paciente' });
+    }
+    if (!pacientes.length) {
+      return res.status(404).json({ mensaje: 'Paciente no encontrado' });
+    }
+
+    const sqlValidarCuidador = "SELECT id FROM usuarios WHERE id = ? AND rol = 'empleado' LIMIT 1";
+    db.query(sqlValidarCuidador, [idCuidadorNum], (errCui, cuidadores) => {
+      if (errCui) {
+        return res.status(500).json({ mensaje: 'Error al validar el cuidador' });
+      }
+      if (!cuidadores.length) {
+        return res.status(400).json({ mensaje: 'El cuidador indicado no es válido.' });
+      }
+
+      // Un paciente solo puede tener un cuidador asignado: se elimina la
+      // asignación previa (si existía) y se crea la nueva.
+      db.query('DELETE FROM cuidador_pacientes WHERE paciente_id = ?', [id], (errDel) => {
+        if (errDel) {
+          return res.status(500).json({ mensaje: 'Error al actualizar el cuidador asignado' });
+        }
+
+        db.query('INSERT INTO cuidador_pacientes (cuidador_id, paciente_id) VALUES (?, ?)', [idCuidadorNum, id], (errIns) => {
+          if (errIns) {
+            return res.status(500).json({ mensaje: 'Error al asignar el nuevo cuidador' });
+          }
+
+          registrarBitacora(req, 'pacientes.cuidador', `Paciente id=${id} reasignado al cuidador id=${idCuidadorNum}`);
+          res.json({ mensaje: 'Cuidador actualizado correctamente' });
+        });
+      });
+    });
   });
 });
 

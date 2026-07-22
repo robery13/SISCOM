@@ -2503,6 +2503,28 @@ function mostrarToast(mensaje, tipo = 'info') {
   const tablaPacientesAsignadosBody = document.querySelector("#tablaPacientesAsignados tbody");
   const guardarAsignacionesBtn = document.getElementById("guardarAsignacionesBtn");
   const resumenAsignacionesCuidador = document.getElementById("resumenAsignacionesCuidador");
+
+  // ===== Módulo ABC de Pacientes (Registro de Pacientes) =====
+  const tablaPacientes = document.querySelector("#tablaPacientes tbody");
+  const noPacientesDiv = document.getElementById("noPacientes");
+  const searchPacientesInput = document.getElementById("searchPacientes");
+  const entriesPacientes = document.getElementById("entriesPacientes");
+  const paginacionPacientes = document.getElementById("paginacionPacientes");
+  const infoPaginacionPacientes = document.getElementById("infoPaginacionPacientes");
+  const btnAnteriorPacientes = document.getElementById("btnAnteriorPacientes");
+  const btnSiguientePacientes = document.getElementById("btnSiguientePacientes");
+  const pageNumbersPacientes = document.getElementById("pageNumbersPacientes");
+  const abrirModalPacienteBtn = document.getElementById("abrirModalPaciente");
+  const modalReasignarCuidador = document.getElementById("modalReasignarCuidador");
+  const nuevoCuidadorPaciente = document.getElementById("nuevoCuidadorPaciente");
+  const guardarReasignacionCuidadorBtn = document.getElementById("guardarReasignacionCuidadorBtn");
+  const pacienteReasignarNombre = document.getElementById("pacienteReasignarNombre");
+
+  let pacientesAdminData = [];
+  let pacientesAdminFiltrados = [];
+  let paginaActualPacientesAdmin = 1;
+  let PACIENTES_ADMIN_POR_PAGINA = Number(entriesPacientes?.value || 10);
+  let pacienteReasignarId = null;
   
   // Campos del formulario
   const nombresUsuario = document.getElementById("nombresUsuario");
@@ -2665,6 +2687,231 @@ function mostrarToast(mensaje, tipo = 'info') {
         </td>
       </tr>
     `;
+  }
+
+  // ============================================================
+  // MÓDULO ABC DE PACIENTES (Alta / Baja / Cambios / Consultas)
+  // ============================================================
+
+  // Consultas: cargar el listado de pacientes (rol "usuario") con su
+  // cuidador y estado desde /pacientes-admin
+  async function cargarPacientesAdmin() {
+    if (!tablaPacientes) return;
+    try {
+      const resp = await fetch("https://siscom-4lbe.onrender.com/pacientes-admin", {
+        headers: crearHeadersAuth()
+      });
+
+      if (!resp.ok) {
+        if (resp.status === 403) {
+          mostrarToast("No tienes permisos para ver pacientes", "error");
+          return;
+        }
+        throw new Error("Error al cargar pacientes");
+      }
+
+      pacientesAdminData = await resp.json();
+      pacientesAdminFiltrados = [...pacientesAdminData];
+      paginaActualPacientesAdmin = 1;
+      renderPacientesAdmin();
+    } catch (error) {
+      console.error("Error al cargar pacientes:", error);
+      mostrarToast("No fue posible cargar la lista de pacientes. Intenta nuevamente en unos momentos.", "error");
+    }
+  }
+
+  function badgeEstadoPaciente(estado) {
+    const esActivo = String(estado || "activo").toLowerCase() !== "inactivo";
+    return esActivo
+      ? '<span class="badge bg-success">Activo</span>'
+      : '<span class="badge bg-secondary">Inactivo</span>';
+  }
+
+  function renderPacientesAdmin() {
+    if (!tablaPacientes) return;
+
+    tablaPacientes.innerHTML = "";
+
+    if (pacientesAdminFiltrados.length === 0) {
+      if (noPacientesDiv) noPacientesDiv.classList.remove("d-none");
+      if (paginacionPacientes) paginacionPacientes.classList.add("d-none");
+      return;
+    }
+
+    if (noPacientesDiv) noPacientesDiv.classList.add("d-none");
+
+    const totalPaginas = Math.max(1, Math.ceil(pacientesAdminFiltrados.length / PACIENTES_ADMIN_POR_PAGINA));
+    if (paginaActualPacientesAdmin > totalPaginas) paginaActualPacientesAdmin = totalPaginas;
+    const inicio = (paginaActualPacientesAdmin - 1) * PACIENTES_ADMIN_POR_PAGINA;
+    const fin = inicio + PACIENTES_ADMIN_POR_PAGINA;
+    const pacientesPagina = pacientesAdminFiltrados.slice(inicio, fin);
+
+    pacientesPagina.forEach((p) => {
+      const nombreCuidador = p.cuidador_id
+        ? escapeHtml(`${p.cuidador_nombres || ""} ${p.cuidador_apellidos || ""}`.trim())
+        : '<span class="text-danger">Sin cuidador</span>';
+      const esActivo = String(p.estado || "activo").toLowerCase() !== "inactivo";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${p.id}</td>
+        <td>${escapeHtml(`${p.nombres} ${p.apellidos}`)}</td>
+        <td>${escapeHtml(p.identidad)}</td>
+        <td>${escapeHtml(p.email)}</td>
+        <td>${nombreCuidador}</td>
+        <td>${badgeEstadoPaciente(p.estado)}</td>
+        <td class="text-center">
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-primary" onclick="editarPacienteAdmin(${p.id})" title="Editar">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-outline-secondary" onclick="abrirModalReasignarCuidador(${p.id})" title="Reasignar cuidador">
+              <i class="bi bi-person-badge"></i>
+            </button>
+            <button class="btn btn-outline-${esActivo ? "danger" : "success"}" onclick="cambiarEstadoPacienteAdmin(${p.id}, ${esActivo})" title="${esActivo ? "Desactivar" : "Activar"}">
+              <i class="bi bi-${esActivo ? "toggle-off" : "toggle-on"}"></i>
+            </button>
+          </div>
+        </td>
+      `;
+      tablaPacientes.appendChild(tr);
+    });
+
+    if (paginacionPacientes) paginacionPacientes.classList.remove("d-none");
+    if (infoPaginacionPacientes) {
+      const inicioVisual = pacientesAdminFiltrados.length ? inicio + 1 : 0;
+      const finVisual = Math.min(fin, pacientesAdminFiltrados.length);
+      infoPaginacionPacientes.textContent = `Showing ${inicioVisual} to ${finVisual} of ${pacientesAdminFiltrados.length} entries`;
+    }
+    if (btnAnteriorPacientes) btnAnteriorPacientes.disabled = paginaActualPacientesAdmin <= 1;
+    if (btnSiguientePacientes) btnSiguientePacientes.disabled = paginaActualPacientesAdmin >= totalPaginas;
+    renderBotonesPaginaPacientesAdmin(totalPaginas);
+  }
+
+  function renderBotonesPaginaPacientesAdmin(totalPaginas) {
+    if (!pageNumbersPacientes) return;
+    pageNumbersPacientes.innerHTML = "";
+    const maxBotones = 5;
+    let inicio = Math.max(1, paginaActualPacientesAdmin - Math.floor(maxBotones / 2));
+    let fin = inicio + maxBotones - 1;
+    if (fin > totalPaginas) {
+      fin = totalPaginas;
+      inicio = Math.max(1, fin - maxBotones + 1);
+    }
+    for (let i = inicio; i <= fin; i++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `page-number-btn ${i === paginaActualPacientesAdmin ? "active" : ""}`;
+      btn.textContent = i;
+      btn.dataset.page = String(i);
+      pageNumbersPacientes.appendChild(btn);
+    }
+  }
+
+  // Consultas: búsqueda por nombre, apellido, DNI, correo, cuidador o estado
+  function aplicarFiltroPacientesAdmin() {
+    const texto = (searchPacientesInput?.value || "").trim().toLowerCase();
+    if (!texto) {
+      pacientesAdminFiltrados = [...pacientesAdminData];
+    } else {
+      pacientesAdminFiltrados = pacientesAdminData.filter((p) => {
+        const estadoTexto = String(p.estado || "activo").toLowerCase() === "inactivo" ? "inactivo" : "activo";
+        const cuidadorTexto = p.cuidador_id ? `${p.cuidador_nombres || ""} ${p.cuidador_apellidos || ""}` : "sin cuidador";
+        const campos = [p.id, p.nombres, p.apellidos, p.identidad, p.email, cuidadorTexto, estadoTexto];
+        return campos.some((c) => String(c || "").toLowerCase().includes(texto));
+      });
+    }
+    paginaActualPacientesAdmin = 1;
+    renderPacientesAdmin();
+  }
+
+  // Alta: abre el modal de Usuario ya existente, pero fijando el rol en
+  // "usuario" (paciente) y bloqueando el selector de rol, para que este
+  // botón sirva exclusivamente para registrar pacientes.
+  function abrirModalRegistrarPaciente() {
+    if (typeof window.abrirModalNuevoUsuarioComoPaciente === "function") {
+      window.abrirModalNuevoUsuarioComoPaciente();
+    }
+  }
+
+  // Baja / reactivación: cambia el estado sin borrar el registro, para
+  // conservar historial médico, medicamentos, citas y auditoría.
+  window.cambiarEstadoPacienteAdmin = async function(id, estaActivo) {
+    const nuevoEstado = estaActivo ? "inactivo" : "activo";
+    const mensajeConfirm = estaActivo
+      ? "¿Desea desactivar este paciente? Podrá reactivarlo cuando lo necesite; su historial no se pierde."
+      : "¿Desea reactivar este paciente?";
+    if (!confirm(mensajeConfirm)) return;
+
+    try {
+      const resp = await fetch(`https://siscom-4lbe.onrender.com/pacientes-admin/${id}/estado`, {
+        method: "PUT",
+        headers: crearHeadersAuth(true),
+        body: JSON.stringify({ estado: nuevoEstado })
+      });
+      const resultado = await resp.json();
+      if (resp.ok) {
+        mostrarToast(resultado.mensaje || "Estado actualizado correctamente", "success");
+        await cargarPacientesAdmin();
+      } else {
+        mostrarToast("Error: " + (resultado.mensaje || "No se pudo actualizar el estado"), "error");
+      }
+    } catch (error) {
+      console.error("Error al cambiar estado del paciente:", error);
+      mostrarToast("Error al conectar con el servidor: " + error.message, "error");
+    }
+  };
+
+  // Cambios: reasignar el cuidador de un paciente ya existente
+  window.abrirModalReasignarCuidador = async function(id) {
+    const paciente = pacientesAdminData.find((p) => p.id === id);
+    if (!paciente) {
+      mostrarToast("Paciente no encontrado", "error");
+      return;
+    }
+    pacienteReasignarId = id;
+    if (pacienteReasignarNombre) {
+      pacienteReasignarNombre.textContent = `Paciente: ${paciente.nombres} ${paciente.apellidos}`;
+    }
+    await cargarCuidadoresParaSelectPaciente();
+    if (nuevoCuidadorPaciente) {
+      nuevoCuidadorPaciente.innerHTML = '<option value="">Seleccione un cuidador</option>' +
+        cuidadoresDisponiblesCache.map(c => `<option value="${c.id}">${escapeHtml(c.nombres)} ${escapeHtml(c.apellidos)}</option>`).join("");
+      nuevoCuidadorPaciente.value = paciente.cuidador_id || "";
+    }
+    if (modalReasignarCuidador) {
+      const modal = new bootstrap.Modal(modalReasignarCuidador);
+      modal.show();
+    }
+  };
+
+  async function guardarReasignacionCuidador() {
+    if (!pacienteReasignarId) return;
+    const idCuidador = nuevoCuidadorPaciente ? nuevoCuidadorPaciente.value : "";
+    if (!idCuidador) {
+      mostrarToast("Debe seleccionar un cuidador.", "warning");
+      return;
+    }
+
+    try {
+      const resp = await fetch(`https://siscom-4lbe.onrender.com/pacientes-admin/${pacienteReasignarId}/cuidador`, {
+        method: "PUT",
+        headers: crearHeadersAuth(true),
+        body: JSON.stringify({ id_cuidador: idCuidador })
+      });
+      const resultado = await resp.json();
+      if (resp.ok) {
+        mostrarToast(resultado.mensaje || "Cuidador actualizado correctamente", "success");
+        const modal = bootstrap.Modal.getInstance(modalReasignarCuidador);
+        if (modal) modal.hide();
+        await cargarPacientesAdmin();
+      } else {
+        mostrarToast("Error: " + (resultado.mensaje || "No se pudo actualizar el cuidador"), "error");
+      }
+    } catch (error) {
+      console.error("Error al reasignar cuidador:", error);
+      mostrarToast("Error al conectar con el servidor: " + error.message, "error");
+    }
   }
 
   function renderListaPacientesAsignacion() {
@@ -2969,6 +3216,7 @@ function mostrarToast(mensaje, tipo = 'info') {
     formUsuario.reset();
     document.querySelector("#modalUsuario .modal-title").innerHTML = '<i class="bi bi-person-plus me-2"></i> Nuevo Usuario';
     guardarUsuarioBtn.textContent = "Guardar Usuario";
+    if (rolUsuario) rolUsuario.disabled = false;
     cargarRolesEnSelect();
     if (camposPacienteUsuario) camposPacienteUsuario.classList.add("d-none");
     if (cuidadorAsignadoUsuario) cuidadorAsignadoUsuario.closest(".col-md-12").classList.remove("d-none");
@@ -2980,6 +3228,30 @@ function mostrarToast(mensaje, tipo = 'info') {
     const modal = new bootstrap.Modal(modalUsuario);
     modal.show();
   }
+
+  // Alta de paciente: reutiliza el mismo modal de "Usuario", pero fija el
+  // rol en "usuario" (paciente) y bloquea el selector de rol, para que el
+  // botón "Registrar paciente" del módulo ABC sirva exclusivamente para eso.
+  async function abrirModalNuevoUsuarioComoPaciente() {
+    editingUserId = null;
+    formUsuario.reset();
+    document.querySelector("#modalUsuario .modal-title").innerHTML = '<i class="bi bi-person-plus me-2"></i> Registrar Paciente';
+    guardarUsuarioBtn.textContent = "Guardar Paciente";
+    await cargarRolesEnSelect();
+    if (rolUsuario) {
+      rolUsuario.value = "usuario";
+      rolUsuario.disabled = true;
+    }
+    actualizarVisibilidadCamposPaciente();
+    if (cuidadorAsignadoUsuario) cuidadorAsignadoUsuario.closest(".col-md-12").classList.remove("d-none");
+
+    const passwordRequisitos = document.getElementById("passwordRequisitosUsuario");
+    if (passwordRequisitos) passwordRequisitos.style.display = "none";
+
+    const modal = new bootstrap.Modal(modalUsuario);
+    modal.show();
+  }
+  window.abrirModalNuevoUsuarioComoPaciente = abrirModalNuevoUsuarioComoPaciente;
 
   // Llena el <select> de rol con los roles activos que existen en la BD
   // (tabla "roles"), en vez de tener "usuario/empleado/administrador" fijos.
@@ -3111,7 +3383,11 @@ function mostrarToast(mensaje, tipo = 'info') {
         mostrarToast(resultado.mensaje || (editingUserId ? "Usuario actualizado correctamente" : "Usuario registrado correctamente"), "success");
         const modal = bootstrap.Modal.getInstance(modalUsuario);
         if (modal) modal.hide();
+        if (rolUsuario) rolUsuario.disabled = false;
         await cargarUsuarios();
+        if (typeof cargarPacientesAdmin === "function" && tablaPacientes) {
+          await cargarPacientesAdmin();
+        }
       } else {
         mostrarToast("Error: " + (resultado.mensaje || resultado.error || "No se pudo guardar"), "error");
       }
@@ -3160,6 +3436,55 @@ function mostrarToast(mensaje, tipo = 'info') {
     const passwordRequisitos = document.getElementById("passwordRequisitosUsuario");
     if (passwordRequisitos) passwordRequisitos.style.display = "none";
     
+    const modal = new bootstrap.Modal(modalUsuario);
+    modal.show();
+  };
+
+  // Cambios: editar los datos personales de un paciente desde la tabla ABC.
+  // Reutiliza el mismo modal de "Usuario"; el rol queda bloqueado en
+  // "usuario" y la reasignación de cuidador se hace aparte (botón dedicado),
+  // igual que en Editar Usuario.
+  window.editarPacienteAdmin = async function(id) {
+    const paciente = pacientesAdminData.find(p => p.id === id);
+    if (!paciente) {
+      mostrarToast("Paciente no encontrado", "error");
+      return;
+    }
+
+    editingUserId = id;
+    await cargarRolesEnSelect();
+
+    nombresUsuario.value = paciente.nombres;
+    apellidosUsuario.value = paciente.apellidos;
+    identidadUsuario.value = paciente.identidad;
+    telefonoUsuario.value = paciente.telefono;
+    emailUsuario.value = paciente.email;
+    passwordUsuario.value = "";
+
+    if (rolUsuario) {
+      rolUsuario.value = "usuario";
+      rolUsuario.disabled = true;
+    }
+    actualizarVisibilidadCamposPaciente();
+
+    if (fechaNacimientoUsuario) {
+      fechaNacimientoUsuario.value = paciente.fecha_nacimiento ? String(paciente.fecha_nacimiento).slice(0, 10) : "";
+    }
+    if (sillaRuedasUsuario) {
+      sillaRuedasUsuario.checked = !!paciente.usa_silla_ruedas;
+    }
+    // La reasignación de cuidador se hace con el botón dedicado en la tabla,
+    // no desde este formulario de datos personales.
+    if (cuidadorAsignadoUsuario) {
+      cuidadorAsignadoUsuario.closest(".col-md-12").classList.add("d-none");
+    }
+
+    document.querySelector("#modalUsuario .modal-title").innerHTML = '<i class="bi bi-pencil-square me-2"></i> Editar Paciente';
+    guardarUsuarioBtn.textContent = "Actualizar Paciente";
+
+    const passwordRequisitos = document.getElementById("passwordRequisitosUsuario");
+    if (passwordRequisitos) passwordRequisitos.style.display = "none";
+
     const modal = new bootstrap.Modal(modalUsuario);
     modal.show();
   };
@@ -3272,6 +3597,55 @@ function mostrarToast(mensaje, tipo = 'info') {
     });
   }
 
+  // ===== Listeners del módulo ABC de Pacientes =====
+  if (abrirModalPacienteBtn) {
+    abrirModalPacienteBtn.addEventListener("click", abrirModalRegistrarPaciente);
+  }
+
+  if (searchPacientesInput) {
+    searchPacientesInput.addEventListener("input", aplicarFiltroPacientesAdmin);
+  }
+
+  if (entriesPacientes) {
+    entriesPacientes.addEventListener("change", () => {
+      PACIENTES_ADMIN_POR_PAGINA = Number(entriesPacientes.value || 10);
+      paginaActualPacientesAdmin = 1;
+      renderPacientesAdmin();
+    });
+  }
+  if (btnAnteriorPacientes) {
+    btnAnteriorPacientes.addEventListener("click", () => {
+      if (paginaActualPacientesAdmin > 1) {
+        paginaActualPacientesAdmin--;
+        renderPacientesAdmin();
+      }
+    });
+  }
+  if (btnSiguientePacientes) {
+    btnSiguientePacientes.addEventListener("click", () => {
+      const totalPaginas = Math.ceil(pacientesAdminFiltrados.length / PACIENTES_ADMIN_POR_PAGINA);
+      if (paginaActualPacientesAdmin < totalPaginas) {
+        paginaActualPacientesAdmin++;
+        renderPacientesAdmin();
+      }
+    });
+  }
+  if (pageNumbersPacientes) {
+    pageNumbersPacientes.addEventListener("click", (e) => {
+      const btn = e.target.closest(".page-number-btn");
+      if (!btn) return;
+      const pagina = Number(btn.dataset.page);
+      if (!Number.isNaN(pagina)) {
+        paginaActualPacientesAdmin = pagina;
+        renderPacientesAdmin();
+      }
+    });
+  }
+
+  if (guardarReasignacionCuidadorBtn) {
+    guardarReasignacionCuidadorBtn.addEventListener("click", guardarReasignacionCuidador);
+  }
+
   // Cargar usuarios cuando se muestre la sección
   const usuariosBtn = document.querySelector('.nav-btn[data-section="usuarios"]');
   if (usuariosBtn) {
@@ -3282,16 +3656,28 @@ function mostrarToast(mensaje, tipo = 'info') {
 
   // La Asignación de Pacientes ahora vive en su propio menú, fuera de
   // Seguridad, pero sigue necesitando la lista de usuarios (cuidadores/
-  // pacientes) para poblar sus selects.
+  // pacientes) para poblar sus selects. El módulo "Pacientes" ahora tiene
+  // dos pestañas: al abrir el menú se cargan ambas (Asignación + ABC).
   const asignacionBtn = document.querySelector('.nav-btn[data-section="asignacion-pacientes"]');
   if (asignacionBtn) {
     asignacionBtn.addEventListener("click", () => {
       cargarUsuarios();
+      cargarPacientesAdmin();
+    });
+  }
+
+  // Por si la pestaña "Registro de Pacientes" se abre directamente (ya con
+  // la sección visible), refrescar el listado también al hacer clic en ella.
+  const tabPacientesRegistro = document.getElementById("tab-pacientes-registro");
+  if (tabPacientesRegistro) {
+    tabPacientesRegistro.addEventListener("shown.bs.tab", () => {
+      cargarPacientesAdmin();
     });
   }
 
   // Exponer función de carga global para que pueda ser llamada desde otros scripts
   window.cargarUsuarios = cargarUsuarios;
+  window.cargarPacientesAdmin = cargarPacientesAdmin;
   window.obtenerTokenAuth = obtenerTokenAuth;
   window.crearHeadersAuth = crearHeadersAuth;
 
