@@ -2500,6 +2500,40 @@ function mostrarToast(mensaje, tipo = 'info') {
   const emailUsuario = document.getElementById("emailUsuario");
   const passwordUsuario = document.getElementById("passwordUsuario");
   const rolUsuario = document.getElementById("rolUsuario");
+  const camposPacienteUsuario = document.getElementById("camposPacienteUsuario");
+  const fechaNacimientoUsuario = document.getElementById("fechaNacimientoUsuario");
+  const sillaRuedasUsuario = document.getElementById("sillaRuedasUsuario");
+  const cuidadorAsignadoUsuario = document.getElementById("cuidadorAsignadoUsuario");
+  let cuidadoresDisponiblesCache = [];
+
+  async function cargarCuidadoresParaSelectPaciente() {
+    if (!cuidadorAsignadoUsuario) return;
+    try {
+      const resp = await fetch("https://siscom-4lbe.onrender.com/usuarios/rol/empleado", {
+        headers: crearHeadersAuth(false)
+      });
+      if (!resp.ok) throw new Error("Error HTTP " + resp.status);
+      const cuidadores = await resp.json();
+      cuidadoresDisponiblesCache = Array.isArray(cuidadores) ? cuidadores : [];
+      cuidadorAsignadoUsuario.innerHTML = '<option value="">Seleccione un cuidador</option>' +
+        cuidadoresDisponiblesCache.map(c => `<option value="${c.id}">${c.nombres} ${c.apellidos}</option>`).join("");
+    } catch (error) {
+      console.error("No se pudo cargar la lista de cuidadores:", error);
+    }
+  }
+
+  function actualizarVisibilidadCamposPaciente() {
+    if (!camposPacienteUsuario) return;
+    const esPaciente = rolUsuario.value === "usuario";
+    camposPacienteUsuario.classList.toggle("d-none", !esPaciente);
+    if (esPaciente && cuidadoresDisponiblesCache.length === 0) {
+      cargarCuidadoresParaSelectPaciente();
+    }
+  }
+
+  if (rolUsuario) {
+    rolUsuario.addEventListener("change", actualizarVisibilidadCamposPaciente);
+  }
 
   // Caché de dominios permitidos cargada desde el servidor (tabla
   // dominios_correo_permitidos). Se usa un fallback mínimo solo por si el
@@ -2924,6 +2958,8 @@ function mostrarToast(mensaje, tipo = 'info') {
     document.querySelector("#modalUsuario .modal-title").innerHTML = '<i class="bi bi-person-plus me-2"></i> Nuevo Usuario';
     guardarUsuarioBtn.textContent = "Guardar Usuario";
     cargarRolesEnSelect();
+    if (camposPacienteUsuario) camposPacienteUsuario.classList.add("d-none");
+    if (cuidadorAsignadoUsuario) cuidadorAsignadoUsuario.closest(".col-md-12").classList.remove("d-none");
 
     // Mostrar requisitos de contraseña
     const passwordRequisitos = document.getElementById("passwordRequisitosUsuario");
@@ -3014,6 +3050,16 @@ function mostrarToast(mensaje, tipo = 'info') {
       return;
     }
 
+    // Sección 5 - La cuenta de un paciente debe tener cuidador asignado desde
+    // su creación.
+    const esCuentaPaciente = rolUsuario.value === "usuario";
+    const idCuidadorSeleccionado = cuidadorAsignadoUsuario ? cuidadorAsignadoUsuario.value : "";
+    if (!editingUserId && esCuentaPaciente && !idCuidadorSeleccionado) {
+      mostrarToast("Debe asignar un cuidador para crear la cuenta del paciente.", "warning");
+      cuidadorAsignadoUsuario.focus();
+      return;
+    }
+
     const datos = {
       nombres,
       apellidos,
@@ -3023,6 +3069,14 @@ function mostrarToast(mensaje, tipo = 'info') {
       password: password || undefined,
       rol: rolUsuario.value
     };
+
+    if (esCuentaPaciente) {
+      datos.fecha_nacimiento = fechaNacimientoUsuario && fechaNacimientoUsuario.value ? fechaNacimientoUsuario.value : null;
+      datos.usa_silla_ruedas = !!(sillaRuedasUsuario && sillaRuedasUsuario.checked);
+      if (!editingUserId) {
+        datos.id_cuidador = idCuidadorSeleccionado;
+      }
+    }
 
     try {
       let url = "https://siscom-4lbe.onrender.com/registraradm";
@@ -3073,6 +3127,19 @@ function mostrarToast(mensaje, tipo = 'info') {
     emailUsuario.value = usuario.email;
     rolUsuario.value = usuario.rol;
     passwordUsuario.value = ""; // Dejar vacío para no cambiar
+
+    actualizarVisibilidadCamposPaciente();
+    if (fechaNacimientoUsuario) {
+      fechaNacimientoUsuario.value = usuario.fecha_nacimiento ? String(usuario.fecha_nacimiento).slice(0, 10) : "";
+    }
+    if (sillaRuedasUsuario) {
+      sillaRuedasUsuario.checked = !!usuario.usa_silla_ruedas;
+    }
+    // El cuidador ya fue asignado en la creación; para reasignarlo se usa el
+    // panel "Cuidadores-Pacientes", no este formulario.
+    if (cuidadorAsignadoUsuario) {
+      cuidadorAsignadoUsuario.closest(".col-md-12").classList.add("d-none");
+    }
     
     document.querySelector("#modalUsuario .modal-title").innerHTML = '<i class="bi bi-pencil-square me-2"></i> Editar Usuario';
     guardarUsuarioBtn.textContent = "Actualizar Usuario";

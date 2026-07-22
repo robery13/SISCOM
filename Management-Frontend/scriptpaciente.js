@@ -883,7 +883,8 @@ async function cargarEstadisticasInicio() {
     cargarMedicamentosHoy(),
     cargarTomasRegistradasHoy(),
     cargarProximaCita(),
-    cargarUltimoLogro()
+    cargarUltimoLogro(),
+    aplicarVisibilidadRecompensas()
   ];
 
   try {
@@ -927,31 +928,51 @@ async function cargarEstadisticasInicio() {
 // ===============================
 async function cargarMedicamentosHoy() {
   const idUsuario = getUsuarioId();
-  
+
   try {
-    const response = await fetch(`${API_URL}/recetas/${idUsuario}`);
-    
-    if (!response.ok) {
+    const [responseRecetas, responseTomas] = await Promise.all([
+      fetch(`${API_URL}/recetas/${idUsuario}`),
+      fetch(`${API_URL}/tomasHoy/${idUsuario}`)
+    ]);
+
+    if (!responseRecetas.ok) {
       throw new Error('Error al cargar medicamentos');
     }
-    
-    const recetas = await response.json();
-    
+
+    const recetas = await responseRecetas.json();
+    const tomasHoy = responseTomas.ok ? await responseTomas.json() : [];
+
+    // Sección 5.2: una vez que el paciente confirma "ya tomé" (o registra que
+    // no la tomó), esa alerta debe desaparecer del panel de "hoy" hasta la
+    // próxima dosis; el registro interno queda guardado igual en tomas_medicas.
+    const idsRecetasYaRegistradasHoy = new Set(
+      (Array.isArray(tomasHoy) ? tomasHoy : []).map((t) => t.id_receta)
+    );
+
+    const hoyStr = new Date().toISOString().slice(0, 10);
+    const recetasPendientes = (Array.isArray(recetas) ? recetas : []).filter((receta) => {
+      if (idsRecetasYaRegistradasHoy.has(receta.id)) return false;
+      // No mostrar medicamentos fuera de su fecha de inicio/fin de tratamiento.
+      if (receta.fecha_inicio && String(receta.fecha_inicio).slice(0, 10) > hoyStr) return false;
+      if (receta.fecha_fin && String(receta.fecha_fin).slice(0, 10) < hoyStr) return false;
+      return true;
+    });
+
     const listaMedicamentos = document.getElementById('listaMedicamentosHoy');
     if (!listaMedicamentos) return;
-    
+
     listaMedicamentos.innerHTML = '';
-    
-    if (recetas.length === 0) {
+
+    if (recetasPendientes.length === 0) {
       listaMedicamentos.innerHTML = `
         <div class="list-group-item text-center text-muted">
-          No tienes medicamentos registrados
+          ${Array.isArray(recetas) && recetas.length > 0 ? 'Ya registraste todos tus medicamentos de hoy' : 'No tienes medicamentos registrados'}
         </div>
       `;
       return;
     }
-    
-    recetas.forEach((receta) => {
+
+    recetasPendientes.forEach((receta) => {
       const nombreMedicamentoEscapado = (receta.nombre_medicamento || 'Sin nombre').replace(/'/g, "\\'");
       const div = document.createElement('div');
       div.className = 'list-group-item';
@@ -1346,6 +1367,7 @@ async function registrarEventoMedicamento(id_receta, nombre_medicamento, estado 
   await cargarTomasRegistradasHoy();
   await cargarHistorialMedicacion();
   await cargarRecompensas();
+  await cargarMedicamentosHoy();
 
   return data;
 }
@@ -1379,7 +1401,7 @@ async function cargarRecetas() {
     tbody.innerHTML = '';
     
     if (!Array.isArray(recetas) || recetas.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay recetas registradas</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No hay recetas registradas</td></tr>';
       return;
     }
     
@@ -1409,12 +1431,20 @@ async function cargarRecetas() {
         
         // Escapar comillas simples en el nombre del medicamento para evitar problemas en el onclick
         const nombreMedicamentoEscapado = (receta.nombre_medicamento || 'Sin nombre').replace(/'/g, "\\'");
-        
+
+        let vigenciaTexto = 'Indefinida';
+        if (receta.fecha_inicio || receta.fecha_fin) {
+          const inicioTexto = receta.fecha_inicio ? new Date(receta.fecha_inicio).toLocaleDateString() : '—';
+          const finTexto = receta.fecha_fin ? new Date(receta.fecha_fin).toLocaleDateString() : 'Sin fecha fin';
+          vigenciaTexto = `${inicioTexto} a ${finTexto}`;
+        }
+
         tr.innerHTML = `
           <td>${fechaFormateada}</td>
           <td><strong>${receta.nombre_medicamento || 'Sin nombre'}</strong></td>
           <td>${receta.dosis || 'Sin dosis'}</td>
           <td>${receta.frecuencia || 'Sin frecuencia'}</td>
+          <td><small>${vigenciaTexto}</small></td>
           <td>
             <button class="btn btn-sm btn-success me-1" onclick="confirmarTomaMedicamento(${receta.id}, '${nombreMedicamentoEscapado}')">
               <i class="bi bi-check-circle"></i> Ya tome
@@ -1422,8 +1452,8 @@ async function cargarRecetas() {
             <button class="btn btn-sm btn-outline-warning me-1" onclick="registrarOmisionMedicamento(${receta.id}, '${nombreMedicamentoEscapado}')">
               <i class="bi bi-x-circle"></i> No tomada
             </button>
-            <button class="btn btn-sm btn-info me-1" onclick="verReceta(${receta.id})">
-              <i class="bi bi-eye"></i>
+            <button class="btn btn-sm btn-primary me-1" onclick='mostrarModalReceta(${JSON.stringify(receta)})'>
+              <i class="bi bi-pencil"></i>
             </button>
             <button class="btn btn-sm btn-danger" onclick="eliminarReceta(${receta.id})">
               <i class="bi bi-trash"></i>
@@ -1462,52 +1492,76 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-function mostrarModalReceta() {
+// Sección 5.2 - La frecuencia ya no es un catálogo fijo de opciones: se arma
+// con una cantidad + una unidad de tiempo, o con texto libre para horarios
+// no fijos ("al despertar", "antes del desayuno"). También se agrega
+// vigencia (fecha de inicio/fin del tratamiento). Si se recibe "recetaExistente"
+// el modal edita esa receta en lugar de crear una nueva (corrige el flujo de
+// edición que antes duplicaba registros).
+function mostrarModalReceta(recetaExistente) {
+  const editando = !!(recetaExistente && recetaExistente.id);
   const modalHTML = `
     <div class="modal fade" id="modalReceta" tabindex="-1">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Nueva Receta Medica</h5>
+            <h5 class="modal-title">${editando ? 'Editar Receta' : 'Nueva Receta Medica'}</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
             <div class="mb-3">
               <label class="form-label">Medicamento:</label>
-              <input type="text" id="modalNombre" class="form-control" placeholder="Nombre del medicamento">
+              <input type="text" id="modalNombre" class="form-control" placeholder="Nombre del medicamento" value="${editando ? (recetaExistente.nombre_medicamento || '').replace(/"/g, '&quot;') : ''}">
             </div>
             <div class="mb-3">
               <label class="form-label">Dosis:</label>
-              <input type="text" id="modalDosis" class="form-control" placeholder="Ej: 400mg">
+              <input type="text" id="modalDosis" class="form-control" placeholder="Ej: 400mg, 2 cucharaditas, 1 cápsula" value="${editando ? (recetaExistente.dosis || '').replace(/"/g, '&quot;') : ''}">
             </div>
-            <div class="mb-3">
+
+            <div class="mb-2">
               <label class="form-label">Frecuencia:</label>
-              <select id="modalFrecuencia" class="form-select">
-                <option value="">Selecciona frecuencia</option>
-                <optgroup label="Pruebas (Minutos)">
-                  <option value="cada 1 minuto">Cada 1 minuto</option>
-                  <option value="cada 2 minutos">Cada 2 minutos</option>
-                  <option value="cada 3 minutos">Cada 3 minutos</option>
-                  <option value="cada 5 minutos">Cada 5 minutos</option>
-                  <option value="cada 10 minutos">Cada 10 minutos</option>
-                  <option value="cada 15 minutos">Cada 15 minutos</option>
-                  <option value="cada 30 minutos">Cada 30 minutos</option>
-                </optgroup>
-                <optgroup label="Frecuencias Comunes (Horas)">
-                  <option value="cada 1 hora">Cada 1 hora</option>
-                  <option value="cada 2 horas">Cada 2 horas</option>
-                  <option value="cada 4 horas">Cada 4 horas</option>
-                  <option value="cada 6 horas">Cada 6 horas</option>
-                  <option value="cada 8 horas">Cada 8 horas</option>
-                  <option value="cada 12 horas">Cada 12 horas</option>
-                  <option value="cada 24 horas">Cada 24 horas (1 vez al día)</option>
-                </optgroup>
-              </select>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="tipoFrecuencia" id="tipoFrecuenciaFija" value="fija" checked>
+                <label class="form-check-label" for="tipoFrecuenciaFija">Cantidad + unidad</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="tipoFrecuencia" id="tipoFrecuenciaLibre" value="libre">
+                <label class="form-check-label" for="tipoFrecuenciaLibre">Horario no fijo (texto libre)</label>
+              </div>
+            </div>
+            <div class="row mb-3" id="grupoFrecuenciaFija">
+              <div class="col-5">
+                <input type="number" min="1" id="modalFrecuenciaCantidad" class="form-control" placeholder="Cantidad">
+              </div>
+              <div class="col-7">
+                <select id="modalFrecuenciaUnidad" class="form-select">
+                  <option value="minutos">Minutos</option>
+                  <option value="horas" selected>Horas</option>
+                  <option value="dias">Días</option>
+                  <option value="meses">Meses</option>
+                  <option value="anios">Años</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3 d-none" id="grupoFrecuenciaLibre">
+              <input type="text" id="modalFrecuenciaLibre" class="form-control" placeholder="Ej: al despertar, antes del desayuno, cada 15 días">
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-6">
+                <label class="form-label">Fecha de inicio</label>
+                <input type="date" id="modalFechaInicio" class="form-control" value="${editando && recetaExistente.fecha_inicio ? String(recetaExistente.fecha_inicio).slice(0, 10) : ''}">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Fecha de fin (opcional)</label>
+                <input type="date" id="modalFechaFin" class="form-control" value="${editando && recetaExistente.fecha_fin ? String(recetaExistente.fecha_fin).slice(0, 10) : ''}">
+                <small class="text-muted">Déjala vacía si el tratamiento es indefinido</small>
+              </div>
             </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-primary" id="btnGuardarReceta">Guardar Receta</button>
+            <button type="button" class="btn btn-primary" id="btnGuardarReceta">${editando ? 'Guardar Cambios' : 'Guardar Receta'}</button>
           </div>
         </div>
       </div>
@@ -1521,28 +1575,79 @@ function mostrarModalReceta() {
 
   document.getElementById('modalNombre').focus();
 
+  const grupoFija = document.getElementById('grupoFrecuenciaFija');
+  const grupoLibre = document.getElementById('grupoFrecuenciaLibre');
+  document.querySelectorAll('input[name="tipoFrecuencia"]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      const esLibre = document.getElementById('tipoFrecuenciaLibre').checked;
+      grupoFija.classList.toggle('d-none', esLibre);
+      grupoLibre.classList.toggle('d-none', !esLibre);
+    });
+  });
+
+  // Si estamos editando, intentar pre-cargar el modo de frecuencia según el
+  // texto guardado previamente ("cada N unidad" -> modo fijo; cualquier otra
+  // cosa -> texto libre, para no perder lo que el paciente ya había escrito).
+  if (editando && recetaExistente.frecuencia) {
+    const match = String(recetaExistente.frecuencia).match(/^cada\s+(\d+)\s+(minuto|hora|d[ií]a|mes|a[ñn]o)/i);
+    if (match) {
+      document.getElementById('modalFrecuenciaCantidad').value = match[1];
+      const unidadTexto = match[2].toLowerCase();
+      const mapaUnidad = { minuto: 'minutos', hora: 'horas', dia: 'dias', día: 'dias', mes: 'meses', año: 'anios', ano: 'anios' };
+      document.getElementById('modalFrecuenciaUnidad').value = mapaUnidad[unidadTexto] || 'horas';
+    } else {
+      document.getElementById('tipoFrecuenciaLibre').checked = true;
+      document.getElementById('modalFrecuenciaLibre').value = recetaExistente.frecuencia;
+      grupoFija.classList.add('d-none');
+      grupoLibre.classList.remove('d-none');
+    }
+  }
+
   document.getElementById('btnGuardarReceta').addEventListener('click', async () => {
-    // No Historia HU-24 - Como paciente, quiero subir mis recetas médicas para facilitar el pedido.
     const nombre = document.getElementById('modalNombre').value.trim();
     const dosis = document.getElementById('modalDosis').value.trim();
-    const frecuencia = document.getElementById('modalFrecuencia').value.trim();
+    const fechaInicio = document.getElementById('modalFechaInicio').value || null;
+    const fechaFin = document.getElementById('modalFechaFin').value || null;
+
+    const esLibre = document.getElementById('tipoFrecuenciaLibre').checked;
+    let frecuencia = '';
+    if (esLibre) {
+      frecuencia = document.getElementById('modalFrecuenciaLibre').value.trim();
+    } else {
+      const cantidad = document.getElementById('modalFrecuenciaCantidad').value;
+      const unidad = document.getElementById('modalFrecuenciaUnidad').value;
+      const etiquetasUnidad = { minutos: 'minuto(s)', horas: 'hora(s)', dias: 'día(s)', meses: 'mes(es)', anios: 'año(s)' };
+      if (cantidad && Number(cantidad) > 0) {
+        frecuencia = `cada ${cantidad} ${etiquetasUnidad[unidad]}`;
+      }
+    }
 
     if (!nombre || !dosis || !frecuencia) {
       await mostrarAlerta('Campos incompletos', 'Todos los campos son obligatorios');
       return;
     }
 
+    if (fechaFin && fechaInicio && fechaFin < fechaInicio) {
+      await mostrarAlerta('Fechas inválidas', 'La fecha de fin no puede ser anterior a la fecha de inicio');
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_URL}/recetas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id_usuario: getUsuarioId(),
-          nombre_medicamento: nombre,
-          dosis: dosis,
-          frecuencia: frecuencia
-        })
-      });
+      const response = await fetch(
+        editando ? `${API_URL}/recetas/${recetaExistente.id}` : `${API_URL}/recetas`,
+        {
+          method: editando ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id_usuario: getUsuarioId(),
+            nombre_medicamento: nombre,
+            dosis: dosis,
+            frecuencia: frecuencia,
+            fecha_inicio: fechaInicio,
+            fecha_fin: fechaFin
+          })
+        }
+      );
 
       const data = await response.json();
       mostrarNotificacion(data.mensaje, 'success');
@@ -1552,8 +1657,11 @@ function mostrarModalReceta() {
       });
       cargarRecetas();
       cargarHistorialMedicacion();
+      cargarMedicamentosHoy();
 
-      await registrarMedicamento(nombre, dosis, frecuencia);
+      if (!editando) {
+        await registrarMedicamento(nombre, dosis, frecuencia);
+      }
     } catch (error) {
       console.error('Error:', error);
       mostrarNotificacion('Error al guardar la receta', 'error');
@@ -1709,120 +1817,63 @@ async function limpiarHistorialMedicacion() {
 }
 
 // ===============================
-// SECCIÓN: AGENDA MÉDICA
+// SECCIÓN: MIS CITAS (sección 5.1)
+// El paciente NO agenda citas por su cuenta (no conoce la disponibilidad
+// real del médico); esta sección es solo de consulta: Próximas + Historial.
 // ===============================
+function renderTarjetaCita(cita) {
+  const fecha = new Date(cita.fecha_hora);
+  const div = document.createElement('div');
+  div.className = 'list-group-item';
+  div.innerHTML = `
+    <div>
+      <h6 class="mb-1">${cita.motivo || 'Cita médica'}</h6>
+      <small class="text-muted"><i class="bi bi-calendar3"></i> ${fecha.toLocaleDateString()} - ${fecha.toLocaleTimeString()}</small>
+      ${cita.doctor ? `<br><small class="text-muted"><i class="bi bi-person"></i> ${cita.doctor}</small>` : ''}
+      ${cita.estado ? `<br><span class="badge bg-secondary text-capitalize">${cita.estado}</span>` : ''}
+    </div>
+  `;
+  return div;
+}
+
 async function cargarCitas() {
   const idUsuario = getUsuarioId();
-  
+  const listaProximas = document.getElementById('listaCitasProximas');
+  const listaHistorial = document.getElementById('listaCitasHistorial');
+  if (!listaProximas && !listaHistorial) return;
+
   try {
     const response = await fetch(`${API_URL}/citas/${idUsuario}`);
     const citas = await response.json();
-    
-    const listGroup = document.querySelector('#agenda .list-group');
-    if (!listGroup) return;
-    
-    listGroup.innerHTML = '';
-    
-    const citasProximas = citas.filter(c => new Date(c.fecha_hora) > new Date());
-    
-    if (citasProximas.length === 0) {
-      listGroup.innerHTML = '<div class="list-group-item">No hay citas proximas</div>';
-      return;
+    const ahora = new Date();
+
+    // Sección 5.1: no deben aparecer como "próximas" citas ya vencidas.
+    const citasProximas = Array.isArray(citas) ? citas.filter(c => new Date(c.fecha_hora) > ahora) : [];
+    const citasHistorial = Array.isArray(citas)
+      ? citas.filter(c => new Date(c.fecha_hora) <= ahora).sort((a, b) => new Date(b.fecha_hora) - new Date(a.fecha_hora))
+      : [];
+
+    if (listaProximas) {
+      listaProximas.innerHTML = '';
+      if (citasProximas.length === 0) {
+        listaProximas.innerHTML = '<div class="list-group-item text-center text-muted">No tienes citas próximas</div>';
+      } else {
+        citasProximas.forEach(cita => listaProximas.appendChild(renderTarjetaCita(cita)));
+      }
     }
-    
-    citasProximas.forEach(cita => {
-      const fecha = new Date(cita.fecha_hora);
-      const div = document.createElement('div');
-      div.className = 'list-group-item';
-      div.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <h6 class="mb-1">${cita.motivo}</h6>
-            <small class="text-muted"><i class="bi bi-calendar3"></i> ${fecha.toLocaleDateString()} - ${fecha.toLocaleTimeString()}</small>
-          </div>
-          <button class="btn btn-sm btn-outline-danger" onclick="eliminarCita(${cita.id_cita})">
-            <i class="bi bi-x-circle"></i> Cancelar
-          </button>
-        </div>
-      `;
-      listGroup.appendChild(div);
-    });
+
+    if (listaHistorial) {
+      listaHistorial.innerHTML = '';
+      if (citasHistorial.length === 0) {
+        listaHistorial.innerHTML = '<div class="list-group-item text-center text-muted">Aún no tienes citas en tu historial</div>';
+      } else {
+        citasHistorial.forEach(cita => listaHistorial.appendChild(renderTarjetaCita(cita)));
+      }
+    }
   } catch (error) {
     console.error('Error al cargar citas:', error);
-  }
-}
-
-// ====================================================================
-// ====================================================================
-
-document.addEventListener('DOMContentLoaded', () => {
-  const citaForm = document.getElementById('citaForm');
-  if (citaForm) {
-    citaForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      //  CORRECCIÓN: Obtener valores correctamente
-      const fecha = citaForm.querySelector('input[type="date"]').value;
-      const hora = citaForm.querySelector('input[type="time"]').value;
-      const especialidad = document.getElementById('selectEspecialidad').value.trim(); // ✅ Especialidad del select
-      const doctor = document.getElementById('selectDoctor').value.trim(); // ✅ Doctor del select
-      
-      // Validar que todos los campos estén completos
-      if (!fecha || !hora || !especialidad || !doctor) {
-        await mostrarAlerta('Campos incompletos', 'Por favor completa todos los campos');
-        return;
-      }
-      
-      // Combinar fecha y hora en formato MySQL
-      const fechaHora = `${fecha} ${hora}:00`;
-      
-      // Crear el motivo combinando especialidad y doctor
-      const motivo = `${especialidad} - ${doctor}`;
-      
-      try {
-        const response = await fetch(`${API_URL}/guardarCita`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id_paciente: getUsuarioId(),
-            fecha_hora: fechaHora,
-            motivo: motivo,
-            anticipacion_min: 30
-          })
-        });
-        
-        const data = await response.json();
-        mostrarNotificacion(data.mensaje, 'success');
-        citaForm.reset(); // Limpiar formulario
-        cargarCitas(); // Recargar lista de citas
-        cargarEstadisticasInicio(); // Actualizar estadísticas
-      } catch (error) {
-        console.error('Error:', error);
-        mostrarNotificacion('Error al guardar la cita', 'error');
-      }
-    });
-  }
-});
-
-async function eliminarCita(id) {
-  const confirmado = await mostrarConfirmacion(
-    'Cancelar Cita',
-    'Estas seguro de que deseas cancelar esta cita medica?'
-  );
-  
-  if (!confirmado) return;
-  
-  try {
-    const response = await fetch(`${API_URL}/eliminarCita/${id}`, {
-      method: 'DELETE'
-    });
-    const data = await response.json();
-    mostrarNotificacion(data.mensaje, 'success');
-    cargarCitas();
-    cargarEstadisticasInicio();
-  } catch (error) {
-    console.error('Error:', error);
-    mostrarNotificacion('Error al cancelar', 'error');
+    if (listaProximas) listaProximas.innerHTML = '<div class="list-group-item text-center text-danger">Error al cargar tus citas</div>';
+    if (listaHistorial) listaHistorial.innerHTML = '<div class="list-group-item text-center text-danger">Error al cargar tu historial</div>';
   }
 }
 
@@ -1874,76 +1925,83 @@ async function cargarRecompensas() {
 
 // ===============================
 // SECCIÓN: EMERGENCIA
+// Sección 5.3 - El botón de emergencia debe estar en el lugar más accesible
+// posible, idealmente sin tener que navegar por menús. Además del botón SOS
+// dentro de la sección "Emergencia", se agrega un botón flotante disponible
+// en cualquier pantalla (ver activarBotonEmergenciaFlotante más abajo).
 // ===============================
+async function ejecutarActivacionEmergencia(boton) {
+  const confirmado = await mostrarConfirmacion(
+    'Activar Emergencia',
+    'Estas a punto de activar el protocolo de emergencia. Se notificara a tus contactos de emergencia y se compartira tu ubicacion.'
+  );
+
+  if (!confirmado) return;
+
+  const estadoOriginal = boton ? boton.innerHTML : null;
+  if (boton) {
+    boton.disabled = true;
+    boton.innerHTML = '<i class="bi bi-hourglass-split"></i> ACTIVANDO...';
+  }
+
+  const restaurarBoton = () => {
+    if (!boton) return;
+    setTimeout(() => {
+      boton.disabled = false;
+      boton.innerHTML = estadoOriginal;
+    }, 3000);
+  };
+
+  const enviarActivacion = async (lat, lng) => {
+    try {
+      await fetch(`${API_URL}/activarEmergencia`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_usuario: getUsuarioId(),
+          tipo_activacion: 'boton',
+          ...(lat && lng ? { ubicacion_lat: lat, ubicacion_lng: lng } : {})
+        })
+      });
+      mostrarNotificacion('Emergencia activada. Contactos notificados.', 'error');
+      cargarHistorialEmergencias();
+    } catch (error) {
+      console.error('Error:', error);
+      mostrarNotificacion('Error al activar emergencia', 'error');
+    } finally {
+      restaurarBoton();
+    }
+  };
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => enviarActivacion(position.coords.latitude, position.coords.longitude),
+      () => enviarActivacion(null, null)
+    );
+  } else {
+    await enviarActivacion(null, null);
+  }
+}
+
+// Botón flotante: visible en cualquier sección sin necesidad de navegar.
+function activarBotonEmergenciaFlotante() {
+  if (document.getElementById('emergenciaBtnFlotante')) return;
+
+  const boton = document.createElement('button');
+  boton.id = 'emergenciaBtnFlotante';
+  boton.className = 'btn-emergencia-flotante';
+  boton.title = 'Activar emergencia';
+  boton.innerHTML = '<i class="bi bi-telephone-fill"></i> <span>SOS</span>';
+  boton.addEventListener('click', () => ejecutarActivacionEmergencia(boton));
+  document.body.appendChild(boton);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  activarBotonEmergenciaFlotante();
+
   const emergenciaBtn = document.getElementById("emergenciaBtn");
   if (emergenciaBtn) {
-    emergenciaBtn.addEventListener("click", async () => {
-      const confirmado = await mostrarConfirmacion(
-        'Activar Emergencia',
-        'Estas a punto de activar el protocolo de emergencia. Se notificara a tus contactos de emergencia y se compartira tu ubicacion.'
-      );
-      
-      if (confirmado) {
-        emergenciaBtn.disabled = true;
-        emergenciaBtn.innerHTML = '<div class="sos-icon"><i class="bi bi-hourglass-split"></i></div><div class="sos-text">ACTIVANDO</div>';
-        
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(async (position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            
-            try {
-              const response = await fetch(`${API_URL}/activarEmergencia`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  id_usuario: getUsuarioId(),
-                  tipo_activacion: 'boton',
-                  ubicacion_lat: lat,
-                  ubicacion_lng: lng
-                })
-              });
-              
-              const data = await response.json();
-              mostrarNotificacion('Emergencia activada. Contactos notificados.', 'error');
-              cargarHistorialEmergencias();
-              
-            } catch (error) {
-              console.error('Error:', error);
-              mostrarNotificacion('Error al activar emergencia', 'error');
-            } finally {
-              setTimeout(() => {
-                emergenciaBtn.disabled = false;
-                emergenciaBtn.innerHTML = '<div class="sos-icon"><i class="bi bi-telephone-fill"></i></div><div class="sos-text">SOS</div><div class="sos-subtext">EMERGENCIA</div>';
-              }, 3000);
-            }
-          }, async () => {
-            try {
-              await fetch(`${API_URL}/activarEmergencia`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  id_usuario: getUsuarioId(),
-                  tipo_activacion: 'boton'
-                })
-              });
-              
-              mostrarNotificacion('Emergencia activada', 'error');
-              cargarHistorialEmergencias();
-            } catch (error) {
-              console.error('Error:', error);
-              mostrarNotificacion('Error al activar emergencia', 'error');
-            } finally {
-              setTimeout(() => {
-                emergenciaBtn.disabled = false;
-                emergenciaBtn.innerHTML = '<div class="sos-icon"><i class="bi bi-telephone-fill"></i></div><div class="sos-text">SOS</div><div class="sos-subtext">EMERGENCIA</div>';
-              }, 3000);
-            }
-          });
-        }
-      }
-    });
+    emergenciaBtn.addEventListener("click", () => ejecutarActivacionEmergencia(emergenciaBtn));
   }
 });
 
@@ -2839,6 +2897,41 @@ function obtenerAvatarSVG(avatarId, size = '100%') {
 // ===============================
 // SECCIÓN PERFIL: FICHA COMPLETA (HU-31)
 // ===============================
+// Sección 5.4 - Sistema de recompensas: la ingeniera pidió poder ocultarlo
+// mientras no esté completo, en vez de dejarlo a medio terminar visible.
+async function aplicarVisibilidadRecompensas() {
+  let mostrar = false;
+  try {
+    const resp = await fetch(`${API_URL}/parametros-publicos`);
+    if (resp.ok) {
+      const params = await resp.json();
+      mostrar = params.mostrar_recompensas === '1' || params.mostrar_recompensas === 1;
+    }
+  } catch (error) {
+    console.error('Error al verificar visibilidad de recompensas:', error);
+  }
+
+  document.querySelectorAll('.modulo-recompensas').forEach((el) => {
+    el.classList.toggle('d-none', !mostrar);
+  });
+
+  return mostrar;
+}
+
+function calcularEdadDesdeFecha(fechaNacimiento) {
+  if (!fechaNacimiento) return 'No registrado';
+  const nacimiento = new Date(fechaNacimiento);
+  if (Number.isNaN(nacimiento.getTime())) return 'No registrado';
+
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - nacimiento.getFullYear();
+  const mesDiferencia = hoy.getMonth() - nacimiento.getMonth();
+  if (mesDiferencia < 0 || (mesDiferencia === 0 && hoy.getDate() < nacimiento.getDate())) {
+    edad--;
+  }
+  return `${edad} años`;
+}
+
 async function cargarFichaCompletaPerfil() {
   const container = document.getElementById('fichaCompletaContainer');
   if (!container) return;
@@ -2899,8 +2992,16 @@ async function cargarFichaCompletaPerfil() {
         <div class="perfil-resumen-value">${usuario.telefono || 'No registrado'}</div>
       </div>
       <div class="perfil-resumen-item">
+        <div class="perfil-resumen-label"><i class="bi bi-calendar-heart"></i> Edad</div>
+        <div class="perfil-resumen-value">${calcularEdadDesdeFecha(usuario.fecha_nacimiento)}</div>
+      </div>
+      <div class="perfil-resumen-item">
         <div class="perfil-resumen-label"><i class="bi bi-droplet-fill text-danger"></i> Tipo de Sangre</div>
         <div class="perfil-resumen-value">${usuario.tipo_sangre || 'No registrado'}</div>
+      </div>
+      <div class="perfil-resumen-item">
+        <div class="perfil-resumen-label"><i class="bi bi-person-wheelchair"></i> Usa silla de ruedas</div>
+        <div class="perfil-resumen-value">${usuario.usa_silla_ruedas ? 'Sí' : 'No'}</div>
       </div>
       <div class="perfil-resumen-item">
         <div class="perfil-resumen-label">Correo electronico</div>
@@ -2929,14 +3030,14 @@ async function cargarFichaCompletaPerfil() {
     </div>
 
     <div class="row text-center mb-3">
-      <div class="col-6 col-md-3 mb-3">
+      <div class="col-6 col-md-3 mb-3 modulo-recompensas">
         <div class="p-3 bg-light rounded">
           <i class="bi bi-star-fill text-warning" style="font-size: 1.5rem;"></i>
           <h5 class="mt-2 mb-0">${recompensas.puntos_totales || 0}</h5>
           <small class="text-muted">Puntos</small>
         </div>
       </div>
-      <div class="col-6 col-md-3 mb-3">
+      <div class="col-6 col-md-3 mb-3 modulo-recompensas">
         <div class="p-3 bg-light rounded">
           <i class="bi bi-award-fill text-primary" style="font-size: 1.5rem;"></i>
           <h5 class="mt-2 mb-0">${recompensas.medallas || 0}</h5>
@@ -2968,6 +3069,8 @@ async function cargarFichaCompletaPerfil() {
       </button>
     </div>
   `;
+
+  aplicarVisibilidadRecompensas();
 }
 
 // ===============================

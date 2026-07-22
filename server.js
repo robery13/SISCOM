@@ -97,6 +97,17 @@ db.connect(err => {
     ensureUsuariosColumn('tatuajes', "ALTER TABLE usuarios ADD COLUMN tatuajes TEXT NULL AFTER enfermedades_cronicas");
     ensureUsuariosColumn('otras_enfermedades', "ALTER TABLE usuarios ADD COLUMN otras_enfermedades TEXT NULL AFTER tatuajes");
 
+    // Sección 5 - Módulo de pacientes: completar la ficha propia del paciente
+    // (edad vía fecha de nacimiento, uso de silla de ruedas). El resto de la
+    // ficha (tipo de sangre, alergias, condiciones, etc.) ya existía arriba.
+    ensureUsuariosColumn('fecha_nacimiento', "ALTER TABLE usuarios ADD COLUMN fecha_nacimiento DATE NULL AFTER otras_enfermedades");
+    ensureUsuariosColumn('usa_silla_ruedas', "ALTER TABLE usuarios ADD COLUMN usa_silla_ruedas TINYINT(1) NOT NULL DEFAULT 0 AFTER fecha_nacimiento");
+
+    // Sección 5.2 - fecha de inicio/fin de tratamiento en cada receta, para no
+    // tener medicamentos "para siempre" cuando en realidad son de unos días.
+    ensureTableColumn('recetas_medicas', 'fecha_inicio', "ALTER TABLE recetas_medicas ADD COLUMN fecha_inicio DATE NULL AFTER frecuencia");
+    ensureTableColumn('recetas_medicas', 'fecha_fin', "ALTER TABLE recetas_medicas ADD COLUMN fecha_fin DATE NULL AFTER fecha_inicio");
+
     // Crear tabla contactos_emergencia si no existe (HU-21: Agregar contactos de emergencia)
     const createContactosEmergenciaSql = `
       CREATE TABLE IF NOT EXISTS contactos_emergencia (
@@ -230,6 +241,22 @@ db.connect(err => {
         db.query('INSERT INTO parametros_sistema (clave, valor, descripcion, tipo) VALUES ?', [parametrosSemilla], (errSeed) => {
           if (errSeed) console.error('Error al insertar parámetros semilla:', errSeed);
         });
+      });
+
+      // Sección 5.4 - Sistema de recompensas: la lic pidió poder
+      // ocultarlo mientras no esté completo. Se agrega este parámetro aparte
+      // (no depende del bloque "solo si la tabla está vacía" de arriba) para
+      // que también aparezca en instalaciones que ya tenían parámetros.
+      db.query("SELECT id FROM parametros_sistema WHERE clave = 'mostrar_recompensas'", (errCheck, filas) => {
+        if (errCheck) { console.error('Error al verificar parámetro mostrar_recompensas:', errCheck); return; }
+        if (filas.length > 0) return;
+        db.query(
+          'INSERT INTO parametros_sistema (clave, valor, descripcion, tipo) VALUES (?, ?, ?, ?)',
+          ['mostrar_recompensas', '0', 'Muestra u oculta el sistema de recompensas en la interfaz del paciente (0 = oculto, 1 = visible)', 'booleano'],
+          (errInsertRecompensas) => {
+            if (errInsertRecompensas) console.error('Error al insertar parámetro mostrar_recompensas:', errInsertRecompensas);
+          }
+        );
       });
     });
 
@@ -430,6 +457,26 @@ function ensureUsuariosColumn(columnName, alterSql) {
         console.error(`Error al agregar columna ${columnName} en usuarios:`, errAlter);
       } else {
         console.log(`Columna ${columnName} agregada a usuarios correctamente`);
+      }
+    });
+  });
+}
+function ensureTableColumn(tableName, columnName, alterSql) {
+  db.query('SHOW COLUMNS FROM ?? LIKE ?', [tableName, columnName], (err, results) => {
+    if (err) {
+      console.error(`Error al verificar columna ${columnName} en ${tableName}:`, err);
+      return;
+    }
+
+    if (results.length > 0) {
+      return;
+    }
+
+    db.query(alterSql, (errAlter) => {
+      if (errAlter) {
+        console.error(`Error al agregar columna ${columnName} en ${tableName}:`, errAlter);
+      } else {
+        console.log(`Columna ${columnName} agregada a ${tableName} correctamente`);
       }
     });
   });
@@ -1190,7 +1237,7 @@ app.post("/registrar", (req, res) => {
 // Registro de usuario con rol - Solo administrador
 app.post("/registraradm", verificarPermiso('Usuarios'), async (req, res) => {
 
-  const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
+  const { nombres, apellidos, identidad, telefono, email, password, rol, id_cuidador, fecha_nacimiento, usa_silla_ruedas } = req.body;
   const correoNormalizado = String(email || '').trim().toLowerCase();
 
   // Validación básica
@@ -1202,6 +1249,14 @@ app.post("/registraradm", verificarPermiso('Usuarios'), async (req, res) => {
     return res.status(400).json({ error: "El correo no pertenece a un dominio permitido." });
   }
 
+  // Sección 5 - Módulo de pacientes: la cuenta de un paciente (rol "usuario")
+  // debe requerir la asignación de un cuidador desde su creación; ya no se
+  // permite crear un paciente sin cuidador (evita medicamentos "sin dueño").
+  const idCuidadorNum = parseInt(id_cuidador, 10);
+  if (rol === 'usuario' && (!Number.isInteger(idCuidadorNum) || idCuidadorNum <= 0)) {
+    return res.status(400).json({ error: "Debe asignar un cuidador al crear una cuenta de paciente." });
+  }
+
   // Hashear la contraseña antes de insertar
   const saltRounds = 10;
   const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -1211,19 +1266,49 @@ app.post("/registraradm", verificarPermiso('Usuarios'), async (req, res) => {
   // (generica/temporal), por lo que el usuario debe cambiarla obligatoriamente en su
   // primer inicio de sesion y no podra volver a usar esta misma contrasena.
   const sql = `
-    INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password, rol, requiere_cambio_password)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+    INSERT INTO usuarios (nombres, apellidos, identidad, telefono, email, password, rol, requiere_cambio_password, fecha_nacimiento, usa_silla_ruedas)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
   `;
 
-db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashedPassword, rol], (err, result) => {
+db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashedPassword, rol, fecha_nacimiento || null, usa_silla_ruedas ? 1 : 0], (err, result) => {
 
 
   if (err) {
     //console.error("Error SQL completo:", err); // <-- imprime todo
     return res.status(500).json({ error: "Error al registrar usuario en la base de datos.", detalle: err.message });
   }
+
   registrarBitacora(req, 'usuarios.crear', `Usuario "${correoNormalizado}" creado con rol "${rol}"`);
-  res.status(200).json({ mensaje: "Usuario registrado con éxito." });
+
+  // Si es un paciente, validar el cuidador y crear la asignación de una vez.
+  if (rol === 'usuario') {
+    const idPacienteNuevo = result.insertId;
+    const sqlValidarCuidador = "SELECT id FROM usuarios WHERE id = ? AND rol = 'empleado' LIMIT 1";
+    db.query(sqlValidarCuidador, [idCuidadorNum], (errValidar, cuidadores) => {
+      if (errValidar || !cuidadores.length) {
+        // El usuario ya se creó; se informa el problema con la asignación
+        // para que el administrador la corrija desde "Cuidadores-Pacientes".
+        return res.status(201).json({
+          mensaje: "Usuario registrado con éxito, pero el cuidador indicado no es válido. Asígnelo manualmente desde Cuidadores-Pacientes.",
+          id: idPacienteNuevo
+        });
+      }
+
+      const sqlAsignar = 'INSERT INTO cuidador_pacientes (cuidador_id, paciente_id) VALUES (?, ?)';
+      db.query(sqlAsignar, [idCuidadorNum, idPacienteNuevo], (errAsignar) => {
+        if (errAsignar) {
+          return res.status(201).json({
+            mensaje: "Usuario registrado con éxito, pero no se pudo asignar el cuidador. Asígnelo manualmente desde Cuidadores-Pacientes.",
+            id: idPacienteNuevo
+          });
+        }
+        res.status(200).json({ mensaje: "Paciente registrado y asignado a su cuidador con éxito.", id: idPacienteNuevo });
+      });
+    });
+    return;
+  }
+
+  res.status(200).json({ mensaje: "Usuario registrado con éxito.", id: result.insertId });
 });
 
 });
@@ -1444,7 +1529,7 @@ app.get('/parametros', verificarPermiso('Parámetros del Sistema'), (req, res) =
 // mismos umbrales de stock que configura el administrador, sin valores fijos.
 app.get('/parametros-publicos', (req, res) => {
   db.query(
-    "SELECT clave, valor FROM parametros_sistema WHERE clave IN ('stock_critico_umbral', 'stock_bajo_umbral')",
+    "SELECT clave, valor FROM parametros_sistema WHERE clave IN ('stock_critico_umbral', 'stock_bajo_umbral', 'mostrar_recompensas')",
     (err, rows) => {
       if (err) {
         console.error('Error al obtener parámetros públicos:', err);
@@ -2183,6 +2268,22 @@ app.get('/obtenerCitas', (req, res) => {
     res.status(200).json(results);
   });
 });
+// Sección 5.1 - Citas del paciente: solo consulta (próximas + historial).
+// El paciente ya NO puede agendar citas por su cuenta; esta ruta reemplaza
+// el fetch roto que el frontend hacía antes contra "/citas/:id" (esa ruta
+// nunca existió, por eso "Mis Citas" nunca cargaba datos reales).
+app.get('/citas/:id_usuario', (req, res) => {
+  const { id_usuario } = req.params;
+  const sql = 'SELECT * FROM citas WHERE id_paciente = ? ORDER BY fecha_hora ASC';
+
+  db.query(sql, [id_usuario], (err, results) => {
+    if (err) {
+      console.error('Error al obtener citas del paciente:', err);
+      return res.status(500).json({ mensaje: 'Error al obtener las citas.' });
+    }
+    res.status(200).json(results);
+  });
+});
 
 app.delete('/eliminarCita/:id', (req, res) => {
   const { id } = req.params;
@@ -2525,19 +2626,19 @@ app.delete('/eliminarTodosPedidos', verificarRol(['administrador']), (req, res) 
 // ============================================
 
 app.post('/recetas', (req, res) => {
-  const { id_usuario, nombre_medicamento, dosis, frecuencia } = req.body;
+  const { id_usuario, nombre_medicamento, dosis, frecuencia, fecha_inicio, fecha_fin } = req.body;
 
   if (!id_usuario || !nombre_medicamento || !dosis || !frecuencia) {
     return res.status(400).json({ mensaje: 'Campos incompletos' });
   }
 
-  const sql = 'INSERT INTO recetas_medicas (id_usuario, nombre_medicamento, dosis, frecuencia, fecha_subida) VALUES (?, ?, ?, ?, NOW())';
-  db.query(sql, [id_usuario, nombre_medicamento, dosis, frecuencia], (err, result) => {
+  const sql = 'INSERT INTO recetas_medicas (id_usuario, nombre_medicamento, dosis, frecuencia, fecha_inicio, fecha_fin, fecha_subida) VALUES (?, ?, ?, ?, ?, ?, NOW())';
+  db.query(sql, [id_usuario, nombre_medicamento, dosis, frecuencia, fecha_inicio || null, fecha_fin || null], (err, result) => {
     if (err) {
       console.error('Error al guardar receta:', err);
       return res.status(500).json({ mensaje: 'Error al guardar la receta' });
     }
-    res.json({ mensaje: 'Receta guardada correctamente' });
+    res.json({ mensaje: 'Receta guardada correctamente', id: result.insertId });
   });
 });
 
@@ -2564,20 +2665,36 @@ app.get('/recetas/:id_usuario', (req, res) => {
     res.json(results);
   });
 });
-
-
-app.delete('/recetas/:id', (req, res) => {
+// Sección 5.2 - Corrige el flujo de edición: antes no existía una ruta para
+// actualizar una receta, así que "editar" en la práctica implicaba borrar y
+// crear una receta nueva (perdiendo el historial y duplicando registros).
+app.put('/recetas/:id', (req, res) => {
   const { id } = req.params;
+  const { nombre_medicamento, dosis, frecuencia, fecha_inicio, fecha_fin } = req.body;
 
-  const sql = 'DELETE FROM recetas_medicas WHERE id = ?';
-  db.query(sql, [id], (err, result) => {
+  if (!nombre_medicamento || !dosis || !frecuencia) {
+    return res.status(400).json({ mensaje: 'Campos incompletos' });
+  }
+
+  const sql = `
+    UPDATE recetas_medicas
+    SET nombre_medicamento = ?, dosis = ?, frecuencia = ?, fecha_inicio = ?, fecha_fin = ?
+    WHERE id = ?
+  `;
+
+  db.query(sql, [nombre_medicamento, dosis, frecuencia, fecha_inicio || null, fecha_fin || null, id], (err, result) => {
     if (err) {
-      console.error('Error al eliminar receta:', err);
-      return res.status(500).json({ mensaje: 'Error al eliminar la receta' });
+      console.error('Error al actualizar receta:', err);
+      return res.status(500).json({ mensaje: 'Error al actualizar la receta' });
     }
-    res.json({ mensaje: 'Receta eliminada correctamente' });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Receta no encontrada' });
+    }
+    res.json({ mensaje: 'Receta actualizada correctamente' });
   });
 });
+
+
 
 // ============================================
 // RUTAS DE USUARIOS (PROTEGIDAS - SOLO ADMINISTRADOR)
@@ -2596,7 +2713,7 @@ app.get('/usuarios', verificarPermiso('Usuarios'), (req, res) => {
 // Actualizar usuario - Solo administrador
 app.put('/usuarios/:id', verificarPermiso('Usuarios'), async (req, res) => {
   const { id } = req.params;
-  const { nombres, apellidos, identidad, telefono, email, password, rol } = req.body;
+  const { nombres, apellidos, identidad, telefono, email, password, rol, fecha_nacimiento, usa_silla_ruedas } = req.body;
   const correoNormalizado = String(email || '').trim().toLowerCase();
   const passwordTexto = String(password || '').trim();
 
@@ -2633,6 +2750,16 @@ app.put('/usuarios/:id', verificarPermiso('Usuarios'), async (req, res) => {
     // Construir UPDATE dinamico: password solo si se envio una nueva
     const campos = ['nombres = ?', 'apellidos = ?', 'identidad = ?', 'telefono = ?', 'email = ?', 'rol = ?'];
     const valores = [nombres, apellidos, identidad, telefono, correoNormalizado, rol];
+
+    if (fecha_nacimiento !== undefined) {
+      campos.push('fecha_nacimiento = ?');
+      valores.push(fecha_nacimiento || null);
+    }
+
+    if (usa_silla_ruedas !== undefined) {
+      campos.push('usa_silla_ruedas = ?');
+      valores.push(usa_silla_ruedas ? 1 : 0);
+    }
 
     if (passwordTexto.length > 0) {
       const saltRounds = 10;
@@ -2674,7 +2801,7 @@ app.put('/usuarios/:id', verificarPermiso('Usuarios'), async (req, res) => {
 
 // Obtener perfil del paciente autenticado
 app.get('/mi-perfil', verificarRol(['usuario']), (req, res) => {
-  const sql = 'SELECT id, nombres, apellidos, identidad, telefono, tipo_sangre, operaciones_realizadas, alergias, enfermedades_cronicas, tatuajes, otras_enfermedades, email, rol FROM usuarios WHERE id = ? LIMIT 1';
+  const sql = 'SELECT id, nombres, apellidos, identidad, telefono, tipo_sangre, operaciones_realizadas, alergias, enfermedades_cronicas, tatuajes, otras_enfermedades, fecha_nacimiento, usa_silla_ruedas, email, rol FROM usuarios WHERE id = ? LIMIT 1';
   db.query(sql, [req.user.id], (err, results) => {
     if (err) {
       return res.status(500).json({ mensaje: 'Error al cargar tu perfil' });

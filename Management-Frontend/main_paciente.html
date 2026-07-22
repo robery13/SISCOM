@@ -164,7 +164,7 @@
           <p class="mb-0">Citas Próximas</p>
         </div>
       </div>
-      <div class="col-md-3 col-6 mb-3">
+      <div class="col-md-3 col-6 mb-3 modulo-recompensas">
         <div class="p-4 bg-warning text-white rounded text-center">
           <i class="bi bi-star-fill" style="font-size: 2.5rem;"></i>
           <h3 class="mt-2" id="stat-puntos">0</h3>
@@ -218,7 +218,7 @@
         </div>
       </div>
 
-      <div class="card mt-3">
+      <div class="card mt-3 modulo-recompensas">
         <h5 class="card-title">Logro Reciente</h5>
         <div id="logroReciente" class="text-center">
           <i class="bi bi-trophy-fill text-warning" style="font-size: 3rem;"></i>
@@ -234,113 +234,20 @@
       <section id="agenda" class="section d-none">
         <div class="section-header">
           <h2><i class="bi bi-calendar-check"></i> Mis Citas</h2>
-          <p class="muted">Gestiona tus citas médicas</p>
-        </div>
-
-        <div class="card">
-          <h5 class="card-title">Registrar Nueva Cita</h5>
-          <form id="citaForm">
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Fecha</label>
-                <input type="date" class="form-control" required>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Hora</label>
-                <input type="time" class="form-control" required>
-              </div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Especialidad/Motivo</label>
-              <select class="form-select" id="selectEspecialidad" required>
-                <option value="">Selecciona una especialidad</option>
-                <optgroup label="Especialidades Médicas">
-                  <option value="Medicina General">Medicina General</option>
-                  <option value="Cardiología">Cardiología</option>
-                  <option value="Neurología">Neurología</option>
-                  <option value="Medicina Interna">Medicina Interna</option>
-                  <option value="Endocrinología">Endocrinología</option>
-                  <option value="Geriatría">Geriatría</option>
-                  <option value="Psiquiatría">Psiquiatría</option>
-                  <option value="Ortopedia">Ortopedia</option>
-                </optgroup>
-                <optgroup label="Servicios de Enfermería">
-                  <option value="Control de Signos Vitales">Control de Signos Vitales</option>
-                  <option value="Administración de Medicamentos">Administración de Medicamentos</option>
-                  <option value="Curación de Heridas">Curación de Heridas</option>
-                  <option value="Toma de Muestras">Toma de Muestras</option>
-                  <option value="Control de Glucosa">Control de Glucosa</option>
-                </optgroup>
-                <optgroup label="Servicios de Cuidado">
-                  <option value="Cuidado Personal">Cuidado Personal</option>
-                  <option value="Acompañamiento">Acompañamiento</option>
-                  <option value="Asistencia en Movilidad">Asistencia en Movilidad</option>
-                  <option value="Apoyo en Alimentación">Apoyo en Alimentación</option>
-                  <option value="Supervisión General">Supervisión General</option>
-                </optgroup>
-                <optgroup label="Otros">
-                  <option value="Consulta de Seguimiento">Consulta de Seguimiento</option>
-                  <option value="Revisión de Tratamiento">Revisión de Tratamiento</option>
-                  <option value="Evaluación General">Evaluación General</option>
-                </optgroup>
-              </select>
-            </div>
-            <div class="mb-3">
-         <label class="form-label">Doctor o Cuidador</label>
-              <select class="form-select" id="selectDoctor" required>
-                <option value="">Selecciona un profesional</option>
-                <optgroup label="Médicos">
-                <option value="Dr. Juan Pérez - Médico General">Dr. Juan Pérez - Médico General</option>
-      <option value="Dra. María López - Cardióloga">Dra. María López - Cardióloga</option>
-      <option value="Dr. Carlos Rodríguez - Neurólogo">Dr. Carlos Rodríguez - Neurólogo</option>
-      <option value="Dr. Roberto Fernández - Internista">Dr. Roberto Fernández - Internista</option>
-      <option value="Dra. Patricia Morales - Endocrinóloga">Dra. Patricia Morales - Endocrinóloga</option>
-      <option value="Dr. Luis Hernández - Geriatra">Dr. Luis Hernández - Geriatra</option>
-      <option value="Dra. Carmen Díaz - Psiquiatra">Dra. Carmen Díaz - Psiquiatra</option>
-      <option value="Dr. Miguel Ángel Torres - Ortopedista">Dr. Miguel Ángel Torres - Ortopedista</option>
-    </optgroup>
-    <optgroup label="Cuidadores">
-      <option value="Enfermera Ana García">Enfermera Ana García</option>
-      <option value="Cuidador Pedro Martínez">Cuidador Pedro Martínez</option>
-      <option value="Enfermera Laura Sánchez">Enfermera Laura Sánchez</option>
-      <option value="Enfermero José Ramírez">Enfermero José Ramírez</option>
-      <option value="Cuidadora Sofia Castillo">Cuidadora Sofia Castillo</option>
-      <option value="Enfermera Gabriela Núñez">Enfermera Gabriela Núñez</option>
-      <option value="Cuidador Antonio Vargas">Cuidador Antonio Vargas</option>
-      <option value="Enfermera Rosa Mendoza">Enfermera Rosa Mendoza</option>
-    </optgroup>
-              </select>
-            </div>
-            <button type="submit" class="btn btn-primary"><i class="bi bi-calendar-plus"></i> Agendar Cita</button>
-          </form>
+          <p class="muted">Consulta tus citas médicas. El agendamiento lo realiza tu cuidador o el consultorio, ya que ellos conocen la disponibilidad real del médico.</p>
         </div>
 
         <div class="card">
           <h5 class="card-title">Próximas Citas</h5>
-          <div class="alert alert-info">
-            <i class="bi bi-bell"></i> Tienes 2 citas próximas esta semana
+          <div class="list-group" id="listaCitasProximas">
+            <div class="list-group-item text-center text-muted">Cargando citas...</div>
           </div>
-          <div class="list-group">
-            <div class="list-group-item">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="mb-1">Consulta General</h6>
-                  <small class="text-muted"><i class="bi bi-calendar3"></i> 05/12/2024 - 10:00 AM</small><br>
-                  <small class="text-muted"><i class="bi bi-person"></i> Dr. Juan Pérez</small>
-                </div>
-                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i> Cancelar</button>
-              </div>
-            </div>
-            <div class="list-group-item">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="mb-1">Cardiología - Control</h6>
-                  <small class="text-muted"><i class="bi bi-calendar3"></i> 07/12/2024 - 3:00 PM</small><br>
-                  <small class="text-muted"><i class="bi bi-person"></i> Dra. María López</small>
-                </div>
-                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i> Cancelar</button>
-              </div>
-            </div>
+        </div>
+
+        <div class="card">
+          <h5 class="card-title">Historial de Citas</h5>
+          <div class="list-group" id="listaCitasHistorial">
+            <div class="list-group-item text-center text-muted">Cargando historial...</div>
           </div>
         </div>
       </section>
@@ -364,7 +271,7 @@
             <button class="perfil-subnav-btn" data-perfil-section="personalizacion">
               <i class="bi bi-palette-fill"></i> <span>Personalización</span>
             </button>
-            <button class="perfil-subnav-btn" data-perfil-section="recompensas">
+            <button class="perfil-subnav-btn modulo-recompensas" data-perfil-section="recompensas">
               <i class="bi bi-trophy"></i> <span>Recompensas</span>
             </button>
           </div>
@@ -648,12 +555,13 @@
             <th>Medicamento</th>
             <th>Dosis</th>
             <th>Frecuencia</th>
+            <th>Vigencia</th>
             <th>Acciones</th>
           </tr>
         </thead>
         <tbody id="tablaRecetasBody">
           <tr>
-            <td colspan="5" class="text-center text-muted">Cargando recetas...</td>
+            <td colspan="6" class="text-center text-muted">Cargando recetas...</td>
           </tr>
         </tbody>
       </table>

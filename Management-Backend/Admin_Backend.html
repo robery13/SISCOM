@@ -1721,6 +1721,29 @@
                 <option value="">Seleccione rol</option>
               </select>
             </div>
+
+            <!-- Sección 5 - Ficha propia del paciente y cuidador obligatorio.
+                 Solo se muestran cuando el rol seleccionado es "usuario" (paciente). -->
+            <div id="camposPacienteUsuario" class="col-12 row g-3 d-none">
+              <hr class="mt-2">
+              <div class="col-md-6">
+                <label for="fechaNacimientoUsuario" class="form-label">Fecha de nacimiento</label>
+                <input type="date" id="fechaNacimientoUsuario" class="form-control">
+              </div>
+              <div class="col-md-6 d-flex align-items-end">
+                <div class="form-check">
+                  <input type="checkbox" id="sillaRuedasUsuario" class="form-check-input">
+                  <label for="sillaRuedasUsuario" class="form-check-label">Usa silla de ruedas</label>
+                </div>
+              </div>
+              <div class="col-md-12">
+                <label for="cuidadorAsignadoUsuario" class="form-label">Cuidador asignado <span class="text-danger">*</span></label>
+                <select id="cuidadorAsignadoUsuario" class="form-select">
+                  <option value="">Seleccione un cuidador</option>
+                </select>
+                <div class="form-text text-muted small">Todo paciente debe tener un cuidador asignado desde su creación.</div>
+              </div>
+            </div>
           </form>
         </div>
         <div class="modal-footer">
@@ -1730,7 +1753,6 @@
       </div>
     </div>
   </div>
-
  <!-- Contenedor para los toasts -->
 <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;"></div>
 
