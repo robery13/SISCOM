@@ -101,11 +101,11 @@
         
         <button class="nav-btn active" data-section="dashboard" data-role="administrador,empleado"><i class="bi bi-speedometer2"></i> <span>Dashboard</span></button>
         <button class="nav-btn" data-section="usuarios" data-role="administrador" data-permiso-any="Usuarios,Roles,Permisos,Bitácora,Backup y Restore,Dominios de Correo,Parámetros del Sistema"><i class="bi bi-shield-lock"></i> <span>Seguridad</span></button>
-        <button class="nav-btn" data-section="asignacion-pacientes" data-role="administrador,empleado"><i class="bi bi-diagram-3"></i> <span>Asignaci&oacute;n de Pacientes</span></button>
+        <button class="nav-btn" data-section="asignacion-pacientes" data-role="administrador,empleado"><i class="bi bi-diagram-3"></i> <span>Pacientes</span></button>
         <div class="nav-group nav-accordion" id="medicamentosAccordionAdmin">
           <button class="nav-btn nav-accordion-toggle" type="button" aria-expanded="false">
             <i class="bi bi-capsule"></i>
-            <span>Gesti&oacute;n de Medicamentos</span>
+            <span>Medicamentos</span>
             <i class="bi bi-chevron-down accordion-chevron"></i>
           </button>
           <div class="nav-accordion-content">
@@ -158,9 +158,9 @@
           </div>
         </div>
 
-<div class="dashboard-kpi-grid dashboard-kpi-grid-compact" data-aos="fade-up" data-aos-delay="100">
+<div class="dashboard-kpi-grid dashboard-kpi-grid-compact" id="dashboardKpiGrid" data-aos="fade-up" data-aos-delay="100">
           <!-- KPI 1: Citas del período (acceso directo a Citas Médicas) -->
-          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiCitasHoy" data-section="recetas" tabindex="0" role="button" aria-label="Ir a Citas Médicas">
+          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiCitasHoy" data-section="recetas" data-permiso="Citas Médicas" tabindex="0" role="button" aria-label="Ir a Citas Médicas">
             <div class="kpi-icon gradient-info">
               <i class="bi bi-calendar2-check"></i>
             </div>
@@ -174,7 +174,7 @@
           </article>
 
           <!-- KPI 2: Stock bajo (acceso directo a Inventario) -->
-          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiStockBajo" data-section="inventario" tabindex="0" role="button" aria-label="Ir a Inventario">
+          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiStockBajo" data-section="inventario" data-permiso="Inventario" tabindex="0" role="button" aria-label="Ir a Inventario">
             <div class="kpi-icon gradient-warning">
               <i class="bi bi-exclamation-triangle"></i>
             </div>
@@ -188,7 +188,7 @@
           </article>
 
           <!-- KPI 3: Medicamentos activos (acceso directo a Medicamentos) -->
-          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiMedicamentosActivos" data-section="medicamentos" tabindex="0" role="button" aria-label="Ir a Medicamentos">
+          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiMedicamentosActivos" data-section="medicamentos" data-permiso="Medicamentos" tabindex="0" role="button" aria-label="Ir a Medicamentos">
             <div class="kpi-icon gradient-success">
               <i class="bi bi-capsule-pill"></i>
             </div>
@@ -202,7 +202,7 @@
           </article>
 
           <!-- KPI 4: Usuarios totales (acceso directo a Gestión de Usuarios, solo admin) -->
-          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiUsuariosTotal" data-section="usuarios" tabindex="0" role="button" aria-label="Ir a Seguridad">
+          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiUsuariosTotal" data-section="usuarios" data-role="administrador" tabindex="0" role="button" aria-label="Ir a Seguridad">
             <div class="kpi-icon gradient-primary">
               <i class="bi bi-people-fill"></i>
             </div>
@@ -217,8 +217,8 @@
 
         </div>
 
-        <!-- Sección de Análisis y Gráficos -->
-        <div class="dashboard-analytics-grid" data-aos="fade-up" data-aos-delay="200">
+        <!-- Sección de Análisis y Gráficos: solo para el rol administrador -->
+        <div class="dashboard-analytics-grid" id="dashboardAnalyticsGrid" data-role="administrador" data-aos="fade-up" data-aos-delay="200">
           <article class="card dashboard-panel analytics-card">
             <div class="dashboard-panel-header">
               <h5><i class="bi bi-pie-chart me-2"></i> Estado del Inventario</h5>
@@ -1420,7 +1420,7 @@
       <!-- ===== ASIGNACIÓN DE PACIENTES (menú independiente, fuera de Seguridad) ===== -->
       <section id="asignacion-pacientes" class="section d-none">
         <div class="section-header">
-          <h2><i class="bi bi-diagram-3 me-2"></i> Asignación de Pacientes</h2>
+          <h2><i class="bi bi-diagram-3 me-2"></i> Pacientes</h2>
           <p class="muted">Asigna qué pacientes atiende cada cuidador.</p>
         </div>
 
@@ -1819,6 +1819,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Filtrar menús según el rol del usuario (comportamiento de siempre,
       // solo para administrador y empleado, que siguen usando data-role).
+      // Ajusta cuántas columnas usa la grilla de tarjetas KPI del Dashboard
+      // según cuántas quedaron visibles, para que el diseño no se vea con
+      // huecos cuando un rol tiene menos módulos habilitados.
+      function ajustarGridKpi() {
+        const grid = document.getElementById('dashboardKpiGrid');
+        if (!grid) return;
+        const visibles = Array.from(grid.querySelectorAll('.dashboard-kpi-card'))
+          .filter(card => card.style.display !== 'none').length;
+        grid.classList.remove('kpi-count-1', 'kpi-count-2', 'kpi-count-3', 'kpi-count-4');
+        if (visibles > 0) grid.classList.add(`kpi-count-${Math.min(visibles, 4)}`);
+      }
+
+      // Tarjetas KPI y gráficos que solo debe ver el rol administrador,
+      // sin importar si el resto de módulos del rol están permitidos:
+      // "Usuarios Totales" y la sección completa de Estado del
+      // Inventario/Acceso de Usuarios (estadísticas globales del sistema).
+      function aplicarVisibilidadSoloAdmin() {
+        const esAdmin = userRole === 'administrador';
+        document.querySelectorAll('.dashboard-kpi-card[data-role="administrador"]').forEach(card => {
+          card.style.display = esAdmin ? '' : 'none';
+        });
+        const analyticsGrid = document.getElementById('dashboardAnalyticsGrid');
+        if (analyticsGrid) analyticsGrid.style.display = esAdmin ? '' : 'none';
+      }
+
       function filtrarMenusPorRol() {
         navBtns.forEach(btn => {
           const allowedRoles = btn.getAttribute('data-role');
@@ -1937,6 +1962,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ocultarAccordionsVacios();
 
+        // Tarjetas KPI del Dashboard para roles nuevos: cada una se muestra
+        // solo si el rol tiene el permiso del módulo al que da acceso directo.
+        // "Usuarios Totales" y los gráficos van aparte porque son exclusivos
+        // del administrador (aplicarVisibilidadSoloAdmin ya los oculta).
+        document.querySelectorAll('.dashboard-kpi-card[data-permiso]').forEach(card => {
+          card.style.display = modulosPermitidos.has(card.getAttribute('data-permiso')) ? '' : 'none';
+        });
+        aplicarVisibilidadSoloAdmin();
+        ajustarGridKpi();
+
         // Dentro de Seguridad, mostrar solo las pestañas cuyo módulo esté permitido.
         const pestañasSeguridad = document.querySelectorAll('#usuarios [role="presentation"][data-permiso]');
         let primeraPestañaVisible = null;
@@ -1969,6 +2004,14 @@ document.addEventListener('DOMContentLoaded', () => {
       // filtro fijo de siempre; cualquier otro rol usa sus permisos reales.
       if (userRole === 'administrador' || userRole === 'empleado') {
         filtrarMenusPorRol();
+        aplicarVisibilidadSoloAdmin();
+        // Para admin/empleado, las 3 tarjetas KPI restantes (Citas, Stock,
+        // Medicamentos) no dependen de permisos individuales: siempre se
+        // muestran, igual que sus módulos correspondientes en el menú lateral.
+        document.querySelectorAll('.dashboard-kpi-card[data-permiso]').forEach(card => {
+          card.style.display = '';
+        });
+        ajustarGridKpi();
       } else {
         // Mientras se resuelve /mis-permisos, se oculta todo menos el
         // Dashboard, para no mostrar por un instante módulos que luego se
@@ -2995,5 +3038,22 @@ document.addEventListener('DOMContentLoaded', () => {
     })();
   </script>
   <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+  <style>
+    /* Distribución adaptativa de las tarjetas KPI del Dashboard: la cantidad
+       de columnas se ajusta según cuántas tarjetas quedan visibles después
+       de aplicar el filtro de permisos/rol (ver dashboardKpiGrid en el script
+       de navegación). Con pocas tarjetas se ven más anchas y centradas en
+       vez de dejar huecos vacíos donde iban las tarjetas ocultas. */
+    #dashboardKpiGrid.kpi-count-1 { grid-template-columns: minmax(220px, 420px); justify-content: center; }
+    #dashboardKpiGrid.kpi-count-2 { grid-template-columns: repeat(2, minmax(220px, 1fr)); }
+    #dashboardKpiGrid.kpi-count-3 { grid-template-columns: repeat(3, minmax(200px, 1fr)); }
+    #dashboardKpiGrid.kpi-count-4 { grid-template-columns: repeat(4, minmax(180px, 1fr)); }
+    @media (max-width: 900px) {
+      #dashboardKpiGrid.kpi-count-1,
+      #dashboardKpiGrid.kpi-count-2,
+      #dashboardKpiGrid.kpi-count-3,
+      #dashboardKpiGrid.kpi-count-4 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    }
+  </style>
 </body>
 </html>

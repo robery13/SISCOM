@@ -14,7 +14,12 @@ const hasChart = typeof window !== "undefined" && typeof window.Chart !== "undef
 // ===============================
 window.PARAMETROS_SISTEMA = {
   stock_critico_umbral: 5,
-  stock_bajo_umbral: 10
+  stock_bajo_umbral: 10,
+  // Interruptor para el futuro módulo de Recompensas (ver panel Parámetros
+  // del Sistema > checkbox "Mostrar Recompensas"). Cuando esté en true,
+  // cualquier pantalla de participante puede consultar este valor para
+  // decidir si muestra su acceso a Recompensas en el menú.
+  mostrar_recompensas: false
 };
 
 async function cargarParametrosSistemaGlobal() {
@@ -28,6 +33,13 @@ async function cargarParametrosSistemaGlobal() {
     if (parametros.stock_bajo_umbral !== undefined) {
       window.PARAMETROS_SISTEMA.stock_bajo_umbral = Number(parametros.stock_bajo_umbral);
     }
+    if (parametros.mostrar_recompensas !== undefined) {
+      window.PARAMETROS_SISTEMA.mostrar_recompensas = String(parametros.mostrar_recompensas) === '1';
+    }
+    // Avisa a cualquier pantalla ya cargada (ej. menú de participante) de que
+    // el valor de recompensas ya está listo, por si necesita pintar/ocultar
+    // su acceso directo después de este fetch asíncrono.
+    document.dispatchEvent(new CustomEvent('parametrosSistemaListos', { detail: window.PARAMETROS_SISTEMA }));
   } catch (error) {
     console.error("No se pudieron cargar los parámetros del sistema, se usan valores por defecto:", error);
   }
@@ -3573,14 +3585,20 @@ function mostrarToast(mensaje, tipo = 'info') {
 
     parametros.forEach(p => {
       const tr = document.createElement("tr");
+      const esBooleano = p.tipo === "booleano";
+      const valorCelda = esBooleano
+        ? `<div class="form-check form-switch d-flex justify-content-center">
+             <input class="form-check-input valor-parametro-checkbox" type="checkbox" role="switch" data-id="${p.id}" ${String(p.valor) === "1" ? "checked" : ""}>
+           </div>`
+        : `<input type="${p.tipo === "numero" ? "number" : "text"}" class="form-control form-control-sm text-center valor-parametro-input" data-id="${p.id}" value="${escapeHtml(p.valor)}">`;
       tr.innerHTML = `
         <td><code>${escapeHtml(p.clave)}</code></td>
         <td class="small text-muted">${escapeHtml(p.descripcion || "")}</td>
         <td class="text-center" style="max-width:120px;">
-          <input type="${p.tipo === "numero" ? "number" : "text"}" class="form-control form-control-sm text-center valor-parametro-input" data-id="${p.id}" value="${escapeHtml(p.valor)}">
+          ${valorCelda}
         </td>
         <td class="text-center">
-          <button class="btn btn-sm btn-outline-primary guardar-parametro-btn" data-id="${p.id}"><i class="bi bi-save"></i></button>
+          <button class="btn btn-sm btn-outline-primary guardar-parametro-btn" data-id="${p.id}" data-booleano="${esBooleano ? "1" : "0"}"><i class="bi bi-save"></i></button>
         </td>`;
       tabla.appendChild(tr);
     });
@@ -3590,12 +3608,19 @@ function mostrarToast(mensaje, tipo = 'info') {
     const guardarBtn = e.target.closest(".guardar-parametro-btn");
     if (!guardarBtn) return;
     const id = guardarBtn.dataset.id;
+    const esBooleano = guardarBtn.dataset.booleano === "1";
     const fila = guardarBtn.closest("tr");
-    const input = fila.querySelector(".valor-parametro-input");
-    const valor = input ? input.value.trim() : "";
-    if (!valor) {
-      mostrarToast("El valor no puede estar vacío.", "warning");
-      return;
+    let valor;
+    if (esBooleano) {
+      const checkbox = fila.querySelector(".valor-parametro-checkbox");
+      valor = checkbox && checkbox.checked ? "1" : "0";
+    } else {
+      const input = fila.querySelector(".valor-parametro-input");
+      valor = input ? input.value.trim() : "";
+      if (!valor) {
+        mostrarToast("El valor no puede estar vacío.", "warning");
+        return;
+      }
     }
     try {
       const respuesta = await fetch(`${API}/parametros/${id}`, {
@@ -5663,15 +5688,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // El admin no necesita esta pantalla de autoservicio (no edita "sus"
-  // datos de paciente/cuidador desde aquí); solo se muestra en cuidador_backend.html.
+  // datos de paciente/cuidador desde aquí). Antes esto se detectaba mirando
+  // si la página era Admin_Backend.html, pero eso también escondía el botón
+  // para cualquier rol NUEVO (ej. "evaluacion"), ya que esos roles también
+  // se sirven desde Admin_Backend.html. Ahora se decide por el rol real del
+  // usuario: se oculta solo para "administrador"; cualquier otro rol
+  // (empleado o un rol creado en Gestión de Roles) sí lo ve.
   // El cambio de contraseña OBLIGATORIO (siscomVerificarCambioObligatorio) sigue
   // aplicando para todos los roles, incluido el administrador.
-  function siscomEsPaginaAdmin() {
-    return /Admin_Backend\.html/i.test(window.location.pathname);
+  function siscomEsAdministrador() {
+    return String(window.userRole || '').toLowerCase() === 'administrador';
   }
 
   function siscomInsertarBotonPerfil() {
-    if (siscomEsPaginaAdmin()) return;
+    if (siscomEsAdministrador()) return;
     const contenedor = document.getElementById('userInfo');
     if (!contenedor || document.getElementById('siscomAbrirPerfilBtn')) return;
     const boton = document.createElement('button');
