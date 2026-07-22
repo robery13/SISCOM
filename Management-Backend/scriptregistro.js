@@ -3586,6 +3586,14 @@ function mostrarToast(mensaje, tipo = 'info') {
     parametros.forEach(p => {
       const tr = document.createElement("tr");
       const esBooleano = p.tipo === "booleano";
+      // La descripción de "mostrar_recompensas" aún puede venir del backend
+      // con el texto antiguo ("0 = oculto, 1 = visible"). Como ahora se
+      // controla con una casilla de verificación y no con valores numéricos,
+      // se sobrescribe aquí para que el texto sea siempre el correcto sin
+      // depender de que se actualice el dato en la base de datos.
+      if (p.clave === "mostrar_recompensas") {
+        p = { ...p, descripcion: "Activa o desactiva la opción \"Recompensas\" en el menú del Participante." };
+      }
       const valorCelda = esBooleano
         ? `<div class="form-check form-switch d-flex justify-content-center">
              <input class="form-check-input valor-parametro-checkbox" type="checkbox" role="switch" data-id="${p.id}" ${String(p.valor) === "1" ? "checked" : ""}>
@@ -3598,13 +3606,41 @@ function mostrarToast(mensaje, tipo = 'info') {
           ${valorCelda}
         </td>
         <td class="text-center">
-          <button class="btn btn-sm btn-outline-primary guardar-parametro-btn" data-id="${p.id}" data-booleano="${esBooleano ? "1" : "0"}"><i class="bi bi-save"></i></button>
+          <button class="btn btn-sm btn-outline-primary guardar-parametro-btn me-1" data-id="${p.id}" data-booleano="${esBooleano ? "1" : "0"}" title="Guardar valor"><i class="bi bi-save"></i></button>
+          <button class="btn btn-sm btn-outline-danger eliminar-parametro-btn" data-id="${p.id}" data-clave="${escapeHtml(p.clave)}" title="Eliminar parámetro"><i class="bi bi-trash"></i></button>
         </td>`;
       tabla.appendChild(tr);
     });
   }
 
   tabla.addEventListener("click", async (e) => {
+    const eliminarBtn = e.target.closest(".eliminar-parametro-btn");
+    if (eliminarBtn) {
+      const id = eliminarBtn.dataset.id;
+      const clave = eliminarBtn.dataset.clave;
+      const confirmado = window.confirm(
+        `¿Eliminar el parámetro "${clave}"? Si algún módulo del sistema todavía lo usa, podría dejar de funcionar correctamente.`
+      );
+      if (!confirmado) return;
+      try {
+        const respuesta = await fetch(`${API}/parametros/${id}`, {
+          method: "DELETE",
+          headers: window.crearHeadersAuth()
+        });
+        const data = await respuesta.json().catch(() => null);
+        if (!respuesta.ok || !data || !data.ok) {
+          mostrarToast((data && data.mensaje) || "No fue posible eliminar el parámetro.", "error");
+          return;
+        }
+        mostrarToast(data.mensaje || "Parámetro eliminado.", "success");
+        cargarParametros();
+      } catch (error) {
+        console.error("Error al eliminar parámetro:", error);
+        mostrarToast("Error al eliminar el parámetro.", "error");
+      }
+      return;
+    }
+
     const guardarBtn = e.target.closest(".guardar-parametro-btn");
     if (!guardarBtn) return;
     const id = guardarBtn.dataset.id;
@@ -3642,6 +3678,75 @@ function mostrarToast(mensaje, tipo = 'info') {
 
   const tabParametros = document.getElementById("tab-parametros");
   if (tabParametros) tabParametros.addEventListener("shown.bs.tab", cargarParametros);
+
+  // Crear nuevo parámetro (Fase B: el Administrador ya no depende de un
+  // desarrollador para agregar reglas de negocio configurables nuevas).
+  const modalParametroEl = document.getElementById("modalParametro");
+  const formParametro = document.getElementById("formParametro");
+  const guardarNuevoBtn = document.getElementById("guardarNuevoParametroBtn");
+  const tipoParametroSelect = document.getElementById("tipoParametro");
+  const valorParametroInput = document.getElementById("valorParametro");
+  const valorParametroHelp = document.getElementById("valorParametroHelp");
+
+  if (tipoParametroSelect && valorParametroInput) {
+    tipoParametroSelect.addEventListener("change", () => {
+      if (tipoParametroSelect.value === "booleano") {
+        valorParametroInput.value = valorParametroInput.value === "1" ? "1" : "0";
+        valorParametroHelp.textContent = 'Para tipo "Sí / No" usa 1 (activado) o 0 (desactivado).';
+      } else {
+        valorParametroHelp.textContent = "Valor inicial del parámetro.";
+      }
+    });
+  }
+
+  if (modalParametroEl && window.bootstrap) {
+    modalParametroEl.addEventListener("hidden.bs.modal", () => {
+      if (formParametro) formParametro.reset();
+    });
+  }
+
+  if (guardarNuevoBtn) {
+    guardarNuevoBtn.addEventListener("click", async () => {
+      const clave = document.getElementById("claveParametro").value.trim();
+      const descripcion = document.getElementById("descripcionParametro").value.trim();
+      const tipo = tipoParametroSelect.value;
+      const valor = valorParametroInput.value.trim();
+
+      if (!formParametro.checkValidity()) {
+        formParametro.reportValidity();
+        return;
+      }
+      if (tipo === "booleano" && valor !== "0" && valor !== "1") {
+        mostrarToast('El valor inicial de un parámetro "Sí / No" debe ser 0 o 1.', "warning");
+        return;
+      }
+
+      guardarNuevoBtn.disabled = true;
+      try {
+        const respuesta = await fetch(`${API}/parametros`, {
+          method: "POST",
+          headers: window.crearHeadersAuth(true),
+          body: JSON.stringify({ clave, descripcion, tipo, valor })
+        });
+        const data = await respuesta.json().catch(() => null);
+        if (!respuesta.ok || !data || !data.ok) {
+          mostrarToast((data && data.mensaje) || "No fue posible crear el parámetro.", "error");
+          return;
+        }
+        mostrarToast(data.mensaje || "Parámetro creado.", "success");
+        if (window.bootstrap) {
+          const instancia = window.bootstrap.Modal.getInstance(modalParametroEl) || new window.bootstrap.Modal(modalParametroEl);
+          instancia.hide();
+        }
+        cargarParametros();
+      } catch (error) {
+        console.error("Error al crear parámetro:", error);
+        mostrarToast("Error al crear el parámetro.", "error");
+      } finally {
+        guardarNuevoBtn.disabled = false;
+      }
+    });
+  }
 })();
 
 // ===============================
@@ -3791,6 +3896,54 @@ function mostrarToast(mensaje, tipo = 'info') {
   const refrescarBtn = document.getElementById("refrescarBitacoraBtn");
   if (!tabla) return;
 
+  // Nombre legible del módulo/apartado a partir del prefijo del código de
+  // acción interno (ej. "usuarios.crear" -> módulo "usuarios"). Los códigos
+  // sin punto (ej. "login") se tratan como su propio módulo.
+  const MODULOS_BITACORA = {
+    usuarios: "Usuarios",
+    roles: "Roles",
+    permisos: "Permisos",
+    dominios: "Dominios de Correo",
+    parametros: "Parámetros del Sistema",
+    backup: "Backup y Restore",
+    login: "Inicio de Sesión"
+  };
+
+  // Descripción legible de cada código de acción interno, para no mostrarle
+  // al usuario textos técnicos como "usuarios.cambiar_password".
+  const ACCIONES_BITACORA = {
+    "login": "Inicio de sesión",
+    "usuarios.crear": "Se creó un usuario",
+    "usuarios.editar": "Se editó un usuario",
+    "usuarios.eliminar": "Se eliminó un usuario",
+    "usuarios.cambiar_password": "Se cambió una contraseña",
+    "usuarios.editar_perfil_propio": "Se actualizó un perfil propio",
+    "roles.crear": "Se creó un rol",
+    "roles.editar": "Se editó un rol",
+    "roles.eliminar": "Se eliminó un rol",
+    "permisos.crear": "Se creó un permiso",
+    "permisos.eliminar": "Se eliminó un permiso",
+    "permisos.asignar": "Se asignaron permisos a un rol",
+    "dominios.crear": "Se agregó un dominio de correo permitido",
+    "dominios.editar": "Se editó un dominio de correo permitido",
+    "dominios.eliminar": "Se eliminó un dominio de correo permitido",
+    "parametros.crear": "Se creó un parámetro del sistema",
+    "parametros.actualizar": "Se actualizó un parámetro del sistema",
+    "parametros.eliminar": "Se eliminó un parámetro del sistema",
+    "backup.generar": "Se generó un respaldo del sistema",
+    "backup.restaurar": "Se restauró un respaldo del sistema"
+  };
+
+  function obtenerModulo(accion) {
+    if (!accion) return "Sistema";
+    const prefijo = accion.split(".")[0];
+    return MODULOS_BITACORA[prefijo] || prefijo;
+  }
+
+  function obtenerDescripcionAccion(accion) {
+    return ACCIONES_BITACORA[accion] || accion;
+  }
+
   async function cargarBitacora() {
     try {
       const respuesta = await fetch(`${API}/bitacora`, { headers: window.crearHeadersAuth() });
@@ -3813,13 +3966,15 @@ function mostrarToast(mensaje, tipo = 'info') {
 
     registros.forEach(r => {
       const fecha = r.fecha_hora ? new Date(r.fecha_hora).toLocaleString("es-HN") : "";
+      const modulo = obtenerModulo(r.accion);
+      const descripcion = obtenerDescripcionAccion(r.accion);
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="small">${escapeHtml(fecha)}</td>
         <td class="small">${escapeHtml(r.email || "—")}</td>
         <td class="small">${escapeHtml(r.rol || "—")}</td>
-        <td><span class="badge bg-secondary">${escapeHtml(r.accion)}</span></td>
-        <td class="small text-muted">${escapeHtml(r.detalle || "")}</td>`;
+        <td><span class="badge bg-secondary">${escapeHtml(modulo)}</span></td>
+        <td class="small text-muted"><strong>${escapeHtml(descripcion)}</strong>${r.detalle ? " — " + escapeHtml(r.detalle) : ""}</td>`;
       tabla.appendChild(tr);
     });
   }

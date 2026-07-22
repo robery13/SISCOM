@@ -74,8 +74,22 @@
       
       // Guardar el rol en una variable global para usar en menús dinámicos
       window.userRole = rol;
+
+      // Ocultar la interfaz hasta que se determine con certeza qué sección/
+      // módulos corresponden a este rol (evita que se alcance a ver el
+      // Dashboard de Administrador un instante para otros roles mientras se
+      // resuelven los permisos reales). Se quita más abajo, en el script de
+      // "navegación y menús dinámicos por rol".
+      document.body.classList.add('cargando-rol');
     })();
   </script>
+
+  <!-- Overlay de carga mientras se determinan los módulos del rol actual -->
+  <div id="appLoader" class="app-loader">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando…</span>
+    </div>
+  </div>
 
   <!-- Botón para abrir menú en móvil -->
   <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú">
@@ -99,7 +113,7 @@
 
       <nav class="nav-menu" id="navMenu">
         
-        <button class="nav-btn active" data-section="dashboard" data-role="administrador,empleado"><i class="bi bi-speedometer2"></i> <span>Dashboard</span></button>
+        <button class="nav-btn active" data-section="dashboard" data-role="administrador"><i class="bi bi-speedometer2"></i> <span>Dashboard</span></button>
         <button class="nav-btn" data-section="usuarios" data-role="administrador" data-permiso-any="Usuarios,Roles,Permisos,Bitácora,Backup y Restore,Dominios de Correo,Parámetros del Sistema"><i class="bi bi-shield-lock"></i> <span>Seguridad</span></button>
         <button class="nav-btn" data-section="asignacion-pacientes" data-role="administrador,empleado"><i class="bi bi-diagram-3"></i> <span>Pacientes</span></button>
         <div class="nav-group nav-accordion" id="medicamentosAccordionAdmin">
@@ -1335,11 +1349,11 @@
                   <table class="table table-hover table-striped mb-0 datatable-theme" id="tablaBitacora">
                     <thead class="table-dark">
                       <tr>
-                        <th class="fw-bold">Fecha</th>
+                        <th class="fw-bold">Fecha y hora</th>
                         <th class="fw-bold">Usuario</th>
                         <th class="fw-bold">Rol</th>
-                        <th class="fw-bold">Acción</th>
-                        <th class="fw-bold">Detalle</th>
+                        <th class="fw-bold">Módulo</th>
+                        <th class="fw-bold">Descripción / Observaciones</th>
                       </tr>
                     </thead>
                     <tbody></tbody>
@@ -1391,6 +1405,9 @@
                   <h5 class="card-title mb-1"><i class="bi bi-sliders me-2"></i>Parámetros Generales del Sistema</h5>
                   <p class="text-muted mb-0 small">Reglas de negocio configurables (ej. a partir de qué cantidad un medicamento se considera "stock crítico"). Ya no son valores fijos en el código.</p>
                 </div>
+                <button type="button" class="btn btn-primary btn-sm" id="btnNuevoParametro" data-bs-toggle="modal" data-bs-target="#modalParametro">
+                  <i class="bi bi-plus-lg me-1"></i> Nuevo Parámetro
+                </button>
               </div>
 
               <div class="card-body p-0">
@@ -1646,6 +1663,47 @@
   </div>
 
   <!-- Modal Gestionar Usuario -->
+  <div class="modal fade" id="modalParametro" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-sliders me-2"></i> Nuevo Parámetro del Sistema</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formParametro" class="row g-3">
+            <div class="col-12">
+              <label for="claveParametro" class="form-label">Clave</label>
+              <input type="text" id="claveParametro" class="form-control" required pattern="[a-z0-9_]+" title="Solo minúsculas, números y guión bajo, ej: dias_reabastecimiento" placeholder="ej: dias_reabastecimiento">
+              <div class="form-text small">Nombre técnico usado en el código. No se puede cambiar luego de creado.</div>
+            </div>
+            <div class="col-12">
+              <label for="descripcionParametro" class="form-label">Descripción</label>
+              <textarea id="descripcionParametro" class="form-control" rows="2" required placeholder="Explica para qué se usa este parámetro"></textarea>
+            </div>
+            <div class="col-md-6">
+              <label for="tipoParametro" class="form-label">Tipo de valor</label>
+              <select id="tipoParametro" class="form-select">
+                <option value="texto">Texto</option>
+                <option value="numero">Número</option>
+                <option value="booleano">Sí / No (casilla)</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="valorParametro" class="form-label">Valor inicial</label>
+              <input type="text" id="valorParametro" class="form-control" required placeholder="ej: 10">
+              <div class="form-text small" id="valorParametroHelp">Para tipo "Sí / No" usa 1 (activado) o 0 (desactivado).</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="guardarNuevoParametroBtn"><i class="bi bi-save me-1"></i> Crear Parámetro</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="modalUsuario" tabindex="-1">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
@@ -1874,8 +1932,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // Para cualquier rol nuevo creado en Gestión de Roles (distinto de
       // administrador/empleado), el menú se arma SOLO según los permisos
       // reales asignados a ese rol, sin depender del data-role fijo de cada
-      // botón. El Dashboard siempre se muestra (todo rol debe poder verlo);
-      // el resto de módulos solo aparece si el permiso con ese mismo nombre
+      // botón. El Dashboard es exclusivo del Administrador: ningún otro rol
+      // lo ve, y en su lugar entra directo al primer módulo permitido; el
+      // resto de módulos solo aparece si el permiso con ese mismo nombre
       // fue marcado para el rol en Seguridad > Permisos.
       // Muestra un aviso bien visible (no un console.error que nadie ve) si
       // no se pudieron cargar los permisos del menú, para saber de inmediato
@@ -1945,7 +2004,7 @@ document.addEventListener('DOMContentLoaded', () => {
         navBtns.forEach(btn => {
           const sectionId = btn.getAttribute('data-section');
           if (sectionId === 'dashboard') {
-            btn.style.display = ''; // el Dashboard se ve siempre, para cualquier rol
+            btn.style.display = 'none'; // el Dashboard es exclusivo del Administrador
           } else if (btn.hasAttribute('data-permiso')) {
             btn.style.display = modulosPermitidos.has(btn.getAttribute('data-permiso')) ? '' : 'none';
           } else if (btn.hasAttribute('data-permiso-any')) {
@@ -2012,15 +2071,22 @@ document.addEventListener('DOMContentLoaded', () => {
           card.style.display = '';
         });
         ajustarGridKpi();
+        // Rol ya resuelto de forma síncrona: se puede revelar la interfaz.
+        document.body.classList.remove('cargando-rol');
       } else {
-        // Mientras se resuelve /mis-permisos, se oculta todo menos el
-        // Dashboard, para no mostrar por un instante módulos que luego se
-        // van a ocultar.
+        // Mientras se resuelve /mis-permisos, se ocultan todos los botones
+        // (incluido el Dashboard, exclusivo del Administrador) para no
+        // mostrar por un instante módulos que luego se van a ocultar.
         navBtns.forEach(btn => {
-          btn.style.display = (btn.getAttribute('data-section') === 'dashboard') ? '' : 'none';
+          btn.style.display = 'none';
         });
         ocultarAccordionsVacios();
-        filtrarMenusPorPermisos();
+        // .finally() asegura que la interfaz se revele tanto si /mis-permisos
+        // responde correctamente como si falla (para no dejar la pantalla
+        // oculta indefinidamente ante un error de red).
+        filtrarMenusPorPermisos().finally(() => {
+          document.body.classList.remove('cargando-rol');
+        });
       }
 
       // Función para guardar sección activa en localStorage
@@ -2032,6 +2098,17 @@ document.addEventListener('DOMContentLoaded', () => {
       // Función para restaurar sección desde localStorage
       function restaurarSeccion() {
         const savedSection = localStorage.getItem('adminBackend_section');
+
+        // El Dashboard es exclusivo de administrador/empleado. Si quedó
+        // guardado de una sesión anterior (ej. de un administrador en el
+        // mismo navegador) y el rol actual es otro, se ignora aquí: en este
+        // punto todavía no se resolvió /mis-permisos, así que no hay forma
+        // de confirmar que este rol puede verlo. Sin este candado se
+        // alcanzaba a mostrar el Dashboard de Administrador por un instante.
+        if (savedSection === 'dashboard' && userRole !== 'administrador' && userRole !== 'empleado') {
+          return false;
+        }
+
         if (savedSection) {
           const targetBtn = document.querySelector(`[data-section="${savedSection}"]`);
           const targetSection = document.getElementById(savedSection);

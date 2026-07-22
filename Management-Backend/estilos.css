@@ -2546,3 +2546,24 @@ canvas {
   background: rgba(97, 210, 180, 0.12);
   color: var(--accent);
 }
+/* ===== Overlay de carga mientras se resuelve el rol/permisos =====
+   Evita el parpadeo del Dashboard de Administrador para otros roles: el
+   contenido de la app queda oculto hasta que se sabe con certeza qué
+   sección/módulos corresponden al rol que inició sesión. */
+.app-loader {
+  display: none;
+}
+
+body.cargando-rol .app-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  inset: 0;
+  background: #f8f9fa;
+  z-index: 99999;
+}
+
+body.cargando-rol .app {
+  visibility: hidden;
+}
