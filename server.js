@@ -1026,17 +1026,13 @@ app.put('/perfil', verificarRol(), (req, res) => {
 app.get('/mis-permisos', verificarRol(), (req, res) => {
   const userRol = req.user.rol;
 
-  // El administrador siempre ve todos los módulos existentes.
-  if (userRol === 'administrador') {
-    return db.query('SELECT nombre_permiso FROM permisos ORDER BY nombre_permiso ASC', (err, rows) => {
-      if (err) {
-        console.error('Error al obtener módulos del administrador:', err);
-        return res.status(500).json({ ok: false, mensaje: 'Error al obtener tus módulos habilitados' });
-      }
-      res.json({ ok: true, rol: userRol, modulos: rows.map(r => r.nombre_permiso) });
-    });
-  }
-
+  // El administrador ya NO tiene un atajo que le muestre todos los módulos
+  // sin importar lo marcado en Seguridad > Permisos: se le consulta igual
+  // que a cualquier otro rol, para que asignar/quitar un permiso desde la
+  // pantalla de Permisos también controle su propio menú. Al sembrar datos
+  // nuevos, "administrador" recibe todos los permisos por defecto (ver
+  // arranque del servidor), así que de entrada seguirá viendo todo; solo
+  // deja de verlo si alguien le quita el permiso a propósito.
   db.query(
     `SELECT p.nombre_permiso FROM roles_permisos rp
      INNER JOIN permisos p ON p.id = rp.id_permiso
