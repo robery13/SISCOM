@@ -1248,6 +1248,7 @@
                         <th class="fw-bold"><i class="bi bi-telephone me-2"></i>Teléfono</th>
                         <th class="fw-bold"><i class="bi bi-envelope me-2"></i>Email</th>
                         <th class="fw-bold"><i class="bi bi-shield me-2"></i>Rol</th>
+                        <th class="fw-bold"><i class="bi bi-toggle-on me-2"></i>Estado</th>
                         <th class="fw-bold text-center"><i class="bi bi-gear me-2"></i>Acciones</th>
                       </tr>
                     </thead>
@@ -2963,7 +2964,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
         
-        if (!confirm('¿Estás seguro de que deseas eliminar esta cita?')) return;
+        if (!(await mostrarConfirmacion('¿Estás seguro de que deseas eliminar esta cita?', { variante: 'danger', textoConfirmar: 'Eliminar' }))) return;
         
         try {
           const response = await fetch(`https://siscom-4lbe.onrender.com/eliminarCita/${id}`, {
@@ -3047,7 +3048,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Botón eliminar todas las citas
       if (borrarTodasCitasBtn) {
         borrarTodasCitasBtn.onclick = async function() {
-          if (!confirm('¿Estás seguro de que deseas eliminar TODAS las citas? Esta acción no se puede deshacer.')) return;
+          if (!(await mostrarConfirmacion('¿Estás seguro de que deseas eliminar TODAS las citas? Esta acción no se puede deshacer.', { variante: 'danger', textoConfirmar: 'Eliminar todo' }))) return;
           
           try {
             let token = null;
@@ -3178,7 +3179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pacienteIdFiltro = pacienteSelect.value;
 
         if (!fecha) {
-          alert('Selecciona una fecha para consultar la verificacion.');
+          mostrarToast('Selecciona una fecha para consultar la verificacion.', 'warning');
           return;
         }
 
@@ -3454,7 +3455,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const fecha = fechaInput.value;
 
         if (!pacienteId || !fecha) {
-          alert('Por favor selecciona un paciente y una fecha');
+          mostrarToast('Por favor selecciona un paciente y una fecha', 'warning');
           return;
         }
 
@@ -3688,7 +3689,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const pacienteId = pacienteSelect.value;
           const fecha = fechaInput.value;
           if (!pacienteId || !fecha) {
-            alert('Por favor selecciona un paciente y una fecha');
+            mostrarToast('Por favor selecciona un paciente y una fecha', 'warning');
             return;
           }
           await generarReporteSemanal(

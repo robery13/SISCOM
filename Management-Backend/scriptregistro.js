@@ -1433,7 +1433,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Eliminar medicamento
   window.eliminarMedicamento = async function(id) {
-    if (!confirm("¿Está seguro de que desea eliminar este medicamento?")) return;
+    if (!(await mostrarConfirmacion("¿Está seguro de que desea eliminar este medicamento?", { variante: 'danger', textoConfirmar: 'Eliminar' }))) return;
     
     try {
       const resp = await fetch(`https://siscom-4lbe.onrender.com/Registro_medicamentos/${id}`, {
@@ -2196,8 +2196,8 @@ function mostrarAlertasStock(alertas) {
     }
   });
 
-  btnLimpiar.addEventListener("click", () => {
-    if (confirm("¿Deseas limpiar la ficha?")) {
+  btnLimpiar.addEventListener("click", async () => {
+    if (await mostrarConfirmacion("¿Deseas limpiar la ficha?")) {
       alergias.length = 0;
       condiciones.length = 0;
       renderList(listaAlergias, []);
@@ -2317,8 +2317,8 @@ function mostrarAlertasStock(alertas) {
       const delBtn = document.createElement('button');
       delBtn.className = 'btn btn-sm btn-outline-danger';
       delBtn.innerHTML = '<i class="bi bi-trash"></i>';
-      delBtn.onclick = () => {
-        if (confirm('¿Eliminar esta cita?')) eliminarCita(cita.id);
+      delBtn.onclick = async () => {
+        if (await mostrarConfirmacion('¿Eliminar esta cita?', { variante: 'danger', textoConfirmar: 'Eliminar' })) eliminarCita(cita.id);
       };
       
       acciones.append(verBtn, delBtn);
@@ -2481,8 +2481,68 @@ function mostrarToast(mensaje, tipo = 'info') {
 }
 
 // ===============================
-// GESTIÓN DE USUARIOS
+// CONFIRMACIONES PROPIAS DEL SISTEMA (reemplaza al confirm() nativo del navegador)
 // ===============================
+// Antes varias acciones (desactivar paciente, eliminar usuario/rol/cita/etc.)
+// usaban window.confirm(), que muestra el cuadro de diálogo genérico del
+// navegador (con el nombre del dominio, sin estilo de la app). Esta función
+// arma un modal de Bootstrap con la apariencia del sistema y devuelve una
+// Promise<boolean>, para usarse como: if (!(await mostrarConfirmacion("..."))) return;
+function mostrarConfirmacion(mensaje, opciones = {}) {
+  const {
+    titulo = 'Confirmar acción',
+    textoConfirmar = 'Aceptar',
+    textoCancelar = 'Cancelar',
+    variante = 'primary' // color del botón de confirmar: primary | danger | warning
+  } = opciones;
+
+  return new Promise((resolve) => {
+    const modalEl = document.createElement('div');
+    modalEl.className = 'modal fade';
+    modalEl.tabIndex = -1;
+    modalEl.setAttribute('aria-hidden', 'true');
+    modalEl.innerHTML = `
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bi bi-question-circle-fill text-primary me-2"></i>${escapeHtml(titulo)}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">${escapeHtml(mensaje)}</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-accion="cancelar">${escapeHtml(textoCancelar)}</button>
+            <button type="button" class="btn btn-${variante}" data-accion="confirmar">${escapeHtml(textoConfirmar)}</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalEl);
+
+    const modal = new bootstrap.Modal(modalEl, { backdrop: 'static' });
+    let resuelto = false;
+
+    modalEl.querySelector('[data-accion="confirmar"]').addEventListener('click', () => {
+      resuelto = true;
+      modal.hide();
+      resolve(true);
+    });
+    modalEl.querySelector('[data-accion="cancelar"]').addEventListener('click', () => {
+      resuelto = true;
+      modal.hide();
+      resolve(false);
+    });
+
+    // Cerrar con la X o con Esc cuenta como cancelar.
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      if (!resuelto) resolve(false);
+      modalEl.remove();
+    });
+
+    modal.show();
+  });
+}
 (function(){
   const tablaUsuarios = document.querySelector("#tablaUsuarios tbody");
   const noUsuariosDiv = document.getElementById("noUsuarios");
@@ -2841,7 +2901,7 @@ function mostrarToast(mensaje, tipo = 'info') {
     const mensajeConfirm = estaActivo
       ? "¿Desea desactivar este paciente? Podrá reactivarlo cuando lo necesite; su historial no se pierde."
       : "¿Desea reactivar este paciente?";
-    if (!confirm(mensajeConfirm)) return;
+    if (!(await mostrarConfirmacion(mensajeConfirm, { variante: estaActivo ? 'danger' : 'primary', textoConfirmar: estaActivo ? 'Desactivar' : 'Reactivar' }))) return;
 
     try {
       const resp = await fetch(`https://siscom-4lbe.onrender.com/pacientes-admin/${id}/estado`, {
@@ -3117,6 +3177,7 @@ function mostrarToast(mensaje, tipo = 'info') {
     const usuariosPagina = usuariosFiltrados.slice(inicio, fin);
 
     usuariosPagina.forEach((u) => {
+      const esActivo = String(u.estado || "activo").toLowerCase() !== "inactivo";
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${u.id}</td>
@@ -3126,10 +3187,14 @@ function mostrarToast(mensaje, tipo = 'info') {
         <td>${escapeHtml(u.telefono)}</td>
         <td>${escapeHtml(u.email)}</td>
         <td><span class="badge bg-${getRolBadgeColor(u.rol)}">${escapeHtml(u.rol)}</span></td>
+        <td><span class="badge bg-${esActivo ? "success" : "secondary"}">${esActivo ? "Activo" : "Inactivo"}</span></td>
         <td class="text-center">
           <div class="btn-group btn-group-sm">
             <button class="btn btn-outline-primary" onclick="editarUsuario(${u.id})" title="Editar">
               <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-outline-${esActivo ? "danger" : "success"}" onclick="cambiarEstadoUsuarioAdmin(${u.id}, ${esActivo})" title="${esActivo ? "Desactivar" : "Activar"}">
+              <i class="bi bi-${esActivo ? "toggle-off" : "toggle-on"}"></i>
             </button>
             <button class="btn btn-outline-danger" onclick="eliminarUsuario(${u.id})" title="Eliminar">
               <i class="bi bi-trash"></i>
@@ -3184,6 +3249,7 @@ function mostrarToast(mensaje, tipo = 'info') {
       usuariosFiltrados = [...usuariosData];
     } else {
       usuariosFiltrados = usuariosData.filter((u) => {
+        const estadoTexto = String(u.estado || "activo").toLowerCase() === "inactivo" ? "inactivo" : "activo";
         const campos = [
           u.id,
           u.nombres,
@@ -3191,7 +3257,8 @@ function mostrarToast(mensaje, tipo = 'info') {
           u.identidad,
           u.telefono,
           u.email,
-          u.rol
+          u.rol,
+          estadoTexto
         ];
         return campos.some((c) => String(c || "").toLowerCase().includes(texto));
       });
@@ -3489,6 +3556,48 @@ function mostrarToast(mensaje, tipo = 'info') {
     modal.show();
   };
 
+  // Baja / reactivación: bloquea o restaura el inicio de sesión de un
+  // usuario (empleado, cuidador o cualquier rol) sin borrar su registro ni
+  // su historial. Un administrador no puede desactivarse a sí mismo.
+  window.cambiarEstadoUsuarioAdmin = async function(id, estaActivo) {
+    const usuarioActualRaw = localStorage.getItem("usuario");
+    if (usuarioActualRaw) {
+      try {
+        const usuarioActual = JSON.parse(usuarioActualRaw);
+        if (Number(usuarioActual?.id) === Number(id) && estaActivo) {
+          mostrarToast("No puedes desactivar tu propia cuenta.", "warning");
+          return;
+        }
+      } catch (e) {
+        // Ignorar errores de parseo y continuar flujo normal
+      }
+    }
+
+    const nuevoEstado = estaActivo ? "inactivo" : "activo";
+    const mensajeConfirm = estaActivo
+      ? "¿Desea desactivar esta cuenta? El usuario no podrá iniciar sesión hasta que la reactives."
+      : "¿Desea reactivar esta cuenta?";
+    if (!(await mostrarConfirmacion(mensajeConfirm, { variante: estaActivo ? 'danger' : 'primary', textoConfirmar: estaActivo ? 'Desactivar' : 'Reactivar' }))) return;
+
+    try {
+      const resp = await fetch(`https://siscom-4lbe.onrender.com/usuarios/${id}/estado`, {
+        method: "PUT",
+        headers: crearHeadersAuth(true),
+        body: JSON.stringify({ estado: nuevoEstado })
+      });
+      const resultado = await resp.json();
+      if (resp.ok) {
+        mostrarToast(resultado.mensaje || "Estado actualizado correctamente", "success");
+        await cargarUsuarios();
+      } else {
+        mostrarToast("Error: " + (resultado.mensaje || "No se pudo actualizar el estado"), "error");
+      }
+    } catch (error) {
+      console.error("Error al cambiar estado del usuario:", error);
+      mostrarToast("Error al conectar con el servidor: " + error.message, "error");
+    }
+  };
+
   // Eliminar usuario
   window.eliminarUsuario = async function(id) {
     // Evitar alerta nativa si intenta eliminar su propio usuario
@@ -3505,7 +3614,7 @@ function mostrarToast(mensaje, tipo = 'info') {
       }
     }
 
-    if (!confirm("¿Está seguro de que desea eliminar este usuario?")) return;
+    if (!(await mostrarConfirmacion("¿Está seguro de que desea eliminar este usuario?", { variante: 'danger', textoConfirmar: 'Eliminar' }))) return;
     
     try {
       const resp = await fetch(`https://siscom-4lbe.onrender.com/usuarios/${id}`, {
@@ -3782,7 +3891,7 @@ function mostrarToast(mensaje, tipo = 'info') {
     }
 
     if (eliminarBtn) {
-      if (!confirm("¿Eliminar este dominio permitido?")) return;
+      if (!(await mostrarConfirmacion("¿Eliminar este dominio permitido?", { variante: 'danger', textoConfirmar: 'Eliminar' }))) return;
       const id = eliminarBtn.dataset.id;
       try {
         const respuesta = await fetch(`${API}/dominios-permitidos/${id}`, {
@@ -3915,7 +4024,7 @@ function mostrarToast(mensaje, tipo = 'info') {
     }
 
     if (eliminarBtn) {
-      if (!confirm("¿Eliminar este rol?")) return;
+      if (!(await mostrarConfirmacion("¿Eliminar este rol?", { variante: 'danger', textoConfirmar: 'Eliminar' }))) return;
       const id = eliminarBtn.dataset.id;
       try {
         const respuesta = await fetch(`${API}/roles/${id}`, {
@@ -4004,8 +4113,9 @@ function mostrarToast(mensaje, tipo = 'info') {
     if (eliminarBtn) {
       const id = eliminarBtn.dataset.id;
       const clave = eliminarBtn.dataset.clave;
-      const confirmado = window.confirm(
-        `¿Eliminar el parámetro "${clave}"? Si algún módulo del sistema todavía lo usa, podría dejar de funcionar correctamente.`
+      const confirmado = await mostrarConfirmacion(
+        `¿Eliminar el parámetro "${clave}"? Si algún módulo del sistema todavía lo usa, podría dejar de funcionar correctamente.`,
+        { variante: 'danger', textoConfirmar: 'Eliminar' }
       );
       if (!confirmado) return;
       try {
@@ -4248,7 +4358,7 @@ function mostrarToast(mensaje, tipo = 'info') {
   tabla.addEventListener("click", async (e) => {
     const eliminarBtn = e.target.closest(".eliminar-permiso-btn");
     if (!eliminarBtn) return;
-    if (!confirm("¿Eliminar este permiso? Se quitará de todos los roles que lo tengan asignado.")) return;
+    if (!(await mostrarConfirmacion("¿Eliminar este permiso? Se quitará de todos los roles que lo tengan asignado.", { variante: 'danger', textoConfirmar: 'Eliminar' }))) return;
     const id = eliminarBtn.dataset.id;
     try {
       const respuesta = await fetch(`${API}/permisos/${id}`, {
@@ -4407,7 +4517,7 @@ function mostrarToast(mensaje, tipo = 'info') {
       mostrarToast("Selecciona primero un archivo de backup (.json).", "warning");
       return;
     }
-    if (!confirm("Esto va a reemplazar roles, permisos, dominios permitidos y parámetros actuales con los del archivo. ¿Continuar?")) return;
+    if (!(await mostrarConfirmacion("Esto va a reemplazar roles, permisos, dominios permitidos y parámetros actuales con los del archivo. ¿Continuar?", { variante: 'warning', textoConfirmar: 'Continuar' }))) return;
 
     try {
       const texto = await archivo.text();
@@ -5862,7 +5972,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (delBtn) {
       const id = delBtn.dataset.id;
-      if (!confirm('¿Eliminar este pedido del historial? Esto NO devuelve el stock descontado.')) return;
+      if (!(await mostrarConfirmacion('¿Eliminar este pedido del historial? Esto NO devuelve el stock descontado.', { variante: 'danger', textoConfirmar: 'Eliminar' }))) return;
       try {
         const respuesta = await fetch(`https://siscom-4lbe.onrender.com/eliminarPedido/${id}`, { method: 'DELETE' });
         if (!respuesta.ok) throw new Error('Error al eliminar el pedido');
@@ -5877,7 +5987,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (clearAllBtn) {
     clearAllBtn.addEventListener('click', async () => {
-      if (!confirm('¿Eliminar TODO el historial de pedidos? Esta acción no se puede deshacer.')) return;
+      if (!(await mostrarConfirmacion('¿Eliminar TODO el historial de pedidos? Esta acción no se puede deshacer.', { variante: 'danger', textoConfirmar: 'Eliminar todo' }))) return;
       try {
         const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
         const respuesta = await fetch('https://siscom-4lbe.onrender.com/eliminarTodosPedidos', {

@@ -197,6 +197,17 @@
             <button class="nav-btn" data-section="historial-tomas" data-permiso="Historial de Tomas"><i class="bi bi-clock-history"></i> <span>Historial de Tomas</span></button>
           </div>
         </div>
+        <div class="nav-group nav-accordion" id="farmaciaAccordionCuidador">
+          <button class="nav-btn nav-accordion-toggle" type="button" aria-expanded="false">
+            <i class="bi bi-hospital"></i>
+            <span>Farmacia</span>
+            <i class="bi bi-chevron-down accordion-chevron"></i>
+          </button>
+          <div class="nav-accordion-content">
+            <button class="nav-btn" data-section="inventario" data-permiso="Inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
+            <button class="nav-btn" data-section="pedidos" data-permiso="Inventario"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
+          </div>
+        </div>
         <button class="nav-btn" data-section="recetas" data-permiso="Citas Médicas"><i class="bi bi-journal-text"></i> <span>Citas M&eacute;dicas</span></button>
         <button class="nav-btn" data-section="estadisticas" data-permiso="Estadísticas"><i class="bi bi-bar-chart-line"></i> <span>Estad&iacute;sticas</span></button>
         <button class="nav-btn" id="cerrarSesionBtn"><i class="bi bi-box-arrow-right"></i> <span>Cerrar Sesi&oacute;n</span></button>
@@ -505,6 +516,229 @@
           </div>
         </div>
       </section>
+
+      <!-- FARMACIA: INVENTARIO -->
+      <section id="inventario" class="section d-none">
+        <div class="section-header">
+          <h2>Control de Inventario de Medicamentos</h2>
+          <p class="muted">Registra stock, consume dosis y recibe alertas de bajo inventario.</p>
+        </div>
+
+        <!-- ALERTAS DE STOCK BAJO -->
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="card-title mb-0">
+              <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Alertas de Stock Bajo
+            </h5>
+          </div>
+          <div class="card-body">
+            <p class="text-muted">Medicamentos que necesitan reposición</p>
+            <div id="alertasStock" class="list-group">
+              <!-- Se poblará dinámicamente con JavaScript -->
+              <div class="list-group-item text-center text-muted">No hay alertas de stock bajo</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TARJETA -->
+        <div class="card table-card p-3">
+
+          <!-- TÍTULO Y BOTÓN EN LA MISMA FILA -->
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">
+              <i class="bi bi-clipboard-data me-2"></i> Inventario Actual
+            </h5>
+
+            <button id="abrirModalInventario" class="btn btn-primary">
+              <i class="bi bi-plus-circle me-2"></i> Registrar o Actualizar Medicamento
+            </button>
+          </div>
+          <div class="datatable-toolbar mb-3">
+            <div class="datatable-length">
+              <select id="entriesInventario" class="form-select form-select-sm">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+              <span>registros por página</span>
+            </div>
+            <div class="datatable-search">
+              <label for="searchInventario">Buscar:</label>
+              <input type="text" id="searchInventario" class="form-control form-control-sm">
+            </div>
+          </div>
+
+          <!-- TABLA -->
+          <div class="table-responsive">
+            <table class="table datatable-theme" id="tablaInventario">
+              <thead>
+                <tr>
+                  <th>Medicamento</th>
+                  <th>Cantidad</th>
+                  <th>Consumo</th>
+                  <th>Fecha Registro</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div id="paginacionInventario" class="custom-pagination d-none">
+            <small class="pagination-info" id="infoPaginacionInventario">Showing 0 to 0 of 0 entries</small>
+            <div class="pagination-controls">
+              <button id="btnAnteriorInventario" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-left"></i></button>
+              <div id="pageNumbersInventario" class="pagination-numbers"></div>
+              <button id="btnSiguienteInventario" class="btn btn-outline-secondary pagination-nav-btn" disabled><i class="bi bi-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- Modal Registrar Inventario -->
+      <div class="modal fade" id="modalInventario" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i> Gestionar Inventario</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+              <div class="mb-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="modoActualizar">
+                  <label class="form-check-label" for="modoActualizar">
+                    Actualizar stock existente
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-row" id="selectMedicamentoRow" style="display: none;">
+                <label for="selectMedicamento">Seleccionar Medicamento Existente</label>
+                <select id="selectMedicamento" class="form-select">
+                  <option value="">Selecciona un medicamento</option>
+                </select>
+              </div>
+
+              <div class="form-row" id="inputNombreRow">
+                <label for="nombreInv">Nombre</label>
+                <input id="nombreInv" type="text" class="form-control" placeholder="Ej. Ibuprofeno">
+              </div>
+
+              <div class="form-row">
+                <label for="cantidadInv">Cantidad a Agregar (unidades)</label>
+                <input id="cantidadInv" type="number" class="form-control" min="1" placeholder="Ej. 30">
+              </div>
+
+              <div class="form-row" id="consumoRow">
+                <label for="consumoInv">Consumo por dosis</label>
+                <input id="consumoInv" type="number" class="form-control" min="1" placeholder="Ej. 1">
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button id="registrarBtn" class="btn btn-primary">
+                Guardar Medicamento
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FARMACIA: PEDIDOS -->
+      <section id="pedidos" class="section d-none">
+        <div class="section-header">
+          <h2><i class="bi bi-cart3 me-2"></i> Solicitud de Pedidos</h2>
+          <p class="muted">Gestiona las solicitudes de reabastecimiento de medicamentos del inventario.</p>
+        </div>
+
+        <div class="pedidos-hero-grid">
+          <div class="pedidos-hero-card pedidos-hero-create">
+            <div class="pedidos-hero-icon"><i class="bi bi-bag-plus"></i></div>
+            <div class="pedidos-hero-body">
+              <h5>Crear nuevo pedido</h5>
+              <p>Selecciona los medicamentos que necesitas reabastecer; el stock se descuenta automáticamente al guardar.</p>
+              <button id="open-create-order" class="btn btn-primary pedidos-btn-crear">
+                <i class="bi bi-plus-circle me-2"></i> Nuevo pedido
+              </button>
+            </div>
+          </div>
+
+          <div class="pedidos-hero-card pedidos-hero-info">
+            <div class="pedidos-hero-icon pedidos-hero-icon-alt"><i class="bi bi-box-seam"></i></div>
+            <div class="pedidos-hero-body">
+              <h5>¿Cómo funciona?</h5>
+              <p>Cada solicitud queda guardada en el historial con su estado y fecha, para que puedas darle seguimiento en cualquier momento.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card pedidos-history-card">
+          <div class="pedidos-history-header">
+            <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i> Historial de pedidos</h5>
+            <button id="clearAll" class="btn btn-outline-danger btn-sm">
+              <i class="bi bi-trash me-2"></i> Limpiar historial
+            </button>
+          </div>
+          <div id="historyList" class="vstack gap-2 pedidos-history-list"></div>
+        </div>
+      </section>
+      <!-- Modal Crear Pedido -->
+      <div class="modal fade" id="createOrderModal" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"><i class="bi bi-bag-plus me-2"></i> Nueva solicitud de pedido</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="orderForm">
+                <div class="mb-3">
+                  <label class="form-label">Disponibilidad en inventario</label>
+                  <div id="inventarioDisponiblePedido" class="border rounded p-2" style="max-height: 180px; overflow-y: auto; font-size: 0.85rem;">
+                    <div class="text-muted text-center py-2">Cargando inventario...</div>
+                  </div>
+                  <div class="form-text text-muted">Selecciona el medicamento en la tabla de abajo; la cantidad no puede superar el stock disponible.</div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Medicamentos solicitados</label>
+                  <table class="table table-bordered align-middle text-center" id="itemsTable">
+                    <thead class="table-light">
+                      <tr><th>Medicamento</th><th>Dosis</th><th>Cantidad</th><th></th></tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                  <button type="button" id="addEmptyRow" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-plus-circle me-1"></i> Agregar fila
+                  </button>
+                </div>
+
+                <div class="d-flex gap-2">
+                  <button type="button" id="sendBtn" class="btn btn-primary">
+                    <i class="bi bi-save me-2"></i> Guardar pedido
+                  </button>
+                </div>
+
+                <div id="formMessage" class="fw-semibold mt-2"></div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Detalle Pedido -->
+      <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Detalle del pedido</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailBody"></div>
+          </div>
+        </div>
+      </div>
 
       <!-- FICHA MÉDICA -->
             <section id="Ficha" class="section d-none">
@@ -1835,7 +2069,7 @@
         console.log('Consultando historial - Paciente:', pacienteId, 'Fecha:', fecha);
 
         if (!pacienteId || !fecha) {
-          alert('Por favor selecciona un paciente y una fecha');
+          mostrarToast('Por favor selecciona un paciente y una fecha', 'warning');
           return;
         }
 
@@ -2081,7 +2315,7 @@
           const pacienteId = pacienteSelect.value;
           const fecha = fechaInput.value;
           if (!pacienteId || !fecha) {
-            alert('Por favor selecciona un paciente y una fecha');
+            mostrarToast('Por favor selecciona un paciente y una fecha', 'warning');
             return;
           }
           await generarReporteSemanal(
@@ -2294,7 +2528,7 @@
         const pacienteIdFiltro = pacienteSelect.value;
 
         if (!fecha) {
-          alert('Selecciona una fecha para consultar la verificacion.');
+          mostrarToast('Selecciona una fecha para consultar la verificacion.', 'warning');
           return;
         }
 

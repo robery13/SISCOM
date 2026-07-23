@@ -2898,6 +2898,42 @@ app.put('/usuarios/:id', verificarPermiso('Usuarios'), async (req, res) => {
   });
 });
 
+// Baja / reactivación genérica para CUALQUIER usuario (empleados, cuidadores,
+// y cualquier rol nuevo que se cree) — no solo pacientes. Un usuario en
+// estado "inactivo" no puede iniciar sesión (ver validación en /login), pero
+// conserva todo su historial y registros asociados.
+app.put('/usuarios/:id/estado', verificarPermiso('Usuarios'), (req, res) => {
+  const { id } = req.params;
+  const estado = String(req.body.estado || '').toLowerCase();
+
+  if (!['activo', 'inactivo'].includes(estado)) {
+    return res.status(400).json({ mensaje: 'Estado no válido. Use "activo" o "inactivo".' });
+  }
+
+  // Un administrador no puede desactivarse a sí mismo (evita quedar bloqueado
+  // de su propia sesión sin que otro admin pueda revertirlo).
+  if (String(req.user.id) === String(id) && estado === 'inactivo') {
+    return res.status(400).json({ mensaje: 'No puedes desactivar tu propia cuenta.' });
+  }
+
+  const sql = 'UPDATE usuarios SET estado = ? WHERE id = ?';
+  db.query(sql, [estado, id], (err, result) => {
+    if (err) {
+      console.error('Error al cambiar el estado del usuario:', err);
+      return res.status(500).json({ mensaje: 'Error al actualizar el estado del usuario' });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    }
+
+    registrarBitacora(req, 'usuarios.estado', `Usuario id=${id} cambiado a estado "${estado}"`);
+    res.json({
+      mensaje: estado === 'inactivo' ? 'Usuario desactivado correctamente' : 'Usuario reactivado correctamente',
+      estado
+    });
+  });
+});
+
 // Obtener perfil del paciente autenticado
 app.get('/mi-perfil', verificarRol(['usuario']), (req, res) => {
   const sql = 'SELECT id, nombres, apellidos, identidad, telefono, tipo_sangre, operaciones_realizadas, alergias, enfermedades_cronicas, tatuajes, otras_enfermedades, fecha_nacimiento, usa_silla_ruedas, email, rol FROM usuarios WHERE id = ? LIMIT 1';
