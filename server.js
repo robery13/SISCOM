@@ -2793,6 +2793,29 @@ app.put('/recetas/:id', (req, res) => {
   });
 });
 
+app.delete('/recetas/:id', (req, res) => {
+  const { id } = req.params;
+
+  // Se eliminan primero los registros dependientes (horarios, configuración
+  // y tomas asociadas a la receta) para evitar errores de llave foránea,
+  // y luego se elimina la receta.
+  db.query('DELETE FROM tomas_medicas WHERE id_receta = ?', [id], () => {
+    db.query('DELETE FROM horarios_medicamentos WHERE id_receta = ?', [id], () => {
+      db.query('DELETE FROM configuracion_horarios WHERE id_receta = ?', [id], () => {
+        db.query('DELETE FROM recetas_medicas WHERE id = ?', [id], (err, result) => {
+          if (err) {
+            console.error('Error al eliminar receta:', err);
+            return res.status(500).json({ mensaje: 'Error al eliminar la receta' });
+          }
+          if (result.affectedRows === 0) {
+            return res.status(404).json({ mensaje: 'Receta no encontrada' });
+          }
+          res.json({ mensaje: 'Receta eliminada correctamente' });
+        });
+      });
+    });
+  });
+});
 
 
 // ============================================

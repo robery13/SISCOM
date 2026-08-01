@@ -1544,7 +1544,7 @@ function mostrarModalReceta(recetaExistente) {
               </div>
             </div>
             <div class="mb-3 d-none" id="grupoFrecuenciaLibre">
-              <input type="text" id="modalFrecuenciaLibre" class="form-control" placeholder="Ej: al despertar, antes del desayuno, cada 15 días">
+              <textarea id="modalFrecuenciaLibre" class="form-control" rows="3" placeholder="Ej: al despertar, antes del desayuno, cada 15 días"></textarea>
             </div>
 
             <div class="row mb-3">
