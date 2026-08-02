@@ -2081,6 +2081,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const analyticsGrid = document.getElementById('dashboardAnalyticsGrid');
         if (analyticsGrid) analyticsGrid.style.display = esAdmin ? '' : 'none';
+
+        // Seguridad > Usuarios y Pacientes: un rol nuevo puede tener el
+        // módulo asignado para CONSULTAR (buscar, ver el listado), pero las
+        // acciones de alta (crear) quedan reservadas al rol real
+        // "administrador". El backend también valida esto (verificarRol
+        // ['administrador'] en /registraradm), así que ocultar el botón aquí
+        // es además de esa protección, no en lugar de ella.
+        const btnNuevoUsuario = document.getElementById('abrirModalUsuario');
+        if (btnNuevoUsuario) btnNuevoUsuario.style.display = esAdmin ? '' : 'none';
+        const btnRegistrarPaciente = document.getElementById('abrirModalPaciente');
+        if (btnRegistrarPaciente) btnRegistrarPaciente.style.display = esAdmin ? '' : 'none';
       }
 
       function filtrarMenusPorRol() {

@@ -2821,6 +2821,7 @@ function mostrarConfirmacion(mensaje, opciones = {}) {
         <td>${nombreCuidador}</td>
         <td>${badgeEstadoPaciente(p.estado)}</td>
         <td class="text-center">
+          ${String(window.userRole || "").toLowerCase() === "administrador" ? `
           <div class="btn-group btn-group-sm">
             <button class="btn btn-outline-primary" onclick="editarPacienteAdmin(${p.id})" title="Editar">
               <i class="bi bi-pencil"></i>
@@ -2832,6 +2833,7 @@ function mostrarConfirmacion(mensaje, opciones = {}) {
               <i class="bi bi-${esActivo ? "toggle-off" : "toggle-on"}"></i>
             </button>
           </div>
+          ` : `<span class="text-muted small">Solo consulta</span>`}
         </td>
       `;
       tablaPacientes.appendChild(tr);
@@ -3189,6 +3191,7 @@ function mostrarConfirmacion(mensaje, opciones = {}) {
         <td><span class="badge bg-${getRolBadgeColor(u.rol)}">${escapeHtml(u.rol)}</span></td>
         <td><span class="badge bg-${esActivo ? "success" : "secondary"}">${esActivo ? "Activo" : "Inactivo"}</span></td>
         <td class="text-center">
+          ${String(window.userRole || "").toLowerCase() === "administrador" ? `
           <div class="btn-group btn-group-sm">
             <button class="btn btn-outline-primary" onclick="editarUsuario(${u.id})" title="Editar">
               <i class="bi bi-pencil"></i>
@@ -3200,6 +3203,7 @@ function mostrarConfirmacion(mensaje, opciones = {}) {
               <i class="bi bi-trash"></i>
             </button>
           </div>
+          ` : `<span class="text-muted small">Solo consulta</span>`}
         </td>
       `;
       tablaUsuarios.appendChild(tr);

@@ -1254,8 +1254,11 @@ app.post("/registrar", (req, res) => {
 
 
 
-// Registro de usuario con rol - Solo administrador
-app.post("/registraradm", verificarPermiso('Usuarios'), async (req, res) => {
+// Registro de usuario con rol - Solo administrador (alta de usuario/paciente
+// desde el panel). No se usa verificarPermiso('Usuarios') aquí a propósito:
+// un rol nuevo puede tener el módulo "Usuarios" para CONSULTAR, pero crear
+// usuarios queda reservado al rol real "administrador".
+app.post("/registraradm", verificarRol(['administrador']), async (req, res) => {
 
   const { nombres, apellidos, identidad, telefono, email, password, rol, id_cuidador, fecha_nacimiento, usa_silla_ruedas } = req.body;
   const correoNormalizado = String(email || '').trim().toLowerCase();
@@ -2832,8 +2835,9 @@ app.get('/usuarios', verificarPermiso('Usuarios'), (req, res) => {
 });
 
 
-// Actualizar usuario - Solo administrador
-app.put('/usuarios/:id', verificarPermiso('Usuarios'), async (req, res) => {
+// Actualizar usuario - Solo administrador (editar sí es una acción de
+// administración real, no de consulta; se restringe por rol, no por permiso).
+app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
   const { id } = req.params;
   const { nombres, apellidos, identidad, telefono, email, password, rol, fecha_nacimiento, usa_silla_ruedas } = req.body;
   const correoNormalizado = String(email || '').trim().toLowerCase();
@@ -2925,7 +2929,7 @@ app.put('/usuarios/:id', verificarPermiso('Usuarios'), async (req, res) => {
 // y cualquier rol nuevo que se cree) — no solo pacientes. Un usuario en
 // estado "inactivo" no puede iniciar sesión (ver validación en /login), pero
 // conserva todo su historial y registros asociados.
-app.put('/usuarios/:id/estado', verificarPermiso('Usuarios'), (req, res) => {
+app.put('/usuarios/:id/estado', verificarRol(['administrador']), (req, res) => {
   const { id } = req.params;
   const estado = String(req.body.estado || '').toLowerCase();
 
@@ -3092,7 +3096,7 @@ app.put('/mi-perfil', verificarRol(['usuario']), (req, res) => {
 });
 
 // Eliminar usuario - Solo administrador
-app.delete('/usuarios/:id', verificarPermiso('Usuarios'), (req, res) => {
+app.delete('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
   const { id } = req.params;
   
   // Evitar que un administrador se elimine a sí mismo
@@ -3143,7 +3147,7 @@ app.get('/pacientes-admin', verificarPermiso('Pacientes'), (req, res) => {
 // Baja / reactivación: cambia el estado (activo/inactivo) en lugar de borrar
 // el registro, para no perder historial médico, medicamentos, citas ni
 // auditoría del paciente.
-app.put('/pacientes-admin/:id/estado', verificarPermiso('Pacientes'), (req, res) => {
+app.put('/pacientes-admin/:id/estado', verificarRol(['administrador']), (req, res) => {
   const { id } = req.params;
   const estado = String(req.body.estado || '').toLowerCase();
 
@@ -3171,7 +3175,7 @@ app.put('/pacientes-admin/:id/estado', verificarPermiso('Pacientes'), (req, res)
 
 // Cambios: reasignar el cuidador de un paciente ya existente (obligatorio,
 // no se permite dejar al paciente sin cuidador).
-app.put('/pacientes-admin/:id/cuidador', verificarPermiso('Pacientes'), (req, res) => {
+app.put('/pacientes-admin/:id/cuidador', verificarRol(['administrador']), (req, res) => {
   const { id } = req.params;
   const idCuidadorNum = parseInt(req.body.id_cuidador, 10);
 
