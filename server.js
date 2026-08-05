@@ -2202,7 +2202,8 @@ app.get('/inventario', (req, res) => {
   });
 });
 
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 let tokens = {}; // tokens de recuperación de contraseña
 let authTokens = {}; // tokens de autenticación de sesión
@@ -2228,15 +2229,15 @@ app.post("/enviar-token", (req, res) => {
     const token = crypto.randomBytes(4).toString("hex");
     tokens[correoNormalizado] = { token, expires: Date.now() + 15 * 60 * 1000 }; // 15 min
 
-    if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
+    if (!process.env.RESEND_API_KEY) {
       if (!allowDevRecovery) {
         return res.json({
           ok: false,
-          message: "SMTP no configurado. Define MAIL_USER y MAIL_PASS en el servidor."
+          message: "Resend no configurado. Define RESEND_API_KEY en el servidor."
         });
       }
 
-      console.warn("MAIL_USER / MAIL_PASS no configurados. Token de recuperacion para pruebas:", token);
+      console.warn("RESEND_API_KEY no configurada. Token de recuperacion para pruebas:", token);
       return res.json({
         ok: true,
         message: "Codigo generado en modo local. Revisa la consola del servidor.",
@@ -2245,13 +2246,8 @@ app.post("/enviar-token", (req, res) => {
     }
 
     try {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
-      });
-
-      await transporter.sendMail({
-        from: `"SISCOM" <${process.env.MAIL_USER}>`,
+      const { error } = await resend.emails.send({
+        from: "SISCOM <onboarding@resend.dev>",
         to: correoNormalizado,
         subject: "Recuperacion de contrasena",
         html: `
@@ -2261,6 +2257,8 @@ app.post("/enviar-token", (req, res) => {
         `,
       });
 
+      if (error) throw new Error(error.message || "Error de Resend");
+
       return res.json({ ok: true, message: "Correo de verificacion enviado" });
     } catch (mailErr) {
       console.error("Error al enviar correo de recuperacion:", mailErr.message || mailErr);
@@ -2269,7 +2267,7 @@ app.post("/enviar-token", (req, res) => {
         return res.json({
           ok: false,
           message: "No se pudo enviar el correo de verificacion",
-          mailError: String(mailErr?.message || "Error SMTP")
+          mailError: String(mailErr?.message || "Error Resend")
         });
       }
 
@@ -2278,7 +2276,7 @@ app.post("/enviar-token", (req, res) => {
         ok: true,
         message: "No se pudo enviar el correo. Usa el codigo mostrado para continuar.",
         devToken: token,
-        mailError: String(mailErr?.message || "Error SMTP")
+        mailError: String(mailErr?.message || "Error Resend")
       });
     }
   });
