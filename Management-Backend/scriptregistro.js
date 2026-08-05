@@ -2821,7 +2821,10 @@ function mostrarConfirmacion(mensaje, opciones = {}) {
         <td>${nombreCuidador}</td>
         <td>${badgeEstadoPaciente(p.estado)}</td>
         <td class="text-center">
-          ${String(window.userRole || "").toLowerCase() === "administrador" ? `
+          ${(() => {
+            const puedeEditar = window.puedePacientes ? window.puedePacientes('editar') : String(window.userRole || "").toLowerCase() === "administrador";
+            if (!puedeEditar) return `<span class="text-muted small">Solo consulta</span>`;
+            return `
           <div class="btn-group btn-group-sm">
             <button class="btn btn-outline-primary" onclick="editarPacienteAdmin(${p.id})" title="Editar">
               <i class="bi bi-pencil"></i>
@@ -2832,8 +2835,8 @@ function mostrarConfirmacion(mensaje, opciones = {}) {
             <button class="btn btn-outline-${esActivo ? "danger" : "success"}" onclick="cambiarEstadoPacienteAdmin(${p.id}, ${esActivo})" title="${esActivo ? "Desactivar" : "Activar"}">
               <i class="bi bi-${esActivo ? "toggle-off" : "toggle-on"}"></i>
             </button>
-          </div>
-          ` : `<span class="text-muted small">Solo consulta</span>`}
+          </div>`;
+          })()}
         </td>
       `;
       tablaPacientes.appendChild(tr);
@@ -3191,19 +3194,25 @@ function mostrarConfirmacion(mensaje, opciones = {}) {
         <td><span class="badge bg-${getRolBadgeColor(u.rol)}">${escapeHtml(u.rol)}</span></td>
         <td><span class="badge bg-${esActivo ? "success" : "secondary"}">${esActivo ? "Activo" : "Inactivo"}</span></td>
         <td class="text-center">
-          ${String(window.userRole || "").toLowerCase() === "administrador" ? `
+          ${(() => {
+            const puedeEditar = window.puedeUsuarios ? window.puedeUsuarios('editar') : String(window.userRole || "").toLowerCase() === "administrador";
+            const puedeEliminar = window.puedeUsuarios ? window.puedeUsuarios('eliminar') : String(window.userRole || "").toLowerCase() === "administrador";
+            if (!puedeEditar && !puedeEliminar) return `<span class="text-muted small">Solo consulta</span>`;
+            return `
           <div class="btn-group btn-group-sm">
+            ${puedeEditar ? `
             <button class="btn btn-outline-primary" onclick="editarUsuario(${u.id})" title="Editar">
               <i class="bi bi-pencil"></i>
             </button>
             <button class="btn btn-outline-${esActivo ? "danger" : "success"}" onclick="cambiarEstadoUsuarioAdmin(${u.id}, ${esActivo})" title="${esActivo ? "Desactivar" : "Activar"}">
               <i class="bi bi-${esActivo ? "toggle-off" : "toggle-on"}"></i>
-            </button>
+            </button>` : ``}
+            ${puedeEliminar ? `
             <button class="btn btn-outline-danger" onclick="eliminarUsuario(${u.id})" title="Eliminar">
               <i class="bi bi-trash"></i>
-            </button>
-          </div>
-          ` : `<span class="text-muted small">Solo consulta</span>`}
+            </button>` : ``}
+          </div>`;
+          })()}
         </td>
       `;
       tablaUsuarios.appendChild(tr);

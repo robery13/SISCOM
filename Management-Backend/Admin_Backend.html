@@ -114,8 +114,8 @@
       <nav class="nav-menu" id="navMenu">
         
         <button class="nav-btn active" data-section="dashboard" data-role="administrador"><i class="bi bi-speedometer2"></i> <span>Dashboard</span></button>
-        <button class="nav-btn" data-section="usuarios" data-role="administrador" data-permiso-any="Usuarios,Roles,Permisos,Bitácora,Backup y Restore,Dominios de Correo,Parámetros del Sistema"><i class="bi bi-shield-lock"></i> <span>Seguridad</span></button>
-        <button class="nav-btn" data-section="asignacion-pacientes" data-role="administrador,empleado" data-permiso-any="Pacientes"><i class="bi bi-diagram-3"></i> <span>Pacientes</span></button>
+        <button class="nav-btn" data-section="usuarios" data-role="administrador" data-permiso-any="Usuarios:ver,Roles,Permisos,Bitácora,Backup y Restore,Dominios de Correo,Parámetros del Sistema"><i class="bi bi-shield-lock"></i> <span>Seguridad</span></button>
+        <button class="nav-btn" data-section="asignacion-pacientes" data-role="administrador,empleado" data-permiso-any="Pacientes:ver"><i class="bi bi-diagram-3"></i> <span>Pacientes</span></button>
         <div class="nav-group nav-accordion" id="medicamentosAccordionAdmin">
           <button class="nav-btn nav-accordion-toggle" type="button" aria-expanded="false">
             <i class="bi bi-capsule"></i>
@@ -135,8 +135,8 @@
             <i class="bi bi-chevron-down accordion-chevron"></i>
           </button>
           <div class="nav-accordion-content">
-            <button class="nav-btn" data-section="inventario" data-role="administrador,empleado" data-permiso="Inventario"><i class="bi bi-box"></i> <span>Inventario</span></button>
-            <button class="nav-btn" data-section="pedidos" data-role="administrador,empleado" data-permiso="Inventario"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
+            <button class="nav-btn" data-section="inventario" data-role="administrador,empleado" data-permiso="Farmacia"><i class="bi bi-box"></i> <span>Inventario</span></button>
+            <button class="nav-btn" data-section="pedidos" data-role="administrador,empleado" data-permiso="Farmacia"><i class="bi bi-cart3"></i> <span>Pedidos Farmacia</span></button>
           </div>
         </div>
         <button class="nav-btn" data-section="recetas" data-role="administrador,empleado" data-permiso="Citas Médicas"><i class="bi bi-journal-text"></i> <span>Citas M&eacute;dicas</span></button>
@@ -189,7 +189,7 @@
           </article>
 
           <!-- KPI 2: Stock bajo (acceso directo a Inventario) -->
-          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiStockBajo" data-section="inventario" data-permiso="Inventario" tabindex="0" role="button" aria-label="Ir a Inventario">
+          <article class="dashboard-kpi-card glass-card animate-counter kpi-clickable" data-target="0" data-id="kpiStockBajo" data-section="inventario" data-permiso="Farmacia" tabindex="0" role="button" aria-label="Ir a Inventario">
             <div class="kpi-icon gradient-warning">
               <i class="bi bi-exclamation-triangle"></i>
             </div>
@@ -1175,7 +1175,7 @@
         </div>
 
         <ul class="nav nav-tabs mb-4" id="usuariosTabs" role="tablist">
-          <li class="nav-item" role="presentation" data-permiso="Usuarios">
+          <li class="nav-item" role="presentation" data-permiso="Usuarios:ver">
             <button class="nav-link active" id="tab-usuarios-registrados" data-bs-toggle="tab" data-bs-target="#panel-usuarios-registrados" type="button" role="tab" aria-controls="panel-usuarios-registrados" aria-selected="true">
               <i class="bi bi-list-ul me-2"></i>Usuarios Registrados
             </button>
@@ -2074,7 +2074,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // sin importar si el resto de módulos del rol están permitidos:
       // "Usuarios Totales" y la sección completa de Estado del
       // Inventario/Acceso de Usuarios (estadísticas globales del sistema).
-      function aplicarVisibilidadSoloAdmin() {
+      function aplicarVisibilidadSoloAdmin(modulosPermitidos) {
         const esAdmin = userRole === 'administrador';
         document.querySelectorAll('.dashboard-kpi-card[data-role="administrador"]').forEach(card => {
           card.style.display = esAdmin ? '' : 'none';
@@ -2082,16 +2082,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const analyticsGrid = document.getElementById('dashboardAnalyticsGrid');
         if (analyticsGrid) analyticsGrid.style.display = esAdmin ? '' : 'none';
 
-        // Seguridad > Usuarios y Pacientes: un rol nuevo puede tener el
-        // módulo asignado para CONSULTAR (buscar, ver el listado), pero las
-        // acciones de alta (crear) quedan reservadas al rol real
-        // "administrador". El backend también valida esto (verificarRol
-        // ['administrador'] en /registraradm), así que ocultar el botón aquí
-        // es además de esa protección, no en lugar de ella.
+        // Seguridad > Usuarios y Pacientes: ahora los permisos son granulares
+        // por acción (Usuarios:crear / Pacientes:crear), en vez de estar fijo
+        // a "solo administrador" en el código. El backend valida lo mismo
+        // (verificarPermisoCrearCuenta en /registraradm), así que ocultar el
+        // botón aquí es además de esa protección, no en lugar de ella.
+        const puedeCrearUsuario = esAdmin || (modulosPermitidos && modulosPermitidos.has('Usuarios:crear'));
+        const puedeCrearPaciente = esAdmin || (modulosPermitidos && modulosPermitidos.has('Pacientes:crear'));
         const btnNuevoUsuario = document.getElementById('abrirModalUsuario');
-        if (btnNuevoUsuario) btnNuevoUsuario.style.display = esAdmin ? '' : 'none';
+        if (btnNuevoUsuario) btnNuevoUsuario.style.display = puedeCrearUsuario ? '' : 'none';
         const btnRegistrarPaciente = document.getElementById('abrirModalPaciente');
-        if (btnRegistrarPaciente) btnRegistrarPaciente.style.display = esAdmin ? '' : 'none';
+        if (btnRegistrarPaciente) btnRegistrarPaciente.style.display = puedeCrearPaciente ? '' : 'none';
       }
 
       function filtrarMenusPorRol() {
@@ -2183,6 +2184,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
           }
           modulosPermitidos = new Set(datos.modulos || []);
+          // Expuesto globalmente para que scriptregistro.js pueda ocultar,
+          // dentro de las tablas de Usuarios y Pacientes, los botones de
+          // Editar/Eliminar cuando el rol no tenga el permiso granular
+          // correspondiente (Usuarios:editar, Pacientes:eliminar, etc.).
+          // El backend ya rechaza la acción de todas formas; esto es solo
+          // para no mostrar un botón que va a fallar.
+          window.modulosPermitidosSet = modulosPermitidos;
+          window.puedeUsuarios = (accion) => userRole === 'administrador' || modulosPermitidos.has(`Usuarios:${accion}`);
+          window.puedePacientes = (accion) => userRole === 'administrador' || modulosPermitidos.has(`Pacientes:${accion}`);
           const bannerPrevio = document.getElementById('avisoPermisosMenu');
           if (bannerPrevio) bannerPrevio.remove();
         } catch (error) {
@@ -2222,7 +2232,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.dashboard-kpi-card[data-permiso]').forEach(card => {
           card.style.display = modulosPermitidos.has(card.getAttribute('data-permiso')) ? '' : 'none';
         });
-        aplicarVisibilidadSoloAdmin();
+        aplicarVisibilidadSoloAdmin(modulosPermitidos);
         ajustarGridKpi();
 
         // Dentro de Seguridad, mostrar solo las pestañas cuyo módulo esté permitido.

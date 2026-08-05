@@ -319,13 +319,36 @@ db.connect(err => {
       // (Registro de Tomas, Historial de Tomas, Estadísticas), para que el
       // menú del cuidador y el de cualquier rol nuevo se arme según estos
       // mismos permisos.
-      const permisosSemilla = [
-        ['Usuarios', 'Crear, editar y eliminar usuarios'],
-        ['Pacientes', 'Registrar, editar, activar/desactivar y consultar pacientes; asignar cuidadores'],
+      // A partir de esta versión, "Usuarios" y "Pacientes" son módulos con
+      // permisos GRANULARES por acción (ver / crear / editar / eliminar), en
+      // vez de un único permiso que otorgaba todo el CRUD de una vez
+      // (bug crítico reportado en QA: "los permisos no son granulares").
+      // El nombre de cada permiso granular sigue el patrón "Módulo:acción"
+      // (ej. "Pacientes:crear"). El resto de módulos conserva, por ahora, un
+      // solo permiso equivalente a "gestionar" (mismo comportamiento que
+      // tenían antes) y se pueden ir desglosando con el mismo patrón más
+      // adelante sin romper nada de lo ya guardado.
+      const modulosGranulares = {
+        Usuarios: {
+          descripcion: 'usuarios del sistema (empleados, administradores, roles nuevos)',
+          acciones: ['ver', 'crear', 'editar', 'eliminar']
+        },
+        Pacientes: {
+          descripcion: 'pacientes; asignar cuidadores',
+          acciones: ['ver', 'crear', 'editar', 'eliminar']
+        }
+      };
+
+      const permisosSemillaSimples = [
         ['Roles', 'Crear y editar roles'],
         ['Permisos', 'Asignar permisos a roles'],
         ['Medicamentos', 'Crear y editar medicamentos'],
-        ['Inventario', 'Administrar inventario y pedidos de farmacia'],
+        // "Farmacia" reemplaza a "Inventario": el menú del sistema agrupa
+        // Inventario + Pedidos de Farmacia bajo el título "Farmacia", y el
+        // nombre del permiso debe coincidir con lo que ve el administrador
+        // en el menú (bug reportado: "el menú dice Farmacia pero el permiso
+        // dice Inventario").
+        ['Farmacia', 'Administrar inventario y pedidos de farmacia'],
         ['Citas Médicas', 'Administrar citas médicas'],
         ['Parámetros del Sistema', 'Editar parámetros generales del sistema'],
         ['Bitácora', 'Consultar la bitácora de auditoría'],
@@ -335,6 +358,16 @@ db.connect(err => {
         ['Historial de Tomas', 'Consultar el historial de tomas de los pacientes'],
         ['Estadísticas', 'Consultar reportes y estadísticas']
       ];
+
+      // Construye la lista final de permisos a sembrar: uno por acción en los
+      // módulos granulares, y uno solo en los módulos simples.
+      const permisosSemilla = [...permisosSemillaSimples];
+      const nombreAccion = { ver: 'Ver', crear: 'Crear', editar: 'Editar', eliminar: 'Eliminar' };
+      for (const [modulo, cfg] of Object.entries(modulosGranulares)) {
+        for (const accion of cfg.acciones) {
+          permisosSemilla.push([`${modulo}:${accion}`, `${nombreAccion[accion]} ${cfg.descripcion}`]);
+        }
+      }
 
       // Módulos que hoy ve el rol "empleado" (cuidador) en cuidador_backend.html.
       // Se le asignan por defecto la primera vez, para que ningún cuidador
@@ -356,7 +389,9 @@ db.connect(err => {
         ['citas.gestionar', 'Citas Médicas'],
         ['parametros.gestionar', 'Parámetros del Sistema'],
         ['bitacora.ver', 'Bitácora'],
-        ['backup.gestionar', 'Backup y Restore']
+        ['backup.gestionar', 'Backup y Restore'],
+        // "Inventario" -> "Farmacia" (ver comentario arriba).
+        ['Inventario', 'Farmacia']
       ];
 
       (async () => {
@@ -380,6 +415,25 @@ db.connect(err => {
           const filasPermisos = await queryAsync('SELECT id, nombre_permiso FROM permisos');
           const idPorNombre = {};
           filasPermisos.forEach(f => { idPorNombre[f.nombre_permiso] = f.id; });
+
+          // Migración de datos: los roles que ya tenían el permiso plano
+          // "Usuarios" o "Pacientes" (antes de existir el desglose por
+          // acción) reciben automáticamente las 4 acciones granulares
+          // correspondientes, para que nadie pierda acceso al activar esta
+          // versión. El permiso plano viejo se deja de usar en el código,
+          // pero no se borra por si hay reportes/back-ups que lo referencian.
+          for (const modulo of Object.keys(modulosGranulares)) {
+            const idPlano = idPorNombre[modulo];
+            if (!idPlano) continue;
+            const rolesConPlano = await queryAsync('SELECT DISTINCT nombre_rol FROM roles_permisos WHERE id_permiso = ?', [idPlano]);
+            for (const { nombre_rol } of rolesConPlano) {
+              for (const accion of modulosGranulares[modulo].acciones) {
+                const idGranular = idPorNombre[`${modulo}:${accion}`];
+                if (!idGranular) continue;
+                await queryAsync('INSERT IGNORE INTO roles_permisos (nombre_rol, id_permiso) VALUES (?, ?)', [nombre_rol, idGranular]);
+              }
+            }
+          }
 
           // El rol "administrador" siempre tiene todos los módulos existentes
           // (incluye los que se agreguen en el futuro).
@@ -1194,8 +1248,71 @@ function verificarPermiso(nombrePermiso) {
   };
 }
 
+/**
+ * Middleware para verificar un permiso GRANULAR por acción, ej.
+ * verificarPermisoAccion('Pacientes', 'crear') exige el permiso
+ * "Pacientes:crear" (no basta con tener "Pacientes:ver"). El rol
+ * "administrador" siempre pasa. Se usa en los módulos que sí distinguen
+ * ver/crear/editar/eliminar (por ahora: Usuarios y Pacientes), en vez del
+ * antiguo "solo el administrador puede crear" fijo en el código.
+ * @param {string} modulo
+ * @param {string} accion - 'ver' | 'crear' | 'editar' | 'eliminar'
+ */
+function verificarPermisoAccion(modulo, accion) {
+  return verificarPermiso(`${modulo}:${accion}`);
+}
 
+/**
+ * Caso especial: crear una cuenta desde el panel de administración
+ * (endpoint /registraradm) sirve tanto para dar de alta un PACIENTE
+ * (rol "usuario") como cualquier otro USUARIO del sistema (empleado,
+ * evaluación, un rol nuevo, etc.). El permiso requerido depende de qué se
+ * está creando, así que no puede resolverse con un solo nombre de permiso
+ * fijo: se decide en tiempo de request según req.body.rol.
+ * Antes esto estaba fijo en el código ("solo el administrador puede crear
+ * pacientes/usuarios"); ahora cualquier rol con el permiso granular
+ * correspondiente ("Pacientes:crear" o "Usuarios:crear") puede hacerlo.
+ */
+function verificarPermisoCrearCuenta(req, res, next) {
+  const rolACrear = String(req.body.rol || '').trim().toLowerCase();
+  const modulo = rolACrear === 'usuario' ? 'Pacientes' : 'Usuarios';
+  return verificarPermisoAccion(modulo, 'crear')(req, res, next);
+}
 
+/**
+ * Igual que verificarPermisoCrearCuenta, pero para EDITAR/ELIMINAR/CAMBIAR
+ * ESTADO de una cuenta que ya existe (rutas con :id). El módulo requerido
+ * ("Pacientes" o "Usuarios") se decide según el rol ACTUAL del registro que
+ * se está modificando (no según lo que venga en el body), consultándolo en
+ * la base de datos con el :id de la URL.
+ * @param {string} accion - 'editar' | 'eliminar'
+ */
+function verificarPermisoSobreCuentaExistente(accion) {
+  return (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ ok: false, mensaje: 'Token no proporcionado' });
+    const session = authTokens[token];
+    if (!session) return res.status(401).json({ ok: false, mensaje: 'Sesión no válida' });
+    if (Date.now() > session.expires) {
+      delete authTokens[token];
+      return res.status(401).json({ ok: false, mensaje: 'Sesión expirada' });
+    }
+
+    const idObjetivo = req.params.id;
+    db.query('SELECT rol FROM usuarios WHERE id = ?', [idObjetivo], (err, filasObjetivo) => {
+      if (err) {
+        console.error('Error al verificar permiso sobre cuenta existente:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al verificar permisos' });
+      }
+      if (filasObjetivo.length === 0) {
+        return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
+      }
+      const modulo = filasObjetivo[0].rol === 'usuario' ? 'Pacientes' : 'Usuarios';
+      return verificarPermisoAccion(modulo, accion)(req, res, next);
+    });
+  };
+}
 
 // Registro
 app.post("/registrar", (req, res) => {
@@ -1254,11 +1371,12 @@ app.post("/registrar", (req, res) => {
 
 
 
-// Registro de usuario con rol - Solo administrador (alta de usuario/paciente
-// desde el panel). No se usa verificarPermiso('Usuarios') aquí a propósito:
-// un rol nuevo puede tener el módulo "Usuarios" para CONSULTAR, pero crear
-// usuarios queda reservado al rol real "administrador".
-app.post("/registraradm", verificarRol(['administrador']), async (req, res) => {
+// Registro de usuario con rol (alta de usuario/paciente desde el panel).
+// Antes quedaba fijo a "solo administrador"; ahora usa el permiso granular
+// "Usuarios:crear" o "Pacientes:crear" según lo que se esté creando, para
+// que un rol nuevo con ese permiso también pueda dar de alta cuentas sin
+// necesitar ser literalmente "administrador" (bug crítico reportado en QA).
+app.post("/registraradm", verificarPermisoCrearCuenta, async (req, res) => {
 
   const { nombres, apellidos, identidad, telefono, email, password, rol, id_cuidador, fecha_nacimiento, usa_silla_ruedas } = req.body;
   const correoNormalizado = String(email || '').trim().toLowerCase();
@@ -1449,7 +1567,10 @@ app.get('/roles', verificarPermiso('Roles'), (req, res) => {
 
 // Lista simple de roles activos, usada por los formularios (ej. select de
 // "Nuevo Usuario") para no tener nombres de rol fijos en el HTML.
-app.get('/roles-activos', verificarPermiso('Usuarios'), (req, res) => {
+// Solo exige sesión válida (no un permiso puntual): esta lista de nombres de
+// rol la necesitan varias pantallas (Usuarios, Permisos) y no es información
+// sensible por sí sola.
+app.get('/roles-activos', verificarRol(), (req, res) => {
   db.query('SELECT nombre_rol, descripcion FROM roles WHERE activo = 1 ORDER BY nombre_rol ASC', (err, rows) => {
     if (err) {
       console.error('Error al obtener roles activos:', err);
@@ -2826,7 +2947,7 @@ app.delete('/recetas/:id', (req, res) => {
 // ============================================
 
 // Obtener todos los usuarios - Solo administrador
-app.get('/usuarios', verificarPermiso('Usuarios'), (req, res) => {
+app.get('/usuarios', verificarPermisoAccion('Usuarios', 'ver'), (req, res) => {
   const sql = 'SELECT * FROM usuarios ORDER BY id DESC';
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar usuarios' });
@@ -2837,7 +2958,7 @@ app.get('/usuarios', verificarPermiso('Usuarios'), (req, res) => {
 
 // Actualizar usuario - Solo administrador (editar sí es una acción de
 // administración real, no de consulta; se restringe por rol, no por permiso).
-app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
+app.put('/usuarios/:id', verificarPermisoSobreCuentaExistente('editar'), async (req, res) => {
   const { id } = req.params;
   const { nombres, apellidos, identidad, telefono, email, password, rol, fecha_nacimiento, usa_silla_ruedas } = req.body;
   const correoNormalizado = String(email || '').trim().toLowerCase();
@@ -2929,7 +3050,7 @@ app.put('/usuarios/:id', verificarRol(['administrador']), async (req, res) => {
 // y cualquier rol nuevo que se cree) — no solo pacientes. Un usuario en
 // estado "inactivo" no puede iniciar sesión (ver validación en /login), pero
 // conserva todo su historial y registros asociados.
-app.put('/usuarios/:id/estado', verificarRol(['administrador']), (req, res) => {
+app.put('/usuarios/:id/estado', verificarPermisoSobreCuentaExistente('editar'), (req, res) => {
   const { id } = req.params;
   const estado = String(req.body.estado || '').toLowerCase();
 
@@ -3096,7 +3217,7 @@ app.put('/mi-perfil', verificarRol(['usuario']), (req, res) => {
 });
 
 // Eliminar usuario - Solo administrador
-app.delete('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
+app.delete('/usuarios/:id', verificarPermisoSobreCuentaExistente('eliminar'), (req, res) => {
   const { id } = req.params;
   
   // Evitar que un administrador se elimine a sí mismo
@@ -3122,7 +3243,7 @@ app.delete('/usuarios/:id', verificarRol(['administrador']), (req, res) => {
 // ============================================
 
 // Consultas: listado completo de pacientes con su cuidador y estado
-app.get('/pacientes-admin', verificarPermiso('Pacientes'), (req, res) => {
+app.get('/pacientes-admin', verificarPermisoAccion('Pacientes', 'ver'), (req, res) => {
   const sql = `
     SELECT
       u.id, u.nombres, u.apellidos, u.identidad, u.telefono, u.email,
@@ -3147,7 +3268,7 @@ app.get('/pacientes-admin', verificarPermiso('Pacientes'), (req, res) => {
 // Baja / reactivación: cambia el estado (activo/inactivo) en lugar de borrar
 // el registro, para no perder historial médico, medicamentos, citas ni
 // auditoría del paciente.
-app.put('/pacientes-admin/:id/estado', verificarRol(['administrador']), (req, res) => {
+app.put('/pacientes-admin/:id/estado', verificarPermisoAccion('Pacientes', 'editar'), (req, res) => {
   const { id } = req.params;
   const estado = String(req.body.estado || '').toLowerCase();
 
@@ -3175,7 +3296,7 @@ app.put('/pacientes-admin/:id/estado', verificarRol(['administrador']), (req, re
 
 // Cambios: reasignar el cuidador de un paciente ya existente (obligatorio,
 // no se permite dejar al paciente sin cuidador).
-app.put('/pacientes-admin/:id/cuidador', verificarRol(['administrador']), (req, res) => {
+app.put('/pacientes-admin/:id/cuidador', verificarPermisoAccion('Pacientes', 'editar'), (req, res) => {
   const { id } = req.params;
   const idCuidadorNum = parseInt(req.body.id_cuidador, 10);
 
@@ -3891,11 +4012,18 @@ app.post('/asignaciones-cuidador/:cuidadorId', verificarRol(['administrador']), 
   });
 });
 
-app.get('/mis-pacientes', verificarRol(['administrador', 'empleado']), (req, res) => {
+app.get('/mis-pacientes', verificarPermisoAccion('Pacientes', 'ver'), (req, res) => {
   // No mostrar pacientes dados de "Baja" (estado inactivo): su historial se
   // conserva, pero ya no deben aparecer en las listas operativas del
   // cuidador ni del administrador (medicamentos, citas, historial, etc.).
-  if (req.user.rol === 'administrador') {
+  // Solo el rol "empleado" (cuidador) ve su lista filtrada por asignación;
+  // cualquier otro rol con el permiso "Pacientes:ver" (administrador o un
+  // rol nuevo, ej. "farmacia"/"evaluación") ve el listado completo, igual
+  // que el administrador. Antes esto estaba fijo a solo
+  // ['administrador','empleado'] en el middleware, lo que bloqueaba con
+  // "no tienes permisos" a cualquier rol nuevo aunque tuviera el permiso
+  // "Pacientes" asignado (bug crítico reportado en QA).
+  if (req.user.rol !== 'empleado') {
     const sqlAdmin = "SELECT id, nombres, apellidos, email FROM usuarios WHERE rol = 'usuario' AND estado = 'activo' ORDER BY nombres, apellidos";
     db.query(sqlAdmin, (err, results) => {
       if (err) return res.status(500).json({ mensaje: 'Error al cargar pacientes' });
