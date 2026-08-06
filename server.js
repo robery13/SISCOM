@@ -112,6 +112,7 @@ db.connect(err => {
     // tener medicamentos "para siempre" cuando en realidad son de unos días.
     ensureTableColumn('recetas_medicas', 'fecha_inicio', "ALTER TABLE recetas_medicas ADD COLUMN fecha_inicio DATE NULL AFTER frecuencia");
     ensureTableColumn('recetas_medicas', 'fecha_fin', "ALTER TABLE recetas_medicas ADD COLUMN fecha_fin DATE NULL AFTER fecha_inicio");
+    ensureTableColumn('Registro_medicamentos', 'id_receta', "ALTER TABLE Registro_medicamentos ADD COLUMN id_receta INT NULL AFTER paciente_id");
 
     // Crear tabla contactos_emergencia si no existe (HU-21: Agregar contactos de emergencia)
     const createContactosEmergenciaSql = `
@@ -2140,16 +2141,30 @@ app.post('/Registro_medicamentos', (req, res) => {
     return res.status(400).json({ mensaje: 'Campos incompletos. Se requiere nombre, dosis, frecuencia, hora y paciente' });
   }
 
-  const sql = `INSERT INTO Registro_medicamentos 
-    (nombre, dosis, frecuencia_horas, hora, paciente_id, estado, fecha_inicio, fecha_fin, notas) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-  
-  db.query(sql, [nombre, dosis, frecuencia_horas, hora, paciente_id, estado || 'activo', fecha_inicio || null, fecha_fin || null, notas || null], (err, result) => {
-    if (err) {
-      console.error('Error al guardar en Registro_medicamentos:', err);
-      return res.status(500).json({ mensaje: 'Error al guardar en la base de datos', error: err.message });
+  const frecuenciaTexto = `cada ${frecuencia_horas} hora(s)`;
+  const sqlReceta = `INSERT INTO recetas_medicas
+    (id_usuario, nombre_medicamento, dosis, frecuencia, fecha_inicio, fecha_fin, fecha_subida)
+    VALUES (?, ?, ?, ?, ?, ?, NOW())`;
+
+  db.query(sqlReceta, [paciente_id, nombre, dosis, frecuenciaTexto, fecha_inicio || null, fecha_fin || null], (errReceta, resultReceta) => {
+    if (errReceta) {
+      console.error('Error al crear la receta enlazada del paciente:', errReceta);
+      return res.status(500).json({ mensaje: 'Error al guardar en la base de datos', error: errReceta.message });
     }
-    res.json({ mensaje: 'Medicamento registrado correctamente', id: result.insertId });
+
+    const idReceta = resultReceta.insertId;
+    const sql = `INSERT INTO Registro_medicamentos 
+      (nombre, dosis, frecuencia_horas, hora, paciente_id, id_receta, estado, fecha_inicio, fecha_fin, notas) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    db.query(sql, [nombre, dosis, frecuencia_horas, hora, paciente_id, idReceta, estado || 'activo', fecha_inicio || null, fecha_fin || null, notas || null], (err, result) => {
+      if (err) {
+        console.error('Error al guardar en Registro_medicamentos:', err);
+        db.query('DELETE FROM recetas_medicas WHERE id = ?', [idReceta], () => {});
+        return res.status(500).json({ mensaje: 'Error al guardar en la base de datos', error: err.message });
+      }
+      res.json({ mensaje: 'Medicamento registrado correctamente', id: result.insertId, id_receta: idReceta });
+    });
   });
 });
 
@@ -2211,21 +2226,58 @@ app.put('/Registro_medicamentos/:id', (req, res) => {
     return res.status(400).json({ mensaje: 'Campos incompletos. Se requiere nombre, dosis, frecuencia, hora y paciente' });
   }
 
-  const sql = `UPDATE Registro_medicamentos 
-    SET nombre = ?, dosis = ?, frecuencia_horas = ?, hora = ?, paciente_id = ?, estado = ?, fecha_inicio = ?, fecha_fin = ?, notas = ? 
-    WHERE id = ?`;
-  
-  db.query(sql, [nombre, dosis, frecuencia_horas, hora, paciente_id, estado || 'activo', fecha_inicio || null, fecha_fin || null, notas || null, id], (err, result) => {
-    if (err) {
-      console.error('Error al actualizar medicamento:', err);
-      return res.status(500).json({ mensaje: 'Error al actualizar en la base de datos', error: err.message });
+  db.query('SELECT id_receta FROM Registro_medicamentos WHERE id = ?', [id], (errSel, filas) => {
+    if (errSel) {
+      console.error('Error al actualizar medicamento:', errSel);
+      return res.status(500).json({ mensaje: 'Error al actualizar en la base de datos', error: errSel.message });
     }
-    
-    if (result.affectedRows === 0) {
+    if (filas.length === 0) {
       return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
     }
-    
-    res.json({ mensaje: 'Medicamento actualizado correctamente' });
+
+    const frecuenciaTexto = `cada ${frecuencia_horas} hora(s)`;
+    const idRecetaExistente = filas[0].id_receta;
+
+    const continuarActualizacion = (idReceta) => {
+      const sql = `UPDATE Registro_medicamentos 
+        SET nombre = ?, dosis = ?, frecuencia_horas = ?, hora = ?, paciente_id = ?, id_receta = ?, estado = ?, fecha_inicio = ?, fecha_fin = ?, notas = ? 
+        WHERE id = ?`;
+
+      db.query(sql, [nombre, dosis, frecuencia_horas, hora, paciente_id, idReceta, estado || 'activo', fecha_inicio || null, fecha_fin || null, notas || null, id], (err, result) => {
+        if (err) {
+          console.error('Error al actualizar medicamento:', err);
+          return res.status(500).json({ mensaje: 'Error al actualizar en la base de datos', error: err.message });
+        }
+        if (result.affectedRows === 0) {
+          return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
+        }
+        res.json({ mensaje: 'Medicamento actualizado correctamente' });
+      });
+    };
+
+    if (idRecetaExistente) {
+      const sqlReceta = `UPDATE recetas_medicas
+        SET id_usuario = ?, nombre_medicamento = ?, dosis = ?, frecuencia = ?, fecha_inicio = ?, fecha_fin = ?
+        WHERE id = ?`;
+      db.query(sqlReceta, [paciente_id, nombre, dosis, frecuenciaTexto, fecha_inicio || null, fecha_fin || null, idRecetaExistente], (errUpd) => {
+        if (errUpd) {
+          console.error('Error al actualizar la receta enlazada:', errUpd);
+          return res.status(500).json({ mensaje: 'Error al actualizar en la base de datos', error: errUpd.message });
+        }
+        continuarActualizacion(idRecetaExistente);
+      });
+    } else {
+      const sqlReceta = `INSERT INTO recetas_medicas
+        (id_usuario, nombre_medicamento, dosis, frecuencia, fecha_inicio, fecha_fin, fecha_subida)
+        VALUES (?, ?, ?, ?, ?, ?, NOW())`;
+      db.query(sqlReceta, [paciente_id, nombre, dosis, frecuenciaTexto, fecha_inicio || null, fecha_fin || null], (errIns, resultIns) => {
+        if (errIns) {
+          console.error('Error al crear la receta enlazada del paciente:', errIns);
+          return res.status(500).json({ mensaje: 'Error al actualizar en la base de datos', error: errIns.message });
+        }
+        continuarActualizacion(resultIns.insertId);
+      });
+    }
   });
 });
 
@@ -2233,19 +2285,40 @@ app.put('/Registro_medicamentos/:id', (req, res) => {
 app.delete('/Registro_medicamentos/:id', (req, res) => {
   const { id } = req.params;
 
-  const sql = 'DELETE FROM Registro_medicamentos WHERE id = ?';
-  
-  db.query(sql, [id], (err, result) => {
-    if (err) {
-      console.error('Error al eliminar medicamento:', err);
-      return res.status(500).json({ mensaje: 'Error al eliminar de la base de datos', error: err.message });
+  db.query('SELECT id_receta FROM Registro_medicamentos WHERE id = ?', [id], (errSel, filas) => {
+    if (errSel) {
+      console.error('Error al eliminar medicamento:', errSel);
+      return res.status(500).json({ mensaje: 'Error al eliminar de la base de datos', error: errSel.message });
     }
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
+
+    const idReceta = filas.length > 0 ? filas[0].id_receta : null;
+
+    const eliminarRegistro = () => {
+      db.query('DELETE FROM Registro_medicamentos WHERE id = ?', [id], (err, result) => {
+        if (err) {
+          console.error('Error al eliminar medicamento:', err);
+          return res.status(500).json({ mensaje: 'Error al eliminar de la base de datos', error: err.message });
+        }
+        if (result.affectedRows === 0) {
+          return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
+        }
+        res.json({ mensaje: 'Medicamento eliminado correctamente' });
+      });
+    };
+
+    if (!idReceta) {
+      return eliminarRegistro();
     }
-    
-    res.json({ mensaje: 'Medicamento eliminado correctamente' });
+
+    db.query('DELETE FROM tomas_medicas WHERE id_receta = ?', [idReceta], () => {
+      db.query('DELETE FROM horarios_medicamentos WHERE id_receta = ?', [idReceta], () => {
+        db.query('DELETE FROM configuracion_horarios WHERE id_receta = ?', [idReceta], () => {
+          db.query('DELETE FROM recetas_medicas WHERE id = ?', [idReceta], () => {
+            eliminarRegistro();
+          });
+        });
+      });
+    });
   });
 });
 
