@@ -5,6 +5,21 @@ const hasAOS = typeof window !== "undefined" && typeof window.AOS !== "undefined
 const hasChart = typeof window !== "undefined" && typeof window.Chart !== "undefined";
 
 // ===============================
+// MOSTRAR / OCULTAR CONTRASEÑA (icono del ojo)
+// ===============================
+function togglePassword(inputId, iconElement) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    iconElement.innerHTML = '<i class="bi bi-eye-slash"></i>';
+  } else {
+    input.type = 'password';
+    iconElement.innerHTML = '<i class="bi bi-eye"></i>';
+  }
+}
+
+// ===============================
 // PARÁMETROS DEL SISTEMA (Fase A - parametrización general)
 // Antes los umbrales de "stock crítico"/"stock bajo" eran números fijos
 // ("if cantidad <= 5") repartidos por el código. Ahora se cargan una sola
@@ -260,6 +275,22 @@ function inicializarControlesDashboard() {
     });
   }
 
+  // Filtro de fecha del gráfico "Movimiento de Inventario"
+  const movInvDesde = document.getElementById('movInvFechaDesde');
+  const movInvHasta = document.getElementById('movInvFechaHasta');
+  if (movInvDesde && movInvHasta && !movInvDesde.dataset.bound) {
+    movInvDesde.dataset.bound = 'true';
+    // Rango por defecto: últimos 30 días, para no traer todo el histórico de una vez
+    const hoy = new Date();
+    const hace30 = new Date(hoy); hace30.setDate(hoy.getDate() - 30);
+    movInvHasta.value = toLocalISODate(hoy);
+    movInvDesde.value = toLocalISODate(hace30);
+    const recargar = () => cargarMovimientosInventario();
+    movInvDesde.addEventListener('change', recargar);
+    movInvHasta.addEventListener('change', recargar);
+    cargarMovimientosInventario();
+  }
+
   // Accesos directos: cada tarjeta KPI navega a su sección relacionada
   document.querySelectorAll('.dashboard-kpi-card.kpi-clickable').forEach(card => {
     if (card.dataset.shortcutBound) return;
@@ -476,6 +507,13 @@ async function cargarDashboard() {
       // Inventory Pie Chart
       createInventoryPieChart(inventario);
 
+      // Movimiento de Inventario: usa su propio filtro de fecha (no el
+      // selector de período general), así que solo se recarga si los
+      // inputs de fecha ya están inicializados.
+      if (document.getElementById('movInvFechaDesde')) {
+        cargarMovimientosInventario();
+      }
+
       // Sparklines: la de citas usa datos reales por sub-período;
       // el resto no tiene historial en el backend, así que se muestra
       // una línea plana en el valor actual (en vez de inventar variación).
@@ -615,6 +653,92 @@ function createAccesosChart(accesos, periodo) {
       captionAccesos.textContent = 'Sin accesos registrados en este período';
     }
   }
+}
+
+// "Movimiento de Inventario": entradas (reabastecimiento/alta) vs salidas
+// (pedidos a farmacia) por día, dentro del rango de fechas elegido por el
+// usuario en los inputs #movInvFechaDesde / #movInvFechaHasta.
+async function cargarMovimientosInventario() {
+  const captionMov = document.getElementById('totalMovimientosCaption');
+  try {
+    const desde = document.getElementById('movInvFechaDesde')?.value || '';
+    const hasta = document.getElementById('movInvFechaHasta')?.value || '';
+    const params = new URLSearchParams();
+    if (desde) params.set('desde', desde);
+    if (hasta) params.set('hasta', hasta);
+
+    const authHeaders = typeof window.crearHeadersAuth === 'function' ? window.crearHeadersAuth() : {};
+    const resp = await fetch(`https://siscom-4lbe.onrender.com/movimientos-inventario?${params.toString()}`, { headers: authHeaders });
+    const movimientos = resp.ok ? await resp.json() : [];
+    createMovimientosInventarioChart(movimientos, desde, hasta);
+  } catch (error) {
+    console.error('Error al cargar movimientos de inventario:', error);
+    if (captionMov) captionMov.textContent = 'No se pudo cargar el movimiento de inventario';
+  }
+}
+
+function createMovimientosInventarioChart(movimientos, desde, hasta) {
+  const ctx = document.getElementById('chart-movimientos-inventario')?.getContext('2d');
+  if (!ctx || !hasChart) return;
+
+  if (window.myMovimientosInventarioChart) {
+    window.myMovimientosInventarioChart.destroy();
+    window.myMovimientosInventarioChart = null;
+  }
+
+  // Agrupar por día (fecha local, sin hora) para que el eje X sea legible
+  // incluso en rangos largos.
+  const porDia = {};
+  (movimientos || []).forEach((mov) => {
+    const dia = toLocalISODate(new Date(mov.fecha_hora));
+    if (!porDia[dia]) porDia[dia] = { entradas: 0, salidas: 0 };
+    if (mov.tipo === 'entrada') porDia[dia].entradas += Number(mov.cantidad || 0);
+    else if (mov.tipo === 'salida') porDia[dia].salidas += Number(mov.cantidad || 0);
+  });
+
+  const diasOrdenados = Object.keys(porDia).sort();
+  const labels = diasOrdenados.map((d) => {
+    const [y, m, day] = d.split('-');
+    return `${day}/${m}`;
+  });
+  const dataEntradas = diasOrdenados.map((d) => porDia[d].entradas);
+  const dataSalidas = diasOrdenados.map((d) => porDia[d].salidas);
+
+  const totalEntradas = dataEntradas.reduce((s, v) => s + v, 0);
+  const totalSalidas = dataSalidas.reduce((s, v) => s + v, 0);
+
+  const captionMov = document.getElementById('totalMovimientosCaption');
+  if (captionMov) {
+    const rango = desde && hasta ? ` (${desde} a ${hasta})` : '';
+    captionMov.textContent = (totalEntradas + totalSalidas) > 0
+      ? `Entradas: ${totalEntradas} — Salidas: ${totalSalidas}${rango}`
+      : `Sin movimientos en este período${rango}`;
+  }
+
+  const config = {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Entradas', data: dataEntradas, backgroundColor: '#10b981' },
+        { label: 'Salidas', data: dataSalidas, backgroundColor: '#ef4444' }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw} unidad(es)` } },
+        datalabels: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { grid: { display: false } }
+      }
+    }
+  };
+  window.myMovimientosInventarioChart = new Chart(ctx, config);
 }
 
 function createInventoryPieChart(inventario) {
@@ -6158,15 +6282,30 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="siscom-section-title">Cambiar contrase&ntilde;a</div>
             <div class="siscom-field">
               <label>Contrase&ntilde;a actual</label>
-              <input type="password" id="siscomPerfilPassActual" autocomplete="current-password">
+              <div class="position-relative">
+                <input type="password" id="siscomPerfilPassActual" autocomplete="current-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomPerfilPassActual', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-field">
               <label>Nueva contrase&ntilde;a</label>
-              <input type="password" id="siscomPerfilPassNueva" autocomplete="new-password">
+              <div class="position-relative">
+                <input type="password" id="siscomPerfilPassNueva" autocomplete="new-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomPerfilPassNueva', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-field">
               <label>Confirmar nueva contrase&ntilde;a</label>
-              <input type="password" id="siscomPerfilPassConfirmar" autocomplete="new-password">
+              <div class="position-relative">
+                <input type="password" id="siscomPerfilPassConfirmar" autocomplete="new-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomPerfilPassConfirmar', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-modal-actions">
               <button type="button" class="siscom-btn siscom-btn-primary" id="siscomPerfilCambiarPass">Cambiar contrase&ntilde;a</button>
@@ -6188,15 +6327,30 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="siscom-modal-msg" id="siscomForzarMsg"></div>
             <div class="siscom-field">
               <label>Contrase&ntilde;a actual (la que te asignaron)</label>
-              <input type="password" id="siscomForzarPassActual" autocomplete="current-password">
+              <div class="position-relative">
+                <input type="password" id="siscomForzarPassActual" autocomplete="current-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomForzarPassActual', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-field">
               <label>Nueva contrase&ntilde;a</label>
-              <input type="password" id="siscomForzarPassNueva" autocomplete="new-password">
+              <div class="position-relative">
+                <input type="password" id="siscomForzarPassNueva" autocomplete="new-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomForzarPassNueva', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-field">
               <label>Confirmar nueva contrase&ntilde;a</label>
-              <input type="password" id="siscomForzarPassConfirmar" autocomplete="new-password">
+              <div class="position-relative">
+                <input type="password" id="siscomForzarPassConfirmar" autocomplete="new-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomForzarPassConfirmar', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-modal-actions">
               <button type="button" class="siscom-btn siscom-btn-primary" id="siscomForzarGuardar">Guardar y continuar</button>

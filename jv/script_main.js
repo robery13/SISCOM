@@ -351,15 +351,39 @@ function siscomInyectarModalForzarPassword() {
           <div class="siscom-modal-msg" id="siscomForzarMsg"></div>
           <div class="siscom-field">
             <label>Contraseña actual (la que te asignaron)</label>
-            <input type="password" id="siscomForzarPassActual" autocomplete="current-password">
+            <div class="password-container">
+              <input type="password" id="siscomForzarPassActual" autocomplete="current-password">
+              <span class="toggle-password" onclick="togglePassword('siscomForzarPassActual', this)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </span>
+            </div>
           </div>
           <div class="siscom-field">
             <label>Nueva contraseña</label>
-            <input type="password" id="siscomForzarPassNueva" autocomplete="new-password">
+            <div class="password-container">
+              <input type="password" id="siscomForzarPassNueva" autocomplete="new-password">
+              <span class="toggle-password" onclick="togglePassword('siscomForzarPassNueva', this)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </span>
+            </div>
           </div>
           <div class="siscom-field">
             <label>Confirmar nueva contraseña</label>
-            <input type="password" id="siscomForzarPassConfirmar" autocomplete="new-password">
+            <div class="password-container">
+              <input type="password" id="siscomForzarPassConfirmar" autocomplete="new-password">
+              <span class="toggle-password" onclick="togglePassword('siscomForzarPassConfirmar', this)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="#555" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </span>
+            </div>
           </div>
           <div class="siscom-modal-actions">
             <button type="button" class="siscom-btn-primary" id="siscomForzarGuardar">Guardar y continuar</button>
@@ -369,6 +393,13 @@ function siscomInyectarModalForzarPassword() {
     </div>
   `;
   document.body.appendChild(wrapper);
+
+  // Activar el icono del ojo en los campos de contraseña recién inyectados
+  // (se crean después de DOMContentLoaded, así que no los agarra el listener global)
+  document.querySelectorAll('#siscomForzarPasswordOverlay .password-container input').forEach((input) => {
+    toggleEyeVisibility(input);
+    input.addEventListener('input', () => toggleEyeVisibility(input));
+  });
 }
 
 function siscomMostrarMsgForzar(texto, tipo) {

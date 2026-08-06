@@ -3,6 +3,21 @@
 // ============================================
 const API_URL = 'https://siscom-4lbe.onrender.com';
 
+// ============================================
+// MOSTRAR / OCULTAR CONTRASEÑA (icono del ojo)
+// ============================================
+function togglePassword(inputId, iconElement) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    iconElement.innerHTML = '<i class="bi bi-eye-slash"></i>';
+  } else {
+    input.type = 'password';
+    iconElement.innerHTML = '<i class="bi bi-eye"></i>';
+  }
+}
+
 function toLocalISODate(dateInput = new Date()) {
   const date = dateInput instanceof Date ? new Date(dateInput) : new Date(dateInput);
   if (Number.isNaN(date.getTime())) return '';
@@ -3494,16 +3509,31 @@ function renderizarPersonalizacion() {
       <div class="perfil-datos-grid">
         <div>
           <label for="miPerfilPasswordActual" class="form-label">Contraseña actual</label>
-          <input id="miPerfilPasswordActual" type="password" class="form-control" autocomplete="current-password">
+          <div class="position-relative">
+            <input id="miPerfilPasswordActual" type="password" class="form-control" autocomplete="current-password" style="padding-right: 38px;">
+            <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('miPerfilPasswordActual', this)">
+              <i class="bi bi-eye"></i>
+            </span>
+          </div>
         </div>
         <div></div>
         <div>
           <label for="miPerfilPasswordNueva" class="form-label">Nueva contraseña</label>
-          <input id="miPerfilPasswordNueva" type="password" class="form-control" autocomplete="new-password">
+          <div class="position-relative">
+            <input id="miPerfilPasswordNueva" type="password" class="form-control" autocomplete="new-password" style="padding-right: 38px;">
+            <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('miPerfilPasswordNueva', this)">
+              <i class="bi bi-eye"></i>
+            </span>
+          </div>
         </div>
         <div>
           <label for="miPerfilPasswordConfirmar" class="form-label">Confirmar nueva contraseña</label>
-          <input id="miPerfilPasswordConfirmar" type="password" class="form-control" autocomplete="new-password">
+          <div class="position-relative">
+            <input id="miPerfilPasswordConfirmar" type="password" class="form-control" autocomplete="new-password" style="padding-right: 38px;">
+            <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('miPerfilPasswordConfirmar', this)">
+              <i class="bi bi-eye"></i>
+            </span>
+          </div>
         </div>
       </div>
       <div class="form-text mb-3">Mínimo 8 caracteres, con mayúscula, minúscula, número y carácter especial (!@#$%^&*).</div>
@@ -4795,15 +4825,30 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="siscom-section-title">Cambiar contrase&ntilde;a</div>
             <div class="siscom-field">
               <label>Contrase&ntilde;a actual</label>
-              <input type="password" id="siscomPerfilPassActual" autocomplete="current-password">
+              <div class="position-relative">
+                <input type="password" id="siscomPerfilPassActual" autocomplete="current-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomPerfilPassActual', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-field">
               <label>Nueva contrase&ntilde;a</label>
-              <input type="password" id="siscomPerfilPassNueva" autocomplete="new-password">
+              <div class="position-relative">
+                <input type="password" id="siscomPerfilPassNueva" autocomplete="new-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomPerfilPassNueva', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-field">
               <label>Confirmar nueva contrase&ntilde;a</label>
-              <input type="password" id="siscomPerfilPassConfirmar" autocomplete="new-password">
+              <div class="position-relative">
+                <input type="password" id="siscomPerfilPassConfirmar" autocomplete="new-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomPerfilPassConfirmar', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-modal-actions">
               <button type="button" class="siscom-btn siscom-btn-primary" id="siscomPerfilCambiarPass">Cambiar contrase&ntilde;a</button>
@@ -4825,15 +4870,30 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="siscom-modal-msg" id="siscomForzarMsg"></div>
             <div class="siscom-field">
               <label>Contrase&ntilde;a actual (la que te asignaron)</label>
-              <input type="password" id="siscomForzarPassActual" autocomplete="current-password">
+              <div class="position-relative">
+                <input type="password" id="siscomForzarPassActual" autocomplete="current-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomForzarPassActual', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-field">
               <label>Nueva contrase&ntilde;a</label>
-              <input type="password" id="siscomForzarPassNueva" autocomplete="new-password">
+              <div class="position-relative">
+                <input type="password" id="siscomForzarPassNueva" autocomplete="new-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomForzarPassNueva', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-field">
               <label>Confirmar nueva contrase&ntilde;a</label>
-              <input type="password" id="siscomForzarPassConfirmar" autocomplete="new-password">
+              <div class="position-relative">
+                <input type="password" id="siscomForzarPassConfirmar" autocomplete="new-password" style="padding-right: 38px;">
+                <span class="position-absolute end-0 top-50 translate-middle-y me-2" style="cursor:pointer; color:#6b7280;" onclick="togglePassword('siscomForzarPassConfirmar', this)">
+                  <i class="bi bi-eye"></i>
+                </span>
+              </div>
             </div>
             <div class="siscom-modal-actions">
               <button type="button" class="siscom-btn siscom-btn-primary" id="siscomForzarGuardar">Guardar y continuar</button>

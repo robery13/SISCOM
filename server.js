@@ -156,6 +156,34 @@ db.connect(err => {
       }
     });
 
+    // Crear tabla movimientos_inventario si no existe (registro real de
+    // entradas/salidas de stock para poder graficar "Movimiento de Inventario"
+    // en el dashboard filtrado por rango de fechas)
+    const createMovimientosInventarioSql = `
+      CREATE TABLE IF NOT EXISTS movimientos_inventario (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        inventario_id INT NULL,
+        nombre_medicamento VARCHAR(255) NOT NULL,
+        tipo ENUM('entrada','salida') NOT NULL,
+        cantidad INT NOT NULL,
+        cantidad_resultante INT NULL,
+        motivo VARCHAR(255) NULL,
+        referencia VARCHAR(100) NULL,
+        id_usuario INT NULL,
+        fecha_hora DATETIME NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_movimientos_fecha (fecha_hora),
+        INDEX idx_movimientos_medicamento (nombre_medicamento)
+      )
+    `;
+    db.query(createMovimientosInventarioSql, (err) => {
+      if (err) {
+        console.error('Error al crear tabla movimientos_inventario:', err);
+      } else {
+        console.log('Tabla movimientos_inventario verificada/creada correctamente');
+      }
+    });
+
     // ===== Fase A: Parametrización general (nada de valores fijos en código) =====
 
     // Tabla de dominios de correo permitidos (antes era un Set fijo en el código)
@@ -489,6 +517,53 @@ function registrarBitacora(req, accion, detalle) {
     [usuario.id || null, usuario.email || null, usuario.rol || null, accion, detalle || null],
     (err) => {
       if (err) console.error('Error al registrar en bitácora:', err);
+    }
+  );
+}
+
+// Compara los valores "antes" y "después" de un registro y arma un detalle
+// legible campo por campo, listando solo lo que realmente cambió. Se usa en
+// la bitácora para que "se editó el rol" se convierta en algo como:
+// `descripción: "Acceso a farmacia" → "Acceso completo a farmacia"`.
+// etiquetas: { campoEnBD: 'Nombre para mostrar' }
+// Los valores se comparan como texto para que 0/'0'/false y 1/'1'/true no
+// disparen un "cambio" falso.
+function construirDetalleCambios(antes, despues, etiquetas) {
+  const cambios = [];
+  for (const campo of Object.keys(etiquetas)) {
+    if (!(campo in despues)) continue; // el campo no vino en esta edición
+    const valorAntes = antes ? antes[campo] : undefined;
+    const valorDespues = despues[campo];
+    const textoAntes = valorAntes === null || valorAntes === undefined ? '(vacío)' : String(valorAntes);
+    const textoDespues = valorDespues === null || valorDespues === undefined ? '(vacío)' : String(valorDespues);
+    if (textoAntes !== textoDespues) {
+      cambios.push(`${etiquetas[campo]}: "${textoAntes}" → "${textoDespues}"`);
+    }
+  }
+  return cambios.length ? cambios.join('; ') : 'sin cambios en los campos editados';
+}
+
+// Registra una entrada o salida de stock en movimientos_inventario. No detiene
+// el flujo principal si falla: el movimiento del stock ya se hizo, este
+// registro es solo para poder graficarlo/auditarlo después filtrado por fecha.
+function registrarMovimientoInventario(req, { inventarioId, nombre, tipo, cantidad, cantidadResultante, motivo, referencia }) {
+  const usuario = req && req.user ? req.user : {};
+  db.query(
+    `INSERT INTO movimientos_inventario
+      (inventario_id, nombre_medicamento, tipo, cantidad, cantidad_resultante, motivo, referencia, id_usuario, fecha_hora)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [
+      inventarioId || null,
+      nombre,
+      tipo,
+      cantidad,
+      cantidadResultante === undefined ? null : cantidadResultante,
+      motivo || null,
+      referencia || null,
+      usuario.id || null
+    ],
+    (err) => {
+      if (err) console.error('Error al registrar movimiento de inventario:', err);
     }
   );
 }
@@ -1058,13 +1133,26 @@ app.put('/perfil', verificarRol(), (req, res) => {
       return res.status(400).json({ ok: false, mensaje: 'Ya existe otro usuario registrado con esa identidad.' });
     }
 
-    const sql = 'UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ? WHERE id = ?';
-    db.query(sql, [nombres, apellidos, identidad, telefono, req.user.id], (err, result) => {
-      if (err) {
+    db.query('SELECT nombres, apellidos, identidad, telefono FROM usuarios WHERE id = ?', [req.user.id], (errAntes, filasAntes) => {
+      if (errAntes) {
         return res.status(500).json({ ok: false, mensaje: 'Error al actualizar tu perfil.' });
       }
-      registrarBitacora(req, 'usuarios.editar_perfil_propio', `Usuario id=${req.user.id} actualizó sus datos personales`);
-      return res.json({ ok: true, mensaje: 'Perfil actualizado correctamente.' });
+      const perfilAntes = filasAntes[0] || null;
+
+      const sql = 'UPDATE usuarios SET nombres = ?, apellidos = ?, identidad = ?, telefono = ? WHERE id = ?';
+      db.query(sql, [nombres, apellidos, identidad, telefono, req.user.id], (err, result) => {
+        if (err) {
+          return res.status(500).json({ ok: false, mensaje: 'Error al actualizar tu perfil.' });
+        }
+        const detalle = construirDetalleCambios(perfilAntes, { nombres, apellidos, identidad, telefono }, {
+          nombres: 'Nombres',
+          apellidos: 'Apellidos',
+          identidad: 'Identidad',
+          telefono: 'Teléfono'
+        });
+        registrarBitacora(req, 'usuarios.editar_perfil_propio', `Usuario id=${req.user.id} actualizó sus datos personales — ${detalle}`);
+        return res.json({ ok: true, mensaje: 'Perfil actualizado correctamente.' });
+      });
     });
   });
 });
@@ -1521,20 +1609,34 @@ app.put('/dominios-permitidos/:id', verificarPermiso('Dominios de Correo'), (req
     : 'UPDATE dominios_correo_permitidos SET activo = ? WHERE id = ?';
   const valores = dominio ? [dominio, activo, id] : [activo, id];
 
-  db.query(sql, valores, (err, result) => {
-    if (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        return res.status(400).json({ ok: false, mensaje: 'Ese dominio ya está registrado.' });
-      }
-      console.error('Error al actualizar dominio permitido:', err);
+  db.query('SELECT dominio, activo FROM dominios_correo_permitidos WHERE id = ?', [id], (errSelect, filasAntes) => {
+    if (errSelect) {
+      console.error('Error al leer dominio antes de editar:', errSelect);
       return res.status(500).json({ ok: false, mensaje: 'Error al actualizar el dominio' });
     }
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ ok: false, mensaje: 'Dominio no encontrado' });
-    }
-    cargarDominiosPermitidosCache();
-    registrarBitacora(req, 'dominios.editar', `Dominio id=${id} actualizado`);
-    res.json({ ok: true, mensaje: 'Dominio actualizado correctamente' });
+    const dominioAntes = filasAntes[0] || null;
+
+    db.query(sql, valores, (err, result) => {
+      if (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(400).json({ ok: false, mensaje: 'Ese dominio ya está registrado.' });
+        }
+        console.error('Error al actualizar dominio permitido:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al actualizar el dominio' });
+      }
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ ok: false, mensaje: 'Dominio no encontrado' });
+      }
+      cargarDominiosPermitidosCache();
+      const despues = dominio ? { dominio, activo } : { activo };
+      const detalle = construirDetalleCambios(dominioAntes, despues, {
+        dominio: 'Dominio',
+        activo: 'Activo'
+      });
+      const nombreDominio = dominioAntes ? dominioAntes.dominio : id;
+      registrarBitacora(req, 'dominios.editar', `Dominio "${nombreDominio}" actualizado — ${detalle}`);
+      res.json({ ok: true, mensaje: 'Dominio actualizado correctamente' });
+    });
   });
 });
 
@@ -1597,7 +1699,6 @@ app.post('/roles', verificarPermiso('Roles'), (req, res) => {
       return res.status(500).json({ ok: false, mensaje: 'Error al crear el rol' });
     }
     registrarBitacora(req, 'roles.crear', `Rol "${nombre_rol}" creado`);
-    registrarBitacora(req, 'roles.crear', `Rol "${nombre_rol}" creado`);
     res.json({ ok: true, mensaje: 'Rol creado correctamente' });
   });
 });
@@ -1607,17 +1708,29 @@ app.put('/roles/:id', verificarPermiso('Roles'), (req, res) => {
   const descripcion = req.body.descripcion !== undefined ? String(req.body.descripcion || '').trim() : null;
   const activo = req.body.activo ? 1 : 0;
 
-  db.query('UPDATE roles SET descripcion = ?, activo = ? WHERE id = ?', [descripcion, activo, id], (err, result) => {
-    if (err) {
-      console.error('Error al actualizar rol:', err);
+  db.query('SELECT nombre_rol, descripcion, activo FROM roles WHERE id = ?', [id], (errSelect, filasAntes) => {
+    if (errSelect) {
+      console.error('Error al leer rol antes de editar:', errSelect);
       return res.status(500).json({ ok: false, mensaje: 'Error al actualizar el rol' });
     }
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ ok: false, mensaje: 'Rol no encontrado' });
-    }
-    registrarBitacora(req, 'roles.editar', `Rol id=${id} actualizado`);
-    registrarBitacora(req, 'roles.editar', `Rol id=${id} actualizado`);
-    res.json({ ok: true, mensaje: 'Rol actualizado correctamente' });
+    const rolAntes = filasAntes[0] || null;
+
+    db.query('UPDATE roles SET descripcion = ?, activo = ? WHERE id = ?', [descripcion, activo, id], (err, result) => {
+      if (err) {
+        console.error('Error al actualizar rol:', err);
+        return res.status(500).json({ ok: false, mensaje: 'Error al actualizar el rol' });
+      }
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ ok: false, mensaje: 'Rol no encontrado' });
+      }
+      const detalle = construirDetalleCambios(rolAntes, { descripcion, activo }, {
+        descripcion: 'Descripción',
+        activo: 'Activo'
+      });
+      const nombreRol = rolAntes ? rolAntes.nombre_rol : id;
+      registrarBitacora(req, 'roles.editar', `Rol "${nombreRol}" actualizado — ${detalle}`);
+      res.json({ ok: true, mensaje: 'Rol actualizado correctamente' });
+    });
   });
 });
 
@@ -2155,7 +2268,7 @@ app.post('/inventario', (req, res) => {
     }
 
     // Primero obtener la cantidad actual
-    const sqlSelect = 'SELECT cantidad FROM inventario WHERE id = ?';
+    const sqlSelect = 'SELECT nombre, cantidad FROM inventario WHERE id = ?';
     db.query(sqlSelect, [id], (err, results) => {
       if (err) {
         //console.error('Error al obtener inventario:', err);
@@ -2173,6 +2286,14 @@ app.post('/inventario', (req, res) => {
           //console.error('Error al actualizar inventario:', err);
           return res.status(500).json({ mensaje: 'Error al actualizar en la base de datos' });
         }
+        registrarMovimientoInventario(req, {
+          inventarioId: id,
+          nombre: results[0].nombre,
+          tipo: 'entrada',
+          cantidad: cantidadNum,
+          cantidadResultante: nuevaCantidad,
+          motivo: 'Reabastecimiento de stock'
+        });
         res.json({ mensaje: 'Stock actualizado correctamente' });
       });
     });
@@ -2188,6 +2309,14 @@ app.post('/inventario', (req, res) => {
         //console.error('Error al guardar en inventario:', err);
         return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
       }
+      registrarMovimientoInventario(req, {
+        inventarioId: result.insertId,
+        nombre,
+        tipo: 'entrada',
+        cantidad: cantidadNum,
+        cantidadResultante: cantidadNum,
+        motivo: 'Alta de medicamento nuevo'
+      });
       res.json({ mensaje: 'Medicamento agregado al inventario correctamente' });
     });
   }
@@ -2198,6 +2327,35 @@ app.get('/inventario', (req, res) => {
   const sql = 'SELECT * FROM inventario ORDER BY id DESC';
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar inventario' });
+    res.json(results);
+  });
+});
+
+// Obtener movimientos de inventario (entradas/salidas), opcionalmente
+// filtrados por rango de fechas ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+// Se usa para graficar "Movimiento de Inventario" en el dashboard.
+app.get('/movimientos-inventario', (req, res) => {
+  const { desde, hasta } = req.query;
+
+  let sql = 'SELECT * FROM movimientos_inventario WHERE 1=1';
+  const params = [];
+
+  if (desde) {
+    sql += ' AND fecha_hora >= ?';
+    params.push(`${desde} 00:00:00`);
+  }
+  if (hasta) {
+    sql += ' AND fecha_hora <= ?';
+    params.push(`${hasta} 23:59:59`);
+  }
+
+  sql += ' ORDER BY fecha_hora ASC';
+
+  db.query(sql, params, (err, results) => {
+    if (err) {
+      console.error('Error al obtener movimientos_inventario:', err);
+      return res.status(500).json({ mensaje: 'Error al cargar movimientos de inventario' });
+    }
     res.json(results);
   });
 });
@@ -2749,6 +2907,16 @@ app.post('/guardarPedido', async (req, res) => {
         'UPDATE inventario SET cantidad = cantidad - ? WHERE nombre = ?',
         [item.cantidad, item.nombre]
       );
+      const filaActualizada = await queryAsync('SELECT id, cantidad FROM inventario WHERE nombre = ? LIMIT 1', [item.nombre]);
+      registrarMovimientoInventario(req, {
+        inventarioId: filaActualizada[0] ? filaActualizada[0].id : null,
+        nombre: item.nombre,
+        tipo: 'salida',
+        cantidad: item.cantidad,
+        cantidadResultante: filaActualizada[0] ? filaActualizada[0].cantidad : null,
+        motivo: `Pedido a farmacia "${farmacia}"`,
+        referencia: String(id)
+      });
     }
 
     res.json({ mensaje: 'Pedido guardado correctamente' });
@@ -2971,6 +3139,11 @@ app.put('/usuarios/:id', verificarPermisoSobreCuentaExistente('editar'), async (
     return res.status(400).json({ mensaje: 'El correo no pertenece a un dominio permitido.' });
   }
 
+  // Leer el usuario tal como está ANTES de editar, para poder registrar en la
+  // bitácora exactamente qué campo cambió (y de qué valor a qué valor).
+  const filaAntesUsuario = await queryAsync('SELECT nombres, apellidos, identidad, telefono, email, rol, fecha_nacimiento, usa_silla_ruedas FROM usuarios WHERE id = ?', [id]);
+  const usuarioAntes = filaAntesUsuario[0] || null;
+
   // Verificar si el correo o identidad ya existen en otro usuario
   const verificarSql = "SELECT * FROM usuarios WHERE (email = ? OR identidad = ?) AND id != ?";
   db.query(verificarSql, [correoNormalizado, identidad, id], async (err, resultados) => {
@@ -3038,7 +3211,31 @@ app.put('/usuarios/:id', verificarPermisoSobreCuentaExistente('editar'), async (
         return res.status(404).json({ mensaje: 'Usuario no encontrado' });
       }
 
-      registrarBitacora(req, 'usuarios.editar', `Usuario id=${id} (${correoNormalizado}) actualizado`);
+      const despuesUsuario = {
+        nombres, apellidos, identidad, telefono, email: correoNormalizado, rol
+      };
+      if (fecha_nacimiento !== undefined) despuesUsuario.fecha_nacimiento = fecha_nacimiento || null;
+      if (usa_silla_ruedas !== undefined) despuesUsuario.usa_silla_ruedas = usa_silla_ruedas ? 1 : 0;
+
+      let detalle = construirDetalleCambios(usuarioAntes, despuesUsuario, {
+        nombres: 'Nombres',
+        apellidos: 'Apellidos',
+        identidad: 'Identidad',
+        telefono: 'Teléfono',
+        email: 'Correo',
+        rol: 'Rol',
+        fecha_nacimiento: 'Fecha de nacimiento',
+        usa_silla_ruedas: 'Usa silla de ruedas'
+      });
+      // La contraseña nunca se compara ni se muestra en la bitácora, pero si se
+      // envió una nueva sí se deja constancia de que el cambio ocurrió.
+      if (passwordTexto.length > 0) {
+        detalle += detalle === 'sin cambios en los campos editados'
+          ? 'contraseña restablecida por el administrador'
+          : '; contraseña restablecida por el administrador';
+      }
+
+      registrarBitacora(req, 'usuarios.editar', `Usuario "${correoNormalizado}" (id=${id}) actualizado — ${detalle}`);
       res.json({ mensaje: 'Usuario actualizado correctamente' });
     });
   });

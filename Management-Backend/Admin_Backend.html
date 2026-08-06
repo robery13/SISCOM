@@ -255,6 +255,26 @@
             </div>
             <p class="chart-total-caption" id="totalAccesosCaption">Sin accesos registrados en este período</p>
           </article>
+
+          <article class="card dashboard-panel analytics-card">
+            <div class="dashboard-panel-header">
+              <h5><i class="bi bi-arrow-left-right me-2"></i> Movimiento de Inventario</h5>
+            </div>
+            <div class="row g-2 align-items-end mb-2 px-1">
+              <div class="col-6">
+                <label for="movInvFechaDesde" class="form-label small mb-1">Desde</label>
+                <input type="date" id="movInvFechaDesde" class="form-control form-control-sm">
+              </div>
+              <div class="col-6">
+                <label for="movInvFechaHasta" class="form-label small mb-1">Hasta</label>
+                <input type="date" id="movInvFechaHasta" class="form-control form-control-sm">
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-movimientos-inventario" height="250"></canvas>
+            </div>
+            <p class="chart-total-caption" id="totalMovimientosCaption">Sin movimientos en este período</p>
+          </article>
         </div>
 
 
@@ -1916,7 +1936,7 @@
               <label for="passwordUsuario" class="form-label">Contraseña</label>
               <div class="password-container position-relative">
                 <input type="password" id="passwordUsuario" class="form-control" oninput="validarPasswordUsuarioEnTiempo(); toggleEyeVisibility(this)">
-                <span class="toggle-password position-absolute end-0 top-50 translate-middle-y me-3" onclick="togglePassword('passwordUsuario', this)" style="cursor: pointer; display: none;">
+                <span class="toggle-password position-absolute end-0 top-50 translate-middle-y me-3" onclick="togglePassword('passwordUsuario', this)" style="cursor: pointer;">
                   <i class="bi bi-eye"></i>
                 </span>
               </div>
@@ -2563,10 +2583,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Mostrar icono del ojo solo si hay texto
+    // Mostrar icono del ojo siempre (y mostrar/ocultar requisitos según haya texto)
     function toggleEyeVisibility(input) {
       const icon = input.parentElement.querySelector('.toggle-password');
-      if (icon) icon.style.display = input.value.trim() ? 'block' : 'none';
+      if (icon) icon.style.display = 'flex';
       
       // Mostrar/ocultar requisitos
       const requisitosDiv = document.getElementById('passwordRequisitosUsuario');
