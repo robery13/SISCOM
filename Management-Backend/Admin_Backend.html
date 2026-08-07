@@ -639,6 +639,7 @@
             <th>Cantidad</th>
             <th>Consumo</th>
             <th>Fecha Registro</th>
+            <th>Historial</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -654,6 +655,36 @@
     </div>
   </div>
 </section>
+
+<!-- Modal Historial de Movimientos de un Medicamento (trazabilidad: quién,
+     cuándo y por qué se movió el stock) -->
+<div class="modal fade" id="modalHistorialMovimientos" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i> Historial de <span id="historialMedicamentoNombre"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Cantidad</th>
+                <th>Stock resultante</th>
+                <th>Motivo</th>
+                <th>Usuario</th>
+              </tr>
+            </thead>
+            <tbody id="tablaHistorialMovimientos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- Modal Registrar Inventario -->
 <div class="modal fade" id="modalInventario" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -673,6 +704,24 @@
           </div>
         </div>
 
+        <div class="form-row" id="tipoAjusteRow" style="display: none;">
+          <label class="form-label mb-1">Tipo de ajuste</label>
+          <div class="d-flex gap-3 flex-wrap">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="tipoAjusteInv" id="ajusteSumar" value="sumar" checked>
+              <label class="form-check-label" for="ajusteSumar">Sumar (entrada de stock)</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="tipoAjusteInv" id="ajusteRestar" value="restar">
+              <label class="form-check-label" for="ajusteRestar">Restar (baja: dañados, vencidos, pérdida)</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="tipoAjusteInv" id="ajusteFijar" value="fijar">
+              <label class="form-check-label" for="ajusteFijar">Fijar cantidad exacta (conteo físico)</label>
+            </div>
+          </div>
+        </div>
+
         <div class="form-row" id="selectMedicamentoRow" style="display: none;">
           <label for="selectMedicamento">Seleccionar Medicamento Existente</label>
           <select id="selectMedicamento" class="form-select">
@@ -686,13 +735,32 @@
         </div>
 
         <div class="form-row">
-          <label for="cantidadInv">Cantidad a Agregar (unidades)</label>
-          <input id="cantidadInv" type="number" class="form-control" min="1" placeholder="Ej. 30">
+          <label for="cantidadInv" id="cantidadInvLabel">Cantidad a Agregar (unidades)</label>
+          <input id="cantidadInv" type="number" class="form-control" min="0" placeholder="Ej. 30">
+        </div>
+
+        <div class="form-row" id="motivoAjusteRow" style="display: none;">
+          <label for="motivoAjusteInv">Motivo del ajuste</label>
+          <textarea id="motivoAjusteInv" class="form-control" rows="2" placeholder="Ej. 5 unidades dañadas por humedad en bodega"></textarea>
         </div>
 
         <div class="form-row" id="consumoRow">
           <label for="consumoInv">Consumo por dosis</label>
           <input id="consumoInv" type="number" class="form-control" min="1" placeholder="Ej. 1">
+        </div>
+
+        <div class="form-row" id="frecuenciaRow">
+          <label for="frecuenciaInv">Frecuencia de consumo</label>
+          <div class="d-flex gap-2">
+            <input id="frecuenciaCantidadInv" type="number" class="form-control" min="1" placeholder="Ej. 1" style="max-width: 100px;">
+            <select id="frecuenciaUnidadInv" class="form-select">
+              <option value="hora">vez(es) por hora</option>
+              <option value="dia" selected>vez(es) por día</option>
+              <option value="semana">vez(es) por semana</option>
+              <option value="mes">vez(es) por mes</option>
+            </select>
+          </div>
+          <div class="form-text text-muted">Con qué frecuencia se consume una dosis de este medicamento.</div>
         </div>
       </div>
 
@@ -1830,9 +1898,16 @@
                 </thead>
                 <tbody></tbody>
               </table>
+              <datalist id="datalistMedicamentosPedido"></datalist>
               <button type="button" id="addEmptyRow" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-plus-circle me-1"></i> Agregar fila
               </button>
+            </div>
+
+            <div class="mb-3">
+              <label for="motivoPedido" class="form-label">Motivo / Descripción del pedido</label>
+              <textarea id="motivoPedido" class="form-control" rows="2" placeholder="Ej. Reposición para el paciente Juan Pérez, tratamiento de hipertensión" required></textarea>
+              <div class="form-text text-muted">Indica para qué paciente o necesidad se solicita, para dejar constancia de por qué se pidió.</div>
             </div>
 
             <div class="d-flex gap-2">

@@ -112,6 +112,12 @@ db.connect(err => {
     // tener medicamentos "para siempre" cuando en realidad son de unos días.
     ensureTableColumn('recetas_medicas', 'fecha_inicio', "ALTER TABLE recetas_medicas ADD COLUMN fecha_inicio DATE NULL AFTER frecuencia");
     ensureTableColumn('recetas_medicas', 'fecha_fin', "ALTER TABLE recetas_medicas ADD COLUMN fecha_fin DATE NULL AFTER fecha_inicio");
+
+    // 3.8 Inventario y Farmacia: frecuencia de consumo del medicamento en
+    // inventario (antes solo había "consumo por dosis", sin poder indicar si
+    // esa dosis es por hora/día/semana/mes).
+    ensureTableColumn('inventario', 'frecuencia_cantidad', "ALTER TABLE inventario ADD COLUMN frecuencia_cantidad INT NULL AFTER consumo_por_dosis");
+    ensureTableColumn('inventario', 'frecuencia_unidad', "ALTER TABLE inventario ADD COLUMN frecuencia_unidad VARCHAR(10) NULL AFTER frecuencia_cantidad");
     ensureTableColumn('Registro_medicamentos', 'id_receta', "ALTER TABLE Registro_medicamentos ADD COLUMN id_receta INT NULL AFTER paciente_id");
 
     // Crear tabla contactos_emergencia si no existe (HU-21: Agregar contactos de emergencia)
@@ -547,8 +553,11 @@ function construirDetalleCambios(antes, despues, etiquetas) {
 // Registra una entrada o salida de stock en movimientos_inventario. No detiene
 // el flujo principal si falla: el movimiento del stock ya se hizo, este
 // registro es solo para poder graficarlo/auditarlo después filtrado por fecha.
-function registrarMovimientoInventario(req, { inventarioId, nombre, tipo, cantidad, cantidadResultante, motivo, referencia }) {
+// idUsuario: si se pasa explícito (ej. viene en el body porque la ruta no
+// tiene middleware de sesión), tiene prioridad sobre req.user.
+function registrarMovimientoInventario(req, { inventarioId, nombre, tipo, cantidad, cantidadResultante, motivo, referencia, idUsuario }) {
   const usuario = req && req.user ? req.user : {};
+  const idUsuarioFinal = idUsuario !== undefined && idUsuario !== null ? idUsuario : (usuario.id || null);
   db.query(
     `INSERT INTO movimientos_inventario
       (inventario_id, nombre_medicamento, tipo, cantidad, cantidad_resultante, motivo, referencia, id_usuario, fecha_hora)
@@ -561,7 +570,7 @@ function registrarMovimientoInventario(req, { inventarioId, nombre, tipo, cantid
       cantidadResultante === undefined ? null : cantidadResultante,
       motivo || null,
       referencia || null,
-      usuario.id || null
+      idUsuarioFinal
     ],
     (err) => {
       if (err) console.error('Error al registrar movimiento de inventario:', err);
@@ -2326,18 +2335,28 @@ app.delete('/Registro_medicamentos/:id', (req, res) => {
 
 //  RUTA 3: GUARDAR EN inventario
 app.post('/inventario', (req, res) => {
-  const { nombre, cantidad, consumo_por_dosis, id, actualizar } = req.body;
+  const { nombre, cantidad, consumo_por_dosis, id, actualizar, modo, motivo, id_usuario, frecuencia_cantidad, frecuencia_unidad } = req.body;
 
   const cantidadNum = parseInt(cantidad, 10);
   const consumoNum = parseInt(consumo_por_dosis || 0, 10);
+  const frecCantidadNum = frecuencia_cantidad ? parseInt(frecuencia_cantidad, 10) : null;
+  const frecUnidad = ['hora', 'dia', 'semana', 'mes'].includes(frecuencia_unidad) ? frecuencia_unidad : null;
+  // modo: 'sumar' (default, agregar stock nuevo) | 'restar' (baja: dañados,
+  // vencidos, pérdidas...) | 'fijar' (corregir el total a un valor exacto,
+  // ej. tras un conteo físico). 'restar' y 'fijar' exigen un motivo.
+  const modoAjuste = ['sumar', 'restar', 'fijar'].includes(modo) ? modo : 'sumar';
+  const motivoTexto = String(motivo || '').trim();
 
   if (id) {
     // Modo actualizar stock existente
     if (isNaN(cantidadNum)) {
       return res.status(400).json({ mensaje: 'Cantidad debe ser un número válido' });
     }
-    if (cantidadNum < 1) {
-      return res.status(400).json({ mensaje: 'Cantidad debe ser mayor a 0' });
+    if (modoAjuste === 'fijar' ? cantidadNum < 0 : cantidadNum < 1) {
+      return res.status(400).json({ mensaje: modoAjuste === 'fijar' ? 'La cantidad no puede ser negativa' : 'Cantidad debe ser mayor a 0' });
+    }
+    if ((modoAjuste === 'restar' || modoAjuste === 'fijar') && !motivoTexto) {
+      return res.status(400).json({ mensaje: 'Debes indicar un motivo para restar o fijar el stock.' });
     }
 
     // Primero obtener la cantidad actual
@@ -2352,21 +2371,41 @@ app.post('/inventario', (req, res) => {
         return res.status(404).json({ mensaje: 'Medicamento no encontrado' });
       }
 
-      const nuevaCantidad = results[0].cantidad + cantidadNum;
+      const cantidadActual = Number(results[0].cantidad || 0);
+      let nuevaCantidad;
+      if (modoAjuste === 'restar') {
+        nuevaCantidad = cantidadActual - cantidadNum;
+        if (nuevaCantidad < 0) {
+          return res.status(400).json({ mensaje: `No puedes restar más de lo que hay en stock (disponible: ${cantidadActual}).` });
+        }
+      } else if (modoAjuste === 'fijar') {
+        nuevaCantidad = cantidadNum;
+      } else {
+        nuevaCantidad = cantidadActual + cantidadNum;
+      }
+
       const sqlUpdate = 'UPDATE inventario SET cantidad = ? WHERE id = ?';
       db.query(sqlUpdate, [nuevaCantidad, id], (err, result) => {
         if (err) {
           //console.error('Error al actualizar inventario:', err);
           return res.status(500).json({ mensaje: 'Error al actualizar en la base de datos' });
         }
-        registrarMovimientoInventario(req, {
-          inventarioId: id,
-          nombre: results[0].nombre,
-          tipo: 'entrada',
-          cantidad: cantidadNum,
-          cantidadResultante: nuevaCantidad,
-          motivo: 'Reabastecimiento de stock'
-        });
+
+        // Registrar el movimiento real (para 'fijar', el tipo/cantidad
+        // reflejan la diferencia real con el stock anterior, no el valor
+        // absoluto fijado).
+        const diferencia = nuevaCantidad - cantidadActual;
+        if (diferencia !== 0) {
+          registrarMovimientoInventario(req, {
+            inventarioId: id,
+            nombre: results[0].nombre,
+            tipo: diferencia > 0 ? 'entrada' : 'salida',
+            cantidad: Math.abs(diferencia),
+            cantidadResultante: nuevaCantidad,
+            motivo: motivoTexto || (modoAjuste === 'sumar' ? 'Reabastecimiento de stock' : 'Ajuste de inventario'),
+            idUsuario: id_usuario || null
+          });
+        }
         res.json({ mensaje: 'Stock actualizado correctamente' });
       });
     });
@@ -2376,8 +2415,8 @@ app.post('/inventario', (req, res) => {
       return res.status(400).json({ mensaje: 'Campos incompletos' });
     }
 
-    const sql = 'INSERT INTO inventario (nombre, cantidad, consumo_por_dosis) VALUES (?, ?, ?)';
-    db.query(sql, [nombre, cantidadNum, consumoNum], (err, result) => {
+    const sql = 'INSERT INTO inventario (nombre, cantidad, consumo_por_dosis, frecuencia_cantidad, frecuencia_unidad) VALUES (?, ?, ?, ?, ?)';
+    db.query(sql, [nombre, cantidadNum, consumoNum, frecCantidadNum, frecUnidad], (err, result) => {
       if (err) {
         //console.error('Error al guardar en inventario:', err);
         return res.status(500).json({ mensaje: 'Error al guardar en la base de datos' });
@@ -2388,7 +2427,8 @@ app.post('/inventario', (req, res) => {
         tipo: 'entrada',
         cantidad: cantidadNum,
         cantidadResultante: cantidadNum,
-        motivo: 'Alta de medicamento nuevo'
+        motivo: 'Alta de medicamento nuevo',
+        idUsuario: id_usuario || null
       });
       res.json({ mensaje: 'Medicamento agregado al inventario correctamente' });
     });
@@ -2408,7 +2448,7 @@ app.get('/inventario', (req, res) => {
 // filtrados por rango de fechas ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
 // Se usa para graficar "Movimiento de Inventario" en el dashboard.
 app.get('/movimientos-inventario', (req, res) => {
-  const { desde, hasta } = req.query;
+  const { desde, hasta, nombre } = req.query;
 
   let sql = 'SELECT * FROM movimientos_inventario WHERE 1=1';
   const params = [];
@@ -2421,8 +2461,12 @@ app.get('/movimientos-inventario', (req, res) => {
     sql += ' AND fecha_hora <= ?';
     params.push(`${hasta} 23:59:59`);
   }
+  if (nombre) {
+    sql += ' AND nombre_medicamento = ?';
+    params.push(nombre);
+  }
 
-  sql += ' ORDER BY fecha_hora ASC';
+  sql += ' ORDER BY fecha_hora DESC';
 
   db.query(sql, params, (err, results) => {
     if (err) {
@@ -2987,8 +3031,9 @@ app.post('/guardarPedido', async (req, res) => {
         tipo: 'salida',
         cantidad: item.cantidad,
         cantidadResultante: filaActualizada[0] ? filaActualizada[0].cantidad : null,
-        motivo: `Pedido a farmacia "${farmacia}"`,
-        referencia: String(id)
+        motivo: notas ? `Pedido a farmacia "${farmacia}" — ${notas}` : `Pedido a farmacia "${farmacia}"`,
+        referencia: String(id),
+        idUsuario: id_usuario || null
       });
     }
 

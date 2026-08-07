@@ -1684,12 +1684,31 @@ document.addEventListener("DOMContentLoaded", () => {
   const selectMedicamentoRow = document.getElementById("selectMedicamentoRow");
   const inputNombreRow = document.getElementById("inputNombreRow");
   const consumoRow = document.getElementById("consumoRow");
+  const frecuenciaRow = document.getElementById("frecuenciaRow");
+  const tipoAjusteRow = document.getElementById("tipoAjusteRow");
+  const motivoAjusteRow = document.getElementById("motivoAjusteRow");
+  const cantidadInvLabel = document.getElementById("cantidadInvLabel");
   const selectMedicamento = document.getElementById("selectMedicamento");
 
   let inventarioActual = [];
   let inventarioFiltrado = [];
   let paginaActualInventario = 1;
   let INVENTARIO_POR_PAGINA = Number(entriesInventario?.value || 10);
+
+  function actualizarEtiquetaCantidadInv() {
+    if (!cantidadInvLabel) return;
+    const tipoSeleccionado = document.querySelector('input[name="tipoAjusteInv"]:checked')?.value || 'sumar';
+    if (tipoSeleccionado === 'restar') cantidadInvLabel.textContent = 'Cantidad a Restar (unidades)';
+    else if (tipoSeleccionado === 'fijar') cantidadInvLabel.textContent = 'Nueva Cantidad Total (unidades)';
+    else cantidadInvLabel.textContent = 'Cantidad a Agregar (unidades)';
+    if (motivoAjusteRow) {
+      motivoAjusteRow.style.display = (tipoSeleccionado === 'restar' || tipoSeleccionado === 'fijar') ? 'block' : 'none';
+    }
+  }
+
+  document.querySelectorAll('input[name="tipoAjusteInv"]').forEach((radio) => {
+    radio.addEventListener('change', actualizarEtiquetaCantidadInv);
+  });
 
   // Toggle entre modo nuevo y actualizar
   if (modoActualizarCheckbox) {
@@ -1698,6 +1717,10 @@ document.addEventListener("DOMContentLoaded", () => {
       selectMedicamentoRow.style.display = esModoActualizar ? "block" : "none";
       inputNombreRow.style.display = esModoActualizar ? "none" : "block";
       consumoRow.style.display = esModoActualizar ? "none" : "block";
+      if (frecuenciaRow) frecuenciaRow.style.display = esModoActualizar ? "none" : "block";
+      if (tipoAjusteRow) tipoAjusteRow.style.display = esModoActualizar ? "block" : "none";
+      if (!esModoActualizar && motivoAjusteRow) motivoAjusteRow.style.display = "none";
+      actualizarEtiquetaCantidadInv();
 
       if (esModoActualizar) {
         cargarMedicamentosParaSeleccion();
@@ -1753,16 +1776,20 @@ document.addEventListener("DOMContentLoaded", () => {
     registrarBtn.addEventListener("click", async () => {
       const esModoActualizar = modoActualizarCheckbox.checked;
       const cantidad = parseInt(document.getElementById("cantidadInv").value, 10);
+      const tipoAjuste = document.querySelector('input[name="tipoAjusteInv"]:checked')?.value || 'sumar';
 
-      if (isNaN(cantidad) || cantidad < 1) {
-        mostrarToast("Por favor ingrese una cantidad válida mayor a 0.", "warning");
+      if (isNaN(cantidad) || (tipoAjuste === 'fijar' ? cantidad < 0 : cantidad < 1)) {
+        mostrarToast(tipoAjuste === 'fijar' ? "Ingrese una cantidad válida (0 o más)." : "Por favor ingrese una cantidad válida mayor a 0.", "warning");
         return;
       }
+
+      const usuarioData = localStorage.getItem('usuario');
+      const usuario = usuarioData ? JSON.parse(usuarioData) : null;
 
       let datos;
 
       if (esModoActualizar) {
-        // Modo actualizar stock existente
+        // Modo actualizar stock existente (sumar / restar / fijar)
         const medicamentoId = selectMedicamento.value;
         if (!medicamentoId) {
           mostrarToast("Por favor seleccione un medicamento existente.", "warning");
@@ -1775,22 +1802,33 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
+        const motivo = document.getElementById("motivoAjusteInv")?.value.trim() || "";
+        if ((tipoAjuste === 'restar' || tipoAjuste === 'fijar') && !motivo) {
+          mostrarToast("Indica el motivo del ajuste (por qué se resta o se corrige el stock).", "warning");
+          return;
+        }
+
         datos = {
           id: medicamentoId,
           cantidad: cantidad,
-          actualizar: true
+          actualizar: true,
+          modo: tipoAjuste,
+          motivo: motivo || undefined,
+          id_usuario: usuario?.id || null
         };
       } else {
         // Modo nuevo medicamento
         const nombre = document.getElementById("nombreInv").value.trim();
         const consumo_por_dosis = parseInt(document.getElementById("consumoInv").value, 10);
+        const frecuencia_cantidad = document.getElementById("frecuenciaCantidadInv")?.value || null;
+        const frecuencia_unidad = document.getElementById("frecuenciaUnidadInv")?.value || null;
 
         if (!nombre || isNaN(consumo_por_dosis) || consumo_por_dosis < 1) {
           mostrarToast("Por favor complete todos los campos correctamente.", "warning");
           return;
         }
 
-        datos = { nombre, cantidad, consumo_por_dosis };
+        datos = { nombre, cantidad, consumo_por_dosis, frecuencia_cantidad, frecuencia_unidad, id_usuario: usuario?.id || null };
       }
 
       try {
@@ -1856,7 +1894,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (inventarioFiltrado.length === 0) {
       tablaInv.innerHTML = `
         <tr>
-          <td colspan="4" class="text-center text-muted py-4">
+          <td colspan="5" class="text-center text-muted py-4">
             <i class="bi bi-inbox display-6 d-block mb-2"></i>
             No matching records found.
           </td>
@@ -1880,6 +1918,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${m.cantidad}</td>
         <td>${m.consumo_por_dosis}</td>
         <td>${new Date(m.fecha_registro).toLocaleString()}</td>
+        <td><button type="button" class="btn btn-sm btn-outline-secondary btn-ver-historial-inv" data-nombre="${escapeHtml(m.nombre)}"><i class="bi bi-clock-history"></i></button></td>
       `;
       tablaInv.appendChild(tr);
     });
@@ -1893,6 +1932,49 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnAnteriorInventario) btnAnteriorInventario.disabled = paginaActualInventario <= 1;
     if (btnSiguienteInventario) btnSiguienteInventario.disabled = paginaActualInventario >= totalPaginas;
     renderBotonesPaginaInventario(totalPaginas);
+  }
+
+  if (tablaInv) {
+    tablaInv.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-ver-historial-inv");
+      if (btn) verHistorialMovimientos(btn.dataset.nombre);
+    });
+  }
+
+  async function verHistorialMovimientos(nombreMedicamento) {
+    const modalEl = document.getElementById("modalHistorialMovimientos");
+    const tbody = document.getElementById("tablaHistorialMovimientos");
+    const tituloSpan = document.getElementById("historialMedicamentoNombre");
+    if (tituloSpan) tituloSpan.textContent = nombreMedicamento;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Cargando...</td></tr>`;
+
+    if (modalEl && typeof bootstrap !== "undefined") {
+      const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+      modal.show();
+    }
+
+    try {
+      const resp = await fetch(`https://siscom-4lbe.onrender.com/movimientos-inventario?nombre=${encodeURIComponent(nombreMedicamento)}`);
+      const movimientos = resp.ok ? await resp.json() : [];
+      if (!tbody) return;
+      if (movimientos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Sin movimientos registrados para este medicamento.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = movimientos.map((mov) => `
+        <tr>
+          <td>${new Date(mov.fecha_hora).toLocaleString()}</td>
+          <td><span class="badge ${mov.tipo === 'entrada' ? 'bg-success' : 'bg-danger'}">${mov.tipo === 'entrada' ? 'Entrada' : 'Salida'}</span></td>
+          <td>${mov.cantidad}</td>
+          <td>${mov.cantidad_resultante ?? '—'}</td>
+          <td>${escapeHtml(mov.motivo || '—')}</td>
+          <td>${mov.id_usuario ? `Usuario #${mov.id_usuario}` : '—'}</td>
+        </tr>
+      `).join('');
+    } catch (error) {
+      console.error("Error al cargar historial de movimientos:", error);
+      if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">No se pudo cargar el historial.</td></tr>`;
+    }
   }
 
   function renderBotonesPaginaInventario(totalPaginas) {
@@ -1920,10 +2002,20 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("nombreInv").value = "";
     document.getElementById("cantidadInv").value = "";
     document.getElementById("consumoInv").value = "";
+    const motivoAjusteInput = document.getElementById("motivoAjusteInv");
+    if (motivoAjusteInput) motivoAjusteInput.value = "";
+    const frecCantidadInput = document.getElementById("frecuenciaCantidadInv");
+    if (frecCantidadInput) frecCantidadInput.value = "";
+    const ajusteSumarRadio = document.getElementById("ajusteSumar");
+    if (ajusteSumarRadio) ajusteSumarRadio.checked = true;
     modoActualizarCheckbox.checked = false;
     selectMedicamentoRow.style.display = "none";
     inputNombreRow.style.display = "block";
     consumoRow.style.display = "block";
+    if (frecuenciaRow) frecuenciaRow.style.display = "block";
+    if (tipoAjusteRow) tipoAjusteRow.style.display = "none";
+    if (motivoAjusteRow) motivoAjusteRow.style.display = "none";
+    actualizarEtiquetaCantidadInv();
     selectMedicamento.value = "";
   }
 
@@ -5819,6 +5911,7 @@ document.addEventListener('DOMContentLoaded', () => {
       inventarioPedido = [];
     }
     renderInventarioDisponiblePedido();
+    poblarDatalistMedicamentos();
   }
 
   function renderInventarioDisponiblePedido() {
@@ -5844,24 +5937,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
   }
 
-  function opcionesMedicamento() {
-    let html = '<option value="">Seleccione medicamento</option>';
-    inventarioPedido.forEach(item => {
-      const agotado = Number(item.cantidad || 0) === 0;
-      html += `<option value="${item.id}" data-nombre="${escapeHtml(item.nombre)}" data-stock="${item.cantidad}" data-consumo="${item.consumo_por_dosis || ''}" ${agotado ? 'disabled' : ''}>
-        ${escapeHtml(item.nombre)} (Stock: ${item.cantidad}${agotado ? ' - AGOTADO' : ''})
-      </option>`;
-    });
-    return html;
+  function poblarDatalistMedicamentos() {
+    const datalist = document.getElementById('datalistMedicamentosPedido');
+    if (!datalist) return;
+    datalist.innerHTML = inventarioPedido
+      .filter(item => Number(item.cantidad || 0) > 0)
+      .map(item => `<option value="${escapeHtml(item.nombre)}">Stock: ${item.cantidad}</option>`)
+      .join('');
   }
 
   function crearFilaPedido() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>
-        <select class="form-select form-select-sm item-medicamento" required>
-          ${opcionesMedicamento()}
-        </select>
+        <input type="text" class="form-control form-control-sm item-medicamento-input" list="datalistMedicamentosPedido" placeholder="Buscar medicamento..." autocomplete="off" required>
       </td>
       <td><input type="text" class="form-control form-control-sm item-dosis" placeholder="Ej. 500mg"></td>
       <td>
@@ -5873,31 +5962,42 @@ document.addEventListener('DOMContentLoaded', () => {
     itemsTableBody.appendChild(tr);
   }
 
-  itemsTableBody.addEventListener('change', (e) => {
-    const select = e.target.closest('.item-medicamento');
-    if (!select) return;
-    const tr = select.closest('tr');
-    const opcion = select.selectedOptions[0];
+  // Busca en inventarioPedido el medicamento cuyo nombre coincide EXACTO con
+  // lo que hay escrito en el input (se llena solo al elegir una opción del
+  // datalist, que siempre inserta el texto completo).
+  function medicamentoSeleccionadoDeFila(tr) {
+    const input = tr.querySelector('.item-medicamento-input');
+    if (!input) return null;
+    const nombreEscrito = input.value.trim();
+    return inventarioPedido.find(item => item.nombre === nombreEscrito) || null;
+  }
+
+  itemsTableBody.addEventListener('input', (e) => {
+    const input = e.target.closest('.item-medicamento-input');
+    if (!input) return;
+    const tr = input.closest('tr');
     const dosisInput = tr.querySelector('.item-dosis');
     const cantidadInput = tr.querySelector('.item-cantidad');
     const stockInfo = tr.querySelector('.item-stock-info');
+    const item = medicamentoSeleccionadoDeFila(tr);
 
-    if (!opcion || !opcion.value) {
+    if (!item) {
       if (stockInfo) stockInfo.textContent = '';
       return;
     }
 
-    const stock = Number(opcion.dataset.stock || 0);
-    const consumo = opcion.dataset.consumo;
-
+    const stock = Number(item.cantidad || 0);
+    if (stock === 0) {
+      if (stockInfo) stockInfo.innerHTML = `<span class="text-danger">Sin stock disponible</span>`;
+    }
     if (dosisInput && !dosisInput.value) {
-      dosisInput.value = consumo ? `${consumo} por toma` : '';
+      dosisInput.value = item.consumo_por_dosis ? `${item.consumo_por_dosis} por toma` : '';
     }
     if (cantidadInput) {
       cantidadInput.max = stock;
       if (Number(cantidadInput.value) > stock) cantidadInput.value = stock || 1;
     }
-    if (stockInfo) {
+    if (stockInfo && stock > 0) {
       const { nivel, texto } = nivelStock(stock);
       const claseTexto = nivel === 'success' ? 'text-muted' : `text-${nivel}`;
       stockInfo.innerHTML = `<span class="${claseTexto}">Disponible: ${stock} (${texto})</span>`;
@@ -5923,6 +6023,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function limpiarFormularioPedido() {
     if (itemsTableBody) itemsTableBody.innerHTML = '';
     if (formMessage) formMessage.textContent = '';
+    const motivoInput = document.getElementById('motivoPedido');
+    if (motivoInput) motivoInput.value = '';
     crearFilaPedido();
   }
 
@@ -5944,18 +6046,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const filas = Array.from(itemsTableBody.querySelectorAll('tr'));
     const items = [];
     for (const fila of filas) {
-      const select = fila.querySelector('.item-medicamento');
-      const opcion = select?.selectedOptions[0];
+      const item = medicamentoSeleccionadoDeFila(fila);
       const dosis = fila.querySelector('.item-dosis')?.value.trim() || '';
       const cantidad = Number(fila.querySelector('.item-cantidad')?.value || 0);
 
-      if (!opcion || !opcion.value) continue;
+      if (!item) continue;
 
       items.push({
-        nombre: opcion.dataset.nombre,
+        nombre: item.nombre,
         dosis: dosis || 'No especificada',
         cantidad,
-        stockDisponible: Number(opcion.dataset.stock || 0)
+        stockDisponible: Number(item.cantidad || 0)
       });
     }
     return items;
@@ -5967,6 +6068,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!item.cantidad || item.cantidad < 1) return `Ingresa una cantidad válida para "${item.nombre}".`;
       if (item.cantidad > item.stockDisponible) return `No hay suficiente stock de "${item.nombre}" (disponible: ${item.stockDisponible}).`;
     }
+    const motivoInput = document.getElementById('motivoPedido');
+    if (motivoInput && !motivoInput.value.trim()) return 'Indica el motivo o descripción del pedido.';
     return null;
   }
 
@@ -5991,7 +6094,7 @@ document.addEventListener('DOMContentLoaded', () => {
         id: `PED-${Date.now()}`,
         farmacia: FARMACIA_INTERNA,
         items: items.map(({ nombre, dosis, cantidad }) => ({ nombre, dosis, cantidad })),
-        notas: null,
+        notas: document.getElementById('motivoPedido')?.value.trim() || null,
         estado: 'Pendiente',
         fecha_creacion: new Date().toISOString().slice(0, 19).replace('T', ' '),
         id_usuario: usuario?.id || null
@@ -6090,6 +6193,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <p><strong>Pedido:</strong> #${escapeHtml(referencia)}</p>
             <p><strong>Estado:</strong> ${escapeHtml(data.pedido.estado || 'Pendiente')}</p>
             <p><strong>Fecha:</strong> ${data.pedido.fecha_creacion ? new Date(data.pedido.fecha_creacion).toLocaleString() : ''}</p>
+            ${data.pedido.notas ? `<p><strong>Motivo:</strong> ${escapeHtml(data.pedido.notas)}</p>` : ''}
             <table class="table table-sm table-bordered">
               <thead><tr><th>Medicamento</th><th>Dosis</th><th>Cantidad</th></tr></thead>
               <tbody>
