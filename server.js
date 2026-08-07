@@ -354,15 +354,20 @@ db.connect(err => {
       // (Registro de Tomas, Historial de Tomas, Estadísticas), para que el
       // menú del cuidador y el de cualquier rol nuevo se arme según estos
       // mismos permisos.
-      // A partir de esta versión, "Usuarios" y "Pacientes" son módulos con
+      // Todos los módulos con operaciones CRUD reales en el código usan
       // permisos GRANULARES por acción (ver / crear / editar / eliminar), en
       // vez de un único permiso que otorgaba todo el CRUD de una vez
       // (bug crítico reportado en QA: "los permisos no son granulares").
       // El nombre de cada permiso granular sigue el patrón "Módulo:acción"
-      // (ej. "Pacientes:crear"). El resto de módulos conserva, por ahora, un
-      // solo permiso equivalente a "gestionar" (mismo comportamiento que
-      // tenían antes) y se pueden ir desglosando con el mismo patrón más
-      // adelante sin romper nada de lo ya guardado.
+      // (ej. "Pacientes:crear"). Cada módulo declara solo las acciones que
+      // de verdad tienen una ruta que las implementa (ej. "Farmacia" no
+      // tiene "editar" porque no existe una ruta para editar un pedido).
+      // Quedan como permiso simple (uno solo, sin acciones) los módulos que
+      // por su naturaleza no son CRUD: "Bitácora" y "Estadísticas" son de
+      // solo lectura, "Backup y Restore" son dos acciones especiales
+      // (generar/restaurar) que no encajan en ver/crear/editar/eliminar, y
+      // "Permisos" es la propia gestión de permisos (crear catálogo y
+      // asignar a roles), que ya se controla completa con este único permiso.
       const modulosGranulares = {
         Usuarios: {
           descripcion: 'usuarios del sistema (empleados, administradores, roles nuevos)',
@@ -371,26 +376,56 @@ db.connect(err => {
         Pacientes: {
           descripcion: 'pacientes; asignar cuidadores',
           acciones: ['ver', 'crear', 'editar', 'eliminar']
-        }
-      };
-
-      const permisosSemillaSimples = [
-        ['Roles', 'Crear y editar roles'],
-        ['Permisos', 'Asignar permisos a roles'],
-        ['Medicamentos', 'Crear y editar medicamentos'],
+        },
+        'Citas Médicas': {
+          descripcion: 'citas médicas de los pacientes',
+          acciones: ['ver', 'crear', 'editar', 'eliminar']
+        },
         // "Farmacia" reemplaza a "Inventario": el menú del sistema agrupa
         // Inventario + Pedidos de Farmacia bajo el título "Farmacia", y el
         // nombre del permiso debe coincidir con lo que ve el administrador
         // en el menú (bug reportado: "el menú dice Farmacia pero el permiso
-        // dice Inventario").
-        ['Farmacia', 'Administrar inventario y pedidos de farmacia'],
-        ['Citas Médicas', 'Administrar citas médicas'],
-        ['Parámetros del Sistema', 'Editar parámetros generales del sistema'],
+        // dice Inventario"). No tiene "editar" porque no existe ninguna ruta
+        // para editar un pedido o un ítem de inventario ya creado.
+        Farmacia: {
+          descripcion: 'inventario y pedidos de farmacia',
+          acciones: ['ver', 'crear', 'eliminar']
+        },
+        Medicamentos: {
+          descripcion: 'el catálogo de medicamentos',
+          acciones: ['ver', 'crear', 'editar', 'eliminar']
+        },
+        Roles: {
+          descripcion: 'los roles del sistema',
+          acciones: ['ver', 'crear', 'editar', 'eliminar']
+        },
+        'Parámetros del Sistema': {
+          descripcion: 'los parámetros generales del sistema',
+          acciones: ['ver', 'crear', 'editar', 'eliminar']
+        },
+        'Dominios de Correo': {
+          descripcion: 'los dominios de correo permitidos para registrarse',
+          acciones: ['ver', 'crear', 'editar', 'eliminar']
+        },
+        // No tiene "editar" ni "eliminar": una toma registrada no se
+        // modifica ni se borra, queda como historial.
+        'Registro de Tomas': {
+          descripcion: 'las tomas de medicamentos de los pacientes',
+          acciones: ['ver', 'crear']
+        },
+        // Solo se puede consultar o limpiar el historial, no "crear" uno
+        // directamente (se genera solo al registrar tomas) ni "editar" un
+        // evento ya ocurrido.
+        'Historial de Tomas': {
+          descripcion: 'el historial de tomas de los pacientes',
+          acciones: ['ver', 'eliminar']
+        }
+      };
+
+      const permisosSemillaSimples = [
+        ['Permisos', 'Asignar permisos a roles'],
         ['Bitácora', 'Consultar la bitácora de auditoría'],
         ['Backup y Restore', 'Generar y restaurar copias de seguridad'],
-        ['Dominios de Correo', 'Administrar los dominios de correo permitidos para registrarse'],
-        ['Registro de Tomas', 'Registrar las tomas de medicamentos de los pacientes'],
-        ['Historial de Tomas', 'Consultar el historial de tomas de los pacientes'],
         ['Estadísticas', 'Consultar reportes y estadísticas']
       ];
 
@@ -408,7 +443,13 @@ db.connect(err => {
       // Se le asignan por defecto la primera vez, para que ningún cuidador
       // pierda acceso a lo que ya usaba al activar el control por permisos.
       const modulosBasePorRol = {
-        empleado: ['Medicamentos', 'Registro de Tomas', 'Historial de Tomas', 'Citas Médicas', 'Estadísticas']
+        empleado: [
+          'Medicamentos:ver', 'Medicamentos:crear', 'Medicamentos:editar', 'Medicamentos:eliminar',
+          'Registro de Tomas:ver', 'Registro de Tomas:crear',
+          'Historial de Tomas:ver', 'Historial de Tomas:eliminar',
+          'Citas Médicas:ver', 'Citas Médicas:crear', 'Citas Médicas:editar', 'Citas Médicas:eliminar',
+          'Estadísticas'
+        ]
       };
 
       // Migrar instalaciones existentes que ya tenían los permisos con el
@@ -435,7 +476,30 @@ db.connect(err => {
             try {
               await queryAsync('UPDATE permisos SET nombre_permiso = ? WHERE nombre_permiso = ?', [nombreNuevo, nombreViejo]);
             } catch (errRen) {
-              if (errRen.code !== 'ER_DUP_ENTRY') console.error(`Error al migrar permiso "${nombreViejo}" a "${nombreNuevo}":`, errRen);
+              if (errRen.code !== 'ER_DUP_ENTRY') {
+                console.error(`Error al migrar permiso "${nombreViejo}" a "${nombreNuevo}":`, errRen);
+                continue;
+              }
+              // El nombre nuevo ya existía (ej. "Farmacia" ya se había
+              // sembrado antes de que "Inventario" intentara renombrarse a
+              // ese mismo nombre): en vez de dejar "Inventario" como fila
+              // huérfana y duplicada, se copian sus asignaciones de rol a la
+              // fila que ya tiene el nombre nuevo y se borra la vieja.
+              try {
+                const filasViejo = await queryAsync('SELECT id FROM permisos WHERE nombre_permiso = ?', [nombreViejo]);
+                const filasNuevo = await queryAsync('SELECT id FROM permisos WHERE nombre_permiso = ?', [nombreNuevo]);
+                if (filasViejo.length && filasNuevo.length) {
+                  const idViejo = filasViejo[0].id;
+                  const idNuevo = filasNuevo[0].id;
+                  const rolesConViejo = await queryAsync('SELECT DISTINCT nombre_rol FROM roles_permisos WHERE id_permiso = ?', [idViejo]);
+                  for (const { nombre_rol } of rolesConViejo) {
+                    await queryAsync('INSERT IGNORE INTO roles_permisos (nombre_rol, id_permiso) VALUES (?, ?)', [nombre_rol, idNuevo]);
+                  }
+                  await queryAsync('DELETE FROM permisos WHERE id = ?', [idViejo]);
+                }
+              } catch (errFusion) {
+                console.error(`Error al fusionar el permiso duplicado "${nombreViejo}" con "${nombreNuevo}":`, errFusion);
+              }
             }
           }
 
@@ -451,12 +515,13 @@ db.connect(err => {
           const idPorNombre = {};
           filasPermisos.forEach(f => { idPorNombre[f.nombre_permiso] = f.id; });
 
-          // Migración de datos: los roles que ya tenían el permiso plano
-          // "Usuarios" o "Pacientes" (antes de existir el desglose por
-          // acción) reciben automáticamente las 4 acciones granulares
-          // correspondientes, para que nadie pierda acceso al activar esta
-          // versión. El permiso plano viejo se deja de usar en el código,
-          // pero no se borra por si hay reportes/back-ups que lo referencian.
+          // Migración de datos: los roles que ya tenían el permiso plano de
+          // un módulo (ej. "Farmacia", "Citas Médicas", antes de existir el
+          // desglose por acción) reciben automáticamente las acciones
+          // granulares correspondientes de ese módulo, para que nadie pierda
+          // acceso al activar esta versión. El permiso plano viejo se deja
+          // de usar en el código, pero no se borra por si hay reportes/
+          // back-ups que lo referencian.
           for (const modulo of Object.keys(modulosGranulares)) {
             const idPlano = idPorNombre[modulo];
             if (!idPlano) continue;
@@ -1561,7 +1626,7 @@ db.query(sql, [nombres, apellidos, identidad, telefono, correoNormalizado, hashe
 
 // ---------- DOMINIOS DE CORREO PERMITIDOS ----------
 
-app.get('/dominios-permitidos', verificarPermiso('Dominios de Correo'), (req, res) => {
+app.get('/dominios-permitidos', verificarPermisoAccion('Dominios de Correo', 'ver'), (req, res) => {
   db.query('SELECT * FROM dominios_correo_permitidos ORDER BY id DESC', (err, rows) => {
     if (err) {
       console.error('Error al obtener dominios permitidos:', err);
@@ -1584,7 +1649,7 @@ app.get('/dominios-permitidos-publico', (req, res) => {
   });
 });
 
-app.post('/dominios-permitidos', verificarPermiso('Dominios de Correo'), (req, res) => {
+app.post('/dominios-permitidos', verificarPermisoAccion('Dominios de Correo', 'crear'), (req, res) => {
   const dominio = String(req.body.dominio || '').trim().toLowerCase();
 
   if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/.test(dominio)) {
@@ -1605,7 +1670,7 @@ app.post('/dominios-permitidos', verificarPermiso('Dominios de Correo'), (req, r
   });
 });
 
-app.put('/dominios-permitidos/:id', verificarPermiso('Dominios de Correo'), (req, res) => {
+app.put('/dominios-permitidos/:id', verificarPermisoAccion('Dominios de Correo', 'editar'), (req, res) => {
   const { id } = req.params;
   const activo = req.body.activo ? 1 : 0;
   let dominio = req.body.dominio !== undefined ? String(req.body.dominio || '').trim().toLowerCase() : null;
@@ -1650,7 +1715,7 @@ app.put('/dominios-permitidos/:id', verificarPermiso('Dominios de Correo'), (req
   });
 });
 
-app.delete('/dominios-permitidos/:id', verificarPermiso('Dominios de Correo'), (req, res) => {
+app.delete('/dominios-permitidos/:id', verificarPermisoAccion('Dominios de Correo', 'eliminar'), (req, res) => {
   db.query('DELETE FROM dominios_correo_permitidos WHERE id = ?', [req.params.id], (err, result) => {
     if (err) {
       console.error('Error al eliminar dominio permitido:', err);
@@ -1667,7 +1732,7 @@ app.delete('/dominios-permitidos/:id', verificarPermiso('Dominios de Correo'), (
 
 // ---------- MANTENIMIENTO DE ROLES ----------
 
-app.get('/roles', verificarPermiso('Roles'), (req, res) => {
+app.get('/roles', verificarPermisoAccion('Roles', 'ver'), (req, res) => {
   db.query('SELECT * FROM roles ORDER BY id DESC', (err, rows) => {
     if (err) {
       console.error('Error al obtener roles:', err);
@@ -1692,7 +1757,7 @@ app.get('/roles-activos', verificarRol(), (req, res) => {
   });
 });
 
-app.post('/roles', verificarPermiso('Roles'), (req, res) => {
+app.post('/roles', verificarPermisoAccion('Roles', 'crear'), (req, res) => {
   const nombre_rol = String(req.body.nombre_rol || '').trim().toLowerCase();
   const descripcion = req.body.descripcion ? String(req.body.descripcion).trim() : null;
 
@@ -1713,7 +1778,7 @@ app.post('/roles', verificarPermiso('Roles'), (req, res) => {
   });
 });
 
-app.put('/roles/:id', verificarPermiso('Roles'), (req, res) => {
+app.put('/roles/:id', verificarPermisoAccion('Roles', 'editar'), (req, res) => {
   const { id } = req.params;
   const descripcion = req.body.descripcion !== undefined ? String(req.body.descripcion || '').trim() : null;
   const activo = req.body.activo ? 1 : 0;
@@ -1744,7 +1809,7 @@ app.put('/roles/:id', verificarPermiso('Roles'), (req, res) => {
   });
 });
 
-app.delete('/roles/:id', verificarPermiso('Roles'), (req, res) => {
+app.delete('/roles/:id', verificarPermisoAccion('Roles', 'eliminar'), (req, res) => {
   const { id } = req.params;
 
   db.query('SELECT nombre_rol FROM roles WHERE id = ?', [id], (err, rolRows) => {
@@ -1781,7 +1846,7 @@ app.delete('/roles/:id', verificarPermiso('Roles'), (req, res) => {
 
 // ---------- PARÁMETROS GENERALES DEL SISTEMA ----------
 
-app.get('/parametros', verificarPermiso('Parámetros del Sistema'), (req, res) => {
+app.get('/parametros', verificarPermisoAccion('Parámetros del Sistema', 'ver'), (req, res) => {
   db.query('SELECT * FROM parametros_sistema ORDER BY clave ASC', (err, rows) => {
     if (err) {
       console.error('Error al obtener parámetros del sistema:', err);
@@ -1809,7 +1874,7 @@ app.get('/parametros-publicos', (req, res) => {
   );
 });
 
-app.put('/parametros/:id', verificarPermiso('Parámetros del Sistema'), (req, res) => {
+app.put('/parametros/:id', verificarPermisoAccion('Parámetros del Sistema', 'editar'), (req, res) => {
   const { id } = req.params;
   const valor = req.body.valor;
 
@@ -1838,7 +1903,7 @@ const TIPOS_PARAMETRO_VALIDOS = ['texto', 'numero', 'booleano'];
 // Fase B: el Administrador puede crear parámetros nuevos desde la interfaz
 // (Seguridad > Parámetros del Sistema), sin depender de que un desarrollador
 // los agregue directamente en la base de datos.
-app.post('/parametros', verificarPermiso('Parámetros del Sistema'), (req, res) => {
+app.post('/parametros', verificarPermisoAccion('Parámetros del Sistema', 'crear'), (req, res) => {
   const clave = String(req.body.clave || '').trim().toLowerCase();
   const descripcion = String(req.body.descripcion || '').trim();
   const tipo = String(req.body.tipo || '').trim().toLowerCase();
@@ -1882,7 +1947,7 @@ app.post('/parametros', verificarPermiso('Parámetros del Sistema'), (req, res) 
 // (qué parámetros usa cada módulo) viven en el código de cada funcionalidad,
 // no aquí; si un módulo todavía depende del parámetro, seguirá funcionando
 // con su valor por defecto en el frontend (ver window.PARAMETROS_SISTEMA).
-app.delete('/parametros/:id', verificarPermiso('Parámetros del Sistema'), (req, res) => {
+app.delete('/parametros/:id', verificarPermisoAccion('Parámetros del Sistema', 'eliminar'), (req, res) => {
   const { id } = req.params;
 
   db.query('SELECT clave FROM parametros_sistema WHERE id = ?', [id], (errSelect, filas) => {
@@ -2849,8 +2914,12 @@ app.delete('/eliminarCita/:id', (req, res) => {
 
 
 
-// Eliminar todas las citas - Solo administrador
-app.delete('/eliminarTodasCitas', verificarRol(['administrador']), (req, res) => {
+// Eliminar todas las citas - antes era una regla fija ("Solo administrador",
+// verificarRol(['administrador'])); ahora exige el permiso del módulo
+// "Citas Médicas", igual que el resto de rutas de este módulo, para que
+// cualquier rol con ese permiso asignado (no solo "administrador") pueda
+// hacerlo.
+app.delete('/eliminarTodasCitas', verificarPermiso('Citas Médicas'), (req, res) => {
   const sql = 'DELETE FROM citas';
   
   db.query(sql, (err, result) => {
@@ -3156,7 +3225,10 @@ app.delete('/eliminarPedido/:id', (req, res) => {
 });
 
 // Eliminar todos los pedidos - Solo administrador
-app.delete('/eliminarTodosPedidos', verificarRol(['administrador']), (req, res) => {
+// Antes era una regla fija ("Solo administrador", verificarRol(['administrador']));
+// ahora exige el permiso del módulo "Farmacia", igual que el resto de rutas
+// de inventario/pedidos.
+app.delete('/eliminarTodosPedidos', verificarPermiso('Farmacia'), (req, res) => {
   const sql = 'DELETE FROM pedidos_farmacia';
   
   db.query(sql, (err, result) => {
@@ -4266,7 +4338,11 @@ app.get('/usuarios/rol/:rol', (req, res) => {
   });
 });
 
-app.get('/asignaciones-cuidador', verificarRol(['administrador']), (req, res) => {
+// Antes eran reglas fijas ("Solo administrador", verificarRol(['administrador']));
+// ahora exigen los permisos granulares del módulo "Pacientes" (asignar
+// cuidador es una acción sobre pacientes), igual que /mis-pacientes y
+// /pacientes-admin/:id/cuidador.
+app.get('/asignaciones-cuidador', verificarPermisoAccion('Pacientes', 'ver'), (req, res) => {
   const sqlCuidadores = "SELECT id, nombres, apellidos, email FROM usuarios WHERE rol = 'empleado' ORDER BY nombres, apellidos";
   const sqlPacientes = "SELECT id, nombres, apellidos, email FROM usuarios WHERE rol = 'usuario' ORDER BY nombres, apellidos";
   const sqlAsignaciones = `
@@ -4300,7 +4376,7 @@ app.get('/asignaciones-cuidador', verificarRol(['administrador']), (req, res) =>
   });
 });
 
-app.get('/asignaciones-cuidador/:cuidadorId', verificarRol(['administrador']), (req, res) => {
+app.get('/asignaciones-cuidador/:cuidadorId', verificarPermisoAccion('Pacientes', 'ver'), (req, res) => {
   const { cuidadorId } = req.params;
   const sql = `
     SELECT paciente_id
@@ -4318,7 +4394,7 @@ app.get('/asignaciones-cuidador/:cuidadorId', verificarRol(['administrador']), (
   });
 });
 
-app.post('/asignaciones-cuidador/:cuidadorId', verificarRol(['administrador']), (req, res) => {
+app.post('/asignaciones-cuidador/:cuidadorId', verificarPermisoAccion('Pacientes', 'editar'), (req, res) => {
   const { cuidadorId } = req.params;
   const { pacientes } = req.body;
 

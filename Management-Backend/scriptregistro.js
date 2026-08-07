@@ -1116,7 +1116,13 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Campos del formulario
   const medicamentoId = document.getElementById("medicamentoId");
+  // El paciente del formulario ya no es un <select> (no escala bien con
+  // muchos pacientes); ahora es un buscador con autocompletado, igual que
+  // el de Citas Médicas. "pacienteSelect" queda apuntando al input oculto
+  // que guarda el id realmente seleccionado.
   const pacienteSelect = document.getElementById("pacienteMedicamento");
+  const pacienteBuscarInput = document.getElementById("pacienteMedicamentoBuscar");
+  const pacienteOpcionesEl = document.getElementById("pacienteMedicamentoOpciones");
   const estadoSelect = document.getElementById("estadoMedicamento");
   const nombreInput = document.getElementById("nombre");
   const dosisInput = document.getElementById("dosis");
@@ -1155,18 +1161,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!respuesta.ok) throw new Error("Error al cargar pacientes");
       
       pacientesData = await respuesta.json();
-      
-      // Llenar select de pacientes en el modal
-      if (pacienteSelect) {
-        pacienteSelect.innerHTML = '<option value="" selected disabled>Seleccione un paciente</option>';
-        pacientesData.forEach(paciente => {
-          const option = document.createElement("option");
-          option.value = paciente.id;
-          option.textContent = `${paciente.nombres} ${paciente.apellidos}`;
-          pacienteSelect.appendChild(option);
-        });
-      }
-      
+
       // Llenar filtro de pacientes
       if (filtroPaciente) {
         filtroPaciente.innerHTML = '<option value="">Todos los pacientes</option>';
@@ -1185,13 +1180,75 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       console.error("Error al cargar pacientes:", error);
       pacientesData = [];
-      if (pacienteSelect) {
-        pacienteSelect.innerHTML = '<option value="" selected disabled>Seleccione un paciente</option>';
-      }
       if (filtroPaciente) {
         filtroPaciente.innerHTML = '<option value="">Todos los pacientes</option>';
       }
     }
+  }
+
+  // ---- Autocompletado de paciente (formulario de Registrar Medicamento) ----
+  function normalizarTextoBusquedaPacienteMed(texto) {
+    return String(texto || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+  }
+
+  function filtrarPacientesMedicamentoAutocomplete(texto) {
+    const consulta = normalizarTextoBusquedaPacienteMed(texto);
+    const lista = pacientesData.map(p => ({ id: p.id, nombre: `${p.nombres} ${p.apellidos}` }));
+    const filtrada = consulta
+      ? lista.filter(p => normalizarTextoBusquedaPacienteMed(p.nombre).includes(consulta))
+      : lista;
+    return filtrada.slice(0, 8);
+  }
+
+  function seleccionarPacienteMedicamento(id, nombre) {
+    if (pacienteSelect) {
+      pacienteSelect.value = id;
+      pacienteSelect.classList.remove("is-invalid");
+    }
+    if (pacienteBuscarInput) pacienteBuscarInput.value = nombre;
+    if (pacienteOpcionesEl) {
+      pacienteOpcionesEl.classList.add("d-none");
+      pacienteOpcionesEl.innerHTML = "";
+    }
+  }
+
+  function renderPacienteMedicamentoOpciones(lista) {
+    if (!pacienteOpcionesEl) return;
+    if (!lista.length) {
+      pacienteOpcionesEl.innerHTML = `<div class="autocomplete-paciente-vacio">No se encontraron pacientes</div>`;
+      pacienteOpcionesEl.classList.remove("d-none");
+      return;
+    }
+    pacienteOpcionesEl.innerHTML = lista.map(p => `
+      <button type="button" class="autocomplete-paciente-item" data-id="${p.id}" data-nombre="${p.nombre.replace(/"/g, "&quot;")}">
+        ${p.nombre}
+      </button>
+    `).join("");
+    pacienteOpcionesEl.classList.remove("d-none");
+    pacienteOpcionesEl.querySelectorAll(".autocomplete-paciente-item").forEach(item => {
+      // mousedown (no click) para seleccionar antes de que el blur del input cierre el desplegable
+      item.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        seleccionarPacienteMedicamento(item.dataset.id, item.dataset.nombre);
+      });
+    });
+  }
+
+  if (pacienteBuscarInput) {
+    pacienteBuscarInput.addEventListener("input", () => {
+      if (pacienteSelect) pacienteSelect.value = ""; // hasta elegir un resultado válido, no hay paciente seleccionado
+      renderPacienteMedicamentoOpciones(filtrarPacientesMedicamentoAutocomplete(pacienteBuscarInput.value));
+    });
+    pacienteBuscarInput.addEventListener("focus", () => {
+      renderPacienteMedicamentoOpciones(filtrarPacientesMedicamentoAutocomplete(pacienteBuscarInput.value));
+    });
+    pacienteBuscarInput.addEventListener("blur", () => {
+      setTimeout(() => { if (pacienteOpcionesEl) pacienteOpcionesEl.classList.add("d-none"); }, 120);
+    });
   }
 
   // Calcular próxima toma
@@ -1229,10 +1286,10 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Validar paciente
     if (!pacienteSelect.value) {
-      pacienteSelect.classList.add("is-invalid");
+      if (pacienteBuscarInput) pacienteBuscarInput.classList.add("is-invalid");
       valido = false;
     } else {
-      pacienteSelect.classList.remove("is-invalid");
+      if (pacienteBuscarInput) pacienteBuscarInput.classList.remove("is-invalid");
     }
     
     // Validar nombre
@@ -1272,7 +1329,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Limpiar validaciones
   function limpiarValidaciones() {
-    [pacienteSelect, nombreInput, dosisInput, frecuenciaSelect, horaInput].forEach(el => {
+    [pacienteBuscarInput, nombreInput, dosisInput, frecuenciaSelect, horaInput].forEach(el => {
       if (el) el.classList.remove("is-invalid");
     });
   }
@@ -1348,6 +1405,7 @@ document.addEventListener("DOMContentLoaded", () => {
     editingId = null;
     if (medicamentoId) medicamentoId.value = "";
     if (pacienteSelect) pacienteSelect.value = "";
+    if (pacienteBuscarInput) pacienteBuscarInput.value = "";
     if (estadoSelect) estadoSelect.value = "activo";
     if (nombreInput) nombreInput.value = "";
     if (dosisInput) dosisInput.value = "";
@@ -1537,6 +1595,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Llenar formulario
     if (medicamentoId) medicamentoId.value = id;
     if (pacienteSelect) pacienteSelect.value = medicamento.paciente_id;
+    if (pacienteBuscarInput) {
+      const pacienteEditado = pacientesData.find(p => String(p.id) === String(medicamento.paciente_id));
+      pacienteBuscarInput.value = pacienteEditado ? `${pacienteEditado.nombres} ${pacienteEditado.apellidos}` : "";
+    }
     if (estadoSelect) estadoSelect.value = medicamento.estado || "activo";
     if (nombreInput) nombreInput.value = medicamento.nombre;
     if (dosisInput) dosisInput.value = medicamento.dosis;
@@ -4484,7 +4546,7 @@ function mostrarConfirmacion(mensaje, opciones = {}) {
   const inputDescripcion = document.getElementById("nuevoPermisoDescripcion");
   const selectRol = document.getElementById("selectRolPermisos");
   const guardarBtn = document.getElementById("guardarPermisosRolBtn");
-  const tabla = document.querySelector("#tablaPermisos tbody");
+  const tabla = document.getElementById("tablaPermisos");
   if (!form || !selectRol || !tabla) return;
 
   async function cargarRolesParaSelect() {
@@ -4526,7 +4588,7 @@ function mostrarConfirmacion(mensaje, opciones = {}) {
 
   async function cargarPermisosDelRol(nombreRol) {
     if (!nombreRol) {
-      tabla.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Selecciona un rol para ver/editar sus permisos.</td></tr>';
+      tabla.innerHTML = '<p class="permisos-modulos-vacio">Selecciona un rol para ver/editar sus permisos.</p>';
       guardarBtn.disabled = true;
       return;
     }
@@ -4542,20 +4604,82 @@ function mostrarConfirmacion(mensaje, opciones = {}) {
     }
   }
 
+  // Orden fijo en el que se muestran las acciones dentro de cada módulo,
+  // independientemente del orden en que vengan del servidor.
+  const ORDEN_ACCIONES = ["ver", "crear", "editar", "eliminar"];
+  const ETIQUETA_ACCION = { ver: "Ver", crear: "Crear", editar: "Editar", eliminar: "Eliminar" };
+
   function renderPermisos(permisos) {
     if (!permisos.length) {
-      tabla.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No hay permisos creados todavía.</td></tr>';
+      tabla.innerHTML = '<p class="permisos-modulos-vacio">No hay permisos creados todavía.</p>';
       return;
     }
-    tabla.innerHTML = permisos.map(p => `
-      <tr>
-        <td class="text-center"><input type="checkbox" class="form-check-input permiso-checkbox" data-id="${p.id}" ${p.asignado ? "checked" : ""}></td>
-        <td><code>${escapeHtml(p.nombre_permiso)}</code></td>
-        <td class="small text-muted">${escapeHtml(p.descripcion || "")}</td>
-        <td class="text-center">
-          <button class="btn btn-sm btn-outline-danger eliminar-permiso-btn" data-id="${p.id}"><i class="bi bi-trash"></i></button>
-        </td>
-      </tr>`).join("");
+
+    // Agrupa "Pacientes:crear" / "Pacientes:editar" / etc. bajo un mismo
+    // módulo "Pacientes"; un permiso simple sin ":" (ej. "Bitácora") queda
+    // en su propio grupo con una sola acción (su propio nombre).
+    const modulos = new Map();
+    for (const p of permisos) {
+      const idxDosPuntos = p.nombre_permiso.indexOf(":");
+      const esGranular = idxDosPuntos > -1;
+      const nombreModulo = esGranular ? p.nombre_permiso.slice(0, idxDosPuntos) : p.nombre_permiso;
+      const accion = esGranular ? p.nombre_permiso.slice(idxDosPuntos + 1) : null;
+
+      if (!modulos.has(nombreModulo)) modulos.set(nombreModulo, []);
+      modulos.get(nombreModulo).push({
+        id: p.id,
+        accion,
+        etiqueta: accion ? (ETIQUETA_ACCION[accion] || accion) : nombreModulo,
+        descripcion: p.descripcion || "",
+        asignado: !!p.asignado
+      });
+    }
+
+    const nombresModulos = Array.from(modulos.keys()).sort((a, b) => a.localeCompare(b, "es"));
+
+    tabla.innerHTML = nombresModulos.map(nombreModulo => {
+      const items = modulos.get(nombreModulo).sort((a, b) => {
+        const ia = a.accion ? ORDEN_ACCIONES.indexOf(a.accion) : -1;
+        const ib = b.accion ? ORDEN_ACCIONES.indexOf(b.accion) : -1;
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      });
+      // Usa la descripción del primer ítem (normalmente "ver") como
+      // subtítulo del módulo completo.
+      const descripcionModulo = items[0].descripcion;
+      const asignados = items.filter(i => i.asignado).length;
+
+      // El permiso "base" (sin ":", nombre igual al módulo, ej. "Farmacia")
+      // controla si el módulo completo se ve o no. Antes se mostraba como un
+      // chip con el nombre completo del módulo repetido (ej. "Parámetros del
+      // Sistema"), lo que lo hacía partirse en 2-3 líneas y verse enorme
+      // comparado con los chips de acción (Ver/Crear/Editar/Eliminar). Ahora
+      // usa una etiqueta corta y fija ("Acceso"), con el nombre completo
+      // disponible como tooltip para quien lo necesite.
+      const chips = items.map(item => {
+        const esPermisoBase = item.etiqueta === nombreModulo;
+        const textoChip = esPermisoBase ? "Acceso" : item.etiqueta;
+        return `
+        <span class="permiso-chip ${item.asignado ? "is-active" : ""} ${esPermisoBase ? "permiso-chip-base" : ""}" data-permiso-chip="${item.id}">
+          <label title="${esPermisoBase ? `Habilita ver el módulo &quot;${escapeHtml(nombreModulo)}&quot; completo` : ""}">
+            <input type="checkbox" class="permiso-checkbox" data-id="${item.id}" ${item.asignado ? "checked" : ""}>
+            <span>${escapeHtml(textoChip)}</span>
+          </label>
+          <button type="button" class="permiso-chip-del eliminar-permiso-btn" data-id="${item.id}" title="Eliminar el permiso &quot;${escapeHtml(nombreModulo)}${item.accion ? ":" + escapeHtml(item.accion) : ""}&quot; del catálogo">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </span>`;
+      }).join("");
+
+      return `
+        <div class="permiso-modulo-card">
+          <div class="permiso-modulo-header">
+            <span class="permiso-modulo-nombre">${escapeHtml(nombreModulo)}</span>
+            <span class="permiso-modulo-contador">${asignados}/${items.length}</span>
+          </div>
+          ${descripcionModulo ? `<span class="permiso-modulo-desc">${escapeHtml(descripcionModulo)}</span>` : ""}
+          <div class="permiso-modulo-acciones">${chips}</div>
+        </div>`;
+    }).join("");
   }
 
   async function guardarPermisosDelRol() {
@@ -4583,6 +4707,24 @@ function mostrarConfirmacion(mensaje, opciones = {}) {
   form.addEventListener("submit", crearPermiso);
   selectRol.addEventListener("change", () => cargarPermisosDelRol(selectRol.value));
   guardarBtn.addEventListener("click", guardarPermisosDelRol);
+
+  // Resalta el chip (fondo de color) al marcar/desmarcar su casilla y
+  // actualiza el contador "x/y" de la tarjeta del módulo, sin necesidad de
+  // volver a pedir los permisos al servidor.
+  tabla.addEventListener("change", (e) => {
+    const checkbox = e.target.closest(".permiso-checkbox");
+    if (!checkbox) return;
+    const chip = checkbox.closest(".permiso-chip");
+    if (chip) chip.classList.toggle("is-active", checkbox.checked);
+
+    const tarjeta = checkbox.closest(".permiso-modulo-card");
+    if (!tarjeta) return;
+    const contador = tarjeta.querySelector(".permiso-modulo-contador");
+    if (!contador) return;
+    const total = tarjeta.querySelectorAll(".permiso-checkbox").length;
+    const marcados = tarjeta.querySelectorAll(".permiso-checkbox:checked").length;
+    contador.textContent = `${marcados}/${total}`;
+  });
 
   tabla.addEventListener("click", async (e) => {
     const eliminarBtn = e.target.closest(".eliminar-permiso-btn");
@@ -5911,7 +6053,6 @@ document.addEventListener('DOMContentLoaded', () => {
       inventarioPedido = [];
     }
     renderInventarioDisponiblePedido();
-    poblarDatalistMedicamentos();
   }
 
   function renderInventarioDisponiblePedido() {
@@ -5937,20 +6078,73 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
   }
 
-  function poblarDatalistMedicamentos() {
-    const datalist = document.getElementById('datalistMedicamentosPedido');
-    if (!datalist) return;
-    datalist.innerHTML = inventarioPedido
-      .filter(item => Number(item.cantidad || 0) > 0)
-      .map(item => `<option value="${escapeHtml(item.nombre)}">Stock: ${item.cantidad}</option>`)
-      .join('');
+  // ------------------------------------------------------------
+  // Autocompletado del medicamento en Pedidos Farmacia
+  // ------------------------------------------------------------
+  // Antes este campo usaba <input list="datalistMedicamentosPedido">, un
+  // <datalist> nativo del navegador. En Admin_Backend.html sí existía el
+  // <datalist> correspondiente, pero en cuidador_backend.html NUNCA se
+  // agregó ese elemento al HTML — por eso el campo "funcionaba" (mostraba
+  // sugerencias) solo para el rol administrador y no para empleado/cuidador,
+  // aunque el JavaScript era exactamente el mismo para ambos. Además, un
+  // <datalist> no escala bien con inventarios grandes (carga todas las
+  // opciones en el DOM de una vez, sin límite ni resaltado, y se comporta
+  // distinto entre navegadores). Se reemplaza por un autocompletado propio,
+  // construido en JS, que no depende de ningún elemento adicional en el
+  // HTML de cada panel y limita cuántas sugerencias se pintan a la vez.
+  const MAX_SUGERENCIAS_MEDICAMENTO = 8;
+
+  function cerrarSugerenciasMedicamento(tr) {
+    const lista = tr.querySelector('.item-medicamento-sugerencias');
+    if (lista) lista.remove();
+  }
+
+  function seleccionarMedicamentoEnFila(tr, item) {
+    const input = tr.querySelector('.item-medicamento-input');
+    if (input) input.value = item.nombre;
+    cerrarSugerenciasMedicamento(tr);
+    aplicarMedicamentoSeleccionado(tr, item);
+  }
+
+  function renderSugerenciasMedicamento(tr, texto) {
+    cerrarSugerenciasMedicamento(tr);
+    const consulta = texto.trim().toLowerCase();
+    if (!consulta) return;
+
+    const coincidencias = inventarioPedido
+      .filter(item => Number(item.cantidad || 0) > 0 && item.nombre.toLowerCase().includes(consulta))
+      .slice(0, MAX_SUGERENCIAS_MEDICAMENTO);
+
+    if (coincidencias.length === 0) return;
+
+    const lista = document.createElement('div');
+    lista.className = 'item-medicamento-sugerencias list-group position-absolute w-100 shadow-sm';
+    lista.style.cssText = 'z-index:1080; max-height:220px; overflow-y:auto; top:100%; left:0;';
+    lista.innerHTML = coincidencias.map((item, i) => `
+      <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2" data-idx="${i}">
+        <span>${escapeHtml(item.nombre)}</span>
+        <small class="text-muted ms-2">Stock: ${item.cantidad}</small>
+      </button>
+    `).join('');
+
+    lista.querySelectorAll('[data-idx]').forEach((btn, i) => {
+      // mousedown (no click) para que dispare antes del blur del input.
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        seleccionarMedicamentoEnFila(tr, coincidencias[i]);
+      });
+    });
+
+    const celda = tr.querySelector('.item-medicamento-input').closest('td');
+    celda.style.position = 'relative';
+    celda.appendChild(lista);
   }
 
   function crearFilaPedido() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>
-        <input type="text" class="form-control form-control-sm item-medicamento-input" list="datalistMedicamentosPedido" placeholder="Buscar medicamento..." autocomplete="off" required>
+        <input type="text" class="form-control form-control-sm item-medicamento-input" placeholder="Buscar medicamento..." autocomplete="off" required>
       </td>
       <td><input type="text" class="form-control form-control-sm item-dosis" placeholder="Ej. 500mg"></td>
       <td>
@@ -5963,8 +6157,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Busca en inventarioPedido el medicamento cuyo nombre coincide EXACTO con
-  // lo que hay escrito en el input (se llena solo al elegir una opción del
-  // datalist, que siempre inserta el texto completo).
+  // lo que hay escrito en el input (se llena solo al elegir una sugerencia).
   function medicamentoSeleccionadoDeFila(tr) {
     const input = tr.querySelector('.item-medicamento-input');
     if (!input) return null;
@@ -5972,14 +6165,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return inventarioPedido.find(item => item.nombre === nombreEscrito) || null;
   }
 
-  itemsTableBody.addEventListener('input', (e) => {
-    const input = e.target.closest('.item-medicamento-input');
-    if (!input) return;
-    const tr = input.closest('tr');
+  function aplicarMedicamentoSeleccionado(tr, item) {
     const dosisInput = tr.querySelector('.item-dosis');
     const cantidadInput = tr.querySelector('.item-cantidad');
     const stockInfo = tr.querySelector('.item-stock-info');
-    const item = medicamentoSeleccionadoDeFila(tr);
 
     if (!item) {
       if (stockInfo) stockInfo.textContent = '';
@@ -6002,6 +6191,29 @@ document.addEventListener('DOMContentLoaded', () => {
       const claseTexto = nivel === 'success' ? 'text-muted' : `text-${nivel}`;
       stockInfo.innerHTML = `<span class="${claseTexto}">Disponible: ${stock} (${texto})</span>`;
     }
+  }
+
+  itemsTableBody.addEventListener('input', (e) => {
+    const input = e.target.closest('.item-medicamento-input');
+    if (!input) return;
+    const tr = input.closest('tr');
+    renderSugerenciasMedicamento(tr, input.value);
+    aplicarMedicamentoSeleccionado(tr, medicamentoSeleccionadoDeFila(tr));
+  });
+
+  itemsTableBody.addEventListener('focusin', (e) => {
+    const input = e.target.closest('.item-medicamento-input');
+    if (!input) return;
+    renderSugerenciasMedicamento(input.closest('tr'), input.value);
+  });
+
+  itemsTableBody.addEventListener('focusout', (e) => {
+    const input = e.target.closest('.item-medicamento-input');
+    if (!input) return;
+    const tr = input.closest('tr');
+    // Pequeño retraso para permitir que el mousedown de la sugerencia
+    // (arriba) se procese antes de cerrar la lista.
+    setTimeout(() => cerrarSugerenciasMedicamento(tr), 150);
   });
 
   itemsTableBody.addEventListener('click', (e) => {

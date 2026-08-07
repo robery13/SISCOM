@@ -593,6 +593,38 @@
           </div>
         </div>
       </section>
+      <!-- Modal Historial de Movimientos (faltaba por completo en este panel:
+           el botón del reloj en Inventario llamaba a verHistorialMovimientos(),
+           que intenta abrir este modal por id; al no existir aquí, el botón
+           no hacía nada para el rol empleado/cuidador aunque sí funcionaba
+           para administrador. Copiado tal cual de Admin_Backend.html. -->
+      <div class="modal fade" id="modalHistorialMovimientos" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i> Historial de <span id="historialMedicamentoNombre"></span></h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Tipo</th>
+                      <th>Cantidad</th>
+                      <th>Stock resultante</th>
+                      <th>Motivo</th>
+                      <th>Usuario</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tablaHistorialMovimientos"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <!-- Modal Registrar Inventario -->
       <div class="modal fade" id="modalInventario" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -1128,10 +1160,12 @@
           <!-- Fila 1: Paciente y Estado -->
           <div class="row mb-3">
             <div class="col-md-8">
-              <label for="pacienteMedicamento" class="form-label"><i class="bi bi-person me-1"></i> Paciente *</label>
-              <select id="pacienteMedicamento" class="form-select" required>
-                <option value="" selected disabled>Seleccione un paciente</option>
-              </select>
+              <label for="pacienteMedicamentoBuscar" class="form-label"><i class="bi bi-person me-1"></i> Paciente *</label>
+              <div class="autocomplete-paciente position-relative">
+                <input type="text" id="pacienteMedicamentoBuscar" class="form-control" placeholder="Buscar paciente por nombre..." autocomplete="off">
+                <input type="hidden" id="pacienteMedicamento">
+                <div id="pacienteMedicamentoOpciones" class="autocomplete-paciente-dropdown d-none"></div>
+              </div>
               <div class="invalid-feedback">Por favor seleccione un paciente.</div>
             </div>
             <div class="col-md-4">
@@ -1232,6 +1266,24 @@
   <!-- Scripts propios -->
   <script src="scriptregistro.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <!-- Script para abrir modal de Inventario ("Registrar o Actualizar
+       Medicamento"). Faltaba por completo en este panel: el botón existía
+       en el HTML pero, sin este listener, un click no hacía nada para el
+       rol empleado/cuidador (sí funcionaba en Admin_Backend.html, que sí
+       tenía este bloque). Copiado tal cual del panel de administrador. -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const abrirModalInv = document.getElementById('abrirModalInventario');
+      const modalInventarioEl = document.getElementById('modalInventario');
+      if (abrirModalInv && modalInventarioEl && typeof bootstrap !== 'undefined') {
+        const modalInventario = new bootstrap.Modal(modalInventarioEl);
+        abrirModalInv.addEventListener('click', () => {
+          modalInventario.show();
+        });
+      }
+    });
+  </script>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {

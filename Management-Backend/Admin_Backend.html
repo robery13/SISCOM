@@ -1521,22 +1521,8 @@
                   </button>
                 </div>
                 <div class="col-lg-8">
-                  <div class="table-responsive">
-                    <table class="table table-hover align-middle" id="tablaPermisos">
-                      <thead class="table-light">
-                        <tr>
-                          <th style="width:40px;"></th>
-                          <th>Permiso</th>
-                          <th>Descripción</th>
-                          <th class="text-center">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td colspan="4" class="text-center text-muted py-4">Selecciona un rol para ver/editar sus permisos.</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                  <div class="permisos-modulos" id="tablaPermisos">
+                    <p class="text-center text-muted py-4">Selecciona un rol para ver/editar sus permisos.</p>
                   </div>
                 </div>
               </div>
@@ -1829,10 +1815,12 @@
           <!-- Fila 1: Paciente y Estado -->
           <div class="row mb-3">
             <div class="col-md-8">
-              <label for="pacienteMedicamento" class="form-label"><i class="bi bi-person me-1"></i> Paciente *</label>
-              <select id="pacienteMedicamento" class="form-select" required>
-                <option value="" selected disabled>Seleccione un paciente</option>
-              </select>
+              <label for="pacienteMedicamentoBuscar" class="form-label"><i class="bi bi-person me-1"></i> Paciente *</label>
+              <div class="autocomplete-paciente position-relative">
+                <input type="text" id="pacienteMedicamentoBuscar" class="form-control" placeholder="Buscar paciente por nombre..." autocomplete="off">
+                <input type="hidden" id="pacienteMedicamento">
+                <div id="pacienteMedicamentoOpciones" class="autocomplete-paciente-dropdown d-none"></div>
+              </div>
               <div class="invalid-feedback">Por favor seleccione un paciente.</div>
             </div>
             <div class="col-md-4">
@@ -1946,7 +1934,6 @@
                 </thead>
                 <tbody></tbody>
               </table>
-              <datalist id="datalistMedicamentosPedido"></datalist>
               <button type="button" id="addEmptyRow" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-plus-circle me-1"></i> Agregar fila
               </button>
@@ -4388,6 +4375,129 @@ document.addEventListener('DOMContentLoaded', () => {
       #dashboardKpiGrid.kpi-count-2,
       #dashboardKpiGrid.kpi-count-3,
       #dashboardKpiGrid.kpi-count-4 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    }
+
+    /* Gestión de Permisos: antes era una fila por permiso ("Pacientes",
+       "Pacientes:crear", "Pacientes:editar"... todas sueltas y con el mismo
+       peso visual). Ahora se agrupan por módulo en una tarjeta, con las
+       acciones (Ver/Crear/Editar/Eliminar) como chips dentro de esa misma
+       tarjeta, para que se lea como "un módulo, sus acciones" en vez de una
+       lista plana de nombres técnicos. */
+    .permisos-modulos {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 560px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .permiso-modulo-card {
+      border: 1px solid var(--border, #e2e8f0);
+      border-radius: 12px;
+      padding: 14px 16px;
+      background: var(--bg-surface, #fff);
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .permiso-modulo-card:hover {
+      border-color: var(--primary, #0d6efd);
+      box-shadow: 0 2px 10px rgba(0,0,0,.06);
+    }
+    .permiso-modulo-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .permiso-modulo-nombre {
+      font-weight: 700;
+      font-size: .98rem;
+      color: var(--text-primary, #0f172a);
+    }
+    .permiso-modulo-contador {
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--text-muted, #94a3b8);
+      white-space: nowrap;
+    }
+    .permiso-modulo-desc {
+      display: block;
+      font-size: .8rem;
+      color: var(--text-secondary, #475569);
+      margin: -6px 0 10px;
+    }
+    .permiso-modulo-acciones {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .permiso-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border, #e2e8f0);
+      background: var(--badge-bg, #f1f5f9);
+      color: var(--text-secondary, #475569);
+      border-radius: 999px;
+      padding: 5px 6px 5px 12px;
+      font-size: .82rem;
+      line-height: 1.2;
+      white-space: nowrap;
+      transition: background .15s ease, border-color .15s ease, color .15s ease;
+    }
+    /* Chip "Acceso": es el permiso base que enciende/apaga el módulo
+       completo (antes mostraba el nombre completo del módulo repetido y se
+       partía en 2-3 líneas). Con texto corto y un ícono de llave se
+       distingue de los chips de acción sin verse gigante. */
+    .permiso-chip-base {
+      border-style: dashed;
+    }
+    .permiso-chip-base label span::before {
+      content: "\f3e1"; /* bi-key */
+      font-family: "bootstrap-icons";
+      margin-right: 4px;
+      font-size: .75rem;
+    }
+    .permiso-chip label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      margin: 0;
+    }
+    .permiso-chip input.permiso-checkbox {
+      cursor: pointer;
+      accent-color: var(--primary, #0d6efd);
+    }
+    .permiso-chip.is-active {
+      background: var(--primary, #0d6efd);
+      border-color: var(--primary, #0d6efd);
+      color: #fff;
+    }
+    .permiso-chip-del {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: inherit;
+      opacity: .55;
+      font-size: .7rem;
+      line-height: 1;
+      padding: 0;
+    }
+    .permiso-chip-del:hover {
+      opacity: 1;
+      background: rgba(220, 53, 69, .18);
+      color: #dc3545;
+    }
+    .permisos-modulos-vacio {
+      text-align: center;
+      color: var(--text-muted, #94a3b8);
+      padding: 2.5rem 0;
     }
   </style>
 </body>
