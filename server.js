@@ -2516,7 +2516,7 @@ app.get('/movimientos-inventario', (req, res) => {
   const { desde, hasta, nombre } = req.query;
 
   let sql = `
-    SELECT mi.*, u.nombres AS usuario_nombres, u.apellidos AS usuario_apellidos, u.email AS usuario_email
+    SELECT mi.*, u.nombres AS usuario_nombres, u.apellidos AS usuario_apellidos, u.email AS usuario_email, u.rol AS usuario_rol
     FROM movimientos_inventario mi
     LEFT JOIN usuarios u ON u.id = mi.id_usuario
     WHERE 1=1

@@ -651,19 +651,56 @@
                 </select>
               </div>
 
+              <div class="form-row" id="tipoAjusteRow" style="display: none;">
+                <label class="form-label mb-1">Tipo de ajuste</label>
+                <div class="d-flex gap-3 flex-wrap">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="tipoAjusteInv" id="ajusteSumar" value="sumar" checked>
+                    <label class="form-check-label" for="ajusteSumar">Sumar (entrada de stock)</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="tipoAjusteInv" id="ajusteRestar" value="restar">
+                    <label class="form-check-label" for="ajusteRestar">Restar (baja: dañados, vencidos, pérdida)</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="tipoAjusteInv" id="ajusteFijar" value="fijar">
+                    <label class="form-check-label" for="ajusteFijar">Fijar cantidad exacta (conteo físico)</label>
+                  </div>
+                </div>
+              </div>
+
               <div class="form-row" id="inputNombreRow">
                 <label for="nombreInv">Nombre</label>
                 <input id="nombreInv" type="text" class="form-control" placeholder="Ej. Ibuprofeno">
               </div>
 
               <div class="form-row">
-                <label for="cantidadInv">Cantidad a Agregar (unidades)</label>
-                <input id="cantidadInv" type="number" class="form-control" min="1" placeholder="Ej. 30">
+                <label for="cantidadInv" id="cantidadInvLabel">Cantidad a Agregar (unidades)</label>
+                <input id="cantidadInv" type="number" class="form-control" min="0" placeholder="Ej. 30">
+              </div>
+
+              <div class="form-row" id="motivoAjusteRow" style="display: none;">
+                <label for="motivoAjusteInv">Motivo del ajuste</label>
+                <textarea id="motivoAjusteInv" class="form-control" rows="2" placeholder="Ej. 5 unidades dañadas por humedad en bodega"></textarea>
               </div>
 
               <div class="form-row" id="consumoRow">
                 <label for="consumoInv">Consumo por dosis</label>
                 <input id="consumoInv" type="number" class="form-control" min="1" placeholder="Ej. 1">
+              </div>
+
+              <div class="form-row" id="frecuenciaRow">
+                <label for="frecuenciaInv">Frecuencia de consumo</label>
+                <div class="d-flex gap-2">
+                  <input id="frecuenciaCantidadInv" type="number" class="form-control" min="1" placeholder="Ej. 1" style="max-width: 100px;">
+                  <select id="frecuenciaUnidadInv" class="form-select">
+                    <option value="hora">vez(es) por hora</option>
+                    <option value="dia" selected>vez(es) por día</option>
+                    <option value="semana">vez(es) por semana</option>
+                    <option value="mes">vez(es) por mes</option>
+                  </select>
+                </div>
+                <div class="form-text text-muted">Con qué frecuencia se consume una dosis de este medicamento.</div>
               </div>
             </div>
 

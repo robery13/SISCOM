@@ -2030,7 +2030,12 @@ document.addEventListener("DOMContentLoaded", () => {
           <td>${mov.cantidad}</td>
           <td>${mov.cantidad_resultante ?? '—'}</td>
           <td>${escapeHtml(mov.motivo || '—')}</td>
-          <td>${mov.usuario_email ? escapeHtml(`${mov.usuario_nombres || ''} ${mov.usuario_apellidos || ''}`.trim() || mov.usuario_email) : (mov.id_usuario ? `Usuario #${mov.id_usuario}` : '—')}</td>
+          <td>${(() => {
+            const nombreCompleto = `${mov.usuario_nombres || ''} ${mov.usuario_apellidos || ''}`.trim();
+            const nombreMostrado = nombreCompleto || mov.usuario_email || (mov.id_usuario ? `Usuario #${mov.id_usuario}` : '—');
+            const rolMostrado = mov.usuario_rol ? mov.usuario_rol.charAt(0).toUpperCase() + mov.usuario_rol.slice(1) : '';
+            return escapeHtml(rolMostrado ? `${nombreMostrado} (${rolMostrado})` : nombreMostrado);
+          })()}</td>
         </tr>
       `).join('');
     } catch (error) {
