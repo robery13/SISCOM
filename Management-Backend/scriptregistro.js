@@ -4992,7 +4992,7 @@ function escapeHtml(str) {
 
   async function construirEstadisticaPacienteFallback(idPaciente) {
     const [meds, citas, tomas] = await Promise.all([
-      fetchJsonOrThrow(`${API}/Registro_medicamentos`).catch(() => []),
+      fetchJsonOrThrow(`${API}/recetas/${idPaciente}`).catch(() => []),
       fetchJsonOrThrow(`${API}/obtenerCitas`).catch(() => []),
       fetchJsonOrThrow(`${API}/historialMedicacionEventos/${idPaciente}`).catch(() => [])
     ]);
@@ -5001,12 +5001,13 @@ function escapeHtml(str) {
       pacientesCache.find((p) => String(p.id_paciente) === String(idPaciente)) ||
       { id_paciente: idPaciente, nombre_completo: `Paciente #${idPaciente}`, fecha_nacimiento: null };
 
+    // /recetas/:id_usuario ya devuelve únicamente las recetas de este paciente
+    // (auto-asignadas o creadas por su cuidador), así que no hace falta filtrar.
     const medicamentos = (Array.isArray(meds) ? meds : [])
-      .filter((m) => String(m.paciente_id) === String(idPaciente))
       .map((m) => ({
-        nombre: m.nombre || 'Medicamento',
+        nombre: m.nombre_medicamento || m.nombre || 'Medicamento',
         dosis: m.dosis || '',
-        frecuencia: m.frecuencia_horas || m.frecuencia || 0
+        frecuencia: m.frecuencia || ''
       }));
 
     const citasFiltradas = (Array.isArray(citas) ? citas : []).filter((c) => String(c.id_paciente) === String(idPaciente));
@@ -5332,7 +5333,7 @@ function escapeHtml(str) {
 
       html += `<p class="mb-1"><strong>Medicamentos asignados:</strong></p><ul>`;
       if (data.medicamentos.length === 0) html += "<li class='text-muted'>Ninguno registrado</li>";
-      else data.medicamentos.forEach(m => { html += `<li>${escapeHtml(m.nombre)} - ${escapeHtml(m.dosis)} (cada ${m.frecuencia}h)</li>`; });
+      else data.medicamentos.forEach(m => { html += `<li>${escapeHtml(m.nombre)} - ${escapeHtml(m.dosis)} (${escapeHtml(String(m.frecuencia || ''))})</li>`; });
       html += "</ul>";
 
       detDiv.innerHTML = html;
@@ -5361,7 +5362,7 @@ function escapeHtml(str) {
     d.condiciones.forEach(c => { csv += `${c.nombre_condicion},${c.nivel}\n`; });
     csv += "\nAlergias\nNombre\n";
     d.alergias.forEach(a => { csv += `${a.nombre_alergia}\n`; });
-    csv += "\nMedicamentos\nNombre,Dosis,Frecuencia (h)\n";
+    csv += "\nMedicamentos\nNombre,Dosis,Frecuencia\n";
     d.medicamentos.forEach(m => { csv += `${m.nombre},${m.dosis},${m.frecuencia}\n`; });
     csv += "\nCitas por Estado\nEstado,Total\n";
     d.citas.detalle.forEach(c => { csv += `${c.estado},${c.total}\n`; });
@@ -5419,8 +5420,8 @@ function escapeHtml(str) {
       </table>
 
       <h2>Medicamentos Asignados</h2>
-      <table><tr><th>Nombre</th><th>Dosis</th><th>Frecuencia (h)</th></tr>
-      ${d.medicamentos.length === 0 ? '<tr><td colspan="3">Ninguno</td></tr>' : d.medicamentos.map(m => `<tr><td>${escapeHtml(m.nombre)}</td><td>${escapeHtml(m.dosis)}</td><td>${m.frecuencia}</td></tr>`).join("")}
+      <table><tr><th>Nombre</th><th>Dosis</th><th>Frecuencia</th></tr>
+      ${d.medicamentos.length === 0 ? '<tr><td colspan="3">Ninguno</td></tr>' : d.medicamentos.map(m => `<tr><td>${escapeHtml(m.nombre)}</td><td>${escapeHtml(m.dosis)}</td><td>${escapeHtml(String(m.frecuencia || ''))}</td></tr>`).join("")}
       </table>
 
       <h2>Citas Médicas</h2>

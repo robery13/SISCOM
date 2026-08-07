@@ -4591,11 +4591,11 @@ app.get('/estadisticas/paciente/:id_paciente', async (req, res) => {
     const [medicamentos, alergias, condiciones, citasRows, cumplimientoRows] = await Promise.all([
       queryAsync(`
         SELECT 
-          nombre,
+          nombre_medicamento AS nombre,
           dosis,
-          frecuencia_horas AS frecuencia
-        FROM Registro_medicamentos
-        WHERE paciente_id = ?
+          frecuencia
+        FROM recetas_medicas
+        WHERE id_usuario = ?
         ORDER BY id DESC
       `, [idPaciente]),
       queryAsync(`
@@ -4689,7 +4689,7 @@ app.get('/estadisticas/comparar', async (req, res) => {
       if (!pacienteRows.length) continue;
 
       const [medsRows, condRows, alergRows, citasRows] = await Promise.all([
-        queryAsync(`SELECT COUNT(*) AS total FROM Registro_medicamentos WHERE paciente_id = ?`, [idPaciente]),
+        queryAsync(`SELECT COUNT(*) AS total FROM recetas_medicas WHERE id_usuario = ?`, [idPaciente]),
         queryAsync(`SELECT nivel FROM condicion_medica WHERE id_paciente = ?`, [idPaciente]),
         queryAsync(`SELECT COUNT(*) AS total FROM alergia WHERE id_paciente = ?`, [idPaciente]),
         queryAsync(`SELECT estado, COUNT(*) AS total FROM citas WHERE id_paciente = ? GROUP BY estado`, [idPaciente])
