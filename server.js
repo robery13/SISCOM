@@ -2641,6 +2641,19 @@ app.post('/guardarFichaMedica', (req, res) => {
 // RUTAS DE CITAS MÉDICAS
 // ============================================
 
+// Normaliza cualquier valor de fecha/hora (ISO con "T"/"Z"/milisegundos,
+// objeto Date ya convertido a string, etc.) al formato que MySQL espera
+// para columnas DATETIME: 'YYYY-MM-DD HH:MM:SS'. Sin esto, reenviar una
+// fecha tal como la devuelve GET /obtenerCitas (ej. "2026-08-03T08:00:00.000Z")
+// provoca un error "Incorrect datetime value" al hacer INSERT/UPDATE.
+function normalizarFechaHoraParaMySQL(valor) {
+  if (!valor) return valor;
+  const fecha = new Date(valor);
+  if (isNaN(fecha.getTime())) return valor; // deja que la validación de MySQL falle con su propio mensaje si es realmente inválida
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())} ${pad(fecha.getHours())}:${pad(fecha.getMinutes())}:${pad(fecha.getSeconds())}`;
+}
+
 app.post('/guardarCita', (req, res) => {
   const { 
     id_paciente, 
@@ -2658,6 +2671,15 @@ app.post('/guardarCita', (req, res) => {
     return res.status(400).json({ mensaje: 'Campos incompletos. Se requiere paciente, fecha/hora y motivo.' });
   }
 
+  // No se permite agendar citas con fecha/hora en el pasado. Solo aplica
+  // cuando la cita queda "programada" (o sin estado, que es el default);
+  // si se está registrando directamente como completada/cancelada (ej. una
+  // cita histórica), la fecha pasada es válida.
+  const estadoNuevaCita = estado || 'programada';
+  if (estadoNuevaCita === 'programada' && new Date(fecha_hora) < new Date()) {
+    return res.status(400).json({ mensaje: 'No se puede agendar una cita con fecha/hora en el pasado.' });
+  }
+
   const sql = `INSERT INTO citas (
     id_paciente, 
     fecha_hora, 
@@ -2672,7 +2694,7 @@ app.post('/guardarCita', (req, res) => {
 
   db.query(sql, [
     id_paciente, 
-    fecha_hora, 
+    normalizarFechaHoraParaMySQL(fecha_hora), 
     motivo, 
     anticipacion_min || 60,
     doctor || null,
@@ -2720,6 +2742,14 @@ app.put('/actualizarCita/:id', (req, res) => {
     return res.status(400).json({ mensaje: 'Campos incompletos. Se requiere paciente, fecha/hora y motivo.' });
   }
 
+  // Misma regla que al crear: una cita que queda "programada" no puede
+  // quedar con fecha/hora en el pasado. No aplica si se está actualizando
+  // a completada/cancelada, ya que ahí la fecha pasada es el caso normal.
+  const estadoActualizado = estado || 'programada';
+  if (estadoActualizado === 'programada' && new Date(fecha_hora) < new Date()) {
+    return res.status(400).json({ mensaje: 'No se puede agendar una cita con fecha/hora en el pasado.' });
+  }
+
   const sql = `UPDATE citas SET 
     id_paciente = ?,
     fecha_hora = ?,
@@ -2734,7 +2764,7 @@ app.put('/actualizarCita/:id', (req, res) => {
 
   db.query(sql, [
     id_paciente, 
-    fecha_hora, 
+    normalizarFechaHoraParaMySQL(fecha_hora), 
     motivo, 
     anticipacion_min || 60,
     doctor || null,
@@ -2745,8 +2775,13 @@ app.put('/actualizarCita/:id', (req, res) => {
     id
   ], (err, result) => {
     if (err) {
-      console.error('Error al actualizar cita:', err);
-      return res.status(500).json({ mensaje: 'Error al actualizar la cita en la base de datos.', error: err.message });
+      console.error('=== ERROR AL ACTUALIZAR CITA ===');
+      console.error('Error SQL:', err);
+      console.error('Código de error:', err.code);
+      console.error('Mensaje de error:', err.message);
+      console.error('Datos recibidos:', { id, id_paciente, fecha_hora, motivo, anticipacion_min, doctor, especialidad, ubicacion, estado, notas });
+      console.error('================================');
+      return res.status(500).json({ mensaje: 'Error al actualizar la cita en la base de datos.', error: err.message, code: err.code });
     }
     
     if (result.affectedRows === 0) {
@@ -2759,7 +2794,7 @@ app.put('/actualizarCita/:id', (req, res) => {
 
 
 app.get('/obtenerCitas', (req, res) => {
-  const sql = 'SELECT * FROM citas ORDER BY fecha_hora ASC';
+  const sql = 'SELECT * FROM citas ORDER BY fecha_hora DESC';
   
   db.query(sql, (err, results) => {
     if (err) {
@@ -2775,7 +2810,7 @@ app.get('/obtenerCitas', (req, res) => {
 // nunca existió, por eso "Mis Citas" nunca cargaba datos reales).
 app.get('/citas/:id_usuario', (req, res) => {
   const { id_usuario } = req.params;
-  const sql = 'SELECT * FROM citas WHERE id_paciente = ? ORDER BY fecha_hora ASC';
+  const sql = 'SELECT * FROM citas WHERE id_paciente = ? ORDER BY fecha_hora DESC';
 
   db.query(sql, [id_usuario], (err, results) => {
     if (err) {

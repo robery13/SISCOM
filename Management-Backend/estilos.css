@@ -2567,3 +2567,160 @@ body.cargando-rol .app-loader {
 body.cargando-rol .app {
   visibility: hidden;
 }
+/* ===== Vista de Calendario - Citas Médicas =====
+   Grid mensual usado en Admin_Backend.html (sección "Citas Médicas") como
+   alternativa a la vista de lista. Cada celda representa un día y muestra
+   puntos de color según el estado de las citas que tiene agendadas. */
+.calendario-citas-encabezados {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.cal-encabezado {
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 4px 0;
+}
+.calendario-citas-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-day {
+  min-height: 76px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--card);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.cal-day-numero {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #222;
+}
+.cal-day-otro-mes {
+  opacity: 0.4;
+}
+.cal-day-hoy {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.cal-day-hoy .cal-day-numero {
+  color: var(--primary);
+}
+.cal-day-con-citas {
+  cursor: pointer;
+}
+.cal-day-con-citas:hover,
+.cal-day-con-citas:focus-visible {
+  background: rgba(45, 167, 122, 0.08);
+  outline: none;
+}
+.cal-day-puntos {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+.cal-day-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.cal-day-extra {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.cal-leyenda-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+[data-theme="dark"] .cal-day {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .cal-day-numero {
+  color: #eee;
+}
+[data-theme="dark"] .cal-encabezado {
+  color: #aaa;
+}
+[data-theme="dark"] .cal-day-con-citas:hover,
+[data-theme="dark"] .cal-day-con-citas:focus-visible {
+  background: rgba(97, 210, 180, 0.12);
+}
+
+@media (max-width: 576px) {
+  .cal-day { min-height: 56px; padding: 4px; }
+  .cal-day-numero { font-size: 0.72rem; }
+}
+
+/* ===== Autocompletado de Paciente - Formulario de Cita Médica =====
+   Reemplaza el <select> plano por un campo de búsqueda con resultados
+   filtrados en vivo (Admin_Backend.html, sección Citas Médicas). */
+.autocomplete-paciente {
+  position: relative;
+}
+.autocomplete-paciente-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1050;
+  background: var(--card);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.autocomplete-paciente-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: #222;
+  cursor: pointer;
+}
+.autocomplete-paciente-item:hover,
+.autocomplete-paciente-item.activo {
+  background: rgba(45, 167, 122, 0.12);
+}
+.autocomplete-paciente-vacio {
+  padding: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+[data-theme="dark"] .autocomplete-paciente-dropdown {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+[data-theme="dark"] .autocomplete-paciente-item {
+  color: #eee;
+}
+[data-theme="dark"] .autocomplete-paciente-item:hover,
+[data-theme="dark"] .autocomplete-paciente-item.activo {
+  background: rgba(97, 210, 180, 0.16);
+}
