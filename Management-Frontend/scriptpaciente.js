@@ -1675,7 +1675,7 @@ function mostrarModalReceta(recetaExistente) {
       cargarMedicamentosHoy();
 
       if (!editando) {
-        await registrarMedicamento(nombre, dosis, frecuencia);
+        await registrarMedicamento(nombre, dosis, frecuencia, getUsuarioId());
       }
     } catch (error) {
       console.error('Error:', error);
@@ -1688,18 +1688,23 @@ function mostrarModalReceta(recetaExistente) {
   });
 }
 
-async function registrarMedicamento(nombre, dosis, frecuencia) {
+async function registrarMedicamento(nombre, dosis, frecuencia, idUsuario) {
   try {
-    await fetch(`${API_URL}/Registro_medicamentos`, {
+    const respuesta = await fetch(`${API_URL}/Registro_medicamentos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nombre: nombre,
         dosis: dosis,
         frecuencia_horas: frecuencia,
-        hora: new Date().toTimeString().split(' ')[0]
+        hora: new Date().toTimeString().split(' ')[0],
+        paciente_id: idUsuario
       })
     });
+    if (!respuesta.ok) {
+      const cuerpo = await respuesta.json().catch(() => ({}));
+      console.error('Error al registrar medicamento:', cuerpo.mensaje || respuesta.status);
+    }
   } catch (error) {
     console.error('Error al registrar medicamento:', error);
   }

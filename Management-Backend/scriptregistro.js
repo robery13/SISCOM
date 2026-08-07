@@ -162,7 +162,6 @@ if (darkModeToggle) {
     if (hasChart) {
       Chart.defaults.color = getComputedStyle(document.body).color || '';
       if (window.myTrendChart) window.myTrendChart.update();
-      if (window.myInventoryChart) window.myInventoryChart.update();
     }
   });
 }
@@ -504,8 +503,7 @@ async function cargarDashboard() {
       const trendsBadge = document.getElementById('chartTrendsBadge');
       if (trendsBadge) trendsBadge.textContent = PERIODO_LABELS[periodo] || 'Período';
 
-      // Inventory Pie Chart
-      createInventoryPieChart(inventario);
+
 
       // Movimiento de Inventario: usa su propio filtro de fecha (no el
       // selector de período general), así que solo se recarga si los
@@ -741,83 +739,7 @@ function createMovimientosInventarioChart(movimientos, desde, hasta) {
   window.myMovimientosInventarioChart = new Chart(ctx, config);
 }
 
-function createInventoryPieChart(inventario) {
-  const ctx = document.getElementById('chart-inventory')?.getContext('2d');
-  if (!ctx || inventario.length === 0 || !hasChart) return;
 
-  if (window.myInventoryChart) {
-    window.myInventoryChart.destroy();
-    window.myInventoryChart = null;
-  }
-
-  // Se pesa por CANTIDAD REAL DE UNIDADES en stock, no por cuántos medicamentos
-  // distintos hay. Así, un medicamento con pocas unidades no infla el % solo por
-  // ser "1 de N" renglones: su peso refleja cuánto stock representa de verdad.
-  // IMPORTANTE: las dos porciones usan el MISMO umbral configurable
-  // (stock_bajo_umbral); antes "Normal" usaba un 10 fijo en el código, así que
-  // si el administrador subía el parámetro por encima de 10 un mismo
-  // medicamento podía contarse como crítico y como normal a la vez.
-  const umbral = window.PARAMETROS_SISTEMA.stock_bajo_umbral;
-  const criticalItems = inventario.filter(i => Number(i.cantidad || 0) <= umbral);
-  const normalItems = inventario.filter(i => Number(i.cantidad || 0) > umbral);
-  const criticalUnidades = criticalItems.reduce((sum, i) => sum + Number(i.cantidad || 0), 0);
-  const normalUnidades = normalItems.reduce((sum, i) => sum + Number(i.cantidad || 0), 0);
-  const totalUnidades = criticalUnidades + normalUnidades;
-  const totalMedicamentos = criticalItems.length + normalItems.length;
-
-  // Etiqueta siempre visible con el total de la población (no solo al pasar
-  // el mouse): cuántas unidades hay en total y en cuántos medicamentos.
-  const captionInventario = document.getElementById('totalInventarioCaption');
-  if (captionInventario) {
-    captionInventario.textContent = totalUnidades > 0
-      ? `Total: ${totalUnidades} unidades en ${totalMedicamentos} medicamento(s) — ${criticalItems.length} en stock bajo/crítico`
-      : 'Sin unidades registradas en inventario';
-  }
-
-  const config = {
-    type: 'doughnut',
-    data: {
-      labels: ['Stock Crítico', 'Normal'],
-      datasets: [{
-        data: [criticalUnidades, normalUnidades],
-        backgroundColor: ['#ef4444', '#10b981']
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom' },
-        tooltip: {
-          callbacks: {
-            label: ctx => {
-              const pct = totalUnidades > 0 ? Math.round((ctx.raw / totalUnidades) * 100) : 0;
-              const cantidadMeds = ctx.dataIndex === 0 ? criticalItems.length : normalItems.length;
-              return `${ctx.label}: ${ctx.raw} unidades (${pct}%) — ${cantidadMeds} medicamento(s)`;
-            }
-          }
-        },
-        // Etiquetas de porcentaje REALES sobre cada porción de la dona
-        // (calculadas a partir de las unidades reales en stock, no inventadas).
-        datalabels: {
-          display: (context) => {
-            const valor = context.dataset.data[context.dataIndex];
-            return totalUnidades > 0 && valor > 0; // siempre visible si esa porción tiene stock
-          },
-          color: '#fff',
-          font: { weight: '700', size: 13 },
-          formatter: (valor) => {
-            const pct = totalUnidades > 0 ? Math.round((valor / totalUnidades) * 100) : 0;
-            return `${pct}%`;
-          }
-        }
-      }
-    }
-  };
-
-  const chart = new Chart(ctx, config);
-  window.myInventoryChart = chart;
-}
 
 
 
