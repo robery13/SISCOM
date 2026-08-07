@@ -2027,39 +2027,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function cargarContactosEmergencia() {
   const idUsuario = getUsuarioId();
-  
+  const listGroup = document.getElementById('contactosEmergenciaSOSLista');
+  if (!listGroup) return;
+
+  // Número de emergencias genérico: es el mismo para cualquier persona,
+  // no depende del paciente, así que se agrega aparte de sus contactos.
+  const filaGenerica = `
+    <div class="list-group-item">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h6 class="mb-0">Emergencias 911</h6>
+          <small class="text-muted"><i class="bi bi-telephone"></i> 911</small>
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="window.location.href='tel:911'">
+          <i class="bi bi-telephone-fill"></i> Llamar
+        </button>
+      </div>
+    </div>
+  `;
+
+  if (!idUsuario) {
+    listGroup.innerHTML = filaGenerica;
+    return;
+  }
+
   try {
     const response = await fetch(`${API_URL}/contactosEmergencia/${idUsuario}`);
     const contactos = await response.json();
-    
-    const listGroup = document.querySelector('#emergencia .card:nth-child(2) .list-group');
-    if (!listGroup) return;
-    
-    listGroup.innerHTML = '';
-    
-    if (contactos.length === 0) {
-      listGroup.innerHTML = '<div class="list-group-item">No hay contactos registrados</div>';
-      return;
-    }
-    
-    contactos.forEach(contacto => {
-      const div = document.createElement('div');
-      div.className = 'list-group-item';
-      div.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <h6 class="mb-0">${contacto.nombre_contacto} ${contacto.relacion ? `(${contacto.relacion})` : ''}</h6>
-            <small class="text-muted"><i class="bi bi-telephone"></i> ${contacto.telefono}</small>
+
+    let html = '';
+    if (Array.isArray(contactos) && contactos.length > 0) {
+      contactos.forEach(contacto => {
+        html += `
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="mb-0">${contacto.nombre_contacto} ${contacto.relacion ? `(${contacto.relacion})` : ''}</h6>
+                <small class="text-muted"><i class="bi bi-telephone"></i> ${contacto.telefono}</small>
+              </div>
+              <button class="btn btn-sm btn-success" onclick="window.location.href='tel:${contacto.telefono}'">
+                <i class="bi bi-telephone-fill"></i> Llamar
+              </button>
+            </div>
           </div>
-          <button class="btn btn-sm btn-success" onclick="window.location.href='tel:${contacto.telefono}'">
-            <i class="bi bi-telephone-fill"></i> Llamar
-          </button>
-        </div>
-      `;
-      listGroup.appendChild(div);
-    });
+        `;
+      });
+    } else {
+      html += '<div class="list-group-item text-center text-muted">No has registrado contactos de emergencia todavia</div>';
+    }
+
+    listGroup.innerHTML = html + filaGenerica;
   } catch (error) {
     console.error('Error al cargar contactos:', error);
+    listGroup.innerHTML = filaGenerica;
   }
 }
 
