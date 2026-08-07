@@ -1968,7 +1968,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <td>${mov.cantidad}</td>
           <td>${mov.cantidad_resultante ?? '—'}</td>
           <td>${escapeHtml(mov.motivo || '—')}</td>
-          <td>${mov.id_usuario ? `Usuario #${mov.id_usuario}` : '—'}</td>
+          <td>${mov.usuario_email ? escapeHtml(`${mov.usuario_nombres || ''} ${mov.usuario_apellidos || ''}`.trim() || mov.usuario_email) : (mov.id_usuario ? `Usuario #${mov.id_usuario}` : '—')}</td>
         </tr>
       `).join('');
     } catch (error) {

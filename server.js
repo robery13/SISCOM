@@ -2450,23 +2450,28 @@ app.get('/inventario', (req, res) => {
 app.get('/movimientos-inventario', (req, res) => {
   const { desde, hasta, nombre } = req.query;
 
-  let sql = 'SELECT * FROM movimientos_inventario WHERE 1=1';
+  let sql = `
+    SELECT mi.*, u.nombres AS usuario_nombres, u.apellidos AS usuario_apellidos, u.email AS usuario_email
+    FROM movimientos_inventario mi
+    LEFT JOIN usuarios u ON u.id = mi.id_usuario
+    WHERE 1=1
+  `;
   const params = [];
 
   if (desde) {
-    sql += ' AND fecha_hora >= ?';
+    sql += ' AND mi.fecha_hora >= ?';
     params.push(`${desde} 00:00:00`);
   }
   if (hasta) {
-    sql += ' AND fecha_hora <= ?';
+    sql += ' AND mi.fecha_hora <= ?';
     params.push(`${hasta} 23:59:59`);
   }
   if (nombre) {
-    sql += ' AND nombre_medicamento = ?';
+    sql += ' AND mi.nombre_medicamento = ?';
     params.push(nombre);
   }
 
-  sql += ' ORDER BY fecha_hora DESC';
+  sql += ' ORDER BY mi.fecha_hora DESC';
 
   db.query(sql, params, (err, results) => {
     if (err) {
