@@ -338,56 +338,181 @@
       <section id="recetas" class="section d-none">
         <div class="section-header">
           <h2><i class="bi bi-calendar-check me-2"></i> Citas Médicas</h2>
-          <p class="muted">Consulta las próximas citas y el historial de citas médicas de tus pacientes asignados. El agendamiento de citas lo realiza el paciente o el administrador.</p>
+          <p class="muted">Gestiona las citas médicas de tus pacientes asignados: agenda nuevas citas, edítalas, márcalas como completadas o canceladas y consulta el calendario.</p>
         </div>
 
-        <!-- Filtro de Paciente -->
+        <!-- Formulario de Nueva Cita -->
+        <div class="card form-card mb-4">
+          <h5 class="card-title"><i class="bi bi-plus-circle me-2"></i> <span id="tituloFormCita">Nueva Cita Médica</span></h5>
+          
+          <form id="formCita" class="row g-3">
+            <input type="hidden" id="citaId">
+            
+            <!-- Fila 1: Paciente, Fecha, Hora -->
+            <div class="col-md-4">
+              <label for="pacienteCitaBuscar" class="form-label"><i class="bi bi-person me-1"></i> Paciente *</label>
+              <div class="autocomplete-paciente position-relative">
+                <input type="text" id="pacienteCitaBuscar" class="form-control" placeholder="Buscar paciente por nombre..." autocomplete="off">
+                <input type="hidden" id="pacienteCita">
+                <div id="pacienteCitaOpciones" class="autocomplete-paciente-dropdown d-none"></div>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label for="fechaCita" class="form-label"><i class="bi bi-calendar me-1"></i> Fecha *</label>
+              <input type="date" id="fechaCita" class="form-control" required>
+              <div class="form-text">No se permiten fechas pasadas para citas programadas.</div>
+            </div>
+
+            <div class="col-md-4">
+              <label for="horaCita" class="form-label"><i class="bi bi-clock me-1"></i> Hora *</label>
+              <input type="time" id="horaCita" class="form-control" required>
+            </div>
+
+            <!-- Fila 2: Doctor, Especialidad, Ubicación -->
+            <div class="col-md-4">
+              <label for="doctorCita" class="form-label"><i class="bi bi-person-badge me-1"></i> Doctor</label>
+              <input type="text" id="doctorCita" class="form-control" placeholder="Ej: Dr. Juan Pérez">
+            </div>
+
+            <div class="col-md-4">
+              <label for="especialidadCita" class="form-label"><i class="bi bi-hospital me-1"></i> Especialidad</label>
+              <input type="text" id="especialidadCita" class="form-control" placeholder="Ej: Cardiología">
+            </div>
+
+            <div class="col-md-4">
+              <label for="ubicacionCita" class="form-label"><i class="bi bi-geo-alt me-1"></i> Ubicación/Clínica</label>
+              <input type="text" id="ubicacionCita" class="form-control" placeholder="Ej: Hospital General">
+            </div>
+
+            <!-- Fila 3: Motivo, Estado, Notificación -->
+            <div class="col-md-5">
+              <label for="motivoCita" class="form-label"><i class="bi bi-clipboard-pulse me-1"></i> Motivo de la cita *</label>
+              <input type="text" id="motivoCita" class="form-control" placeholder="Ej: Consulta de control" required>
+            </div>
+
+            <div class="col-md-3">
+              <label for="estadoCita" class="form-label"><i class="bi bi-tag me-1"></i> Estado</label>
+              <select id="estadoCita" class="form-select">
+                <option value="programada" selected>Programada</option>
+                <option value="completada">Completada</option>
+                <option value="cancelada">Cancelada</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label for="anticipacion" class="form-label"><i class="bi bi-bell me-1"></i> Notificar antes</label>
+              <select id="anticipacion" class="form-select">
+                <option value="1440">1 día antes</option>
+                <option value="120">2 horas antes</option>
+                <option value="60" selected>1 hora antes</option>
+                <option value="30">30 minutos antes</option>
+                <option value="15">15 minutos antes</option>
+              </select>
+            </div>
+
+            <!-- Fila 4: Notas -->
+            <div class="col-12">
+              <label for="notasCita" class="form-label"><i class="bi bi-sticky me-1"></i> Notas adicionales</label>
+              <textarea id="notasCita" class="form-control" rows="2" placeholder="Instrucciones especiales, preparación previa, etc."></textarea>
+            </div>
+
+            <!-- Botones -->
+            <div class="col-12 d-flex gap-2">
+              <button type="submit" class="btn btn-primary" id="btnGuardarCita">
+                <i class="bi bi-save me-2"></i> Guardar Cita
+              </button>
+              <button type="button" id="btnCancelarEdicion" class="btn btn-outline-secondary d-none">
+                <i class="bi bi-x-circle me-2"></i> Cancelar Edición
+              </button>
+              <button type="button" id="limpiarCitaBtn" class="btn btn-outline-secondary">
+                <i class="bi bi-eraser me-2"></i> Limpiar
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Filtros de Citas -->
         <div class="card mb-4">
           <div class="card-body">
+            <h6 class="card-subtitle mb-3 text-muted"><i class="bi bi-funnel me-2"></i> Filtros de Búsqueda</h6>
             <div class="row g-3 align-items-end">
-              <div class="col-md-6">
-                <label for="filtroPacienteCita" class="form-label"><i class="bi bi-person me-1"></i> Paciente</label>
+              <div class="col-md-3">
+                <label class="form-label">Paciente</label>
                 <select id="filtroPacienteCita" class="form-select">
                   <option value="">Todos los pacientes</option>
                 </select>
               </div>
-              <div class="col-md-3 d-grid">
-                <button type="button" id="limpiarFiltrosCitas" class="btn btn-outline-secondary" title="Limpiar filtro">
-                  <i class="bi bi-x-lg me-1"></i> Limpiar filtro
+              <div class="col-md-2">
+                <label class="form-label">Estado</label>
+                <select id="filtroEstadoCita" class="form-select">
+                  <option value="">Todos</option>
+                  <option value="programada">Programada</option>
+                  <option value="completada">Completada</option>
+                  <option value="cancelada">Cancelada</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Desde</label>
+                <input type="date" id="filtroFechaDesde" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Hasta</label>
+                <input type="date" id="filtroFechaHasta" class="form-control">
+              </div>
+              <div class="col-md-1 d-grid">
+                <button type="button" id="limpiarFiltrosCitas" class="btn btn-outline-secondary" title="Limpiar filtros">
+                  <i class="bi bi-x-lg"></i>
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Listas de Citas y Resumen -->
+        <!-- Lista de Citas y Resumen -->
         <div class="row">
           <div class="col-lg-8 mb-4">
-            <div class="card mb-4">
-              <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-calendar3 me-2"></i> Próximas Citas</span>
-                <span id="contadorCitasProximas" class="badge bg-primary">0 citas</span>
-              </div>
-              <div class="card-body p-0">
-                <div id="listaCitasProximas" class="list-group list-group-flush">
-                  <div class="text-center text-muted p-4">
-                    <i class="bi bi-calendar-x display-4 d-block mb-2"></i>
-                    No hay próximas citas programadas.
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span><i class="bi bi-calendar3 me-2"></i> Citas</span>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="btn-group btn-group-sm" role="group" aria-label="Vista de citas">
+                    <button type="button" id="btnVistaListaCitas" class="btn btn-outline-primary active">
+                      <i class="bi bi-list-ul me-1"></i> Lista
+                    </button>
+                    <button type="button" id="btnVistaCalendarioCitas" class="btn btn-outline-primary">
+                      <i class="bi bi-calendar3 me-1"></i> Calendario
+                    </button>
                   </div>
+                  <span id="contadorCitas" class="badge bg-secondary">0 citas</span>
                 </div>
               </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-clock-history me-2"></i> Historial de Citas</span>
-                <span id="contadorCitasHistorial" class="badge bg-secondary">0 citas</span>
-              </div>
               <div class="card-body p-0">
-                <div id="listaCitasHistorial" class="list-group list-group-flush">
+                <div id="listaCitas" class="list-group list-group-flush">
                   <div class="text-center text-muted p-4">
                     <i class="bi bi-calendar-x display-4 d-block mb-2"></i>
-                    No hay citas en el historial.
+                    No hay citas registradas. Crea una nueva cita usando el formulario.
+                  </div>
+                </div>
+                <div id="calendarioCitasWrap" class="p-3 d-none">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <button type="button" id="calCitasMesPrev" class="btn btn-sm btn-outline-secondary" title="Mes anterior">
+                      <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <div class="text-center">
+                      <h6 id="calCitasTituloMes" class="mb-0 text-capitalize fw-semibold"></h6>
+                      <button type="button" id="calCitasHoy" class="btn btn-link btn-sm p-0">Ir a hoy</button>
+                    </div>
+                    <button type="button" id="calCitasMesNext" class="btn btn-sm btn-outline-secondary" title="Mes siguiente">
+                      <i class="bi bi-chevron-right"></i>
+                    </button>
+                  </div>
+                  <div id="calCitasEncabezados" class="calendario-citas-encabezados"></div>
+                  <div id="calCitasGrid" class="calendario-citas-grid"></div>
+                  <div class="d-flex flex-wrap gap-3 mt-3 small text-muted">
+                    <span><span class="cal-leyenda-dot bg-primary"></span> Programada</span>
+                    <span><span class="cal-leyenda-dot bg-success"></span> Completada</span>
+                    <span><span class="cal-leyenda-dot bg-danger"></span> Cancelada</span>
                   </div>
                 </div>
               </div>
@@ -420,18 +545,22 @@
                     </div>
                   </div>
                 </div>
-
+                
                 <hr>
-
+                
                 <div class="mb-3">
                   <small class="text-muted d-block mb-1"><i class="bi bi-clock me-1"></i> Próxima cita:</small>
                   <p id="proximaCita" class="mb-0 fw-semibold">No hay citas programadas</p>
                 </div>
-
-                <div class="mb-0">
+                
+                <div class="mb-3">
                   <small class="text-muted d-block mb-1"><i class="bi bi-calendar-week me-1"></i> Esta semana:</small>
                   <p id="citasSemana" class="mb-0">0 citas</p>
                 </div>
+                
+                <button id="borrarTodasCitasBtn" class="btn btn-outline-danger btn-sm w-100">
+                  <i class="bi bi-trash me-2"></i> Borrar todas mis citas
+                </button>
               </div>
             </div>
           </div>
@@ -598,6 +727,21 @@
            que intenta abrir este modal por id; al no existir aquí, el botón
            no hacía nada para el rol empleado/cuidador aunque sí funcionaba
            para administrador. Copiado tal cual de Admin_Backend.html. -->
+      <!-- Modal Citas del día (vista de calendario) -->
+      <div class="modal fade" id="modalDiaCitas" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"><i class="bi bi-calendar-event me-2"></i> Citas del <span id="modalDiaCitasFecha"></span></h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+              <div id="modalDiaCitasLista" class="list-group list-group-flush"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="modal fade" id="modalHistorialMovimientos" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
           <div class="modal-content">
@@ -1650,60 +1794,202 @@
   </script>
 
 
-  <!-- Script para Citas Médicas (solo lectura para el cuidador) -->
+  <!-- Script para Citas Médicas (misma funcionalidad que el administrador,
+       pero acotada a los pacientes asignados a este usuario) -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       // Elementos del DOM
+      const formCita = document.getElementById('formCita');
+      const citaIdInput = document.getElementById('citaId');
+      const pacienteCita = document.getElementById('pacienteCita');
+      const pacienteCitaBuscar = document.getElementById('pacienteCitaBuscar');
+      const pacienteCitaOpciones = document.getElementById('pacienteCitaOpciones');
+      const fechaCita = document.getElementById('fechaCita');
+      const horaCita = document.getElementById('horaCita');
+      const doctorCita = document.getElementById('doctorCita');
+      const especialidadCita = document.getElementById('especialidadCita');
+      const ubicacionCita = document.getElementById('ubicacionCita');
+      const motivoCita = document.getElementById('motivoCita');
+      const estadoCita = document.getElementById('estadoCita');
+      const anticipacion = document.getElementById('anticipacion');
+      const notasCita = document.getElementById('notasCita');
+      const btnGuardarCita = document.getElementById('btnGuardarCita');
+      const btnCancelarEdicion = document.getElementById('btnCancelarEdicion');
+      const limpiarCitaBtn = document.getElementById('limpiarCitaBtn');
+      const tituloFormCita = document.getElementById('tituloFormCita');
+
       const filtroPacienteCita = document.getElementById('filtroPacienteCita');
+      const filtroEstadoCita = document.getElementById('filtroEstadoCita');
+      const filtroFechaDesde = document.getElementById('filtroFechaDesde');
+      const filtroFechaHasta = document.getElementById('filtroFechaHasta');
       const limpiarFiltrosCitas = document.getElementById('limpiarFiltrosCitas');
 
-      const listaCitasProximas = document.getElementById('listaCitasProximas');
-      const listaCitasHistorial = document.getElementById('listaCitasHistorial');
-      const contadorCitasProximas = document.getElementById('contadorCitasProximas');
-      const contadorCitasHistorial = document.getElementById('contadorCitasHistorial');
+      const listaCitas = document.getElementById('listaCitas');
+      const contadorCitas = document.getElementById('contadorCitas');
+
+      const btnVistaListaCitas = document.getElementById('btnVistaListaCitas');
+      const btnVistaCalendarioCitas = document.getElementById('btnVistaCalendarioCitas');
+      const calendarioCitasWrap = document.getElementById('calendarioCitasWrap');
+      const calCitasMesPrev = document.getElementById('calCitasMesPrev');
+      const calCitasMesNext = document.getElementById('calCitasMesNext');
+      const calCitasHoy = document.getElementById('calCitasHoy');
+      const calCitasTituloMes = document.getElementById('calCitasTituloMes');
+      const calCitasEncabezados = document.getElementById('calCitasEncabezados');
+      const calCitasGrid = document.getElementById('calCitasGrid');
+      const modalDiaCitasFecha = document.getElementById('modalDiaCitasFecha');
+      const modalDiaCitasLista = document.getElementById('modalDiaCitasLista');
+
       const totalProgramadas = document.getElementById('totalProgramadas');
       const totalCompletadas = document.getElementById('totalCompletadas');
       const totalCanceladas = document.getElementById('totalCanceladas');
       const proximaCita = document.getElementById('proximaCita');
       const citasSemana = document.getElementById('citasSemana');
+      const borrarTodasCitasBtn = document.getElementById('borrarTodasCitasBtn');
 
-      let citasGlobales = []; // Solo citas de pacientes asignados al cuidador
-      let pacientesCitasMap = new Map();
+      // Si algún elemento clave del panel no está presente, no hay nada que inicializar
+      if (!formCita || !listaCitas) return;
+
+      let modoEdicion = false;
+      let citaEditandoId = null;
+      let citasGlobales = []; // Solo citas de pacientes asignados a este usuario
+      let pacientesCitasLista = []; // {id, nombre} usado por el autocompletado de paciente
       let pacientesAsignadosIds = new Set();
       const normalizarEstado = (valor) => String(valor || '').trim().toLowerCase();
+      const obtenerIdCita = (cita) => cita?.id ?? cita?.id_cita ?? cita?.cita_id ?? cita?.ID ?? null;
 
-      // Cargar pacientes asignados en el filtro
+      // Bloquea fechas pasadas al crear una cita nueva. Al editar se retira
+      // el límite para conservar citas históricas; la validación real la
+      // hace el servidor.
+      function establecerMinFechaCita() {
+        const hoy = new Date();
+        const y = hoy.getFullYear();
+        const m = String(hoy.getMonth() + 1).padStart(2, '0');
+        const d = String(hoy.getDate()).padStart(2, '0');
+        fechaCita.min = `${y}-${m}-${d}`;
+      }
+      establecerMinFechaCita();
+
+      // Cargar SOLO los pacientes asignados a este usuario (autocompletado
+      // del formulario + select de filtro). Esta es la diferencia clave
+      // frente al panel de administrador: aquí el listado de pacientes
+      // depende de la asignación, no de todos los pacientes del sistema.
       async function cargarPacientesCitas() {
         try {
           const response = await obtenerPacientesCuidador();
           if (!response.ok) throw new Error('Error al cargar pacientes');
 
           const pacientes = await response.json();
-          pacientesCitasMap = new Map(
-            pacientes.map((paciente) => [String(paciente.id), `${paciente.nombres} ${paciente.apellidos}`])
-          );
+
+          pacientesCitasLista = pacientes.map((paciente) => ({
+            id: paciente.id,
+            nombre: `${paciente.nombres} ${paciente.apellidos}`
+          }));
           pacientesAsignadosIds = new Set(pacientes.map((paciente) => String(paciente.id)));
 
           const opcionTodos = '<option value="">Todos los pacientes</option>';
           filtroPacienteCita.innerHTML = opcionTodos;
 
-          pacientes.forEach(paciente => {
-            const nombreCompleto = `${paciente.nombres} ${paciente.apellidos}`;
-            const option = `<option value="${paciente.id}">${nombreCompleto}</option>`;
+          pacientesCitasLista.forEach((paciente) => {
+            const option = `<option value="${paciente.id}">${paciente.nombre}</option>`;
             filtroPacienteCita.insertAdjacentHTML('beforeend', option);
           });
-
-          if (!pacientes.length) {
-            citasGlobales = [];
-            aplicarFiltrosCitas();
-          }
         } catch (error) {
           console.error('Error al cargar pacientes:', error);
+          pacientesCitasLista = [];
           pacientesAsignadosIds = new Set();
-          citasGlobales = [];
-          aplicarFiltrosCitas();
         }
       }
+
+      // ---- Autocompletado de paciente (formulario de cita) ----
+      function normalizarTextoBusqueda(texto) {
+        return String(texto || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .trim();
+      }
+
+      function filtrarPacientesCitaAutocomplete(texto) {
+        const consulta = normalizarTextoBusqueda(texto);
+        const lista = consulta
+          ? pacientesCitasLista.filter((p) => normalizarTextoBusqueda(p.nombre).includes(consulta))
+          : pacientesCitasLista;
+        return lista.slice(0, 8);
+      }
+
+      let pacienteCitaIndiceActivo = -1;
+
+      function renderPacienteCitaOpciones(lista) {
+        pacienteCitaIndiceActivo = -1;
+        if (!lista.length) {
+          pacienteCitaOpciones.innerHTML = `<div class="autocomplete-paciente-vacio">No se encontraron pacientes asignados</div>`;
+          pacienteCitaOpciones.classList.remove('d-none');
+          return;
+        }
+        pacienteCitaOpciones.innerHTML = lista.map((p) => `
+          <button type="button" class="autocomplete-paciente-item" data-id="${p.id}" data-nombre="${p.nombre.replace(/"/g, '&quot;')}">
+            ${p.nombre}
+          </button>
+        `).join('');
+        pacienteCitaOpciones.classList.remove('d-none');
+
+        pacienteCitaOpciones.querySelectorAll('.autocomplete-paciente-item').forEach((item) => {
+          item.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            seleccionarPacienteCita(item.dataset.id, item.dataset.nombre);
+          });
+        });
+      }
+
+      function actualizarResaltadoPacienteCita() {
+        pacienteCitaOpciones.querySelectorAll('.autocomplete-paciente-item').forEach((item, idx) => {
+          item.classList.toggle('activo', idx === pacienteCitaIndiceActivo);
+        });
+      }
+
+      function seleccionarPacienteCita(id, nombre) {
+        pacienteCita.value = id;
+        pacienteCitaBuscar.value = nombre;
+        pacienteCitaOpciones.classList.add('d-none');
+        pacienteCitaOpciones.innerHTML = '';
+      }
+
+      pacienteCitaBuscar.addEventListener('input', () => {
+        pacienteCita.value = '';
+        renderPacienteCitaOpciones(filtrarPacientesCitaAutocomplete(pacienteCitaBuscar.value));
+      });
+
+      pacienteCitaBuscar.addEventListener('focus', () => {
+        renderPacienteCitaOpciones(filtrarPacientesCitaAutocomplete(pacienteCitaBuscar.value));
+      });
+
+      pacienteCitaBuscar.addEventListener('blur', () => {
+        setTimeout(() => pacienteCitaOpciones.classList.add('d-none'), 120);
+      });
+
+      pacienteCitaBuscar.addEventListener('keydown', (e) => {
+        const items = pacienteCitaOpciones.querySelectorAll('.autocomplete-paciente-item');
+        if (!items.length || pacienteCitaOpciones.classList.contains('d-none')) return;
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          pacienteCitaIndiceActivo = Math.min(pacienteCitaIndiceActivo + 1, items.length - 1);
+          actualizarResaltadoPacienteCita();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          pacienteCitaIndiceActivo = Math.max(pacienteCitaIndiceActivo - 1, 0);
+          actualizarResaltadoPacienteCita();
+        } else if (e.key === 'Enter') {
+          if (pacienteCitaIndiceActivo >= 0 && items[pacienteCitaIndiceActivo]) {
+            e.preventDefault();
+            const item = items[pacienteCitaIndiceActivo];
+            seleccionarPacienteCita(item.dataset.id, item.dataset.nombre);
+          }
+        } else if (e.key === 'Escape') {
+          pacienteCitaOpciones.classList.add('d-none');
+        }
+      });
+      // ---- Fin autocompletado de paciente ----
 
       // Cargar citas desde el servidor, restringidas a pacientes asignados
       async function cargarCitas() {
@@ -1724,151 +2010,360 @@
         }
       }
 
-      function obtenerFechaLocalISO(fechaValor) {
-        if (!fechaValor) return '';
-        const fechaNormalizada =
-          typeof fechaValor === 'string'
-            ? fechaValor.replace(' ', 'T')
-            : fechaValor;
-
-        const fecha = new Date(fechaNormalizada);
+      function obtenerFechaLocalISO(fechaInput) {
+        const fecha = new Date(fechaInput);
         if (Number.isNaN(fecha.getTime())) return '';
-
-        const year = fecha.getFullYear();
-        const month = String(fecha.getMonth() + 1).padStart(2, '0');
-        const day = String(fecha.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        const y = fecha.getFullYear();
+        const m = String(fecha.getMonth() + 1).padStart(2, '0');
+        const d = String(fecha.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
       }
 
-      function obtenerCitasFiltradas(citas = []) {
-        const filtroPaciente = filtroPacienteCita.value;
+      // Guardar cita
+      async function guardarCita(e) {
+        e.preventDefault();
 
-        return citas.filter((cita) => {
-          if (filtroPaciente && String(cita.id_paciente) !== String(filtroPaciente)) return false;
-          return true;
-        });
+        if (!pacienteCita.value) {
+          mostrarToast('Selecciona un paciente de la lista de resultados.', 'warning');
+          pacienteCitaBuscar.focus();
+          return;
+        }
+
+        if (!pacientesAsignadosIds.has(String(pacienteCita.value))) {
+          mostrarToast('Solo puedes agendar citas para pacientes asignados a ti.', 'warning');
+          return;
+        }
+
+        const fechaHora = `${fechaCita.value}T${horaCita.value}:00`;
+
+        if (estadoCita.value === 'programada' && new Date(fechaHora) < new Date()) {
+          mostrarToast('No se puede agendar una cita con fecha/hora en el pasado.', 'warning');
+          return;
+        }
+
+        const cita = {
+          id_paciente: parseInt(pacienteCita.value),
+          fecha_hora: fechaHora,
+          motivo: motivoCita.value,
+          doctor: doctorCita.value || null,
+          especialidad: especialidadCita.value || null,
+          ubicacion: ubicacionCita.value || null,
+          estado: estadoCita.value,
+          anticipacion_min: parseInt(anticipacion.value),
+          notas: notasCita.value || null
+        };
+
+        try {
+          let url = 'https://siscom-4lbe.onrender.com/guardarCita';
+          let method = 'POST';
+
+          const idEdicion = Number(citaEditandoId || citaIdInput.value);
+          if (modoEdicion && Number.isFinite(idEdicion) && idEdicion > 0) {
+            url = `https://siscom-4lbe.onrender.com/actualizarCita/${idEdicion}`;
+            method = 'PUT';
+          }
+
+          const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json', ...obtenerHeadersCuidador() },
+            body: JSON.stringify(cita)
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.mensaje || 'Error al guardar cita');
+          }
+
+          mostrarToast(modoEdicion ? 'Cita actualizada correctamente' : 'Cita guardada correctamente', 'success');
+          limpiarFormulario();
+          await cargarCitas();
+
+        } catch (error) {
+          console.error('Error al guardar cita:', error);
+          mostrarToast('Error al guardar la cita: ' + error.message, 'danger');
+        }
       }
 
-      function aplicarFiltrosCitas() {
-        const citasFiltradas = obtenerCitasFiltradas(citasGlobales || []);
-        mostrarCitas(citasFiltradas);
-        actualizarResumen(citasFiltradas);
-      }
-
-      function renderFilaCita(cita, mostrarBadgeProxima) {
-        const fechaHora = new Date(cita.fecha_hora);
-        const ahora = new Date();
-        const esProxima = mostrarBadgeProxima && fechaHora > ahora && (fechaHora - ahora) < 24 * 60 * 60 * 1000;
-
-        const fechaStr = fechaHora.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
-        const horaStr = fechaHora.toTimeString().slice(0, 5);
-
-        // Una cita "programada" cuya fecha ya pasó y nunca se marcó como completada
-        // se trata como inasistencia dentro del historial.
-        const estadoNormalizado = normalizarEstado(cita.estado || 'programada');
-        const esInasistencia = estadoNormalizado === 'programada' && fechaHora <= ahora;
-        const claveEstado = esInasistencia ? 'inasistencia' : estadoNormalizado;
-        const textoEstado = esInasistencia ? 'Inasistencia' : (cita.estado || 'Programada');
-
-        const badgeClass = {
-          'programada': 'bg-primary',
-          'completada': 'bg-success',
-          'cancelada': 'bg-danger',
-          'inasistencia': 'bg-warning text-dark'
-        }[claveEstado] || 'bg-secondary';
-
-        const iconoEstado = {
-          'programada': 'bi-calendar-event',
-          'completada': 'bi-check-circle',
-          'cancelada': 'bi-x-circle',
-          'inasistencia': 'bi-calendar-x'
-        }[claveEstado] || 'bi-calendar';
-
-        return `
-          <div class="list-group-item p-3 ${esProxima ? 'border-start border-4 border-warning' : ''}">
-            <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
-              <h6 class="mb-0">${cita.motivo}</h6>
-              <span class="badge ${badgeClass} text-capitalize cita-estado-badge flex-shrink-0">
-                <i class="bi ${iconoEstado} me-1"></i>${textoEstado}
-              </span>
-            </div>
-            ${esProxima ? '<div class="mb-1"><span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i> Próxima</span></div>' : ''}
-            <p class="mb-0 text-muted">
-              <i class="bi bi-calendar me-1"></i> ${fechaStr}
-              <i class="bi bi-clock ms-2 me-1"></i> ${horaStr}
-              ${cita.doctor ? `<br><i class="bi bi-person-badge me-1"></i> ${cita.doctor}` : ''}
-              ${cita.ubicacion ? ` <i class="bi bi-geo-alt ms-2 me-1"></i> ${cita.ubicacion}` : ''}
-            </p>
-          </div>
-        `;
-      }
-
-      // Agrupa una lista de citas por paciente, preservando el orden cronológico ya aplicado
-      function agruparCitasPorPaciente(citas) {
-        const grupos = new Map();
-        citas.forEach((cita) => {
-          const idPaciente = String(cita.id_paciente);
-          if (!grupos.has(idPaciente)) grupos.set(idPaciente, []);
-          grupos.get(idPaciente).push(cita);
-        });
-        return Array.from(grupos.entries()).map(([idPaciente, citasPaciente]) => ({
-          idPaciente,
-          nombrePaciente: pacientesCitasMap.get(idPaciente) || `Paciente #${idPaciente}`,
-          citas: citasPaciente
-        }));
-      }
-
-      // Renderiza el bloque de un paciente con su nombre como dato principal
-      function renderGrupoPaciente(grupo, mostrarBadgeProxima) {
-        const filas = grupo.citas.map((cita) => renderFilaCita(cita, mostrarBadgeProxima)).join('');
-        return `
-          <div class="cita-grupo-paciente">
-            <div class="cita-grupo-header px-3 py-2 d-flex align-items-center gap-2">
-              <i class="bi bi-person-circle"></i>
-              <strong>${grupo.nombrePaciente}</strong>
-              <span class="badge bg-secondary ms-auto">${grupo.citas.length} ${grupo.citas.length === 1 ? 'cita' : 'citas'}</span>
-            </div>
-            ${filas}
-          </div>
-        `;
-      }
-
-      // Mostrar citas separadas en Próximas Citas e Historial de Citas, agrupadas por paciente
+      // Mostrar citas
       function mostrarCitas(citas = null) {
         const citasAMostrar = citas || citasGlobales || [];
-        const ahora = new Date();
+        contadorCitas.textContent = `${citasAMostrar.length} citas`;
 
-        const proximas = citasAMostrar
-          .filter((cita) => normalizarEstado(cita.estado || 'programada') === 'programada' && new Date(cita.fecha_hora) > ahora)
-          .sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
-
-        const historial = citasAMostrar
-          .filter((cita) => !(normalizarEstado(cita.estado || 'programada') === 'programada' && new Date(cita.fecha_hora) > ahora))
-          .sort((a, b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
-
-        contadorCitasProximas.textContent = `${proximas.length} citas`;
-        contadorCitasHistorial.textContent = `${historial.length} citas`;
-
-        const gruposProximas = agruparCitasPorPaciente(proximas);
-        const gruposHistorial = agruparCitasPorPaciente(historial);
-
-        listaCitasProximas.innerHTML = gruposProximas.length
-          ? gruposProximas.map((grupo) => renderGrupoPaciente(grupo, true)).join('')
-          : `
+        if (citasAMostrar.length === 0) {
+          listaCitas.innerHTML = `
             <div class="text-center text-muted p-4">
               <i class="bi bi-calendar-x display-4 d-block mb-2"></i>
-              No hay próximas citas programadas.
+              No hay citas registradas. Crea una nueva cita usando el formulario.
             </div>
           `;
+          return;
+        }
 
-        listaCitasHistorial.innerHTML = gruposHistorial.length
-          ? gruposHistorial.map((grupo) => renderGrupoPaciente(grupo, false)).join('')
-          : `
-            <div class="text-center text-muted p-4">
-              <i class="bi bi-calendar-x display-4 d-block mb-2"></i>
-              No hay citas en el historial.
+        const citasOrdenadas = [...citasAMostrar].sort((a, b) => new Date(b.fecha_hora) - new Date(a.fecha_hora));
+
+        listaCitas.innerHTML = citasOrdenadas.map(cita => {
+          const citaId = obtenerIdCita(cita);
+          const fechaHora = new Date(cita.fecha_hora);
+          const ahora = new Date();
+          const esProxima = fechaHora > ahora && (fechaHora - ahora) < 24 * 60 * 60 * 1000;
+
+          const fechaStr = fechaHora.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
+          const horaStr = fechaHora.toTimeString().slice(0, 5);
+          const nombrePaciente = (pacientesCitasLista.find((p) => String(p.id) === String(cita.id_paciente)) || {}).nombre;
+
+          const badgeClass = {
+            'programada': 'bg-primary',
+            'completada': 'bg-success',
+            'cancelada': 'bg-danger'
+          }[cita.estado] || 'bg-secondary';
+
+          const iconoEstado = {
+            'programada': 'bi-calendar-event',
+            'completada': 'bi-check-circle',
+            'cancelada': 'bi-x-circle'
+          }[cita.estado] || 'bi-calendar';
+
+          return `
+            <div class="list-group-item p-3 ${esProxima ? 'border-start border-4 border-warning' : ''}">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge ${badgeClass} text-capitalize">
+                      <i class="bi ${iconoEstado} me-1"></i> ${cita.estado || 'Programada'}
+                    </span>
+                    ${esProxima ? '<span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i> Próxima</span>' : ''}
+                  </div>
+                  <h6 class="mb-1">${cita.motivo}</h6>
+                  <p class="mb-1 text-muted">
+                    <i class="bi bi-person me-1"></i> ${nombrePaciente || `Paciente #${cita.id_paciente}`}<br>
+                    <i class="bi bi-calendar me-1"></i> ${fechaStr}
+                    <i class="bi bi-clock ms-2 me-1"></i> ${horaStr}
+                    ${cita.doctor ? `<br><i class="bi bi-person-badge me-1"></i> Dr. ${cita.doctor}` : ''}
+                    ${cita.ubicacion ? `<br><i class="bi bi-geo-alt me-1"></i> ${cita.ubicacion}` : ''}
+                  </p>
+                </div>
+                <div class="btn-group btn-group-sm ms-2">
+                  ${normalizarEstado(cita.estado || 'programada') !== 'completada' ? `
+                    <button class="btn btn-outline-success btn-completar-cita" data-id="${citaId}" title="Marcar como completada" ${!citaId ? 'disabled' : ''}>
+                      <i class="bi bi-check-lg"></i>
+                    </button>
+                  ` : ''}
+                  ${normalizarEstado(cita.estado || 'programada') !== 'cancelada' ? `
+                    <button class="btn btn-outline-warning btn-cancelar-cita" data-id="${citaId}" title="Cancelar cita" ${!citaId ? 'disabled' : ''}>
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  ` : ''}
+                  <button class="btn btn-outline-primary btn-editar-cita" data-id="${citaId}" title="Editar" ${!citaId ? 'disabled' : ''}>
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn btn-outline-danger btn-eliminar-cita" data-id="${citaId}" title="Eliminar" ${!citaId ? 'disabled' : ''}>
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </div>
             </div>
           `;
+        }).join('');
+      }
+
+      // ---- Vista de Calendario ----
+      let vistaCitasActual = 'lista';
+      let calCitasFechaRef = new Date();
+      let citasFiltradasActuales = [];
+      let modalDiaCitasInstancia = null;
+
+      const DIAS_SEMANA_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+      function cambiarVistaCitas(vista) {
+        vistaCitasActual = vista;
+        const esLista = vista === 'lista';
+        btnVistaListaCitas.classList.toggle('active', esLista);
+        btnVistaCalendarioCitas.classList.toggle('active', !esLista);
+        listaCitas.classList.toggle('d-none', !esLista);
+        calendarioCitasWrap.classList.toggle('d-none', esLista);
+        if (!esLista) renderCalendarioCitas(citasFiltradasActuales);
+      }
+
+      function renderCalendarioCitas(citas = []) {
+        const year = calCitasFechaRef.getFullYear();
+        const month = calCitasFechaRef.getMonth();
+
+        calCitasTituloMes.textContent = `${MESES_LARGOS[month]} ${year}`;
+        calCitasEncabezados.innerHTML = DIAS_SEMANA_CORTOS.map((d) => `<div class="cal-encabezado">${d}</div>`).join('');
+
+        const citasPorDia = new Map();
+        (citas || []).forEach((cita) => {
+          if (!cita.fecha_hora) return;
+          const clave = obtenerFechaLocalISO(cita.fecha_hora);
+          if (!clave) return;
+          if (!citasPorDia.has(clave)) citasPorDia.set(clave, []);
+          citasPorDia.get(clave).push(cita);
+        });
+
+        const primerDiaMes = new Date(year, month, 1);
+        const ultimoDiaMes = new Date(year, month + 1, 0);
+        const inicioGrid = new Date(primerDiaMes);
+        inicioGrid.setDate(primerDiaMes.getDate() - primerDiaMes.getDay());
+        const finGrid = new Date(ultimoDiaMes);
+        finGrid.setDate(ultimoDiaMes.getDate() + (6 - ultimoDiaMes.getDay()));
+
+        const hoyClave = obtenerFechaLocalISO(new Date());
+        let celdas = '';
+        const cursor = new Date(inicioGrid);
+        while (cursor <= finGrid) {
+          const claveDia = obtenerFechaLocalISO(cursor);
+          const esOtroMes = cursor.getMonth() !== month;
+          const esHoy = claveDia === hoyClave;
+          const citasDia = citasPorDia.get(claveDia) || [];
+
+          const puntos = citasDia.slice(0, 3).map((cita) => {
+            const clase = {
+              'programada': 'bg-primary',
+              'completada': 'bg-success',
+              'cancelada': 'bg-danger'
+            }[cita.estado] || 'bg-secondary';
+            return `<span class="cal-day-dot ${clase}"></span>`;
+          }).join('');
+          const extra = citasDia.length > 3 ? `<span class="cal-day-extra">+${citasDia.length - 3}</span>` : '';
+
+          celdas += `
+            <div class="cal-day ${esOtroMes ? 'cal-day-otro-mes' : ''} ${esHoy ? 'cal-day-hoy' : ''} ${citasDia.length ? 'cal-day-con-citas' : ''}"
+                 data-fecha="${claveDia}" ${citasDia.length ? 'role="button" tabindex="0"' : ''}>
+              <span class="cal-day-numero">${cursor.getDate()}</span>
+              ${citasDia.length ? `<div class="cal-day-puntos">${puntos}${extra}</div>` : ''}
+            </div>
+          `;
+          cursor.setDate(cursor.getDate() + 1);
+        }
+
+        calCitasGrid.innerHTML = celdas;
+
+        calCitasGrid.querySelectorAll('.cal-day-con-citas').forEach((celda) => {
+          const abrir = () => abrirModalDiaCitas(celda.dataset.fecha, citasPorDia.get(celda.dataset.fecha) || []);
+          celda.addEventListener('click', abrir);
+          celda.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              abrir();
+            }
+          });
+        });
+      }
+
+      function abrirModalDiaCitas(claveFecha, citasDia) {
+        const [y, m, d] = claveFecha.split('-').map(Number);
+        const fechaLegible = new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        modalDiaCitasFecha.textContent = fechaLegible;
+
+        const citasOrdenadas = [...citasDia].sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
+
+        modalDiaCitasLista.innerHTML = citasOrdenadas.map((cita) => {
+          const citaId = obtenerIdCita(cita);
+          const horaStr = new Date(cita.fecha_hora).toTimeString().slice(0, 5);
+          const nombrePaciente = (pacientesCitasLista.find((p) => String(p.id) === String(cita.id_paciente)) || {}).nombre;
+          const badgeClass = {
+            'programada': 'bg-primary',
+            'completada': 'bg-success',
+            'cancelada': 'bg-danger'
+          }[cita.estado] || 'bg-secondary';
+          return `
+            <div class="list-group-item p-3">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge ${badgeClass} text-capitalize">${cita.estado || 'Programada'}</span>
+                    <small class="text-muted"><i class="bi bi-clock me-1"></i>${horaStr}</small>
+                  </div>
+                  <h6 class="mb-1">${cita.motivo}</h6>
+                  <p class="mb-0 text-muted small">
+                    <i class="bi bi-person me-1"></i> ${nombrePaciente || `Paciente #${cita.id_paciente}`}
+                    ${cita.doctor ? `<br><i class="bi bi-person-badge me-1"></i> Dr. ${cita.doctor}` : ''}
+                    ${cita.ubicacion ? `<br><i class="bi bi-geo-alt me-1"></i> ${cita.ubicacion}` : ''}
+                  </p>
+                </div>
+                <div class="btn-group btn-group-sm ms-2">
+                  ${normalizarEstado(cita.estado || 'programada') !== 'completada' ? `
+                    <button class="btn btn-outline-success btn-completar-cita-modal" data-id="${citaId}" title="Marcar como completada" ${!citaId ? 'disabled' : ''}>
+                      <i class="bi bi-check-lg"></i>
+                    </button>
+                  ` : ''}
+                  ${normalizarEstado(cita.estado || 'programada') !== 'cancelada' ? `
+                    <button class="btn btn-outline-warning btn-cancelar-cita-modal" data-id="${citaId}" title="Cancelar cita" ${!citaId ? 'disabled' : ''}>
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  ` : ''}
+                  <button class="btn btn-outline-primary btn-editar-cita-modal" data-id="${citaId}" title="Editar" ${!citaId ? 'disabled' : ''}>
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        modalDiaCitasLista.querySelectorAll('.btn-editar-cita-modal').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            if (modalDiaCitasInstancia) modalDiaCitasInstancia.hide();
+            window.editarCita(btn.dataset.id);
+          });
+        });
+
+        modalDiaCitasLista.querySelectorAll('.btn-completar-cita-modal').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const ok = await cambiarEstadoCita(btn.dataset.id, 'completada');
+            if (ok && modalDiaCitasInstancia) modalDiaCitasInstancia.hide();
+          });
+        });
+
+        modalDiaCitasLista.querySelectorAll('.btn-cancelar-cita-modal').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const ok = await cambiarEstadoCita(btn.dataset.id, 'cancelada');
+            if (ok && modalDiaCitasInstancia) modalDiaCitasInstancia.hide();
+          });
+        });
+
+        if (!modalDiaCitasInstancia) modalDiaCitasInstancia = new bootstrap.Modal(document.getElementById('modalDiaCitas'));
+        modalDiaCitasInstancia.show();
+      }
+
+      btnVistaListaCitas.addEventListener('click', () => cambiarVistaCitas('lista'));
+      btnVistaCalendarioCitas.addEventListener('click', () => cambiarVistaCitas('calendario'));
+      calCitasMesPrev.addEventListener('click', () => {
+        calCitasFechaRef.setMonth(calCitasFechaRef.getMonth() - 1);
+        renderCalendarioCitas(citasFiltradasActuales);
+      });
+      calCitasMesNext.addEventListener('click', () => {
+        calCitasFechaRef.setMonth(calCitasFechaRef.getMonth() + 1);
+        renderCalendarioCitas(citasFiltradasActuales);
+      });
+      calCitasHoy.addEventListener('click', () => {
+        calCitasFechaRef = new Date();
+        renderCalendarioCitas(citasFiltradasActuales);
+      });
+      // ---- Fin Vista de Calendario ----
+
+      function aplicarFiltrosCitas() {
+        const filtroPaciente = filtroPacienteCita.value;
+        const filtroEstado = filtroEstadoCita.value;
+        const fechaDesde = filtroFechaDesde.value;
+        const fechaHasta = filtroFechaHasta.value;
+
+        const citasFiltradas = (citasGlobales || []).filter((cita) => {
+          let incluir = true;
+          const fechaCitaActual = cita.fecha_hora ? obtenerFechaLocalISO(cita.fecha_hora) : '';
+
+          if (filtroPaciente && String(cita.id_paciente) !== String(filtroPaciente)) incluir = false;
+          if (filtroEstado && normalizarEstado(cita.estado || 'programada') !== normalizarEstado(filtroEstado)) incluir = false;
+          if (fechaDesde && fechaCitaActual < fechaDesde) incluir = false;
+          if (fechaHasta && fechaCitaActual > fechaHasta) incluir = false;
+          return incluir;
+        });
+
+        mostrarCitas(citasFiltradas);
+        actualizarResumen(citasFiltradas);
+        citasFiltradasActuales = citasFiltradas;
+        if (vistaCitasActual === 'calendario') renderCalendarioCitas(citasFiltradasActuales);
       }
 
       // Actualizar resumen
@@ -1889,7 +2384,6 @@
         totalCompletadas.textContent = completadas.length;
         totalCanceladas.textContent = canceladas.length;
 
-        // Próxima cita
         const citasFuturas = programadas.filter(c => new Date(c.fecha_hora) > ahora);
         citasFuturas.sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora));
 
@@ -1904,13 +2398,157 @@
           proximaCita.textContent = 'No hay citas programadas';
         }
 
-        // Citas esta semana
         const citasSemanaActual = citas.filter(c => {
           const fechaCita = new Date(c.fecha_hora);
           return fechaCita >= inicioSemana && fechaCita <= finSemana;
         });
 
         citasSemana.textContent = `${citasSemanaActual.length} citas`;
+      }
+
+      // Editar cita
+      window.editarCita = async function(id) {
+        const idNumerico = Number(id);
+        if (!Number.isFinite(idNumerico) || idNumerico <= 0) {
+          mostrarToast('Error: ID de cita inválido', 'danger');
+          return;
+        }
+
+        const cita = (citasGlobales || []).find((c) => String(obtenerIdCita(c)) === String(idNumerico));
+        if (!cita) {
+          mostrarToast('Cita no encontrada o no pertenece a tus pacientes asignados.', 'danger');
+          return;
+        }
+
+        const fechaHora = new Date(cita.fecha_hora);
+        const fechaStr = obtenerFechaLocalISO(cita.fecha_hora);
+        const horaStr = fechaHora.toTimeString().slice(0, 5);
+
+        modoEdicion = true;
+        const citaIdReal = Number(obtenerIdCita(cita));
+        citaEditandoId = Number.isFinite(citaIdReal) ? citaIdReal : idNumerico;
+        citaIdInput.value = String(citaEditandoId);
+        pacienteCita.value = String(cita.id_paciente || '');
+        const pacienteCitaEncontrado = pacientesCitasLista.find((p) => String(p.id) === String(cita.id_paciente));
+        pacienteCitaBuscar.value = pacienteCitaEncontrado ? pacienteCitaEncontrado.nombre : (cita.id_paciente ? `Paciente #${cita.id_paciente}` : '');
+        fechaCita.removeAttribute('min');
+        fechaCita.value = fechaStr;
+        horaCita.value = horaStr;
+        doctorCita.value = cita.doctor || '';
+        especialidadCita.value = cita.especialidad || '';
+        ubicacionCita.value = cita.ubicacion || '';
+        motivoCita.value = cita.motivo;
+        estadoCita.value = cita.estado || 'programada';
+        anticipacion.value = cita.anticipacion_min || 60;
+        notasCita.value = cita.notas || '';
+
+        tituloFormCita.textContent = 'Editar Cita Médica';
+        btnGuardarCita.innerHTML = '<i class="bi bi-save me-2"></i> Actualizar Cita';
+        btnCancelarEdicion.classList.remove('d-none');
+
+        formCita.scrollIntoView({ behavior: 'smooth' });
+      };
+
+      // Eliminar cita
+      window.eliminarCita = async function(id) {
+        if (!id || isNaN(id)) {
+          mostrarToast('Error: ID de cita inválido', 'danger');
+          return;
+        }
+
+        if (!(await mostrarConfirmacion('¿Estás seguro de que deseas eliminar esta cita?', { variante: 'danger', textoConfirmar: 'Eliminar' }))) return;
+
+        try {
+          const response = await fetch(`https://siscom-4lbe.onrender.com/eliminarCita/${id}`, {
+            method: 'DELETE',
+            headers: obtenerHeadersCuidador()
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            mostrarToast(errorData.mensaje || 'Error al eliminar la cita', 'danger');
+            return;
+          }
+
+          mostrarToast('Cita eliminada correctamente', 'success');
+          await cargarCitas();
+        } catch (error) {
+          console.error('Error al eliminar cita:', error);
+          mostrarToast(error.message || 'Error de conexión al eliminar la cita', 'danger');
+        }
+      };
+
+      // Marca una cita como completada o cancelada sin pasar por el
+      // formulario completo, reenviando el resto de campos tal cual.
+      async function cambiarEstadoCita(id, nuevoEstado) {
+        if (!id || isNaN(id)) {
+          mostrarToast('Error: ID de cita inválido', 'danger');
+          return false;
+        }
+
+        const cita = (citasGlobales || []).find((c) => String(obtenerIdCita(c)) === String(id));
+        if (!cita) {
+          mostrarToast('No se encontró la cita a actualizar.', 'danger');
+          return false;
+        }
+
+        const esCancelar = nuevoEstado === 'cancelada';
+        const mensajeConfirmacion = esCancelar
+          ? '¿Cancelar esta cita?'
+          : '¿Marcar esta cita como completada?';
+        const confirmado = await mostrarConfirmacion(mensajeConfirmacion, {
+          variante: esCancelar ? 'danger' : 'success',
+          textoConfirmar: esCancelar ? 'Cancelar cita' : 'Marcar completada'
+        });
+        if (!confirmado) return false;
+
+        try {
+          const response = await fetch(`https://siscom-4lbe.onrender.com/actualizarCita/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...obtenerHeadersCuidador() },
+            body: JSON.stringify({
+              id_paciente: cita.id_paciente,
+              fecha_hora: cita.fecha_hora,
+              motivo: cita.motivo,
+              anticipacion_min: cita.anticipacion_min,
+              doctor: cita.doctor,
+              especialidad: cita.especialidad,
+              ubicacion: cita.ubicacion,
+              estado: nuevoEstado,
+              notas: cita.notas
+            })
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            const detalle = error.error ? ` (${error.error})` : '';
+            throw new Error((error.mensaje || 'Error al actualizar la cita') + detalle);
+          }
+
+          mostrarToast(esCancelar ? 'Cita cancelada' : 'Cita marcada como completada', 'success');
+          await cargarCitas();
+          return true;
+        } catch (error) {
+          console.error('Error al cambiar estado de la cita:', error);
+          mostrarToast('Error al actualizar la cita: ' + error.message, 'danger');
+          return false;
+        }
+      }
+
+      // Limpiar formulario
+      function limpiarFormulario() {
+        formCita.reset();
+        citaIdInput.value = '';
+        pacienteCita.value = '';
+        pacienteCitaBuscar.value = '';
+        pacienteCitaOpciones.classList.add('d-none');
+        pacienteCitaOpciones.innerHTML = '';
+        modoEdicion = false;
+        citaEditandoId = null;
+        tituloFormCita.textContent = 'Nueva Cita Médica';
+        btnGuardarCita.innerHTML = '<i class="bi bi-save me-2"></i> Guardar Cita';
+        btnCancelarEdicion.classList.add('d-none');
+        establecerMinFechaCita();
       }
 
       // Mostrar toast
@@ -1940,11 +2578,76 @@
       }
 
       // Event listeners
+      formCita.addEventListener('submit', guardarCita);
+
+      btnCancelarEdicion.addEventListener('click', () => {
+        limpiarFormulario();
+      });
+
+      limpiarCitaBtn.addEventListener('click', limpiarFormulario);
+
       filtroPacienteCita.addEventListener('change', aplicarFiltrosCitas);
+      filtroEstadoCita.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaDesde.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaHasta.addEventListener('change', aplicarFiltrosCitas);
+      filtroFechaDesde.addEventListener('input', aplicarFiltrosCitas);
+      filtroFechaHasta.addEventListener('input', aplicarFiltrosCitas);
 
       limpiarFiltrosCitas.addEventListener('click', () => {
         filtroPacienteCita.value = '';
+        filtroEstadoCita.value = '';
+        filtroFechaDesde.value = '';
+        filtroFechaHasta.value = '';
         aplicarFiltrosCitas();
+      });
+
+      // Botón "Borrar todas mis citas": a diferencia del panel de
+      // administrador (que borra TODAS las citas del sistema mediante
+      // /eliminarTodasCitas), aquí se eliminan una por una solo las citas
+      // de los pacientes asignados a este usuario, para no afectar a
+      // pacientes de otros cuidadores.
+      if (borrarTodasCitasBtn) {
+        borrarTodasCitasBtn.onclick = async function() {
+          if (!citasGlobales.length) {
+            mostrarToast('No tienes citas registradas para eliminar.', 'info');
+            return;
+          }
+          if (!(await mostrarConfirmacion('¿Eliminar todas las citas de tus pacientes asignados? Esta acción no se puede deshacer.', { variante: 'danger', textoConfirmar: 'Eliminar todo' }))) return;
+
+          try {
+            const idsAEliminar = citasGlobales.map((c) => obtenerIdCita(c)).filter(Boolean);
+            await Promise.all(idsAEliminar.map((id) =>
+              fetch(`https://siscom-4lbe.onrender.com/eliminarCita/${id}`, {
+                method: 'DELETE',
+                headers: obtenerHeadersCuidador()
+              })
+            ));
+
+            mostrarToast('Se eliminaron las citas de tus pacientes asignados', 'success');
+            await cargarCitas();
+          } catch (error) {
+            console.error('Error al eliminar las citas:', error);
+            mostrarToast('Error al eliminar las citas: ' + error.message, 'danger');
+          }
+        };
+      }
+
+      // Delegación de eventos para botones de editar/eliminar/completar/cancelar
+      listaCitas.addEventListener('click', function(e) {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+
+        if (btn.classList.contains('btn-editar-cita')) {
+          const id = parseInt(btn.dataset.id);
+          editarCita(id);
+        } else if (btn.classList.contains('btn-eliminar-cita')) {
+          const id = parseInt(btn.dataset.id);
+          eliminarCita(id);
+        } else if (btn.classList.contains('btn-completar-cita')) {
+          cambiarEstadoCita(btn.dataset.id, 'completada');
+        } else if (btn.classList.contains('btn-cancelar-cita')) {
+          cambiarEstadoCita(btn.dataset.id, 'cancelada');
+        }
       });
 
       // Cargar pacientes y citas al mostrar la sección de citas
@@ -1963,7 +2666,6 @@
           await cargarCitas();
         })();
       }
-
     });
   </script>
 

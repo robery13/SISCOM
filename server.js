@@ -439,15 +439,34 @@ db.connect(err => {
         }
       }
 
+      // Módulos cuyo botón de menú (data-permiso="<Módulo>" en
+      // cuidador_backend.html / Admin_Backend.html) depende del permiso
+      // BASE del módulo, sin ":accion", para decidir si el ítem se ve en
+      // el menú (ej. data-permiso="Farmacia" en los botones "Inventario" y
+      // "Pedidos Farmacia"). Antes este permiso base solo llegaba a existir
+      // si ya venía de una migración de nombre viejo (ej. "Inventario" ->
+      // "Farmacia"); si esa fila nunca existió, el chip "Acceso" no se
+      // podía ni mostrar ni asignar en Seguridad > Permisos, y el módulo
+      // quedaba invisible para todos los roles menos administrador —aunque
+      // tuvieran Ver/Crear/Editar marcados— (bug reportado: "no aparece el
+      // botón de Acceso, Inventario y Pedidos de Farmacia no se muestran en
+      // ningún otro rol"). Se siembra explícito para no depender de eso.
+      const modulosConAccesoDirecto = ['Medicamentos', 'Registro de Tomas', 'Historial de Tomas', 'Farmacia', 'Citas Médicas', 'Roles', 'Parámetros del Sistema', 'Dominios de Correo'];
+      for (const modulo of modulosConAccesoDirecto) {
+        const cfg = modulosGranulares[modulo];
+        permisosSemilla.push([modulo, `Ver el módulo "${modulo}" en el menú${cfg ? ` (${cfg.descripcion})` : ''}`]);
+      }
+
       // Módulos que hoy ve el rol "empleado" (cuidador) en cuidador_backend.html.
       // Se le asignan por defecto la primera vez, para que ningún cuidador
       // pierda acceso a lo que ya usaba al activar el control por permisos.
       const modulosBasePorRol = {
         empleado: [
-          'Medicamentos:ver', 'Medicamentos:crear', 'Medicamentos:editar', 'Medicamentos:eliminar',
-          'Registro de Tomas:ver', 'Registro de Tomas:crear',
-          'Historial de Tomas:ver', 'Historial de Tomas:eliminar',
-          'Citas Médicas:ver', 'Citas Médicas:crear', 'Citas Médicas:editar', 'Citas Médicas:eliminar',
+          'Medicamentos', 'Medicamentos:ver', 'Medicamentos:crear', 'Medicamentos:editar', 'Medicamentos:eliminar',
+          'Registro de Tomas', 'Registro de Tomas:ver', 'Registro de Tomas:crear',
+          'Historial de Tomas', 'Historial de Tomas:ver', 'Historial de Tomas:eliminar',
+          'Citas Médicas', 'Citas Médicas:ver', 'Citas Médicas:crear', 'Citas Médicas:editar', 'Citas Médicas:eliminar',
+          'Farmacia', 'Farmacia:ver', 'Farmacia:crear',
           'Estadísticas'
         ]
       };
@@ -511,8 +530,75 @@ db.connect(err => {
             await queryAsync('INSERT IGNORE INTO permisos (nombre_permiso, descripcion) VALUES (?, ?)', [nombre, descripcion]);
           }
 
-          const filasPermisos = await queryAsync('SELECT id, nombre_permiso FROM permisos');
-          const idPorNombre = {};
+          let filasPermisos = await queryAsync('SELECT id, nombre_permiso FROM permisos');
+          let idPorNombre = {};
+          filasPermisos.forEach(f => { idPorNombre[f.nombre_permiso] = f.id; });
+
+          // Limpieza de permisos huérfanos ("fantasma"): filas de la tabla
+          // permisos que quedaron de versiones anteriores y que HOY no
+          // corresponden a ningún permiso real (ni están en permisosSemilla
+          // ni los usa ninguna ruta ni ningún data-permiso del front). Se
+          // detectaron por comparación con las capturas de Seguridad >
+          // Permisos, donde aparecían módulos con chips que no hacían nada:
+          //   - "Usuarios" (base, sin ":accion"): quedó del renombre viejo
+          //     "usuarios.gestionar" -> "Usuarios", pero el menú y las
+          //     rutas de Usuarios siempre usan el permiso GRANULAR
+          //     "Usuarios:ver" (ver data-permiso="Usuarios:ver" en
+          //     Admin_Backend.html); el permiso base "Usuarios" no
+          //     controla nada y solo agregaba un chip "Acceso" de más.
+          //   - "Pacientes" (base, sin ":accion"): nunca se sembró ni se
+          //     usa en ninguna ruta (Pacientes siempre se controla con
+          //     "Pacientes:ver/crear/editar/eliminar"); alguien debió
+          //     crearlo a mano desde el formulario de "Nuevo permiso" y
+          //     quedó como chip "Acceso" sin efecto real.
+          //   - "Inventario:ver" / "Inventario:crear" / "Inventario:editar":
+          //     restos del módulo "Inventario" antes de renombrarse a
+          //     "Farmacia". El renombre viejo (más arriba) solo migraba el
+          //     permiso PLANO "Inventario" (sin ":accion"); las 3 acciones
+          //     granulares nunca se migraron y quedaron como un módulo
+          //     "Inventario" aparte y duplicado en la pantalla de Permisos.
+          // La lista de nombres "canónicos" es exactamente permisosSemilla:
+          // todo lo que no esté ahí ya no es un permiso vigente.
+          const nombresCanonicos = new Set(permisosSemilla.map(p => p[0]));
+          // Módulo viejo -> módulo nuevo, para poder RESCATAR (en vez de solo
+          // borrar) las acciones granulares que sí tengan equivalente hoy:
+          // "Inventario:ver" -> "Farmacia:ver", "Inventario:crear" ->
+          // "Farmacia:crear". Si la acción no tiene equivalente (ej.
+          // "Inventario:editar", porque "Farmacia" no tiene "editar") se
+          // borra sin más, ya que ninguna ruta la usa.
+          const modulosRenombradosGranular = { Inventario: 'Farmacia' };
+          for (const fila of filasPermisos) {
+            if (nombresCanonicos.has(fila.nombre_permiso)) continue;
+            const idxDosPuntos = fila.nombre_permiso.indexOf(':');
+            let idDestino = null;
+            if (idxDosPuntos > -1) {
+              const moduloViejo = fila.nombre_permiso.slice(0, idxDosPuntos);
+              const accion = fila.nombre_permiso.slice(idxDosPuntos + 1);
+              const moduloNuevo = modulosRenombradosGranular[moduloViejo];
+              if (moduloNuevo && nombresCanonicos.has(`${moduloNuevo}:${accion}`)) {
+                idDestino = idPorNombre[`${moduloNuevo}:${accion}`] || null;
+              }
+            }
+            try {
+              if (idDestino) {
+                // Antes de borrar el permiso huérfano, cualquier rol que ya
+                // lo tuviera asignado recibe el permiso equivalente nuevo,
+                // para no quitarle acceso a nadie que ya lo estuviera usando.
+                const rolesConHuerfano = await queryAsync('SELECT DISTINCT nombre_rol FROM roles_permisos WHERE id_permiso = ?', [fila.id]);
+                for (const { nombre_rol } of rolesConHuerfano) {
+                  await queryAsync('INSERT IGNORE INTO roles_permisos (nombre_rol, id_permiso) VALUES (?, ?)', [nombre_rol, idDestino]);
+                }
+              }
+              await queryAsync('DELETE FROM permisos WHERE id = ?', [fila.id]);
+            } catch (errLimpieza) {
+              console.error(`Error al limpiar el permiso huérfano "${fila.nombre_permiso}":`, errLimpieza);
+            }
+          }
+
+          // Vuelve a cargar el catálogo ya limpio antes de continuar con las
+          // migraciones normales.
+          filasPermisos = await queryAsync('SELECT id, nombre_permiso FROM permisos');
+          idPorNombre = {};
           filasPermisos.forEach(f => { idPorNombre[f.nombre_permiso] = f.id; });
 
           // Migración de datos: los roles que ya tenían el permiso plano de
@@ -532,6 +618,30 @@ db.connect(err => {
                 if (!idGranular) continue;
                 await queryAsync('INSERT IGNORE INTO roles_permisos (nombre_rol, id_permiso) VALUES (?, ?)', [nombre_rol, idGranular]);
               }
+            }
+          }
+
+          // Migración inversa: si un rol ya tiene marcada alguna acción
+          // granular de un módulo de acceso directo (ej. "Farmacia:ver")
+          // pero nunca recibió el permiso base "Farmacia" (Acceso) —porque
+          // ese permiso base no existía hasta este cambio—, se le otorga
+          // automáticamente. De lo contrario el rol se queda con acciones
+          // permitidas pero el módulo sigue invisible en el menú, que es
+          // justo el bug reportado.
+          for (const modulo of modulosConAccesoDirecto) {
+            const idBase = idPorNombre[modulo];
+            if (!idBase) continue;
+            const idsAcciones = (modulosGranulares[modulo] ? modulosGranulares[modulo].acciones : [])
+              .map(accion => idPorNombre[`${modulo}:${accion}`])
+              .filter(Boolean);
+            if (!idsAcciones.length) continue;
+            const marcadores = idsAcciones.map(() => '?').join(',');
+            const rolesConAccion = await queryAsync(
+              `SELECT DISTINCT nombre_rol FROM roles_permisos WHERE id_permiso IN (${marcadores})`,
+              idsAcciones
+            );
+            for (const { nombre_rol } of rolesConAccion) {
+              await queryAsync('INSERT IGNORE INTO roles_permisos (nombre_rol, id_permiso) VALUES (?, ?)', [nombre_rol, idBase]);
             }
           }
 
@@ -2053,23 +2163,64 @@ app.put('/roles/:nombreRol/permisos', verificarPermiso('Permisos'), (req, res) =
   const { nombreRol } = req.params;
   const idsPermisos = Array.isArray(req.body.idsPermisos) ? req.body.idsPermisos.map(Number).filter(Number.isFinite) : [];
 
-  db.query('DELETE FROM roles_permisos WHERE nombre_rol = ?', [nombreRol], (err) => {
-    if (err) {
-      console.error('Error al actualizar permisos del rol:', err);
-      return res.status(500).json({ ok: false, mensaje: 'Error al actualizar permisos del rol' });
-    }
-    if (idsPermisos.length === 0) {
-      registrarBitacora(req, 'permisos.asignar', `Permisos del rol "${nombreRol}" limpiados (0 permisos)`);
-      return res.json({ ok: true, mensaje: 'Permisos del rol actualizados correctamente' });
-    }
-    const valores = idsPermisos.map(idPermiso => [nombreRol, idPermiso]);
-    db.query('INSERT INTO roles_permisos (nombre_rol, id_permiso) VALUES ?', [valores], (err2) => {
-      if (err2) {
-        console.error('Error al asignar permisos al rol:', err2);
+  const guardar = (idsFinal) => {
+    db.query('DELETE FROM roles_permisos WHERE nombre_rol = ?', [nombreRol], (err) => {
+      if (err) {
+        console.error('Error al actualizar permisos del rol:', err);
         return res.status(500).json({ ok: false, mensaje: 'Error al actualizar permisos del rol' });
       }
-      registrarBitacora(req, 'permisos.asignar', `Rol "${nombreRol}" ahora tiene ${idsPermisos.length} permiso(s)`);
-      res.json({ ok: true, mensaje: 'Permisos del rol actualizados correctamente' });
+      if (idsFinal.length === 0) {
+        registrarBitacora(req, 'permisos.asignar', `Permisos del rol "${nombreRol}" limpiados (0 permisos)`);
+        return res.json({ ok: true, mensaje: 'Permisos del rol actualizados correctamente' });
+      }
+      const valores = idsFinal.map(idPermiso => [nombreRol, idPermiso]);
+      db.query('INSERT INTO roles_permisos (nombre_rol, id_permiso) VALUES ?', [valores], (err2) => {
+        if (err2) {
+          console.error('Error al asignar permisos al rol:', err2);
+          return res.status(500).json({ ok: false, mensaje: 'Error al actualizar permisos del rol' });
+        }
+        registrarBitacora(req, 'permisos.asignar', `Rol "${nombreRol}" ahora tiene ${idsFinal.length} permiso(s)`);
+        res.json({ ok: true, mensaje: 'Permisos del rol actualizados correctamente' });
+      });
+    });
+  };
+
+  if (idsPermisos.length === 0) return guardar(idsPermisos);
+
+  // El permiso "Acceso" de un módulo (ej. "Farmacia", sin ":accion") es el
+  // que hace que el módulo se vea en el menú (data-permiso="Farmacia" en
+  // los botones del front). Si al guardar se marcó alguna acción granular
+  // del módulo (ej. "Farmacia:ver") pero no su "Acceso", el rol quedaría
+  // con permiso para usar la API pero sin ver el módulo en el menú — el
+  // mismo bug ya reportado antes con Farmacia/Inventario. Para que no
+  // vuelva a pasar por descuido al guardar desde la pantalla de Permisos,
+  // el "Acceso" se autocompleta aquí en el servidor.
+  const marcadores = idsPermisos.map(() => '?').join(',');
+  db.query(`SELECT id, nombre_permiso FROM permisos WHERE id IN (${marcadores})`, idsPermisos, (errNombres, filas) => {
+    if (errNombres) {
+      console.error('Error al leer permisos seleccionados para autocompletar Acceso:', errNombres);
+      return guardar(idsPermisos);
+    }
+    const idsSeleccionados = new Set(idsPermisos);
+    const modulosConGranularMarcada = new Set();
+    for (const fila of filas) {
+      const idxDosPuntos = fila.nombre_permiso.indexOf(':');
+      if (idxDosPuntos > -1) modulosConGranularMarcada.add(fila.nombre_permiso.slice(0, idxDosPuntos));
+    }
+    if (modulosConGranularMarcada.size === 0) return guardar(idsPermisos);
+    db.query('SELECT id, nombre_permiso FROM permisos WHERE nombre_permiso IN (?)', [Array.from(modulosConGranularMarcada)], (errBase, filasBase) => {
+      if (errBase) {
+        console.error('Error al buscar el permiso base "Acceso" de los módulos:', errBase);
+        return guardar(idsPermisos);
+      }
+      const idsFinal = [...idsPermisos];
+      for (const { id } of filasBase) {
+        if (!idsSeleccionados.has(id)) {
+          idsSeleccionados.add(id);
+          idsFinal.push(id);
+        }
+      }
+      guardar(idsFinal);
     });
   });
 });
@@ -2208,7 +2359,7 @@ app.post('/restore', verificarPermiso('Backup y Restore'), (req, res) => {
 //script formularios
 
 //  RUTA 2: GUARDAR EN Registro_medicamentos
-app.post('/Registro_medicamentos', (req, res) => {
+app.post('/Registro_medicamentos', verificarPermisoAccion('Medicamentos', 'crear'), (req, res) => {
   const { nombre, dosis, frecuencia_horas, hora, paciente_id, estado, fecha_inicio, fecha_fin, notas } = req.body;
 
   if (!nombre || !dosis || !frecuencia_horas || !hora || !paciente_id) {
@@ -2251,7 +2402,7 @@ app.post('/Registro_medicamentos', (req, res) => {
 // o el usuario tiene otro rol (p. ej. administrador), se mantiene el
 // comportamiento anterior y se devuelven todos los registros, para no
 // romper otras vistas que dependen de este endpoint.
-app.get('/Registro_medicamentos', (req, res) => {
+app.get('/Registro_medicamentos', verificarPermisoAccion('Medicamentos', 'ver'), (req, res) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   const session = token ? authTokens[token] : null;
@@ -2292,7 +2443,7 @@ app.get('/Registro_medicamentos', (req, res) => {
 });
 
 // Actualizar medicamento
-app.put('/Registro_medicamentos/:id', (req, res) => {
+app.put('/Registro_medicamentos/:id', verificarPermisoAccion('Medicamentos', 'editar'), (req, res) => {
   const { id } = req.params;
   const { nombre, dosis, frecuencia_horas, hora, paciente_id, estado, fecha_inicio, fecha_fin, notas } = req.body;
 
@@ -2356,7 +2507,7 @@ app.put('/Registro_medicamentos/:id', (req, res) => {
 });
 
 // Eliminar medicamento
-app.delete('/Registro_medicamentos/:id', (req, res) => {
+app.delete('/Registro_medicamentos/:id', verificarPermisoAccion('Medicamentos', 'eliminar'), (req, res) => {
   const { id } = req.params;
 
   db.query('SELECT id_receta FROM Registro_medicamentos WHERE id = ?', [id], (errSel, filas) => {
@@ -2399,7 +2550,7 @@ app.delete('/Registro_medicamentos/:id', (req, res) => {
 
 
 //  RUTA 3: GUARDAR EN inventario
-app.post('/inventario', (req, res) => {
+app.post('/inventario', verificarPermisoAccion('Farmacia', 'crear'), (req, res) => {
   const { nombre, cantidad, consumo_por_dosis, id, actualizar, modo, motivo, id_usuario, frecuencia_cantidad, frecuencia_unidad } = req.body;
 
   const cantidadNum = parseInt(cantidad, 10);
@@ -2501,7 +2652,7 @@ app.post('/inventario', (req, res) => {
 });
 
 // Obtener todo el inventario
-app.get('/inventario', (req, res) => {
+app.get('/inventario', verificarPermisoAccion('Farmacia', 'ver'), (req, res) => {
   const sql = 'SELECT * FROM inventario ORDER BY id DESC';
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ mensaje: 'Error al cargar inventario' });
@@ -2512,7 +2663,7 @@ app.get('/inventario', (req, res) => {
 // Obtener movimientos de inventario (entradas/salidas), opcionalmente
 // filtrados por rango de fechas ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
 // Se usa para graficar "Movimiento de Inventario" en el dashboard.
-app.get('/movimientos-inventario', (req, res) => {
+app.get('/movimientos-inventario', verificarPermisoAccion('Farmacia', 'ver'), (req, res) => {
   const { desde, hasta, nombre } = req.query;
 
   let sql = `
@@ -3068,7 +3219,7 @@ app.delete('/limpiarDiaChecklist/:paciente_id/:fecha', (req, res) => {
 // RUTAS DE PEDIDOS A FARMACIA
 // ============================================
 
-app.post('/guardarPedido', async (req, res) => {
+app.post('/guardarPedido', verificarPermisoAccion('Farmacia', 'crear'), async (req, res) => {
   const { id, farmacia, items, notas, estado, fecha_creacion, id_usuario } = req.body;
 
   //console.log('Datos recibidos:', JSON.stringify(req.body, null, 2));
@@ -3156,7 +3307,7 @@ app.post('/guardarPedido', async (req, res) => {
   }
 });
 
-app.get('/obtenerPedidos', (req, res) => {
+app.get('/obtenerPedidos', verificarPermisoAccion('Farmacia', 'ver'), (req, res) => {
   const sql = `
     SELECT 
       p.id, 
@@ -3179,7 +3330,7 @@ app.get('/obtenerPedidos', (req, res) => {
   });
 });
 
-app.get('/obtenerPedido/:id', (req, res) => {
+app.get('/obtenerPedido/:id', verificarPermisoAccion('Farmacia', 'ver'), (req, res) => {
   const { id } = req.params;
 
   const sqlPedido = 'SELECT * FROM pedidos_farmacia WHERE id = ?';
@@ -3210,7 +3361,7 @@ app.get('/obtenerPedido/:id', (req, res) => {
   });
 });
 
-app.delete('/eliminarPedido/:id', (req, res) => {
+app.delete('/eliminarPedido/:id', verificarPermisoAccion('Farmacia', 'eliminar'), (req, res) => {
   const { id } = req.params;
 
   const sql = 'DELETE FROM pedidos_farmacia WHERE id = ?';
