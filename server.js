@@ -2698,8 +2698,32 @@ app.get('/movimientos-inventario', verificarPermisoAccion('Farmacia', 'ver'), (r
   });
 });
 
-const { Resend } = require("resend");
-const resend = new Resend(process.env.RESEND_API_KEY);
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_SENDER_EMAIL = process.env.MAIL_USER || "techcaresolutionssiscom@gmail.com";
+const BREVO_SENDER_NAME = "SISCOM";
+
+async function enviarCorreoBrevo({ to, subject, html }) {
+  const resp = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "api-key": BREVO_API_KEY,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: { name: BREVO_SENDER_NAME, email: BREVO_SENDER_EMAIL },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error(data.message || "Error de Brevo");
+  }
+  return data;
+}
 
 let tokens = {}; // tokens de recuperación de contraseña
 let authTokens = {}; // tokens de autenticación de sesión
@@ -2725,15 +2749,15 @@ app.post("/enviar-token", (req, res) => {
     const token = crypto.randomBytes(4).toString("hex");
     tokens[correoNormalizado] = { token, expires: Date.now() + 15 * 60 * 1000 }; // 15 min
 
-    if (!process.env.RESEND_API_KEY) {
+    if (!BREVO_API_KEY) {
       if (!allowDevRecovery) {
         return res.json({
           ok: false,
-          message: "Resend no configurado. Define RESEND_API_KEY en el servidor."
+          message: "Brevo no configurado. Define BREVO_API_KEY en el servidor."
         });
       }
 
-      console.warn("RESEND_API_KEY no configurada. Token de recuperacion para pruebas:", token);
+      console.warn("BREVO_API_KEY no configurada. Token de recuperacion para pruebas:", token);
       return res.json({
         ok: true,
         message: "Codigo generado en modo local. Revisa la consola del servidor.",
@@ -2742,8 +2766,7 @@ app.post("/enviar-token", (req, res) => {
     }
 
     try {
-      const { error } = await resend.emails.send({
-        from: "SISCOM <onboarding@resend.dev>",
+      await enviarCorreoBrevo({
         to: correoNormalizado,
         subject: "Recuperacion de contrasena",
         html: `
@@ -2753,8 +2776,6 @@ app.post("/enviar-token", (req, res) => {
         `,
       });
 
-      if (error) throw new Error(error.message || "Error de Resend");
-
       return res.json({ ok: true, message: "Correo de verificacion enviado" });
     } catch (mailErr) {
       console.error("Error al enviar correo de recuperacion:", mailErr.message || mailErr);
@@ -2763,7 +2784,7 @@ app.post("/enviar-token", (req, res) => {
         return res.json({
           ok: false,
           message: "No se pudo enviar el correo de verificacion",
-          mailError: String(mailErr?.message || "Error Resend")
+          mailError: String(mailErr?.message || "Error Brevo")
         });
       }
 
@@ -2772,7 +2793,7 @@ app.post("/enviar-token", (req, res) => {
         ok: true,
         message: "No se pudo enviar el correo. Usa el codigo mostrado para continuar.",
         devToken: token,
-        mailError: String(mailErr?.message || "Error Resend")
+        mailError: String(mailErr?.message || "Error Brevo")
       });
     }
   });
